@@ -35,6 +35,14 @@
 - Never report unexecuted checks as passing. Report blockers and remaining risks precisely.
 - Explain significant technical choices and alternatives in `docs/architecture.md`; keep README commands accurate for the implemented checkpoint.
 
+### Code Navigation
+
+- Prefer CodeGraph MCP for symbol discovery and dependency tracing.
+- Use targeted source reads only after locating relevant symbols.
+- Avoid repository-wide scans unless necessary.
+- Keep MCP responses concise.
+- Do not perform broad architecture analysis for small fixes.
+
 ## Development Workflow — Fast Iteration
 
 Prioritize shipping a working product over exhaustive verification.
@@ -77,5 +85,5 @@ For user-visible frontend changes:
 4. Fix confirmed in-scope issues and recheck only affected scenarios.
 5. Report PASS / FAIL / BLOCKED with brief evidence.
 6. If browser tooling is unavailable, report the blocker and do not claim browser acceptance.
-7. Avoid full E2E suites, unnecessary screenshots, private CV/Ollama processing and destructive mutations.
-8. Stop for review only after the scoped verification pass or a clearly reported blocker.
+
+Browser setup (WSL2): use the project `playwright-chromium` MCP server in `.mcp.json` (`@playwright/mcp@0.0.84 --browser chromium --headless --isolated`), not the plugin default, which expects branded Chrome at `/opt/google/chrome`. It uses Playwright-managed Chromium headless shell r1252 in `~/.cache/ms-playwright`. If the pinned version changes, install its browser with `npx -y playwright@<matching playwright-core version> install chromium-headless-shell` (ask first). Restart the agent session after `.mcp.json` changes. 7. Avoid full E2E suites, unnecessary screenshots, private CV/Ollama processing and destructive mutations. 8. Stop for review only after the scoped verification pass or a clearly reported blocker.

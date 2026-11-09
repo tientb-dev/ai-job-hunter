@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { CvSuggestionsRequestErrors } from './matching/cv-suggestions-request.filter.js';
+import { FoundationRequestErrors } from './tailored-cv/tailored-cv.http.js';
 import { configureAnalysisHttp } from './analysis/analysis-http.js';
 import { localAnalysisSecurity } from './analysis/analysis-security.js';
 import { Logger } from '@nestjs/common';
@@ -19,7 +19,7 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
   configureAnalysisHttp(app, localAnalysisSecurity(port));
   app.setGlobalPrefix('api/v1');
-  app.useGlobalFilters(new CvSuggestionsRequestErrors(app.getHttpAdapter()));
+  app.useGlobalFilters(new FoundationRequestErrors(app.getHttpAdapter()));
   app.useGlobalPipes(createValidationPipe());
   app.enableShutdownHooks();
   await app.listen(port, host);

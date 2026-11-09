@@ -1,0 +1,105 @@
+{
+  "_comment": "Shared by API export and web preview tests so both layout rules stay identical. Synthetic text only.",
+  "titles": {
+    "contact": "Contact",
+    "summary": "Summary",
+    "skills": "Skills",
+    "experience": "Experience",
+    "projects": "Projects",
+    "education": "Education",
+    "certifications": "Certifications",
+    "languages": "Languages",
+    "links": "Links",
+    "additional": "Additional information"
+  },
+  "reflow": [
+    [
+      "building apps across ERP, Education,\nand E-commerce.",
+      "building apps across ERP, Education, and E-commerce."
+    ],
+    [
+      "designing scalable systems, and driving\nend-to-end delivery",
+      "designing scalable systems, and driving end-to-end delivery"
+    ],
+    [
+      "Java, Node.js, React, PostgreSQL, AWS,\nDocker, and CI/CD.",
+      "Java, Node.js, React, PostgreSQL, AWS, Docker, and CI/CD."
+    ],
+    [
+      "Code Review, Mentoring, Stakeholder\nCommunication",
+      "Code Review, Mentoring, Stakeholder Communication"
+    ],
+    ["First point.\nSecond point.", "First point.\nSecond point."],
+    [
+      "Intro\n• Led a team\n• Owned planning",
+      "Intro\n• Led a team\n• Owned planning"
+    ],
+    ["Ho Chi Minh City\nVietnam", "Ho Chi Minh City\nVietnam"],
+    ["Java\nPython", "Java\nPython"],
+    ["Steps:\n1. Plan\n2. Build", "Steps:\n1. Plan\n2. Build"],
+    ["Owned planning,\n• Next bullet", "Owned planning,\n• Next bullet"],
+    ["  Trimmed edge\r\n  ", "Trimmed edge"]
+  ],
+  "rows": [
+    {
+      "name": "education after a user split: range beside institution; degree and graduation as lines",
+      "kind": "education",
+      "facts": [
+        ["institution", "Example Institute of Technology"],
+        ["qualification", "Bachelor's Degree in Information Technology"],
+        ["dates", "Graduated: 2019"],
+        ["dates", "Aug 2015 - Sep 2019"]
+      ],
+      "rows": [
+        ["Example Institute of Technology", "anchor", "Aug 2015 - Sep 2019"],
+        ["Bachelor's Degree in Information Technology", "body", null],
+        ["Graduated: 2019", "detail", null]
+      ]
+    },
+    {
+      "name": "education in source order",
+      "kind": "education",
+      "facts": [
+        ["institution", "Example Institute of Technology"],
+        ["dates", "Aug 2015 - Sep 2019"],
+        ["qualification", "Bachelor's Degree in Information Technology"],
+        ["dates", "Graduated: 2019"]
+      ],
+      "rows": [
+        ["Example Institute of Technology", "anchor", "Aug 2015 - Sep 2019"],
+        ["Bachelor's Degree in Information Technology", "body", null],
+        ["Graduated: 2019", "detail", null]
+      ]
+    },
+    {
+      "name": "experience: employer and each role keep their own ranges",
+      "kind": "experience",
+      "facts": [
+        ["employer", "Example Studio"],
+        ["dates", "Mar 2020 – Aug 2026 · 6 yrs 6 mos"],
+        ["role", "Team Lead"],
+        ["dates", "Jun 2024 – Present"],
+        ["project", "ERP platform"],
+        ["description", "• Led a team."]
+      ],
+      "rows": [
+        ["Example Studio", "anchor", "Mar 2020 – Aug 2026 · 6 yrs 6 mos"],
+        ["Team Lead", "anchor", "Jun 2024 – Present"],
+        ["ERP platform", "detail", null],
+        ["• Led a team.", "body", null]
+      ]
+    },
+    {
+      "name": "a non-range date is not pulled beside a title",
+      "kind": "experience",
+      "facts": [
+        ["role", "Intern"],
+        ["dates", "Summer 2019"]
+      ],
+      "rows": [
+        ["Intern", "anchor", null],
+        ["Summer 2019", "detail", null]
+      ]
+    }
+  ]
+}

@@ -152,3 +152,6 @@ vite.config.ts.timestamp-*
 
 # Locally installed agent skills (not application source)
 /.agents/skills/
+
+# CodeGraph local index
+.codegraph/

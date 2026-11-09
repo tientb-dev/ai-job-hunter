@@ -359,7 +359,7 @@ test('CV replacement invalidates the match and suggestions', async () => {
       ],
     },
   });
-  await screen.findByRole('button', { name: 'Analyze CV Match' });
+  await screen.findByRole('button', { name: 'Reanalyze CV Match' });
   fireEvent.click(screen.getByRole('button', { name: 'Open Improve CV' }));
   expect(screen.queryByRole('article')).toBeNull();
   expect(

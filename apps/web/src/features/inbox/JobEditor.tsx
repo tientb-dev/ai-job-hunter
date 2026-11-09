@@ -71,13 +71,18 @@ export function JobEditor({
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const requestedTab = new URLSearchParams(location.search).get('tab');
   const requestedView =
-    new URLSearchParams(location.search).get('tab') === 'application'
-      ? 'application'
+    requestedTab === 'application' ||
+    requestedTab === 'improve' ||
+    requestedTab === 'match'
+      ? requestedTab
       : 'overview';
   const [entryKey, setEntryKey] = useState(location.key);
   const [view, setView] = useState(requestedView);
   const [savedRevision, setSavedRevision] = useState(0);
+  const [savedJobUpdatedAt, setSavedJobUpdatedAt] = useState('');
+  const [sourceCvDirty, setSourceCvDirty] = useState(false);
   if (entryKey !== location.key) {
     setEntryKey(location.key);
     setView(requestedView);
@@ -147,6 +152,7 @@ export function JobEditor({
           editedFields.current.clear();
           baseline.current = JSON.stringify(editable);
           setForm(editable);
+          setSavedJobUpdatedAt(row.updatedAt);
           setContactDate(latestContactDate(editable.contactDates));
           setDiscovery(row.discovery);
           setError('');
@@ -441,6 +447,7 @@ export function JobEditor({
       });
       if (id) {
         setSavedRevision((value) => value + 1);
+        setSavedJobUpdatedAt(row.updatedAt);
         baseline.current = JSON.stringify({
           ...form,
           contactDates: row.contactDates,
@@ -842,7 +849,11 @@ export function JobEditor({
       spacing={3}
       sx={{ minWidth: 0, ...(usesViewport && { flex: 1, minHeight: 0 }) }}
     >
-      <UnsavedJobGuard dirty={dirty} savedNavigation={savedNavigation} />
+      <UnsavedJobGuard
+        dirty={dirty || sourceCvDirty}
+        sourceCvDirty={sourceCvDirty}
+        savedNavigation={savedNavigation}
+      />
       <JobActionLayout
         scrollable={usesViewport}
         scrollKey={id ? view : String(step)}
@@ -1202,7 +1213,9 @@ export function JobEditor({
               key={id}
               jobId={id}
               revision={`${savedRevision}:${JSON.stringify(form)}`}
+              jobUpdatedAt={savedJobUpdatedAt}
               jobDirty={dirty}
+              onReviewDirtyChange={setSourceCvDirty}
               view={
                 view === 'match'
                   ? 'match'

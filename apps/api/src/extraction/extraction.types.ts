@@ -1,3 +1,4 @@
+import type { PdfLayout } from './pdf-layout.js';
 export interface QuoteReference {
   readonly segmentId: string;
   readonly quote: string;
@@ -80,3 +81,14 @@ interface ExtractionEnvelope<K, D> {
 export type CvExtractionResult = ExtractionEnvelope<'cv', CvData>;
 export type JdExtractionResult = ExtractionEnvelope<'jd', JdData>;
 export type ExtractionResult = CvExtractionResult | JdExtractionResult;
+
+// Metadata available from the parse-only saved-CV flow; warnings are not returned.
+export interface SavedCvProvenance {
+  pdfLayout?: PdfLayout;
+  kind: 'saved-text-bootstrap' | 'parsed-upload';
+  format: 'pdf' | 'docx' | null;
+  parser: string | null;
+  segments: readonly SourceSegment[] | null;
+  warnings: null;
+  originalBytesRetained: false;
+}

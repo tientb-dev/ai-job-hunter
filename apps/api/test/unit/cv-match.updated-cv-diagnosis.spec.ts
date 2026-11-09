@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { memoryMatchRows } from '../support/memory-match-rows.js';
 import { readFileSync } from 'node:fs';
 import { afterEach, expect, test } from '@jest/globals';
 import { Repository } from 'typeorm';
@@ -125,6 +126,7 @@ function setup(
     ai,
     new MatchingService(),
     { get: async () => job } as unknown as OpportunitiesService,
+    memoryMatchRows(),
   );
   return { job, service, prompts, saved: () => ({ ...saved }) };
 }

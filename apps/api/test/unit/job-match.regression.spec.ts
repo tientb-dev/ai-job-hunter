@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { memoryMatchRows } from '../support/memory-match-rows.js';
 import { expect, jest, test } from '@jest/globals';
 import { Repository } from 'typeorm';
 import { AiError } from '../../src/ai/ai.errors.js';
@@ -63,6 +64,7 @@ function setup(
     new AiService(provider),
     new MatchingService(),
     jobs as unknown as OpportunitiesService,
+    memoryMatchRows(),
   );
   return { service, provider, cvs, jobs };
 }
@@ -382,8 +384,9 @@ test('context retrieval rechecks saved CV and job revisions without inference or
     JSON.stringify({ requirements: output() }),
   );
   const result = await service.analyze('synthetic');
-  cvs.findOneBy.mockResolvedValueOnce({
-    text: cvText,
+  // Changed CV text is stale; a new timestamp alone is not (identical re-upload).
+  cvs.findOne.mockResolvedValueOnce({
+    text: `${cvText}\nChanged line.`,
     fileName: 'synthetic.pdf',
     updatedAt: new Date('2026-11-01T00:00:00Z'),
   });
@@ -397,7 +400,7 @@ test('context retrieval rechecks saved CV and job revisions without inference or
   await expect(
     service.requireSnapshot('synthetic', result.matchId),
   ).rejects.toThrow(/stale/);
-  cvs.findOneBy.mockResolvedValueOnce(null);
+  cvs.findOne.mockResolvedValueOnce(null);
   await expect(
     service.requireSnapshot('synthetic', result.matchId),
   ).rejects.toThrow(/unavailable/);
@@ -418,3 +421,123 @@ test('failed reanalysis leaves the previous successful snapshot usable', async (
     (await service.requireSnapshot('synthetic', first.matchId)).matchId,
   ).toBe(first.matchId);
 });
+
+test('current match read reuses the authoritative analysis without inference and detects revision changes', async () => {
+  const { service, provider, cvs, jobs } = setup(async () =>
+    JSON.stringify({ requirements: output() }),
+  );
+  expect(await service.currentMatch('synthetic')).toEqual({
+    status: 'MISSING',
+  });
+  const result = await service.analyze('synthetic');
+  const current = await service.currentMatch('synthetic');
+  expect(current).toMatchObject({
+    status: 'VALID',
+    result: {
+      matchId: result.matchId,
+      score: result.score,
+      requirements: result.requirements,
+    },
+  });
+  expect(provider.generate).toHaveBeenCalledTimes(1);
+  jobs.get.mockResolvedValueOnce({
+    ...job,
+    updatedAt: new Date('2026-11-01T00:00:00Z'),
+  });
+  expect(await service.currentMatch('synthetic')).toEqual({
+    status: 'STALE_JOB',
+  });
+  cvs.findOne.mockResolvedValueOnce({
+    text: `${cvText}\nChanged line.`,
+    fileName: 'synthetic.pdf',
+    updatedAt: new Date('2026-11-01T00:00:00Z'),
+  });
+  expect(await service.currentMatch('synthetic')).toEqual({
+    status: 'STALE_CV',
+  });
+  // Byte-identical text under a new timestamp stays valid and is re-bound.
+  const rebound = new Date('2026-11-02T00:00:00Z');
+  cvs.findOne.mockResolvedValueOnce({
+    text: cvText,
+    fileName: 'synthetic.pdf',
+    updatedAt: rebound,
+  });
+  expect(await service.currentMatch('synthetic')).toMatchObject({
+    status: 'VALID',
+    result: { matchId: result.matchId, cvUpdatedAt: rebound.toISOString() },
+  });
+  expect(provider.generate).toHaveBeenCalledTimes(1);
+  cvs.findOne.mockResolvedValueOnce(null);
+  expect(await service.currentMatch('synthetic')).toEqual({
+    status: 'CV_UNAVAILABLE',
+  });
+  jobs.get.mockRejectedValueOnce(new Error('Job unavailable'));
+  await expect(service.currentMatch('missing')).rejects.toThrow(
+    'Job unavailable',
+  );
+  expect(provider.generate).toHaveBeenCalledTimes(1);
+});
+
+test.each(['skill', 'experience'] as const)(
+  'service qualification semantics and component selection are category-consistent: %s',
+  async (category) => {
+    const clause =
+      "Bachelor's Degree in Computer Science or Engineering, OR 2+ years of relevant experience, OR coding boot camp";
+    const savedJob = {
+      ...job,
+      skills: category === 'skill' ? clause : '',
+      experience: category === 'experience' ? clause : '',
+      preferredSkills: '',
+      domain: '',
+      description: clause,
+    };
+    const cv = '6+ years of experience building enterprise applications.';
+    const { service } = setup(
+      async (request) => {
+        expect(request.prompt).toContain('minimumMonths');
+        return JSON.stringify({
+          requirements: canonicalRequirements(savedJob).map((seed) => ({
+            ...seed,
+            cvQuote: '',
+            components: [
+              {
+                componentId: 'c2',
+                jdQuote: '2+ years of relevant experience',
+                cvQuote: cv,
+              },
+            ],
+          })),
+        });
+      },
+      cv,
+      savedJob,
+    );
+    const result = await service.analyze('synthetic');
+    expect(result).toMatchObject({
+      score: 100,
+      requirements: [
+        {
+          parentId: 'p1',
+          category,
+          status: 'EVIDENCED',
+          coverage: { mode: 'OR' },
+        },
+      ],
+    });
+    expect(result.requirements[0]!.coverage.components).toHaveLength(3);
+    expect(result.requirements[0]!.coverage.components[1]).toMatchObject({
+      id: 'c2',
+      status: 'EVIDENCED',
+      cvQuote: cv,
+    });
+    expect(
+      result.requirements[0]!.coverage.components.every(
+        (c) => !('qualification' in c),
+      ),
+    ).toBe(true);
+    expect(await service.currentMatch('synthetic')).toMatchObject({
+      status: 'VALID',
+      result: { matchId: result.matchId, score: 100 },
+    });
+  },
+);

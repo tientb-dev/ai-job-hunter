@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { memoryMatchRows } from '../support/memory-match-rows.js';
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@jest/globals';
 import { Repository } from 'typeorm';
@@ -75,6 +76,7 @@ test('captured P6.3 omission replays through the matching service as 44 / Consid
     ai,
     new MatchingService(),
     { get: async () => job } as unknown as OpportunitiesService,
+    memoryMatchRows(),
   );
   const result = await service.analyze(job.id);
   expect(result).toMatchObject({

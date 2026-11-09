@@ -1,4 +1,9 @@
 import {
+  qualificationGroup,
+  evaluateQualifications,
+  type QualificationPredicate,
+} from './cv-match.qualification.js';
+import {
   cvQuoteChoices,
   resolveCvQuote,
   databaseAttributedQuoteChoices,
@@ -9,6 +14,7 @@ import { normalize } from './matching.policy.js';
 export type CoverageStatus =
   'EVIDENCED' | 'PARTIAL' | 'NOT_EVIDENCED' | 'CONFLICT';
 export interface RequirementComponent {
+  qualification?: QualificationPredicate;
   id: string;
   label: string;
   jdQuote: string;
@@ -77,6 +83,10 @@ export function requirementGroup(
       jdQuote: label,
     })),
   });
+  if (category === 'skill' || category === 'experience') {
+    const qualification = qualificationGroup(text);
+    if (qualification) return qualification;
+  }
   if (category !== 'skill') return group('SINGLE', [text]);
   if (
     /^Familiarity with or interest in AI-assisted development tools, code generation, and automation workflows$/iu.test(
@@ -800,6 +810,8 @@ export function evaluateCoverage(
   cv: string,
   allowRecovery = false,
 ) {
+  if (group.components.every((component) => component.qualification))
+    return evaluateQualifications(group, selected, cv, allowRecovery);
   const contextual =
     group.managedLanguage ||
     group.aiFamiliarityOrInterest ||

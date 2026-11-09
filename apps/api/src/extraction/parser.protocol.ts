@@ -1,3 +1,4 @@
+import { validatePdfLayout, type PdfLayout } from './pdf-layout.js';
 import { sanitizeDocxFailure } from './docx-failure.js';
 import type { DocxFailureReason } from './docx-failure.js';
 import { ExtractionError } from './extraction.errors.js';
@@ -8,6 +9,7 @@ import { sanitizePdfWorkerFailure } from './pdf-parser.diagnostics.js';
 import type { PdfWorkerFailureDiagnostic } from './pdf-parser.diagnostics.js';
 
 export interface ParsedDocument {
+  readonly pdfLayout?: PdfLayout;
   readonly source: ExtractionSource;
   readonly pageCount: number | null;
   readonly warnings: readonly (
@@ -104,9 +106,15 @@ export function validateParseResponse(input: unknown): ParseResponse {
     keys(message, ['version', 'ok', 'result']);
     if (message.ok !== true) throw new Error();
     const result = object(message.result);
-    keys(result, ['source', 'pageCount', 'warnings']);
+    keys(result, [
+      'source',
+      'pageCount',
+      'warnings',
+      ...(Object.hasOwn(result, 'pdfLayout') ? ['pdfLayout'] : []),
+    ]);
     const validatedSource = createExtractionSource(result.source);
     if (validatedSource.format === 'docx') {
+      if (Object.hasOwn(result, 'pdfLayout')) throw new Error();
       if (
         result.pageCount !== null ||
         !Array.isArray(result.warnings) ||
@@ -150,6 +158,21 @@ export function validateParseResponse(input: unknown): ParseResponse {
       throw new Error();
     const pageCount = result.pageCount;
     const source = validatedSource;
+    const pdfLayout = Object.hasOwn(result, 'pdfLayout')
+      ? validatePdfLayout(result.pdfLayout, source.text)
+      : undefined;
+    if (
+      pdfLayout?.items.some(
+        (item) =>
+          !source.segments.some(
+            (s) =>
+              s.page === item.page &&
+              item.start >= s.start &&
+              item.end <= s.end,
+          ),
+      )
+    )
+      throw new Error();
     if (
       source.format !== 'pdf' ||
       source.segments.some((segment) => segment.page! > pageCount)
@@ -202,6 +225,7 @@ export function validateParseResponse(input: unknown): ParseResponse {
       ok: true,
       result: Object.freeze({
         source,
+        ...(pdfLayout ? { pdfLayout: Object.freeze(pdfLayout) } : {}),
         pageCount: result.pageCount,
         warnings: Object.freeze(warnings),
       }),

@@ -6,6 +6,7 @@ import {
   scoreCvMatch,
   validateMatchAssessment,
 } from '../../src/matching/cv-match.js';
+import { requirementGroup } from '../../src/matching/cv-match.coverage.js';
 import { CvMatchError } from '../../src/matching/cv-match.error.js';
 import type { Opportunity } from '../../src/opportunities/opportunity.entity.js';
 
@@ -564,4 +565,215 @@ test('a simple component-only quote is usable, but a negated skill plus unrelate
   ).toBe(100);
   const negative = 'No Python experience. Built Java services.';
   expect(assess(job, negative, negative).score).toBe(0);
+});
+
+const mixedQualification =
+  "Bachelor's Degree in Computer Science or Engineering, OR 2+ years of relevant experience, OR coding boot camp";
+const qualificationCases = [
+  ['My colleague completed a coding boot camp.', 'NOT_EVIDENCED'],
+  [
+    'Completed a coding boot camp.\nThis qualification is incomplete.',
+    'NOT_EVIDENCED',
+  ],
+  ['6 years of experience building irrigation systems.', 'NOT_EVIDENCED'],
+  ['Completed a project; coding boot camp.', 'NOT_EVIDENCED'],
+  ["Bachelor's Degree in Engineering Management.", 'NOT_EVIDENCED'],
+  [
+    '24 months of software development experience; 6 months of other work.',
+    'NOT_EVIDENCED',
+  ],
+  ["Completed Bachelor's Degree in Computer Science.", 'EVIDENCED'],
+  ["Completed Bachelor's Degree in Engineering.", 'EVIDENCED'],
+  ["Bachelor's Degree in Information Technology", 'NOT_EVIDENCED'],
+  ['6 years of relevant experience developing software systems.', 'EVIDENCED'],
+  ['6+ years of experience building enterprise applications.', 'EVIDENCED'],
+  ['2 years of relevant software development experience.', 'EVIDENCED'],
+  ['24 months of software development experience.', 'EVIDENCED'],
+  ['1 year 11 months of software development experience.', 'NOT_EVIDENCED'],
+  ['1 year of relevant software development experience.', 'NOT_EVIDENCED'],
+  ['6 years of unrelated work experience.', 'NOT_EVIDENCED'],
+  ['Worked on engineering prototypes for three months.', 'NOT_EVIDENCED'],
+  ['Completed a coding boot camp.', 'EVIDENCED'],
+  ['Graduated from a software development boot camp.', 'EVIDENCED'],
+  ['Attended a coding boot camp.', 'NOT_EVIDENCED'],
+  ['Currently enrolled in a coding boot camp.', 'NOT_EVIDENCED'],
+  ['Coding boot camp incomplete.', 'NOT_EVIDENCED'],
+  ['Completed a coding boot camp; status: incomplete.', 'NOT_EVIDENCED'],
+  ["Completed Bachelor's Degree in Engineering; not awarded.", 'NOT_EVIDENCED'],
+  ['No completed coding boot camp.', 'NOT_EVIDENCED'],
+  ['No software development experience.', 'NOT_EVIDENCED'],
+  [
+    'Planning 6 years of experience building software systems.',
+    'NOT_EVIDENCED',
+  ],
+  ['0.6 years of software development experience.', 'NOT_EVIDENCED'],
+  [
+    'Approximately 6 years of software development experience.',
+    'NOT_EVIDENCED',
+  ],
+  [
+    '6 years of retail work; 1 year of software development experience.',
+    'NOT_EVIDENCED',
+  ],
+  ['Software Developer: Mar 2020 – Present', 'NOT_EVIDENCED'],
+  ['', 'NOT_EVIDENCED'],
+] as const;
+
+for (const category of ['skill', 'experience'] as const) {
+  test.each(qualificationCases)(
+    `typed qualification (${category}): %s`,
+    (cv, status) => {
+      const job =
+        category === 'skill'
+          ? jobFor(mixedQualification)
+          : { ...jobFor(''), experience: mixedQualification };
+      const row = assess(job, cv || 'No qualifications supplied.', cv)
+        .requirements[0]!;
+      expect(row.status).toBe(status);
+      expect(row.coverage.mode).toBe('OR');
+      expect(row.coverage.components).toHaveLength(3);
+      expect(row.coverage.components.map((c) => c.jdQuote)).toEqual([
+        "Bachelor's Degree in Computer Science or Engineering",
+        '2+ years of relevant experience',
+        'coding boot camp',
+      ]);
+      expect(
+        requirementGroup(mixedQualification, category).components.map(
+          (c) => c.qualification,
+        ),
+      ).toEqual([
+        {
+          kind: 'degree',
+          level: 'bachelor',
+          acceptedFields: ['computer science', 'engineering'],
+        },
+        { kind: 'experience', relevant: true, minimumMonths: 24 },
+        { kind: 'bootcamp', completed: true },
+      ]);
+      for (const component of row.coverage.components)
+        if (component.cvQuote)
+          expect(cv.includes(component.cvQuote)).toBe(true);
+      expect(row.credit).toBe(status === 'EVIDENCED' ? 1 : 0);
+    },
+  );
+}
+
+test.each([
+  'coding boot camp; OR 24 months of relevant experience; OR Bachelor’s Degree in Engineering or Computer Science.',
+  'CODING BOOT CAMP or 2 years of relevant experience or BACHELOR’S DEGREE IN ENGINEERING OR COMPUTER SCIENCE',
+])('qualification branch order/capitalization/punctuation: %s', (clause) => {
+  const row = assess(jobFor(clause), 'Completed a coding boot camp.', '')
+    .requirements[0]!;
+  expect(row).toMatchObject({
+    parentId: 'p1',
+    status: 'EVIDENCED',
+    credit: 1,
+    coverage: { mode: 'OR' },
+  });
+  expect(row.coverage.components).toHaveLength(3);
+  expect(
+    row.coverage.components.filter((c) => c.status === 'EVIDENCED'),
+  ).toHaveLength(1);
+});
+
+test.each([
+  "Bachelor's Degree in Computer Science or (2 years of relevant experience and equivalent practical experience)",
+  "Bachelor's Degree in Computer Science or (Engineering and 2 years of relevant experience) or coding boot camp",
+  "Bachelor's Degree in Computer Science and Engineering or coding boot camp",
+  "Bachelor's Degree in Physics or 2 years of relevant experience or coding boot camp",
+])('unsupported qualification grammar stays Unknown: %s', (clause) => {
+  for (const category of ['skill', 'experience']) {
+    const job =
+      category === 'skill'
+        ? jobFor(clause)
+        : { ...jobFor(''), experience: clause };
+    expect(
+      assess(
+        job,
+        'Completed a coding boot camp.',
+        'Completed a coding boot camp.',
+      ).requirements[0],
+    ).toMatchObject({ status: 'NOT_EVIDENCED', coverage: { mode: 'UNKNOWN' } });
+  }
+});
+
+test.each([
+  [
+    "Completed Bachelor's Degree in Engineering.",
+    "No Bachelor's Degree in Engineering.",
+  ],
+  ['Completed a coding boot camp.', 'Coding boot camp incomplete.'],
+  [
+    '6 years of software development experience.',
+    'No software development experience.',
+  ],
+])(
+  'contradictory typed qualification requires review: %s',
+  (positive, negative) => {
+    const row = assess(
+      jobFor(mixedQualification),
+      `${positive}\n${negative}`,
+      positive,
+    ).requirements[0]!;
+    expect(row).toMatchObject({ status: 'CONFLICT', credit: 0 });
+    expect(
+      row.coverage.components.some((c) =>
+        c.conflictingQuotes.includes(negative),
+      ),
+    ).toBe(true);
+  },
+);
+
+test.each([
+  [
+    'Completed a coding boot camp.\nStatus: incomplete',
+    'Completed a coding boot camp.',
+  ],
+  [
+    "Bachelor's Degree in Engineering\nStatus: pending",
+    "Bachelor's Degree in Engineering",
+  ],
+  [
+    'Status: incomplete\nCompleted a coding boot camp.',
+    'Completed a coding boot camp.',
+  ],
+])(
+  'short selections cannot hide nearby qualification status: %s',
+  (cv, selected) => {
+    expect(
+      assess(jobFor(mixedQualification), cv, selected).requirements[0]!.status,
+    ).toBe('NOT_EVIDENCED');
+  },
+);
+
+test('typed degree recovery preserves a contiguous multiline source span', () => {
+  const cv = "EDUCATION\nBachelor's Degree\nEngineering\nStatus: awarded";
+  const row = assess(jobFor(mixedQualification), cv, '').requirements[0]!;
+  expect(row.status).toBe('EVIDENCED');
+  expect(row.cvQuote).toBe("Bachelor's Degree\nEngineering\nStatus: awarded");
+  expect(cv.includes(row.cvQuote)).toBe(true);
+});
+
+test('typed component validation rejects fabricated quotations and legacy identities', () => {
+  const job = jobFor(mixedQualification);
+  const canonical = canonicalRequirements(job);
+  const jd = matchJobText(job);
+  const cv = 'Completed a coding boot camp.';
+  for (const component of [
+    {
+      componentId: 'c3',
+      jdQuote: 'coding boot camp',
+      cvQuote: 'Invented completed coding boot camp.',
+    },
+    { componentId: 'c4', jdQuote: 'coding boot camp', cvQuote: cv },
+    { componentId: 'c2', jdQuote: 'Engineering', cvQuote: cv },
+  ])
+    expect(() =>
+      validateMatchAssessment(
+        [{ ...canonical[0]!, cvQuote: '', components: [component] }],
+        cv,
+        jd,
+        canonical,
+      ),
+    ).toThrow(CvMatchError);
 });

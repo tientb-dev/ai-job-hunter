@@ -4,7 +4,14 @@ import {
   suggestionMatchId,
   type CvSuggestionsResponse,
 } from './cv-suggestions.js';
-import { MatchContexts, type MatchSnapshot } from './match-context.js';
+import {
+  MATCHING_POLICY_VERSION,
+  immutableValue,
+  type MatchSnapshot,
+  type SavedCvAssessment,
+} from './match-context.js';
+import { CvMatchRecord } from './cv-match.entity.js';
+import { createHash, randomUUID } from 'node:crypto';
 import { AiError } from '../ai/ai.errors.js';
 import { CvMatchError } from './cv-match.error.js';
 import { MatchingService } from './matching.service.js';
@@ -36,25 +43,81 @@ import {
 @Injectable()
 export class JobMatchService {
   private active = false;
-  private readonly contexts = new MatchContexts();
+
+  // Saved matches do not expire; this is only how long a client may rely on a
+  // readiness answer before checking again.
+  static readonly RECHECK_MS = 15 * 60 * 1000;
+
+  private async cvIdentity() {
+    const cv = await this.cvs.findOne({
+      where: { ownerId: LOCAL_OWNER_ID },
+      select: { ownerId: true, text: true, updatedAt: true },
+    });
+    if (!cv || typeof cv.text !== 'string') return null;
+    return {
+      updatedAt: cv.updatedAt,
+      hash: createHash('sha256').update(cv.text, 'utf8').digest('hex'),
+    };
+  }
+  /**
+   * A saved match is valid only for the same CV text, job revision and
+   * matching policy. A byte-identical CV re-upload keeps it valid and re-binds
+   * its CV timestamp so downstream pins keep matching the current CV.
+   */
+  private async resolve(
+    row: CvMatchRecord,
+    cv: { updatedAt: Date; hash: string },
+    jobUpdatedAt: Date,
+  ) {
+    if (row.policyVersion !== MATCHING_POLICY_VERSION)
+      return { status: 'EXPIRED' as const };
+    if (row.cvTextHash !== cv.hash) return { status: 'STALE_CV' as const };
+    if (row.jobUpdatedAt.getTime() !== jobUpdatedAt.getTime())
+      return { status: 'STALE_JOB' as const };
+    if (row.cvUpdatedAt.getTime() !== cv.updatedAt.getTime()) {
+      row.cvUpdatedAt = cv.updatedAt;
+      await this.matchRows.update(
+        { matchId: row.matchId },
+        { cvUpdatedAt: cv.updatedAt },
+      );
+    }
+    const snapshot: MatchSnapshot = immutableValue({
+      matchId: row.matchId,
+      ownerId: row.ownerId,
+      jobId: row.jobId,
+      cvUpdatedAt: row.cvUpdatedAt.toISOString(),
+      jobUpdatedAt: row.jobUpdatedAt.toISOString(),
+      assessment: structuredClone(row.assessment) as SavedCvAssessment,
+    });
+    return {
+      status: 'VALID' as const,
+      snapshot,
+      analyzedAt: row.analyzedAt.toISOString(),
+    };
+  }
 
   async requireSnapshot(id: string, matchId: string): Promise<MatchSnapshot> {
-    const cv = await this.cv();
+    const cv = await this.cvIdentity();
     const job = await this.jobs.get(id);
     if (!cv)
       throw new ConflictException(
         'Saved CV is unavailable. Reanalyze CV Match.',
       );
-    try {
-      return this.contexts.require(matchId, LOCAL_OWNER_ID, id, {
-        cvUpdatedAt: cv.updatedAt.toISOString(),
-        jobUpdatedAt: job.updatedAt.toISOString(),
-      });
-    } catch {
+    const row = await this.matchRows.findOneBy({
+      matchId,
+      ownerId: LOCAL_OWNER_ID,
+      jobId: id,
+    });
+    const current = row ? await this.resolve(row, cv, job.updatedAt) : null;
+    if (current?.status !== 'VALID')
       throw new ConflictException(
         'Match context is unavailable or stale. Reanalyze CV Match.',
       );
-    }
+    return current.snapshot;
+  }
+  async remainingSnapshotMs(id: string, matchId: string): Promise<number> {
+    await this.requireSnapshot(id, matchId);
+    return JobMatchService.RECHECK_MS;
   }
   constructor(
     @InjectRepository(SavedCv) private readonly cvs: Repository<SavedCv>,
@@ -62,22 +125,58 @@ export class JobMatchService {
     private readonly ai: AiService,
     private readonly matching: MatchingService,
     private readonly jobs: OpportunitiesService,
+    @InjectRepository(CvMatchRecord)
+    private readonly matchRows: Repository<CvMatchRecord>,
   ) {}
   async cv() {
     const cv = await this.cvs.findOneBy({ ownerId: LOCAL_OWNER_ID });
     return cv ? { fileName: cv.fileName, updatedAt: cv.updatedAt } : null;
   }
+  async currentMatch(id: string) {
+    const job = await this.jobs.get(id);
+    const cv = await this.cvIdentity();
+    if (!cv) return { status: 'CV_UNAVAILABLE' as const };
+    const row = await this.matchRows.findOneBy({
+      ownerId: LOCAL_OWNER_ID,
+      jobId: id,
+    });
+    if (!row) return { status: 'MISSING' as const };
+    const current = await this.resolve(row, cv, job.updatedAt);
+    if (current.status !== 'VALID') return { status: current.status };
+    const { snapshot } = current;
+    return {
+      status: 'VALID' as const,
+      matchValidForMs: JobMatchService.RECHECK_MS,
+      result: {
+        ...snapshot.assessment,
+        matchId: snapshot.matchId,
+        cvUpdatedAt: snapshot.cvUpdatedAt,
+        jobUpdatedAt: snapshot.jobUpdatedAt,
+        analyzedAt: current.analyzedAt,
+      },
+    };
+  }
   async saveCv(document?: JobDocument) {
     if (!document)
       throw new BadRequestException('Choose a CV PDF or DOCX up to 5 MiB.');
     try {
-      const source = await this.extraction.parseCv(document);
+      const { source, pdfLayout } =
+        await this.extraction.parseCvWithLayout(document);
       if (!source.text.trim()) throw new Error();
       await this.cvs.upsert(
         {
           ownerId: LOCAL_OWNER_ID,
           fileName: document.fileName,
           text: source.text,
+          sourceMetadata: {
+            ...(pdfLayout ? { pdfLayout } : {}),
+            kind: 'parsed-upload',
+            format: source.format === 'text' ? null : source.format,
+            parser: 'bounded-document-parser/v1',
+            segments: source.segments,
+            warnings: null,
+            originalBytesRetained: false,
+          },
         },
         ['ownerId'],
       );
@@ -94,7 +193,12 @@ export class JobMatchService {
     snapshot: MatchSnapshot,
   ): Promise<void> {
     try {
-      if ((await this.requireSnapshot(id, matchId)) !== snapshot)
+      const latest = await this.requireSnapshot(id, matchId);
+      if (
+        latest.matchId !== snapshot.matchId ||
+        latest.cvUpdatedAt !== snapshot.cvUpdatedAt ||
+        latest.jobUpdatedAt !== snapshot.jobUpdatedAt
+      )
         throw new CvSuggestionsError('CV_SUGGESTIONS_STALE_MATCH');
     } catch (error) {
       if (
@@ -220,21 +324,31 @@ export class JobMatchService {
         jd,
         canonical,
       );
-      const snapshot = this.contexts.create(
-        LOCAL_OWNER_ID,
-        id,
-        {
-          cvUpdatedAt: cv.updatedAt.toISOString(),
-          jobUpdatedAt: job.updatedAt.toISOString(),
-        },
-        result,
-      );
+      const analyzedAt = new Date();
+      const matchId = randomUUID();
+      await this.matchRows.manager.transaction(async (m) => {
+        const rows = m.getRepository(CvMatchRecord);
+        await rows.delete({ ownerId: LOCAL_OWNER_ID, jobId: id });
+        await rows.insert({
+          matchId,
+          ownerId: LOCAL_OWNER_ID,
+          jobId: id,
+          cvTextHash: createHash('sha256')
+            .update(cv.text, 'utf8')
+            .digest('hex'),
+          cvUpdatedAt: cv.updatedAt,
+          jobUpdatedAt: job.updatedAt,
+          policyVersion: MATCHING_POLICY_VERSION,
+          assessment: structuredClone(result) as never,
+          analyzedAt,
+        });
+      });
       return {
         ...result,
-        matchId: snapshot.matchId,
+        matchId,
         cvUpdatedAt: cv.updatedAt,
         jobUpdatedAt: job.updatedAt,
-        analyzedAt: new Date().toISOString(),
+        analyzedAt: analyzedAt.toISOString(),
       };
     } finally {
       this.active = false;

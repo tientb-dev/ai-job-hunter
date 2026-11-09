@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { memoryMatchRows } from '../support/memory-match-rows.js';
 import { expect, jest, test } from '@jest/globals';
 import type { Repository } from 'typeorm';
 import { AiService } from '../../src/ai/ai.service.js';
@@ -178,6 +179,7 @@ test('the service sends verified rows to scoring and returns nonzero API-shaped 
     new AiService(provider),
     matching,
     jobs as unknown as OpportunitiesService,
+    memoryMatchRows(),
   );
   const result = await service.analyze('synthetic');
   expect(result.score).toBeGreaterThan(0);
