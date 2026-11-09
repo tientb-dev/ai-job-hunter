@@ -1,8 +1,16 @@
+import {
+  CvSourceRevision,
+  CvProfileRevision,
+  TailoredCvDraft,
+} from '../tailored-cv/tailored-cv.entity.js';
+import { TailoredCvFoundation1794000000000 } from './migrations/1794000000000-TailoredCvFoundation.js';
 import { DiscoveryCandidate } from '../discovery/discovery-candidate.entity.js';
 import { DiscoveryCandidates1793700000000 } from './migrations/1793700000000-DiscoveryCandidates.js';
 import { ApplicationDetails1793600000000 } from './migrations/1793600000000-ApplicationDetails.js';
 import { JobDiscovery1793510000000 } from './migrations/1793510000000-JobDiscovery.js';
 import { SavedCv } from '../matching/saved-cv.entity.js';
+import { CvMatchRecord } from '../matching/cv-match.entity.js';
+import { CvMatches1794100000000 } from './migrations/1794100000000-CvMatches.js';
 import { SavedCv1793500000000 } from './migrations/1793500000000-SavedCv.js';
 import { CompleteJobImportFields1793490000000 } from './migrations/1793490000000-CompleteJobImportFields.js';
 import { SmartJobImport1793400000000 } from './migrations/1793400000000-SmartJobImport.js';
@@ -54,7 +62,15 @@ export function databaseOptions(
     // History stays in public so it can exist before the application schema.
     schema: 'public',
     migrationsTableName: 'typeorm_migrations',
-    entities: [Opportunity, SavedCv, DiscoveryCandidate],
+    entities: [
+      Opportunity,
+      SavedCv,
+      DiscoveryCandidate,
+      CvSourceRevision,
+      CvProfileRevision,
+      TailoredCvDraft,
+      CvMatchRecord,
+    ],
     migrations: [
       CreateApplicationSchema1792598400000,
       CreateOpportunities1792800000000,
@@ -64,6 +80,8 @@ export function databaseOptions(
       JobDiscovery1793510000000,
       ApplicationDetails1793600000000,
       DiscoveryCandidates1793700000000,
+      TailoredCvFoundation1794000000000,
+      CvMatches1794100000000,
     ],
     synchronize: false,
     migrationsRun: false,

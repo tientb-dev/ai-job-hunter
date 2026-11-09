@@ -13,6 +13,7 @@ import { OpportunitiesModule } from '../../src/opportunities/opportunities.modul
 import { AI_PROVIDER } from '../../src/ai/ai-provider.js';
 import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js';
 import { pdfFixture } from '../support/pdf-fixtures.js';
+import { MATCHING_POLICY_VERSION } from '../../src/matching/match-context.js';
 let app: INestApplication;
 let database: DataSource;
 let id: string;
@@ -82,14 +83,23 @@ test('new migration reverses reapplies and repeat-runs without touching jobs', a
   const runner = database.createQueryRunner();
   await runner.connect();
   const migration = new SavedCv1793500000000();
-  await migration.down(runner);
-  expect(
-    await database.query(
-      "SELECT to_regclass('ai_job_hunter.saved_cvs') AS name",
-    ),
-  ).toEqual([{ name: null }]);
-  await migration.up(runner);
-  await runner.release();
+  // Exercise this historical migration without discarding later additive columns.
+  await runner.startTransaction();
+  try {
+    await migration.down(runner);
+    expect(
+      await runner.query(
+        "SELECT to_regclass('ai_job_hunter.saved_cvs') AS name",
+      ),
+    ).toEqual([{ name: null }]);
+    await migration.up(runner);
+    expect(
+      await runner.query('SELECT "ownerId" FROM ai_job_hunter.saved_cvs'),
+    ).toEqual([]);
+  } finally {
+    await runner.rollbackTransaction();
+    await runner.release();
+  }
   expect(await database.runMigrations()).toEqual([]);
   expect(
     await database.query(
@@ -202,4 +212,133 @@ test('synthetic CV upload persists and matching reuses latest CV/job without mod
     contactDates: input.contactDates,
     followUpDate: input.followUpDate,
   });
+});
+test('saved matches persist across restart, survive identical re-upload and go stale on changed inputs', async () => {
+  const upload = (line: string) =>
+    request(app.getHttpServer())
+      .post('/api/v1/opportunities/cv/current')
+      .set(origin)
+      .field('record', '{}')
+      .attach('document', Buffer.from(pdfFixture([line])), {
+        filename: syntheticName,
+        contentType: 'application/pdf',
+      })
+      .expect(200);
+  await upload('Built Python services.');
+  ownsCv = true;
+  const input = {
+    title: 'Synthetic CV match persistence',
+    company: '',
+    source: 'Other',
+    status: 'SAVED',
+    originalLink: '',
+    contactNotes: '',
+    description: 'Python required',
+    skills: 'Python',
+    notes: '',
+    contactDates: [],
+    followUpDate: null,
+  };
+  const job = (
+    await request(app.getHttpServer())
+      .post('/api/v1/opportunities')
+      .set(origin)
+      .send(input)
+      .expect(201)
+  ).body.id as string;
+  const status = async (server = app) =>
+    (
+      await request(server.getHttpServer())
+        .get(`/api/v1/opportunities/${job}/match`)
+        .expect(200)
+    ).body;
+  try {
+    expect(await status()).toEqual({ status: 'MISSING' });
+    const before = generations;
+    const analyzed = (
+      await request(app.getHttpServer())
+        .post(`/api/v1/opportunities/${job}/match`)
+        .set(origin)
+        .expect(200)
+    ).body;
+    expect(generations).toBe(before + 1);
+    // Byte-identical re-upload keeps the same valid match, re-bound to the new CV timestamp.
+    await upload('Built Python services.');
+    const [cv] = await database.query(
+      'SELECT "updatedAt" FROM ai_job_hunter.saved_cvs WHERE "ownerId"=$1',
+      [LOCAL_OWNER_ID],
+    );
+    const same = await status();
+    expect(same).toMatchObject({
+      status: 'VALID',
+      result: { matchId: analyzed.matchId },
+    });
+    expect(new Date(same.result.cvUpdatedAt).getTime()).toBe(
+      new Date(cv.updatedAt).getTime(),
+    );
+    // Job edits make the saved match stale; no analysis is triggered.
+    await request(app.getHttpServer())
+      .put(`/api/v1/opportunities/${job}`)
+      .set(origin)
+      .send({ ...input, skills: 'Python, Java' })
+      .expect(200);
+    expect(await status()).toEqual({ status: 'STALE_JOB' });
+    await request(app.getHttpServer())
+      .post(`/api/v1/opportunities/${job}/match`)
+      .set(origin)
+      .expect(200);
+    expect((await status()).status).toBe('VALID');
+    await upload('Built Java services.');
+    expect(await status()).toEqual({ status: 'STALE_CV' });
+    await upload('Built Python services.');
+    expect((await status()).status).toBe('VALID');
+    await database.query(
+      'UPDATE ai_job_hunter.cv_matches SET "policyVersion"=$1 WHERE "jobId"=$2',
+      ['older-policy', job],
+    );
+    expect(await status()).toEqual({ status: 'EXPIRED' });
+    expect(generations).toBe(before + 2);
+    // A fresh application instance (API restart) restores the saved result.
+    await database.query(
+      'UPDATE ai_job_hunter.cv_matches SET "policyVersion"=$1 WHERE "jobId"=$2',
+      [MATCHING_POLICY_VERSION, job],
+    );
+    const saved = await status();
+    expect(saved.status).toBe('VALID');
+    const restarted = (
+      await Test.createTestingModule({
+        imports: [DatabaseModule, OpportunitiesModule],
+      })
+        .overrideProvider(AI_PROVIDER)
+        .useValue({
+          generate: async () => {
+            throw new Error('No AI after restart');
+          },
+        })
+        .compile()
+    ).createNestApplication();
+    restarted.setGlobalPrefix('api/v1');
+    await restarted.init();
+    try {
+      const reloaded = await status(restarted);
+      expect(reloaded).toMatchObject({
+        status: 'VALID',
+        result: { matchId: saved.result.matchId, score: saved.result.score },
+      });
+      expect(generations).toBe(before + 2);
+    } finally {
+      await restarted.close();
+    }
+  } finally {
+    await database.query(
+      'DELETE FROM ai_job_hunter.opportunities WHERE id=$1 AND title=$2',
+      [job, input.title],
+    );
+    expect(
+      await database.query(
+        'SELECT 1 FROM ai_job_hunter.cv_matches WHERE "jobId"=$1',
+        [job],
+      ),
+    ).toEqual([]);
+  }
 });

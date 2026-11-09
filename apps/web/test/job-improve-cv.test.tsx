@@ -166,7 +166,7 @@ test('unsaved JD edits and save invalidate context and cannot be bypassed by ana
   ).toBeDisabled();
 });
 
-test('elapsed client snapshot lifetime disables copying even before another request', async () => {
+test('a saved CV Match does not expire on the client after 15 minutes', async () => {
   setup();
   await screen.findByRole('heading', { name: 'Synthetic engineer' });
   tab('CV Match');
@@ -188,13 +188,8 @@ test('elapsed client snapshot lifetime disables copying even before another requ
     await act(async () => {
       await vi.advanceTimersByTimeAsync(15 * 60 * 1000);
     });
-    expect(screen.queryByRole('article')).toBeNull();
-    expect(
-      screen.getByRole('button', { name: 'Suggest improvements' }),
-    ).toBeDisabled();
-    expect(
-      screen.getByRole('button', { name: 'Go to CV Match' }),
-    ).toBeEnabled();
+    // Saved matches persist; validity is decided by the server on reload.
+    expect(screen.getAllByRole('article')).toHaveLength(3);
   } finally {
     vi.useRealTimers();
   }

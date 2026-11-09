@@ -85,3 +85,72 @@ test('same job under a different owner does not replace the first owner snapshot
     second,
   );
 });
+
+test('remaining lifetime uses only monotonic context time, preserving exact expiry boundary', () => {
+  let now = 0;
+  const contexts = new MatchContexts(() => now),
+    snapshot = contexts.create('owner', 'job', revisions, assessment());
+  expect(contexts.remainingMs(snapshot.matchId)).toBe(900000);
+  now = 899999;
+  expect(contexts.remainingMs(snapshot.matchId)).toBe(1);
+  now = 900000;
+  expect(contexts.remainingMs(snapshot.matchId)).toBe(0);
+});
+
+test('current read shares latest identity, isolates owners/revisions and never extends TTL', () => {
+  let now = 0;
+  const contexts = new MatchContexts(() => now);
+  expect(contexts.current('owner', 'job', revisions)).toEqual({
+    status: 'MISSING',
+  });
+  const first = contexts.create('owner', 'job', revisions, assessment());
+  expect(contexts.current('other', 'job', revisions)).toEqual({
+    status: 'MISSING',
+  });
+  expect(contexts.current('owner', 'other', revisions)).toEqual({
+    status: 'MISSING',
+  });
+  expect(
+    contexts.current('owner', 'job', { ...revisions, cvUpdatedAt: 'cv2' }),
+  ).toEqual({ status: 'STALE_CV' });
+  expect(
+    contexts.current('owner', 'job', { ...revisions, jobUpdatedAt: 'job2' }),
+  ).toEqual({ status: 'STALE_JOB' });
+  const replacement = contexts.create('owner', 'job', revisions, assessment());
+  expect(replacement.matchId).not.toBe(first.matchId);
+  now = 899999;
+  expect(contexts.current('owner', 'job', revisions)).toMatchObject({
+    status: 'VALID',
+    snapshot: { matchId: replacement.matchId },
+    matchValidForMs: 1,
+  });
+  now = 900000;
+  expect(contexts.current('owner', 'job', revisions)).toEqual({
+    status: 'EXPIRED',
+  });
+  expect(new MatchContexts().current('owner', 'job', revisions)).toEqual({
+    status: 'MISSING',
+  });
+});
+
+test('policy changes invalidate cached assessments without rescoring or altering public snapshots', () => {
+  let policy = 'pre-D1';
+  const contexts = new MatchContexts(
+    () => 0,
+    () => policy,
+  );
+  const previous = contexts.create('owner', 'job', revisions, assessment());
+  policy = 'D1';
+  expect(() =>
+    contexts.require(previous.matchId, 'owner', 'job', revisions),
+  ).toThrow(/stale/);
+  expect(contexts.current('owner', 'job', revisions)).toEqual({
+    status: 'EXPIRED',
+  });
+  expect(previous.assessment).toEqual(assessment());
+  const fresh = contexts.create('owner', 'job', revisions, assessment());
+  expect(contexts.current('owner', 'job', revisions)).toMatchObject({
+    status: 'VALID',
+    snapshot: fresh,
+  });
+});

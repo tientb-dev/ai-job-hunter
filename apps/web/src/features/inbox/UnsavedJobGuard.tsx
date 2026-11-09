@@ -16,12 +16,14 @@ import {
 export function UnsavedJobGuard({
   dirty,
   savedNavigation,
+  sourceCvDirty = false,
 }: {
   dirty: boolean;
+  sourceCvDirty?: boolean;
   savedNavigation: RefObject<boolean>;
 }) {
   useBeforeUnload((event) => {
-    if (dirty && !savedNavigation.current) {
+    if (sourceCvDirty || (dirty && !savedNavigation.current)) {
       event.preventDefault();
       event.returnValue = '';
     }
@@ -29,17 +31,25 @@ export function UnsavedJobGuard({
   // Production uses a data router; embedded previews may use MemoryRouter.
   const router = useContext(UNSAFE_DataRouterContext);
   return router ? (
-    <RouteGuard dirty={dirty} savedNavigation={savedNavigation} />
+    <RouteGuard
+      dirty={dirty}
+      sourceCvDirty={sourceCvDirty}
+      savedNavigation={savedNavigation}
+    />
   ) : null;
 }
 function RouteGuard({
   dirty,
   savedNavigation,
+  sourceCvDirty,
 }: {
   dirty: boolean;
+  sourceCvDirty: boolean;
   savedNavigation: RefObject<boolean>;
 }) {
-  const blocker = useBlocker(() => dirty && !savedNavigation.current);
+  const blocker = useBlocker(
+    () => sourceCvDirty || (dirty && !savedNavigation.current),
+  );
   const stay = useRef<HTMLButtonElement>(null);
   function handleDialogFocus(event: FocusEvent<HTMLElement>) {
     const button = stay.current;
@@ -63,8 +73,9 @@ function RouteGuard({
       <DialogTitle id="unsaved-job-title">Leave unsaved changes?</DialogTitle>
       <DialogContent>
         <Alert severity="warning">
-          Your job changes have not been saved. Stay to review and save them, or
-          discard them and leave.
+          {sourceCvDirty
+            ? 'Your CV review changes have not been saved. Stay to review and save them, or discard them and leave.'
+            : 'Your job changes have not been saved. Stay to review and save them, or discard them and leave.'}
         </Alert>
       </DialogContent>
       <DialogActions>

@@ -174,3 +174,110 @@ of `created`, `linked_existing`, or `already_saved`. Repeated Save returns the s
 Inbox link. The UI asks for confirmation before creating a separate possible
 duplicate; multiple exact matches cannot be overridden. After Save, use Open Inbox
 job. Discovery reports Added / Refreshed / Remaining / Errors and stays on the page.
+
+### P8.1 durable CV API foundation
+
+Apply `pnpm db:migrate` before starting the updated API against a development
+installation (or build the API and use `pnpm db:migrate:compiled`). P8.1 adds
+immutable source/profile revisions and draft persistence. The completed workflow
+below builds on that foundation while preserving CV Match and suggestion semantics. Capture is explicit; uploading alone does not archive a P8
+source revision. The [architecture and API contract](docs/architecture.md#p81-durable-cv-foundation)
+document version-1 endpoints, bounds, owner scoping and retention. Source text
+requires an explicit protected content request. Referenced history cannot be
+deleted automatically; explicit deletion proceeds draft → profile → source and
+does not remove the separately saved current matching CV.
+
+### P8.2 source CV review
+
+In Job Detail → Improve CV, choose **Review source CV**, then explicitly **Build
+structured proposal** or review unresolved passages manually. Confirm clear
+sections, clarify ambiguous fields, edit separate user-entered values and **Save
+source review** to append a revision. Exact original wording/evidence is retained;
+unknown passages remain visible and exclusions require a reason. Local Ollama
+uses the existing qwen3:4b configuration. Failure leaves the saved profile intact.
+Tailored draft generation and downloads are covered below. See the
+[P8.2 architecture and API contracts](docs/architecture.md#p82-structured-source-cv-review).
+
+### P8.3 tailored draft generation API
+
+The backend can generate a complete structured draft from the latest fully
+reviewed source profile, a saved job revision and its current CV Match identity.
+Version-1 endpoints under `/api/v1/tailored-cv` generate/list job drafts and retrieve
+a saved draft. Original reviewed wording remains accepted; AI priorities and
+bounded wording changes remain separate recommendations/pending proposals.
+Unselected eligible content remains included and recoverable. No migration or
+new dependency was needed for generation beyond the P8.1 foundation. Review
+and downloads are covered below. See the [P8.3 contracts and limits](docs/architecture.md#p83-grounded-tailored-draft-generation).
+
+P8.4 adds Tailored CV review in Job Detail → Improve CV: load or generate a draft,
+edit section fields, decide AI wording proposals, save, and explicitly approve the
+saved revision. Later edits clear approval; regeneration creates a separate draft.
+DOCX/PDF downloads are available in the completed journey below. Review APIs under `/api/v1/tailored-cv` are
+`POST /drafts/:id/review` (version 1, expected revision and bounded operations) and
+`POST /drafts/:id/approve` (version 1, expected revision and reviewed edited-fact IDs).
+See [the review contract](docs/architecture.md#p84-tailored-cv-review-and-editing)
+and [P8.4 acceptance](docs/audits/p84-tailored-cv-review-acceptance.md).
+
+### Complete tailored CV journey
+
+1. Open a saved job → **CV Match**. Upload a text-based PDF/DOCX (or use the current
+   saved CV) and **Analyze CV Match**.
+2. In **Improve CV**, open **Review source CV**, generate a structured proposal,
+   review/confirm sections and clarify ambiguous fields. Map or explicitly exclude
+   unresolved passages, then **Save source review**.
+3. **Generate new draft**. Inspect the complete CV, accept AI wording or keep the
+   original, edit section fields, choose which facts to include in downloads, and
+   acknowledge review issues. **Save draft**, review the complete saved content,
+   then **Approve saved draft**.
+4. **Download DOCX** or **Download PDF**. Any subsequent wording/inclusion edit
+   clears approval and requires Save/Approve again. **Load saved drafts** reopens
+   previous work; generation always creates a separate draft.
+
+Export uses exact approved wording and no AI. Downloads use a single-column A4
+layout with Vietnamese Unicode support; unsupported font characters fail with a
+clear error. Font assets under `apps/api/assets/fonts` must accompany API runtime
+files. DOCX layout can vary with the viewer's available fonts.
+
+The version-1 export API is `POST /api/v1/tailored-cv/drafts/:id/export` with
+`expectedRevision` and `format: "docx" | "pdf"`. Private browser reads use POST
+aliases with version-only bodies to preserve strict local Origin validation.
+See [P8 completion/acceptance](docs/audits/p8-complete-acceptance.md) for full test
+results, screenshots, synthetic downloadable samples and known limitations.
+
+Source CV Review now groups paragraphs, experience records and skill categories.
+Use **Review issues** for uncertain details, **Edit** for corrections, **Confirm
+section** for clear source facts, then **Save review** and **Continue**. Corrections
+require explicit confirmation and retain user-entered provenance. Source evidence
+is available in expandable record disclosures.
+
+Older profiles show an explicit **Organize my CV** action. Organizing
+creates a new pending revision; previous corrections remain accessible under
+**Earlier review**, and saved drafts remain unchanged. Review and reapply any
+needed corrections before continuing. See the
+[structure/review acceptance report](docs/audits/p8-structure-review-fix.md).
+
+If an earlier Source CV Review shows work history under Other information, choose
+**Organize my CV**. It creates a new review and preserves earlier corrections and
+tailored CVs. After success, check highlighted details, confirm sections and save.
+If organization fails, your saved review remains unchanged; retry Organize my CV
+(or start Ollama if it is unavailable). Use **Reload saved review** after a stale
+revision conflict. Over-limit CVs require a shorter source uploaded in CV Match;
+content is never silently truncated. See the
+[P8 organizing blocker report](docs/audits/p8-blockers-acceptance.md).
+
+For a saved review with combined contact text or missing skill groups, choose
+**Reorganize from source** to apply the contact/skills fix as a new revision.
+Earlier reviews and tailored drafts stay unchanged. Recognized contact details
+are separated from unreadable fragments; separator symbols require explicit
+review/exclusion. Backend, Frontend and other structurally clear skill groups
+are preserved even when AI omits their classification. Resolve any remaining
+unassigned content before continuing. See the
+[contact/skills acceptance report](docs/audits/p8-contact-skills-acceptance.md).
+
+Tailored CV shows explicit generation readiness. After saving Source CV Review,
+use **Continue to tailored CV**, then analyze CV Match (or use **Refresh CV Match**
+in place). A fresh match enables generation automatically, including after tab
+navigation. Expired/replaced matches can be refreshed without another upload or
+source review. **Load saved drafts** reports an empty list or shows saved drafts
+that can be reopened independently of match readiness. See the
+[workflow acceptance report](docs/audits/p8-workflow-acceptance.md).

@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { memoryMatchRows } from '../support/memory-match-rows.js';
 import { CvSuggestionsRequestErrors } from '../../src/matching/cv-suggestions-request.filter.js';
 import { expect, jest, test } from '@jest/globals';
 import { NotFoundException } from '@nestjs/common';
@@ -99,6 +100,7 @@ function setup(text = source, skills = 'Java\nKubernetes') {
     new AiService(provider),
     new MatchingService(),
     jobs as unknown as OpportunitiesService,
+    memoryMatchRows(),
   );
   async function ready() {
     const result = await service.analyze(jobId);
@@ -262,12 +264,16 @@ test('unknown and cross-job IDs are stale, unknown job is a safe typed 404, no i
   expect(provider.generate).not.toHaveBeenCalled();
 });
 
-test('expired matchId cannot generate suggestions', async () => {
+test('a match from an older matching policy cannot generate suggestions', async () => {
   const clock = jest.spyOn(performance, 'now').mockReturnValue(0);
   try {
     const { service, provider, ready } = setup();
     const match = await ready();
-    clock.mockReturnValue(900000);
+    (
+      service['matchRows'] as unknown as {
+        rows: { policyVersion: string }[];
+      }
+    ).rows[0]!.policyVersion = 'older-policy';
     await expectCode(
       service.suggest(jobId, { matchId: match.matchId }),
       'CV_SUGGESTIONS_STALE_MATCH',
@@ -284,6 +290,7 @@ test.each(['cv', 'job'] as const)(
     const setupResult = setup();
     const match = await setupResult.ready();
     setupResult[kind].updatedAt = new Date(revision.getTime() + 1);
+    if (kind === 'cv') setupResult.cv.text = 'Changed CV text.';
     await expectCode(
       setupResult.service.suggest(jobId, { matchId: match.matchId }),
       'CV_SUGGESTIONS_STALE_MATCH',
@@ -306,7 +313,7 @@ test('CV replacement between snapshot check and full-text load is stale before i
   expect(provider.generate).not.toHaveBeenCalled();
 });
 
-test.each(['cv', 'job', 'snapshot', 'expiry'] as const)(
+test.each(['cv', 'job', 'snapshot', 'policy'] as const)(
   '%s changes during selection: discard all output',
   async (kind) => {
     const clock = jest.spyOn(performance, 'now').mockReturnValue(0);
@@ -316,17 +323,16 @@ test.each(['cv', 'job', 'snapshot', 'expiry'] as const)(
       state.provider.generate.mockImplementation(async () => {
         if (kind === 'cv' || kind === 'job')
           state[kind].updatedAt = new Date(revision.getTime() + 1);
-        if (kind === 'expiry') clock.mockReturnValue(900000);
-        if (kind === 'snapshot') {
-          // Simulate out-of-band replacement to exercise post-generation identity
-          // checks even though normal match requests are excluded by admission.
-          state.service['contexts'].create(
-            LOCAL_OWNER_ID,
-            jobId,
-            revisions,
-            match,
-          );
-        }
+        // Saved matches no longer expire by time; a matching-policy change
+        // and an out-of-band replacement must still discard the output.
+        const rows = (
+          state.service['matchRows'] as unknown as {
+            rows: { matchId: string; policyVersion: string }[];
+          }
+        ).rows;
+        if (kind === 'policy') rows[0]!.policyVersion = 'older-policy';
+        if (kind === 'snapshot')
+          rows[0]!.matchId = '00000000-0000-4000-8000-0000000000ff';
         return JSON.stringify({ candidateIds: ['candidate-1'] });
       });
       await expectCode(
@@ -489,6 +495,18 @@ test('HTTP boundary enforces local origin, UUID, strict body, typed errors and n
   const route = `/api/v1/opportunities/${jobId}/cv-improvement-suggestions`;
   const origin = { Origin: 'http://127.0.0.1:5173', Host: '127.0.0.1:3000' };
   try {
+    const current = await request(app.getHttpServer())
+      .get(`/api/v1/opportunities/${jobId}/match`)
+      .expect(200);
+    expect(current.headers['cache-control']).toBe('no-store');
+    expect(current.body).toMatchObject({
+      status: 'VALID',
+      result: { matchId: match.matchId },
+    });
+    expect(JSON.stringify(current.body)).not.toContain(LOCAL_OWNER_ID);
+    await request(app.getHttpServer())
+      .get('/api/v1/opportunities/not-a-uuid/match')
+      .expect(400);
     const ok = await request(app.getHttpServer())
       .post(route)
       .set(origin)

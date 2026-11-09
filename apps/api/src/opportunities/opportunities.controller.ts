@@ -117,6 +117,11 @@ export class OpportunitiesController {
     localWrite(req);
     return this.matches.saveCv((await readJobUpload(req)).document);
   }
+  @Get(':id/match')
+  @Header('Cache-Control', 'no-store')
+  currentMatch(@Param('id', new ParseUUIDPipe()) id: string) {
+    return this.matches.currentMatch(id);
+  }
   @Post(':id/match')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')

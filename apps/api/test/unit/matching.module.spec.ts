@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { CvMatchRecord } from '../../src/matching/cv-match.entity.js';
 import { afterEach, expect, jest, test } from '@jest/globals';
 import { Global, Module } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -145,6 +146,8 @@ test('AppModule compiles with matching registered and no AI or extraction invoca
     .overrideProvider(getRepositoryToken(SavedCv))
     .useValue(Object.freeze({}))
     .overrideProvider(getRepositoryToken(DiscoveryCandidate))
+    .useValue(Object.freeze({}))
+    .overrideProvider(getRepositoryToken(CvMatchRecord))
     .useValue(Object.freeze({}))
     .overrideProvider(AI_CONFIG)
     .useValue(aiConfig({}))

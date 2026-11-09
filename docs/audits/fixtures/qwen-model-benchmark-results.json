@@ -1,0 +1,4162 @@
+{
+  "version": {
+    "version": "0.40.10"
+  },
+  "tags": {
+    "models": [
+      {
+        "name": "qwen3:8b",
+        "model": "qwen3:8b",
+        "modified_at": "2026-10-28T03:24:47.478731483Z",
+        "size": 5225388164,
+        "digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+        "details": {
+          "parent_model": "",
+          "format": "gguf",
+          "family": "qwen3",
+          "families": ["qwen3"],
+          "parameter_size": "8.2B",
+          "quantization_level": "Q4_K_M",
+          "context_length": 40960,
+          "embedding_length": 4096,
+          "runner": "ggml"
+        },
+        "capabilities": ["completion", "tools", "thinking"]
+      },
+      {
+        "name": "qwen3:4b",
+        "model": "qwen3:4b",
+        "modified_at": "2026-10-24T13:30:13.447697074Z",
+        "size": 2497293931,
+        "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+        "details": {
+          "parent_model": "",
+          "format": "gguf",
+          "family": "qwen3",
+          "families": ["qwen3"],
+          "parameter_size": "4.0B",
+          "quantization_level": "Q4_K_M",
+          "context_length": 262144,
+          "embedding_length": 2560,
+          "runner": "ggml"
+        },
+        "capabilities": ["completion", "tools", "thinking"]
+      }
+    ]
+  },
+  "cases": [
+    {
+      "name": "and-or",
+      "cv": "Designed REST APIs.\nDesigned service integrations using RabbitMQ.\nDesigned GitLab CI/CD pipelines.\nBuilt MCP servers.",
+      "required": "Experience designing cloud-based architectures, APIs, integrations, data flows, and CI/CD practices.",
+      "preferred": "MCP or knowledge graphs.",
+      "expected": ["PARTIAL", "EVIDENCED"]
+    },
+    {
+      "name": "sql-work",
+      "cv": "Skills: SQL Server\nDeveloped enterprise features using SQL Server.\nOptimized data-access logic and MyBatis queries.",
+      "required": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+      "preferred": "Rust",
+      "expected": ["PARTIAL", "NOT_EVIDENCED"]
+    },
+    {
+      "name": "sql-proficiency",
+      "cv": "Independently designed SQL Server database schemas for a production billing application.",
+      "required": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+      "preferred": "Rust",
+      "expected": ["EVIDENCED", "NOT_EVIDENCED"]
+    },
+    {
+      "name": "sql-keywords",
+      "cv": "Skills: SQL Server, Oracle, MySQL",
+      "required": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+      "preferred": "Rust",
+      "expected": ["NOT_EVIDENCED", "NOT_EVIDENCED"]
+    }
+  ],
+  "settings": {
+    "num_ctx": 8192,
+    "temperature": 0,
+    "think": false,
+    "timeoutMs": 120000,
+    "repeats": 2
+  },
+  "runs": [
+    {
+      "model": "qwen3:4b",
+      "rep": 1,
+      "case": "and-or",
+      "calls": [
+        {
+          "pass": "measurement",
+          "ms": 3331.357293,
+          "promptTokens": 938,
+          "evalTokens": 1,
+          "loadMs": 2992.076057,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\n"
+        },
+        {
+          "pass": "generation",
+          "ms": 5466.545319000001,
+          "promptTokens": 938,
+          "evalTokens": 407,
+          "loadMs": 0.628559,
+          "evalMs": 5414.361,
+          "doneReason": "stop",
+          "raw": "{\n  \"requirements\": [\n    {\n      \"requirement\": \"Experience designing cloud-based architectures, APIs, integrations, data flows, and CI/CD practices.\",\n      \"priority\": \"required\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"Experience designing cloud-based architectures, APIs, integrations, data flows, and CI/CD practices.\",\n      \"cvQuote\": \"Designed REST APIs.\\nDesigned service integrations using RabbitMQ.\\nDesigned GitLab CI/CD pipelines.\",\n      \"parentId\": \"p1\",\n      \"components\": [\n        {\n          \"componentId\": \"c1\",\n          \"jdQuote\": \"cloud-based architectures\",\n          \"cvQuote\": \"\"\n        },\n        {\n          \"componentId\": \"c2\",\n          \"jdQuote\": \"APIs\",\n          \"cvQuote\": \"Designed REST APIs.\"\n        },\n        {\n          \"componentId\": \"c3\",\n          \"jdQuote\": \"integrations\",\n          \"cvQuote\": \"Designed service integrations using RabbitMQ.\"\n        },\n        {\n          \"componentId\": \"c4\",\n          \"jdQuote\": \"data flows\",\n          \"cvQuote\": \"\"\n        },\n        {\n          \"componentId\": \"c5\",\n          \"jdQuote\": \"CI/CD practices\",\n          \"cvQuote\": \"Designed GitLab CI/CD pipelines.\"\n        }\n      ]\n    },\n    {\n      \"requirement\": \"MCP or knowledge graphs.\",\n      \"priority\": \"preferred\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"MCP or knowledge graphs.\",\n      \"cvQuote\": \"\",\n      \"parentId\": \"p2\",\n      \"components\": [\n        {\n          \"componentId\": \"c1\",\n          \"jdQuote\": \"MCP\",\n          \"cvQuote\": \"\"\n        },\n        {\n          \"componentId\": \"c2\",\n          \"jdQuote\": \"knowledge graphs\",\n          \"cvQuote\": \"\"\n        }\n      ]\n    }\n  ]\n}",
+          "providerMs": 8801.705188
+        },
+        {
+          "pass": "measurement",
+          "ms": 468.9920380000003,
+          "promptTokens": 1336,
+          "evalTokens": 1,
+          "loadMs": 0.855115,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\n"
+        },
+        {
+          "pass": "generation",
+          "ms": 350.76343500000075,
+          "promptTokens": 1336,
+          "evalTokens": 23,
+          "loadMs": 0.568602,
+          "evalMs": 317.589,
+          "doneReason": "stop",
+          "raw": "{\n  \"candidateIds\": [\n    \"candidate-1\",\n    \"candidate-2\"\n  ]\n}",
+          "providerMs": 822.4087830000008
+        }
+      ],
+      "gpuPeakMiB": 5669,
+      "systemUsedPeakMiB": 4550.05078125,
+      "allocation": [
+        {
+          "name": "qwen3:4b",
+          "model": "qwen3:4b",
+          "size": 3877571133,
+          "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen3",
+            "families": ["qwen3"],
+            "parameter_size": "4.0B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-11-05T19:20:26.529408136Z",
+          "size_vram": 3877571133,
+          "context_length": 8192,
+          "runner": "llamacpp"
+        }
+      ],
+      "match": {
+        "score": 70,
+        "recommendation": "Consider",
+        "requirements": [
+          {
+            "parentId": "p1",
+            "requirement": "Experience designing cloud-based architectures, APIs, integrations, data flows, and CI/CD practices.",
+            "priority": "required",
+            "category": "skill",
+            "jdQuote": "Experience designing cloud-based architectures, APIs, integrations, data flows, and CI/CD practices.",
+            "cvQuote": "Designed REST APIs.",
+            "status": "PARTIAL",
+            "credit": 0.6,
+            "coverage": {
+              "mode": "AND",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "cloud-based architectures",
+                  "jdQuote": "cloud-based architectures",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c2",
+                  "label": "APIs",
+                  "jdQuote": "APIs",
+                  "status": "EVIDENCED",
+                  "cvQuote": "Designed REST APIs.",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c3",
+                  "label": "integrations",
+                  "jdQuote": "integrations",
+                  "status": "EVIDENCED",
+                  "cvQuote": "Designed service integrations using RabbitMQ.",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c4",
+                  "label": "data flows",
+                  "jdQuote": "data flows",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c5",
+                  "label": "CI/CD practices",
+                  "jdQuote": "CI/CD practices",
+                  "status": "EVIDENCED",
+                  "cvQuote": "Designed GitLab CI/CD pipelines.",
+                  "conflictingQuotes": []
+                }
+              ],
+              "credit": 0.6,
+              "status": "PARTIAL",
+              "reason": "Review the selected component evidence."
+            }
+          },
+          {
+            "parentId": "p2",
+            "requirement": "MCP or knowledge graphs.",
+            "priority": "preferred",
+            "category": "skill",
+            "jdQuote": "MCP or knowledge graphs.",
+            "cvQuote": "Built MCP servers.",
+            "status": "EVIDENCED",
+            "credit": 1,
+            "coverage": {
+              "mode": "OR",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "MCP",
+                  "jdQuote": "MCP",
+                  "status": "EVIDENCED",
+                  "cvQuote": "Built MCP servers.",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c2",
+                  "label": "knowledge graphs",
+                  "jdQuote": "knowledge graphs",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                }
+              ],
+              "credit": 1,
+              "status": "EVIDENCED",
+              "reason": "Review the selected component evidence."
+            }
+          }
+        ],
+        "explanation": "Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Unknown/conflict earns zero. AI links and requirement completeness need human review; this is not a hiring probability.",
+        "advice": "Verify the required evidence gaps before applying. Add only accurate supporting experience to your CV.",
+        "matchId": "bbd26ead-918f-4ba8-a26d-bc1ead046c78",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "analyzedAt": "2026-11-05T19:15:25.699Z"
+      },
+      "p6Ms": 8820.329371,
+      "suggestions": {
+        "contractVersion": "1",
+        "matchId": "bbd26ead-918f-4ba8-a26d-bc1ead046c78",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "generatedAt": "2026-11-05T19:15:26.531Z",
+        "suggestions": [
+          {
+            "parentId": "p1",
+            "componentIds": ["c1", "c2", "c3", "c4", "c5"],
+            "requirement": "Experience designing cloud-based architectures, APIs, integrations, data flows, and CI/CD practices.",
+            "priority": "required",
+            "status": "PARTIAL",
+            "kind": "clarify",
+            "reason": "Only some components are evidenced; this passage does not establish the full requirement.",
+            "wording": null,
+            "clarification": "Can you verify an accurate example? Add only what you can substantiate, with its role, scope and qualifiers.",
+            "jdEvidence": [
+              {
+                "parentId": "p1",
+                "componentId": "c1",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "cloud-based architectures"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c2",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "APIs"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c3",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "integrations"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c4",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "data flows"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c5",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "CI/CD practices"
+              }
+            ],
+            "cvEvidence": [
+              {
+                "parentId": "p1",
+                "componentId": "c2",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "saved_cv_text",
+                "quote": "Designed REST APIs.",
+                "role": "support",
+                "span": {
+                  "start": 0,
+                  "end": 19
+                }
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c3",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "saved_cv_text",
+                "quote": "Designed service integrations using RabbitMQ.",
+                "role": "support",
+                "span": {
+                  "start": 20,
+                  "end": 65
+                }
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c5",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "saved_cv_text",
+                "quote": "Designed GitLab CI/CD pipelines.",
+                "role": "support",
+                "span": {
+                  "start": 66,
+                  "end": 98
+                }
+              }
+            ],
+            "id": "candidate-1",
+            "rank": 1
+          },
+          {
+            "parentId": "p2",
+            "componentIds": ["c1", "c2"],
+            "requirement": "MCP or knowledge graphs.",
+            "priority": "preferred",
+            "status": "EVIDENCED",
+            "kind": "clarify",
+            "reason": "The evidence needs context or verification before wording can be offered.",
+            "wording": null,
+            "clarification": "Can you verify an accurate example? Add only what you can substantiate, with its role, scope and qualifiers.",
+            "jdEvidence": [
+              {
+                "parentId": "p2",
+                "componentId": "c1",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "MCP"
+              },
+              {
+                "parentId": "p2",
+                "componentId": "c2",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "knowledge graphs"
+              }
+            ],
+            "cvEvidence": [
+              {
+                "parentId": "p2",
+                "componentId": "c1",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "saved_cv_text",
+                "quote": "Built MCP servers.",
+                "role": "support",
+                "span": {
+                  "start": 99,
+                  "end": 117
+                }
+              }
+            ],
+            "id": "candidate-2",
+            "rank": 2
+          }
+        ]
+      },
+      "p7Ms": 832.3539089999995,
+      "statusPass": true,
+      "success": true,
+      "totalMs": 9652.721589
+    },
+    {
+      "model": "qwen3:4b",
+      "rep": 1,
+      "case": "sql-work",
+      "calls": [
+        {
+          "pass": "measurement",
+          "ms": 238.35050600000068,
+          "promptTokens": 875,
+          "evalTokens": 1,
+          "loadMs": 0.886107,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\n"
+        },
+        {
+          "pass": "generation",
+          "ms": 1897.2792039999986,
+          "promptTokens": 875,
+          "evalTokens": 140,
+          "loadMs": 0.616339,
+          "evalMs": 1862.412,
+          "doneReason": "stop",
+          "raw": "{\n  \"requirements\": [\n    {\n      \"requirement\": \"Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server\",\n      \"priority\": \"required\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server\",\n      \"cvQuote\": \"Developed enterprise features using SQL Server.\"\n    },\n    {\n      \"requirement\": \"Rust\",\n      \"priority\": \"preferred\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"Rust\",\n      \"cvQuote\": \"\"\n    }\n  ]\n}",
+          "providerMs": 2139.0045439999994
+        },
+        {
+          "pass": "measurement",
+          "ms": 295.905698999999,
+          "promptTokens": 793,
+          "evalTokens": 1,
+          "loadMs": 0.820837,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\n"
+        },
+        {
+          "pass": "generation",
+          "ms": 342.9969439999986,
+          "promptTokens": 793,
+          "evalTokens": 23,
+          "loadMs": 0.511701,
+          "evalMs": 306.211,
+          "doneReason": "stop",
+          "raw": "{\n  \"candidateIds\": [\n    \"candidate-1\",\n    \"candidate-2\"\n  ]\n}",
+          "providerMs": 642.6634489999997
+        }
+      ],
+      "gpuPeakMiB": 5669,
+      "systemUsedPeakMiB": 4720.8984375,
+      "allocation": [
+        {
+          "name": "qwen3:4b",
+          "model": "qwen3:4b",
+          "size": 3877571133,
+          "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen3",
+            "families": ["qwen3"],
+            "parameter_size": "4.0B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-11-05T19:20:29.412560066Z",
+          "size_vram": 3877571133,
+          "context_length": 8192,
+          "runner": "llamacpp"
+        }
+      ],
+      "match": {
+        "score": 38,
+        "recommendation": "Low Fit",
+        "requirements": [
+          {
+            "parentId": "p1",
+            "requirement": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "priority": "required",
+            "category": "skill",
+            "jdQuote": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "cvQuote": "Developed enterprise features using SQL Server.",
+            "status": "PARTIAL",
+            "credit": 0.5,
+            "coverage": {
+              "mode": "OR",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "MySQL",
+                  "jdQuote": "MySQL",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c2",
+                  "label": "Oracle",
+                  "jdQuote": "Oracle",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c3",
+                  "label": "SQL Server",
+                  "jdQuote": "SQL Server",
+                  "status": "PARTIAL",
+                  "cvQuote": "Developed enterprise features using SQL Server.",
+                  "conflictingQuotes": [],
+                  "observations": [
+                    {
+                      "kind": "experience",
+                      "cvQuote": "Developed enterprise features using SQL Server."
+                    },
+                    {
+                      "kind": "mention",
+                      "cvQuote": "Skills: SQL Server"
+                    }
+                  ],
+                  "qualificationReason": "Project experience is evidenced; proficiency remains unverified."
+                }
+              ],
+              "credit": 0.5,
+              "status": "PARTIAL",
+              "reason": "SQL Server project experience is evidenced; proficiency at the requested level remains unverified."
+            }
+          },
+          {
+            "parentId": "p2",
+            "requirement": "Rust",
+            "priority": "preferred",
+            "category": "skill",
+            "jdQuote": "Rust",
+            "cvQuote": "",
+            "status": "NOT_EVIDENCED",
+            "credit": 0,
+            "coverage": {
+              "mode": "SINGLE",
+              "credit": 0,
+              "status": "NOT_EVIDENCED",
+              "reason": "Review the selected evidence.",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "Rust",
+                  "jdQuote": "Rust",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                }
+              ]
+            }
+          }
+        ],
+        "explanation": "Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Unknown/conflict earns zero. AI links and requirement completeness need human review; this is not a hiring probability.",
+        "advice": "Verify the required evidence gaps before applying. Add only accurate supporting experience to your CV.",
+        "matchId": "24a2b6b4-7fe5-410c-b70e-ef5df1ced214",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "analyzedAt": "2026-11-05T19:15:28.765Z"
+      },
+      "p6Ms": 2159.101541,
+      "suggestions": {
+        "contractVersion": "1",
+        "matchId": "24a2b6b4-7fe5-410c-b70e-ef5df1ced214",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "generatedAt": "2026-11-05T19:15:29.414Z",
+        "suggestions": [
+          {
+            "parentId": "p1",
+            "componentIds": ["c1", "c2", "c3"],
+            "requirement": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "priority": "required",
+            "status": "PARTIAL",
+            "kind": "clarify",
+            "reason": "Only some components are evidenced; this passage does not establish the full requirement.",
+            "wording": null,
+            "clarification": "Can you verify an accurate example? Add only what you can substantiate, with its role, scope and qualifiers.",
+            "jdEvidence": [
+              {
+                "parentId": "p1",
+                "componentId": "c1",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "MySQL"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c2",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "Oracle"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c3",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "SQL Server"
+              }
+            ],
+            "cvEvidence": [
+              {
+                "parentId": "p1",
+                "componentId": "c3",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "saved_cv_text",
+                "quote": "Developed enterprise features using SQL Server.",
+                "role": "support",
+                "span": {
+                  "start": 19,
+                  "end": 66
+                }
+              }
+            ],
+            "id": "candidate-1",
+            "rank": 1
+          },
+          {
+            "parentId": "p2",
+            "componentIds": ["c1"],
+            "requirement": "Rust",
+            "priority": "preferred",
+            "status": "NOT_EVIDENCED",
+            "kind": "clarify",
+            "reason": "Not evidenced in the saved CV does not mean you lack this qualification.",
+            "wording": null,
+            "clarification": "Can you verify an accurate example? Add only what you can substantiate, with its role, scope and qualifiers.",
+            "jdEvidence": [
+              {
+                "parentId": "p2",
+                "componentId": "c1",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "Rust"
+              }
+            ],
+            "cvEvidence": [],
+            "id": "candidate-2",
+            "rank": 2
+          }
+        ]
+      },
+      "p7Ms": 648.6364850000009,
+      "statusPass": true,
+      "success": true,
+      "totalMs": 2807.7447460000003
+    },
+    {
+      "model": "qwen3:4b",
+      "rep": 1,
+      "case": "sql-proficiency",
+      "calls": [
+        {
+          "pass": "measurement",
+          "ms": 191.25992899999983,
+          "promptTokens": 863,
+          "evalTokens": 1,
+          "loadMs": 1.906705,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\n"
+        },
+        {
+          "pass": "generation",
+          "ms": 3956.862540000002,
+          "promptTokens": 863,
+          "evalTokens": 298,
+          "loadMs": 0.690503,
+          "evalMs": 3924.178,
+          "doneReason": "stop",
+          "raw": "{\n  \"requirements\": [\n    {\n      \"requirement\": \"Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server\",\n      \"priority\": \"required\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server\",\n      \"cvQuote\": \"Independently designed SQL Server database schemas for a production billing application.\",\n      \"parentId\": \"p1\",\n      \"components\": [\n        {\n          \"componentId\": \"c1\",\n          \"jdQuote\": \"MySQL\",\n          \"cvQuote\": \"\"\n        },\n        {\n          \"componentId\": \"c2\",\n          \"jdQuote\": \"Oracle\",\n          \"cvQuote\": \"\"\n        },\n        {\n          \"componentId\": \"c3\",\n          \"jdQuote\": \"SQL Server\",\n          \"cvQuote\": \"Independently designed SQL Server database schemas for a production billing application.\"\n        }\n      ]\n    },\n    {\n      \"requirement\": \"Rust\",\n      \"priority\": \"preferred\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"Rust\",\n      \"cvQuote\": \"\",\n      \"parentId\": \"p2\",\n      \"components\": [\n        {\n          \"componentId\": \"c1\",\n          \"jdQuote\": \"Rust\",\n          \"cvQuote\": \"\"\n        }\n      ]\n    }\n  ]\n}",
+          "providerMs": 4150.832690000001
+        },
+        {
+          "pass": "measurement",
+          "ms": 319.64156699999876,
+          "promptTokens": 795,
+          "evalTokens": 1,
+          "loadMs": 0.683611,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\n"
+        },
+        {
+          "pass": "generation",
+          "ms": 335.5294979999999,
+          "promptTokens": 795,
+          "evalTokens": 23,
+          "loadMs": 0.470488,
+          "evalMs": 305.646,
+          "doneReason": "stop",
+          "raw": "{\n  \"candidateIds\": [\n    \"candidate-1\",\n    \"candidate-2\"\n  ]\n}",
+          "providerMs": 658.0597269999998
+        }
+      ],
+      "gpuPeakMiB": 5671,
+      "systemUsedPeakMiB": 4862.11328125,
+      "allocation": [
+        {
+          "name": "qwen3:4b",
+          "model": "qwen3:4b",
+          "size": 3877571133,
+          "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen3",
+            "families": ["qwen3"],
+            "parameter_size": "4.0B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-11-05T19:20:34.313073354Z",
+          "size_vram": 3877571133,
+          "context_length": 8192,
+          "runner": "llamacpp"
+        }
+      ],
+      "match": {
+        "score": 75,
+        "recommendation": "Apply",
+        "requirements": [
+          {
+            "parentId": "p1",
+            "requirement": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "priority": "required",
+            "category": "skill",
+            "jdQuote": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "cvQuote": "Independently designed SQL Server database schemas for a production billing application.",
+            "status": "EVIDENCED",
+            "credit": 1,
+            "coverage": {
+              "mode": "OR",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "MySQL",
+                  "jdQuote": "MySQL",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c2",
+                  "label": "Oracle",
+                  "jdQuote": "Oracle",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c3",
+                  "label": "SQL Server",
+                  "jdQuote": "SQL Server",
+                  "status": "EVIDENCED",
+                  "cvQuote": "Independently designed SQL Server database schemas for a production billing application.",
+                  "conflictingQuotes": []
+                }
+              ],
+              "credit": 1,
+              "status": "EVIDENCED",
+              "reason": "Review the selected component evidence."
+            }
+          },
+          {
+            "parentId": "p2",
+            "requirement": "Rust",
+            "priority": "preferred",
+            "category": "skill",
+            "jdQuote": "Rust",
+            "cvQuote": "",
+            "status": "NOT_EVIDENCED",
+            "credit": 0,
+            "coverage": {
+              "mode": "SINGLE",
+              "credit": 0,
+              "status": "NOT_EVIDENCED",
+              "reason": "Review the selected evidence.",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "Rust",
+                  "jdQuote": "Rust",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                }
+              ]
+            }
+          }
+        ],
+        "explanation": "Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Unknown/conflict earns zero. AI links and requirement completeness need human review; this is not a hiring probability.",
+        "advice": "Review the quoted evidence and tailor your application using only qualifications you can substantiate.",
+        "matchId": "d9e54361-54c3-4b7b-accb-c6df5fe25bc0",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "analyzedAt": "2026-11-05T19:15:33.651Z"
+      },
+      "p6Ms": 4157.187614999999,
+      "suggestions": {
+        "contractVersion": "1",
+        "matchId": "d9e54361-54c3-4b7b-accb-c6df5fe25bc0",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "generatedAt": "2026-11-05T19:15:34.314Z",
+        "suggestions": [
+          {
+            "parentId": "p2",
+            "componentIds": ["c1"],
+            "requirement": "Rust",
+            "priority": "preferred",
+            "status": "NOT_EVIDENCED",
+            "kind": "clarify",
+            "reason": "Not evidenced in the saved CV does not mean you lack this qualification.",
+            "wording": null,
+            "clarification": "Can you verify an accurate example? Add only what you can substantiate, with its role, scope and qualifiers.",
+            "jdEvidence": [
+              {
+                "parentId": "p2",
+                "componentId": "c1",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "Rust"
+              }
+            ],
+            "cvEvidence": [],
+            "id": "candidate-1",
+            "rank": 1
+          },
+          {
+            "parentId": "p1",
+            "componentIds": ["c1", "c2", "c3"],
+            "requirement": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "priority": "required",
+            "status": "EVIDENCED",
+            "kind": "clarify",
+            "reason": "The evidence needs context or verification before wording can be offered.",
+            "wording": null,
+            "clarification": "Can you verify an accurate example? Add only what you can substantiate, with its role, scope and qualifiers.",
+            "jdEvidence": [
+              {
+                "parentId": "p1",
+                "componentId": "c1",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "MySQL"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c2",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "Oracle"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c3",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "SQL Server"
+              }
+            ],
+            "cvEvidence": [
+              {
+                "parentId": "p1",
+                "componentId": "c3",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "saved_cv_text",
+                "quote": "Independently designed SQL Server database schemas for a production billing application.",
+                "role": "support",
+                "span": {
+                  "start": 0,
+                  "end": 88
+                }
+              }
+            ],
+            "id": "candidate-2",
+            "rank": 2
+          }
+        ]
+      },
+      "p7Ms": 662.9155119999996,
+      "statusPass": true,
+      "success": true,
+      "totalMs": 4820.109974000001
+    },
+    {
+      "model": "qwen3:4b",
+      "rep": 1,
+      "case": "sql-keywords",
+      "calls": [
+        {
+          "pass": "measurement",
+          "ms": 182.83664700000008,
+          "promptTokens": 859,
+          "evalTokens": 1,
+          "loadMs": 0.71308,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\n"
+        },
+        {
+          "pass": "generation",
+          "ms": 1783.5403799999985,
+          "promptTokens": 859,
+          "evalTokens": 132,
+          "loadMs": 0.452685,
+          "evalMs": 1748.963,
+          "doneReason": "stop",
+          "raw": "{\n  \"requirements\": [\n    {\n      \"requirement\": \"Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server\",\n      \"priority\": \"required\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server\",\n      \"cvQuote\": \"\"\n    },\n    {\n      \"requirement\": \"Rust\",\n      \"priority\": \"preferred\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"Rust\",\n      \"cvQuote\": \"\"\n    }\n  ]\n}",
+          "providerMs": 1969.272076000001
+        },
+        {
+          "pass": "measurement",
+          "ms": 222.35803300000043,
+          "promptTokens": 695,
+          "evalTokens": 1,
+          "loadMs": 0.600363,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\n"
+        },
+        {
+          "pass": "generation",
+          "ms": 329.4832110000025,
+          "promptTokens": 695,
+          "evalTokens": 23,
+          "loadMs": 0.785998,
+          "evalMs": 300.496,
+          "doneReason": "stop",
+          "raw": "{\n  \"candidateIds\": [\n    \"candidate-1\",\n    \"candidate-2\"\n  ]\n}",
+          "providerMs": 554.3794769999986
+        }
+      ],
+      "gpuPeakMiB": 5668,
+      "systemUsedPeakMiB": 4902.47265625,
+      "allocation": [
+        {
+          "name": "qwen3:4b",
+          "model": "qwen3:4b",
+          "size": 3877571133,
+          "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen3",
+            "families": ["qwen3"],
+            "parameter_size": "4.0B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-11-05T19:20:36.918297126Z",
+          "size_vram": 3877571133,
+          "context_length": 8192,
+          "runner": "llamacpp"
+        }
+      ],
+      "match": {
+        "score": 0,
+        "recommendation": "Low Fit",
+        "requirements": [
+          {
+            "parentId": "p1",
+            "requirement": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "priority": "required",
+            "category": "skill",
+            "jdQuote": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "cvQuote": "",
+            "status": "NOT_EVIDENCED",
+            "credit": 0,
+            "coverage": {
+              "mode": "OR",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "MySQL",
+                  "jdQuote": "MySQL",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": [],
+                  "observations": [
+                    {
+                      "kind": "mention",
+                      "cvQuote": "Skills: SQL Server, Oracle, MySQL"
+                    }
+                  ],
+                  "qualificationReason": "Mentioned in the CV; proficiency remains unverified."
+                },
+                {
+                  "id": "c2",
+                  "label": "Oracle",
+                  "jdQuote": "Oracle",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": [],
+                  "observations": [
+                    {
+                      "kind": "mention",
+                      "cvQuote": "Skills: SQL Server, Oracle, MySQL"
+                    }
+                  ],
+                  "qualificationReason": "Mentioned in the CV; proficiency remains unverified."
+                },
+                {
+                  "id": "c3",
+                  "label": "SQL Server",
+                  "jdQuote": "SQL Server",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": [],
+                  "observations": [
+                    {
+                      "kind": "mention",
+                      "cvQuote": "Skills: SQL Server, Oracle, MySQL"
+                    }
+                  ],
+                  "qualificationReason": "Mentioned in the CV; proficiency remains unverified."
+                }
+              ],
+              "credit": 0,
+              "status": "NOT_EVIDENCED",
+              "reason": "Database mentions are present in the CV; proficiency at the requested level remains unverified."
+            }
+          },
+          {
+            "parentId": "p2",
+            "requirement": "Rust",
+            "priority": "preferred",
+            "category": "skill",
+            "jdQuote": "Rust",
+            "cvQuote": "",
+            "status": "NOT_EVIDENCED",
+            "credit": 0,
+            "coverage": {
+              "mode": "SINGLE",
+              "credit": 0,
+              "status": "NOT_EVIDENCED",
+              "reason": "Review the selected evidence.",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "Rust",
+                  "jdQuote": "Rust",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                }
+              ]
+            }
+          }
+        ],
+        "explanation": "Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Unknown/conflict earns zero. AI links and requirement completeness need human review; this is not a hiring probability.",
+        "advice": "Verify the required evidence gaps before applying. Add only accurate supporting experience to your CV.",
+        "matchId": "651fc47a-4422-49b4-ab00-3da60c33b394",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "analyzedAt": "2026-11-05T19:15:36.360Z"
+      },
+      "p6Ms": 1977.1066070000015,
+      "suggestions": {
+        "contractVersion": "1",
+        "matchId": "651fc47a-4422-49b4-ab00-3da60c33b394",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "generatedAt": "2026-11-05T19:15:36.919Z",
+        "suggestions": [
+          {
+            "parentId": "p1",
+            "componentIds": ["c1", "c2", "c3"],
+            "requirement": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "priority": "required",
+            "status": "NOT_EVIDENCED",
+            "kind": "clarify",
+            "reason": "Not evidenced in the saved CV does not mean you lack this qualification.",
+            "wording": null,
+            "clarification": "Can you verify an accurate example? Add only what you can substantiate, with its role, scope and qualifiers.",
+            "jdEvidence": [
+              {
+                "parentId": "p1",
+                "componentId": "c1",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "MySQL"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c2",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "Oracle"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c3",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "SQL Server"
+              }
+            ],
+            "cvEvidence": [],
+            "id": "candidate-1",
+            "rank": 1
+          },
+          {
+            "parentId": "p2",
+            "componentIds": ["c1"],
+            "requirement": "Rust",
+            "priority": "preferred",
+            "status": "NOT_EVIDENCED",
+            "kind": "clarify",
+            "reason": "Not evidenced in the saved CV does not mean you lack this qualification.",
+            "wording": null,
+            "clarification": "Can you verify an accurate example? Add only what you can substantiate, with its role, scope and qualifiers.",
+            "jdEvidence": [
+              {
+                "parentId": "p2",
+                "componentId": "c1",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "Rust"
+              }
+            ],
+            "cvEvidence": [],
+            "id": "candidate-2",
+            "rank": 2
+          }
+        ]
+      },
+      "p7Ms": 559.1114789999992,
+      "statusPass": true,
+      "success": true,
+      "totalMs": 2536.2249880000018
+    },
+    {
+      "model": "qwen3:4b",
+      "rep": 2,
+      "case": "and-or",
+      "calls": [
+        {
+          "pass": "measurement",
+          "ms": 176.93694400000095,
+          "promptTokens": 938,
+          "evalTokens": 1,
+          "loadMs": 0.575351,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\n"
+        },
+        {
+          "pass": "generation",
+          "ms": 5406.505415,
+          "promptTokens": 938,
+          "evalTokens": 407,
+          "loadMs": 1.69356,
+          "evalMs": 5371.261,
+          "doneReason": "stop",
+          "raw": "{\n  \"requirements\": [\n    {\n      \"requirement\": \"Experience designing cloud-based architectures, APIs, integrations, data flows, and CI/CD practices.\",\n      \"priority\": \"required\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"Experience designing cloud-based architectures, APIs, integrations, data flows, and CI/CD practices.\",\n      \"cvQuote\": \"Designed REST APIs.\\nDesigned service integrations using RabbitMQ.\\nDesigned GitLab CI/CD pipelines.\",\n      \"parentId\": \"p1\",\n      \"components\": [\n        {\n          \"componentId\": \"c1\",\n          \"jdQuote\": \"cloud-based architectures\",\n          \"cvQuote\": \"\"\n        },\n        {\n          \"componentId\": \"c2\",\n          \"jdQuote\": \"APIs\",\n          \"cvQuote\": \"Designed REST APIs.\"\n        },\n        {\n          \"componentId\": \"c3\",\n          \"jdQuote\": \"integrations\",\n          \"cvQuote\": \"Designed service integrations using RabbitMQ.\"\n        },\n        {\n          \"componentId\": \"c4\",\n          \"jdQuote\": \"data flows\",\n          \"cvQuote\": \"\"\n        },\n        {\n          \"componentId\": \"c5\",\n          \"jdQuote\": \"CI/CD practices\",\n          \"cvQuote\": \"Designed GitLab CI/CD pipelines.\"\n        }\n      ]\n    },\n    {\n      \"requirement\": \"MCP or knowledge graphs.\",\n      \"priority\": \"preferred\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"MCP or knowledge graphs.\",\n      \"cvQuote\": \"\",\n      \"parentId\": \"p2\",\n      \"components\": [\n        {\n          \"componentId\": \"c1\",\n          \"jdQuote\": \"MCP\",\n          \"cvQuote\": \"\"\n        },\n        {\n          \"componentId\": \"c2\",\n          \"jdQuote\": \"knowledge graphs\",\n          \"cvQuote\": \"\"\n        }\n      ]\n    }\n  ]\n}",
+          "providerMs": 5585.893031
+        },
+        {
+          "pass": "measurement",
+          "ms": 144.49278799999956,
+          "promptTokens": 1336,
+          "evalTokens": 1,
+          "loadMs": 1.276948,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\n"
+        },
+        {
+          "pass": "generation",
+          "ms": 344.1554670000005,
+          "promptTokens": 1336,
+          "evalTokens": 23,
+          "loadMs": 0.737228,
+          "evalMs": 315.394,
+          "doneReason": "stop",
+          "raw": "{\n  \"candidateIds\": [\n    \"candidate-1\",\n    \"candidate-2\"\n  ]\n}",
+          "providerMs": 490.55910399999993
+        }
+      ],
+      "gpuPeakMiB": 5670,
+      "systemUsedPeakMiB": 4859.8671875,
+      "allocation": [
+        {
+          "name": "qwen3:4b",
+          "model": "qwen3:4b",
+          "size": 3877571133,
+          "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen3",
+            "families": ["qwen3"],
+            "parameter_size": "4.0B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-11-05T19:20:43.060741926Z",
+          "size_vram": 3877571133,
+          "context_length": 8192,
+          "runner": "llamacpp"
+        }
+      ],
+      "match": {
+        "score": 70,
+        "recommendation": "Consider",
+        "requirements": [
+          {
+            "parentId": "p1",
+            "requirement": "Experience designing cloud-based architectures, APIs, integrations, data flows, and CI/CD practices.",
+            "priority": "required",
+            "category": "skill",
+            "jdQuote": "Experience designing cloud-based architectures, APIs, integrations, data flows, and CI/CD practices.",
+            "cvQuote": "Designed REST APIs.",
+            "status": "PARTIAL",
+            "credit": 0.6,
+            "coverage": {
+              "mode": "AND",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "cloud-based architectures",
+                  "jdQuote": "cloud-based architectures",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c2",
+                  "label": "APIs",
+                  "jdQuote": "APIs",
+                  "status": "EVIDENCED",
+                  "cvQuote": "Designed REST APIs.",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c3",
+                  "label": "integrations",
+                  "jdQuote": "integrations",
+                  "status": "EVIDENCED",
+                  "cvQuote": "Designed service integrations using RabbitMQ.",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c4",
+                  "label": "data flows",
+                  "jdQuote": "data flows",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c5",
+                  "label": "CI/CD practices",
+                  "jdQuote": "CI/CD practices",
+                  "status": "EVIDENCED",
+                  "cvQuote": "Designed GitLab CI/CD pipelines.",
+                  "conflictingQuotes": []
+                }
+              ],
+              "credit": 0.6,
+              "status": "PARTIAL",
+              "reason": "Review the selected component evidence."
+            }
+          },
+          {
+            "parentId": "p2",
+            "requirement": "MCP or knowledge graphs.",
+            "priority": "preferred",
+            "category": "skill",
+            "jdQuote": "MCP or knowledge graphs.",
+            "cvQuote": "Built MCP servers.",
+            "status": "EVIDENCED",
+            "credit": 1,
+            "coverage": {
+              "mode": "OR",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "MCP",
+                  "jdQuote": "MCP",
+                  "status": "EVIDENCED",
+                  "cvQuote": "Built MCP servers.",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c2",
+                  "label": "knowledge graphs",
+                  "jdQuote": "knowledge graphs",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                }
+              ],
+              "credit": 1,
+              "status": "EVIDENCED",
+              "reason": "Review the selected component evidence."
+            }
+          }
+        ],
+        "explanation": "Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Unknown/conflict earns zero. AI links and requirement completeness need human review; this is not a hiring probability.",
+        "advice": "Verify the required evidence gaps before applying. Add only accurate supporting experience to your CV.",
+        "matchId": "4af2c9e2-6140-4103-a525-755c364abb4e",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "analyzedAt": "2026-11-05T19:15:42.566Z"
+      },
+      "p6Ms": 5592.812311999998,
+      "suggestions": {
+        "contractVersion": "1",
+        "matchId": "4af2c9e2-6140-4103-a525-755c364abb4e",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "generatedAt": "2026-11-05T19:15:43.061Z",
+        "suggestions": [
+          {
+            "parentId": "p1",
+            "componentIds": ["c1", "c2", "c3", "c4", "c5"],
+            "requirement": "Experience designing cloud-based architectures, APIs, integrations, data flows, and CI/CD practices.",
+            "priority": "required",
+            "status": "PARTIAL",
+            "kind": "clarify",
+            "reason": "Only some components are evidenced; this passage does not establish the full requirement.",
+            "wording": null,
+            "clarification": "Can you verify an accurate example? Add only what you can substantiate, with its role, scope and qualifiers.",
+            "jdEvidence": [
+              {
+                "parentId": "p1",
+                "componentId": "c1",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "cloud-based architectures"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c2",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "APIs"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c3",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "integrations"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c4",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "data flows"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c5",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "CI/CD practices"
+              }
+            ],
+            "cvEvidence": [
+              {
+                "parentId": "p1",
+                "componentId": "c2",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "saved_cv_text",
+                "quote": "Designed REST APIs.",
+                "role": "support",
+                "span": {
+                  "start": 0,
+                  "end": 19
+                }
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c3",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "saved_cv_text",
+                "quote": "Designed service integrations using RabbitMQ.",
+                "role": "support",
+                "span": {
+                  "start": 20,
+                  "end": 65
+                }
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c5",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "saved_cv_text",
+                "quote": "Designed GitLab CI/CD pipelines.",
+                "role": "support",
+                "span": {
+                  "start": 66,
+                  "end": 98
+                }
+              }
+            ],
+            "id": "candidate-1",
+            "rank": 1
+          },
+          {
+            "parentId": "p2",
+            "componentIds": ["c1", "c2"],
+            "requirement": "MCP or knowledge graphs.",
+            "priority": "preferred",
+            "status": "EVIDENCED",
+            "kind": "clarify",
+            "reason": "The evidence needs context or verification before wording can be offered.",
+            "wording": null,
+            "clarification": "Can you verify an accurate example? Add only what you can substantiate, with its role, scope and qualifiers.",
+            "jdEvidence": [
+              {
+                "parentId": "p2",
+                "componentId": "c1",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "MCP"
+              },
+              {
+                "parentId": "p2",
+                "componentId": "c2",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "knowledge graphs"
+              }
+            ],
+            "cvEvidence": [
+              {
+                "parentId": "p2",
+                "componentId": "c1",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "saved_cv_text",
+                "quote": "Built MCP servers.",
+                "role": "support",
+                "span": {
+                  "start": 99,
+                  "end": 117
+                }
+              }
+            ],
+            "id": "candidate-2",
+            "rank": 2
+          }
+        ]
+      },
+      "p7Ms": 494.8500329999988,
+      "statusPass": true,
+      "success": true,
+      "totalMs": 6087.670299000001
+    },
+    {
+      "model": "qwen3:4b",
+      "rep": 2,
+      "case": "sql-work",
+      "calls": [
+        {
+          "pass": "measurement",
+          "ms": 222.9760869999991,
+          "promptTokens": 875,
+          "evalTokens": 1,
+          "loadMs": 0.53909,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\n"
+        },
+        {
+          "pass": "generation",
+          "ms": 1878.061769,
+          "promptTokens": 875,
+          "evalTokens": 140,
+          "loadMs": 0.693902,
+          "evalMs": 1845.026,
+          "doneReason": "stop",
+          "raw": "{\n  \"requirements\": [\n    {\n      \"requirement\": \"Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server\",\n      \"priority\": \"required\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server\",\n      \"cvQuote\": \"Developed enterprise features using SQL Server.\"\n    },\n    {\n      \"requirement\": \"Rust\",\n      \"priority\": \"preferred\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"Rust\",\n      \"cvQuote\": \"\"\n    }\n  ]\n}",
+          "providerMs": 2104.10326
+        },
+        {
+          "pass": "measurement",
+          "ms": 254.11262200000056,
+          "promptTokens": 793,
+          "evalTokens": 1,
+          "loadMs": 0.733943,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\n"
+        },
+        {
+          "pass": "generation",
+          "ms": 332.54897600000186,
+          "promptTokens": 793,
+          "evalTokens": 23,
+          "loadMs": 0.630532,
+          "evalMs": 303.13,
+          "doneReason": "stop",
+          "raw": "{\n  \"candidateIds\": [\n    \"candidate-1\",\n    \"candidate-2\"\n  ]\n}",
+          "providerMs": 589.5940130000017
+        }
+      ],
+      "gpuPeakMiB": 5670,
+      "systemUsedPeakMiB": 4860.23828125,
+      "allocation": [
+        {
+          "name": "qwen3:4b",
+          "model": "qwen3:4b",
+          "size": 3877571133,
+          "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen3",
+            "families": ["qwen3"],
+            "parameter_size": "4.0B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-11-05T19:20:45.824814659Z",
+          "size_vram": 3877571133,
+          "context_length": 8192,
+          "runner": "llamacpp"
+        }
+      ],
+      "match": {
+        "score": 38,
+        "recommendation": "Low Fit",
+        "requirements": [
+          {
+            "parentId": "p1",
+            "requirement": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "priority": "required",
+            "category": "skill",
+            "jdQuote": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "cvQuote": "Developed enterprise features using SQL Server.",
+            "status": "PARTIAL",
+            "credit": 0.5,
+            "coverage": {
+              "mode": "OR",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "MySQL",
+                  "jdQuote": "MySQL",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c2",
+                  "label": "Oracle",
+                  "jdQuote": "Oracle",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c3",
+                  "label": "SQL Server",
+                  "jdQuote": "SQL Server",
+                  "status": "PARTIAL",
+                  "cvQuote": "Developed enterprise features using SQL Server.",
+                  "conflictingQuotes": [],
+                  "observations": [
+                    {
+                      "kind": "experience",
+                      "cvQuote": "Developed enterprise features using SQL Server."
+                    },
+                    {
+                      "kind": "mention",
+                      "cvQuote": "Skills: SQL Server"
+                    }
+                  ],
+                  "qualificationReason": "Project experience is evidenced; proficiency remains unverified."
+                }
+              ],
+              "credit": 0.5,
+              "status": "PARTIAL",
+              "reason": "SQL Server project experience is evidenced; proficiency at the requested level remains unverified."
+            }
+          },
+          {
+            "parentId": "p2",
+            "requirement": "Rust",
+            "priority": "preferred",
+            "category": "skill",
+            "jdQuote": "Rust",
+            "cvQuote": "",
+            "status": "NOT_EVIDENCED",
+            "credit": 0,
+            "coverage": {
+              "mode": "SINGLE",
+              "credit": 0,
+              "status": "NOT_EVIDENCED",
+              "reason": "Review the selected evidence.",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "Rust",
+                  "jdQuote": "Rust",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                }
+              ]
+            }
+          }
+        ],
+        "explanation": "Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Unknown/conflict earns zero. AI links and requirement completeness need human review; this is not a hiring probability.",
+        "advice": "Verify the required evidence gaps before applying. Add only accurate supporting experience to your CV.",
+        "matchId": "6e259327-b0cd-4159-8025-3d951b4465cd",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "analyzedAt": "2026-11-05T19:15:45.232Z"
+      },
+      "p6Ms": 2110.726180999998,
+      "suggestions": {
+        "contractVersion": "1",
+        "matchId": "6e259327-b0cd-4159-8025-3d951b4465cd",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "generatedAt": "2026-11-05T19:15:45.826Z",
+        "suggestions": [
+          {
+            "parentId": "p1",
+            "componentIds": ["c1", "c2", "c3"],
+            "requirement": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "priority": "required",
+            "status": "PARTIAL",
+            "kind": "clarify",
+            "reason": "Only some components are evidenced; this passage does not establish the full requirement.",
+            "wording": null,
+            "clarification": "Can you verify an accurate example? Add only what you can substantiate, with its role, scope and qualifiers.",
+            "jdEvidence": [
+              {
+                "parentId": "p1",
+                "componentId": "c1",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "MySQL"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c2",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "Oracle"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c3",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "SQL Server"
+              }
+            ],
+            "cvEvidence": [
+              {
+                "parentId": "p1",
+                "componentId": "c3",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "saved_cv_text",
+                "quote": "Developed enterprise features using SQL Server.",
+                "role": "support",
+                "span": {
+                  "start": 19,
+                  "end": 66
+                }
+              }
+            ],
+            "id": "candidate-1",
+            "rank": 1
+          },
+          {
+            "parentId": "p2",
+            "componentIds": ["c1"],
+            "requirement": "Rust",
+            "priority": "preferred",
+            "status": "NOT_EVIDENCED",
+            "kind": "clarify",
+            "reason": "Not evidenced in the saved CV does not mean you lack this qualification.",
+            "wording": null,
+            "clarification": "Can you verify an accurate example? Add only what you can substantiate, with its role, scope and qualifiers.",
+            "jdEvidence": [
+              {
+                "parentId": "p2",
+                "componentId": "c1",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "Rust"
+              }
+            ],
+            "cvEvidence": [],
+            "id": "candidate-2",
+            "rank": 2
+          }
+        ]
+      },
+      "p7Ms": 593.3858980000005,
+      "statusPass": true,
+      "success": true,
+      "totalMs": 2704.119036
+    },
+    {
+      "model": "qwen3:4b",
+      "rep": 2,
+      "case": "sql-proficiency",
+      "calls": [
+        {
+          "pass": "measurement",
+          "ms": 169.94515500000125,
+          "promptTokens": 863,
+          "evalTokens": 1,
+          "loadMs": 0.84202,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\n"
+        },
+        {
+          "pass": "generation",
+          "ms": 3942.3187199999957,
+          "promptTokens": 863,
+          "evalTokens": 298,
+          "loadMs": 0.528723,
+          "evalMs": 3911.386,
+          "doneReason": "stop",
+          "raw": "{\n  \"requirements\": [\n    {\n      \"requirement\": \"Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server\",\n      \"priority\": \"required\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server\",\n      \"cvQuote\": \"Independently designed SQL Server database schemas for a production billing application.\",\n      \"parentId\": \"p1\",\n      \"components\": [\n        {\n          \"componentId\": \"c1\",\n          \"jdQuote\": \"MySQL\",\n          \"cvQuote\": \"\"\n        },\n        {\n          \"componentId\": \"c2\",\n          \"jdQuote\": \"Oracle\",\n          \"cvQuote\": \"\"\n        },\n        {\n          \"componentId\": \"c3\",\n          \"jdQuote\": \"SQL Server\",\n          \"cvQuote\": \"Independently designed SQL Server database schemas for a production billing application.\"\n        }\n      ]\n    },\n    {\n      \"requirement\": \"Rust\",\n      \"priority\": \"preferred\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"Rust\",\n      \"cvQuote\": \"\",\n      \"parentId\": \"p2\",\n      \"components\": [\n        {\n          \"componentId\": \"c1\",\n          \"jdQuote\": \"Rust\",\n          \"cvQuote\": \"\"\n        }\n      ]\n    }\n  ]\n}",
+          "providerMs": 4114.441171000002
+        },
+        {
+          "pass": "measurement",
+          "ms": 132.99426700000186,
+          "promptTokens": 795,
+          "evalTokens": 1,
+          "loadMs": 0.619843,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\n"
+        },
+        {
+          "pass": "generation",
+          "ms": 331.661423000005,
+          "promptTokens": 795,
+          "evalTokens": 23,
+          "loadMs": 1.540914,
+          "evalMs": 302.584,
+          "doneReason": "stop",
+          "raw": "{\n  \"candidateIds\": [\n    \"candidate-1\",\n    \"candidate-2\"\n  ]\n}",
+          "providerMs": 466.71375299999636
+        }
+      ],
+      "gpuPeakMiB": 5667,
+      "systemUsedPeakMiB": 4928.17578125,
+      "allocation": [
+        {
+          "name": "qwen3:4b",
+          "model": "qwen3:4b",
+          "size": 3877571133,
+          "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen3",
+            "families": ["qwen3"],
+            "parameter_size": "4.0B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-11-05T19:20:50.483449289Z",
+          "size_vram": 3877571133,
+          "context_length": 8192,
+          "runner": "llamacpp"
+        }
+      ],
+      "match": {
+        "score": 75,
+        "recommendation": "Apply",
+        "requirements": [
+          {
+            "parentId": "p1",
+            "requirement": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "priority": "required",
+            "category": "skill",
+            "jdQuote": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "cvQuote": "Independently designed SQL Server database schemas for a production billing application.",
+            "status": "EVIDENCED",
+            "credit": 1,
+            "coverage": {
+              "mode": "OR",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "MySQL",
+                  "jdQuote": "MySQL",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c2",
+                  "label": "Oracle",
+                  "jdQuote": "Oracle",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c3",
+                  "label": "SQL Server",
+                  "jdQuote": "SQL Server",
+                  "status": "EVIDENCED",
+                  "cvQuote": "Independently designed SQL Server database schemas for a production billing application.",
+                  "conflictingQuotes": []
+                }
+              ],
+              "credit": 1,
+              "status": "EVIDENCED",
+              "reason": "Review the selected component evidence."
+            }
+          },
+          {
+            "parentId": "p2",
+            "requirement": "Rust",
+            "priority": "preferred",
+            "category": "skill",
+            "jdQuote": "Rust",
+            "cvQuote": "",
+            "status": "NOT_EVIDENCED",
+            "credit": 0,
+            "coverage": {
+              "mode": "SINGLE",
+              "credit": 0,
+              "status": "NOT_EVIDENCED",
+              "reason": "Review the selected evidence.",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "Rust",
+                  "jdQuote": "Rust",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                }
+              ]
+            }
+          }
+        ],
+        "explanation": "Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Unknown/conflict earns zero. AI links and requirement completeness need human review; this is not a hiring probability.",
+        "advice": "Review the quoted evidence and tailor your application using only qualifications you can substantiate.",
+        "matchId": "6f61f2da-d427-4327-8b17-67250ae19644",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "analyzedAt": "2026-11-05T19:15:50.013Z"
+      },
+      "p6Ms": 4121.185407000001,
+      "suggestions": {
+        "contractVersion": "1",
+        "matchId": "6f61f2da-d427-4327-8b17-67250ae19644",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "generatedAt": "2026-11-05T19:15:50.484Z",
+        "suggestions": [
+          {
+            "parentId": "p2",
+            "componentIds": ["c1"],
+            "requirement": "Rust",
+            "priority": "preferred",
+            "status": "NOT_EVIDENCED",
+            "kind": "clarify",
+            "reason": "Not evidenced in the saved CV does not mean you lack this qualification.",
+            "wording": null,
+            "clarification": "Can you verify an accurate example? Add only what you can substantiate, with its role, scope and qualifiers.",
+            "jdEvidence": [
+              {
+                "parentId": "p2",
+                "componentId": "c1",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "Rust"
+              }
+            ],
+            "cvEvidence": [],
+            "id": "candidate-1",
+            "rank": 1
+          },
+          {
+            "parentId": "p1",
+            "componentIds": ["c1", "c2", "c3"],
+            "requirement": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "priority": "required",
+            "status": "EVIDENCED",
+            "kind": "clarify",
+            "reason": "The evidence needs context or verification before wording can be offered.",
+            "wording": null,
+            "clarification": "Can you verify an accurate example? Add only what you can substantiate, with its role, scope and qualifiers.",
+            "jdEvidence": [
+              {
+                "parentId": "p1",
+                "componentId": "c1",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "MySQL"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c2",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "Oracle"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c3",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "SQL Server"
+              }
+            ],
+            "cvEvidence": [
+              {
+                "parentId": "p1",
+                "componentId": "c3",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "saved_cv_text",
+                "quote": "Independently designed SQL Server database schemas for a production billing application.",
+                "role": "support",
+                "span": {
+                  "start": 0,
+                  "end": 88
+                }
+              }
+            ],
+            "id": "candidate-2",
+            "rank": 2
+          }
+        ]
+      },
+      "p7Ms": 470.7526910000015,
+      "statusPass": true,
+      "success": true,
+      "totalMs": 4591.945478000005
+    },
+    {
+      "model": "qwen3:4b",
+      "rep": 2,
+      "case": "sql-keywords",
+      "calls": [
+        {
+          "pass": "measurement",
+          "ms": 164.53437600000325,
+          "promptTokens": 859,
+          "evalTokens": 1,
+          "loadMs": 0.544897,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\n"
+        },
+        {
+          "pass": "generation",
+          "ms": 1776.9916410000005,
+          "promptTokens": 859,
+          "evalTokens": 132,
+          "loadMs": 0.642168,
+          "evalMs": 1744.529,
+          "doneReason": "stop",
+          "raw": "{\n  \"requirements\": [\n    {\n      \"requirement\": \"Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server\",\n      \"priority\": \"required\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server\",\n      \"cvQuote\": \"\"\n    },\n    {\n      \"requirement\": \"Rust\",\n      \"priority\": \"preferred\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"Rust\",\n      \"cvQuote\": \"\"\n    }\n  ]\n}",
+          "providerMs": 1943.8243409999995
+        },
+        {
+          "pass": "measurement",
+          "ms": 219.60109699999884,
+          "promptTokens": 695,
+          "evalTokens": 1,
+          "loadMs": 0.772707,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\n"
+        },
+        {
+          "pass": "generation",
+          "ms": 329.76674099999946,
+          "promptTokens": 695,
+          "evalTokens": 23,
+          "loadMs": 0.6716,
+          "evalMs": 300.28,
+          "doneReason": "stop",
+          "raw": "{\n  \"candidateIds\": [\n    \"candidate-1\",\n    \"candidate-2\"\n  ]\n}",
+          "providerMs": 552.1170199999979
+        }
+      ],
+      "gpuPeakMiB": 5667,
+      "systemUsedPeakMiB": 4952.90234375,
+      "allocation": [
+        {
+          "name": "qwen3:4b",
+          "model": "qwen3:4b",
+          "size": 3877571133,
+          "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen3",
+            "families": ["qwen3"],
+            "parameter_size": "4.0B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-11-05T19:20:53.054547114Z",
+          "size_vram": 3877571133,
+          "context_length": 8192,
+          "runner": "llamacpp"
+        }
+      ],
+      "match": {
+        "score": 0,
+        "recommendation": "Low Fit",
+        "requirements": [
+          {
+            "parentId": "p1",
+            "requirement": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "priority": "required",
+            "category": "skill",
+            "jdQuote": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "cvQuote": "",
+            "status": "NOT_EVIDENCED",
+            "credit": 0,
+            "coverage": {
+              "mode": "OR",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "MySQL",
+                  "jdQuote": "MySQL",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": [],
+                  "observations": [
+                    {
+                      "kind": "mention",
+                      "cvQuote": "Skills: SQL Server, Oracle, MySQL"
+                    }
+                  ],
+                  "qualificationReason": "Mentioned in the CV; proficiency remains unverified."
+                },
+                {
+                  "id": "c2",
+                  "label": "Oracle",
+                  "jdQuote": "Oracle",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": [],
+                  "observations": [
+                    {
+                      "kind": "mention",
+                      "cvQuote": "Skills: SQL Server, Oracle, MySQL"
+                    }
+                  ],
+                  "qualificationReason": "Mentioned in the CV; proficiency remains unverified."
+                },
+                {
+                  "id": "c3",
+                  "label": "SQL Server",
+                  "jdQuote": "SQL Server",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": [],
+                  "observations": [
+                    {
+                      "kind": "mention",
+                      "cvQuote": "Skills: SQL Server, Oracle, MySQL"
+                    }
+                  ],
+                  "qualificationReason": "Mentioned in the CV; proficiency remains unverified."
+                }
+              ],
+              "credit": 0,
+              "status": "NOT_EVIDENCED",
+              "reason": "Database mentions are present in the CV; proficiency at the requested level remains unverified."
+            }
+          },
+          {
+            "parentId": "p2",
+            "requirement": "Rust",
+            "priority": "preferred",
+            "category": "skill",
+            "jdQuote": "Rust",
+            "cvQuote": "",
+            "status": "NOT_EVIDENCED",
+            "credit": 0,
+            "coverage": {
+              "mode": "SINGLE",
+              "credit": 0,
+              "status": "NOT_EVIDENCED",
+              "reason": "Review the selected evidence.",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "Rust",
+                  "jdQuote": "Rust",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                }
+              ]
+            }
+          }
+        ],
+        "explanation": "Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Unknown/conflict earns zero. AI links and requirement completeness need human review; this is not a hiring probability.",
+        "advice": "Verify the required evidence gaps before applying. Add only accurate supporting experience to your CV.",
+        "matchId": "b1f1703f-d961-4d27-bc6c-ece752c84829",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "analyzedAt": "2026-11-05T19:15:52.499Z"
+      },
+      "p6Ms": 1949.587268999996,
+      "suggestions": {
+        "contractVersion": "1",
+        "matchId": "b1f1703f-d961-4d27-bc6c-ece752c84829",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "generatedAt": "2026-11-05T19:15:53.055Z",
+        "suggestions": [
+          {
+            "parentId": "p1",
+            "componentIds": ["c1", "c2", "c3"],
+            "requirement": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "priority": "required",
+            "status": "NOT_EVIDENCED",
+            "kind": "clarify",
+            "reason": "Not evidenced in the saved CV does not mean you lack this qualification.",
+            "wording": null,
+            "clarification": "Can you verify an accurate example? Add only what you can substantiate, with its role, scope and qualifiers.",
+            "jdEvidence": [
+              {
+                "parentId": "p1",
+                "componentId": "c1",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "MySQL"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c2",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "Oracle"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c3",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "SQL Server"
+              }
+            ],
+            "cvEvidence": [],
+            "id": "candidate-1",
+            "rank": 1
+          },
+          {
+            "parentId": "p2",
+            "componentIds": ["c1"],
+            "requirement": "Rust",
+            "priority": "preferred",
+            "status": "NOT_EVIDENCED",
+            "kind": "clarify",
+            "reason": "Not evidenced in the saved CV does not mean you lack this qualification.",
+            "wording": null,
+            "clarification": "Can you verify an accurate example? Add only what you can substantiate, with its role, scope and qualifiers.",
+            "jdEvidence": [
+              {
+                "parentId": "p2",
+                "componentId": "c1",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "Rust"
+              }
+            ],
+            "cvEvidence": [],
+            "id": "candidate-2",
+            "rank": 2
+          }
+        ]
+      },
+      "p7Ms": 556.305382999999,
+      "statusPass": true,
+      "success": true,
+      "totalMs": 2505.898355000005
+    },
+    {
+      "model": "qwen3:8b",
+      "rep": 1,
+      "case": "and-or",
+      "calls": [
+        {
+          "pass": "measurement",
+          "ms": 4337.387024000003,
+          "promptTokens": 944,
+          "evalTokens": 1,
+          "loadMs": 3851.540679,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\n"
+        },
+        {
+          "pass": "generation",
+          "ms": 9532.801984999998,
+          "promptTokens": 944,
+          "evalTokens": 411,
+          "loadMs": 0.547866,
+          "evalMs": 9473.175,
+          "doneReason": "stop",
+          "raw": "{\n  \"requirements\": [\n    {\n      \"requirement\": \"Experience designing cloud-based architectures, APIs, integrations, data flows, and CI/CD practices.\",\n      \"priority\": \"required\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"Experience designing cloud-based architectures, APIs, integrations, data flows, and CI/CD practices.\",\n      \"cvQuote\": \"Designed REST APIs.\\nDesigned service integrations using RabbitMQ.\\nDesigned GitLab CI/CD pipelines.\",\n      \"parentId\": \"p1\",\n      \"components\": [\n        {\n          \"componentId\": \"c1\",\n          \"jdQuote\": \"cloud-based architectures\",\n          \"cvQuote\": \"\"\n        },\n        {\n          \"componentId\": \"c2\",\n          \"jdQuote\": \"APIs\",\n          \"cvQuote\": \"Designed REST APIs.\"\n        },\n        {\n          \"componentId\": \"c3\",\n          \"jdQuote\": \"integrations\",\n          \"cvQuote\": \"Designed service integrations using RabbitMQ.\"\n        },\n        {\n          \"componentId\": \"c4\",\n          \"jdQuote\": \"data flows\",\n          \"cvQuote\": \"\"\n        },\n        {\n          \"componentId\": \"c5\",\n          \"jdQuote\": \"CI/CD practices\",\n          \"cvQuote\": \"Designed GitLab CI/CD pipelines.\"\n        }\n      ]\n    },\n    {\n      \"requirement\": \"MCP or knowledge graphs.\",\n      \"priority\": \"preferred\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"MCP or knowledge graphs.\",\n      \"cvQuote\": \"\",\n      \"parentId\": \"p2\",\n      \"components\": [\n        {\n          \"componentId\": \"c1\",\n          \"jdQuote\": \"MCP\",\n          \"cvQuote\": \"Built MCP servers.\"\n        },\n        {\n          \"componentId\": \"c2\",\n          \"jdQuote\": \"knowledge graphs\",\n          \"cvQuote\": \"\"\n        }\n      ]\n    }\n  ]\n}",
+          "providerMs": 13873.324483000004
+        },
+        {
+          "pass": "measurement",
+          "ms": 682.9560760000022,
+          "promptTokens": 1342,
+          "evalTokens": 1,
+          "loadMs": 0.89894,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\""
+        },
+        {
+          "pass": "generation",
+          "ms": 237.46186900000612,
+          "promptTokens": 1342,
+          "evalTokens": 10,
+          "loadMs": 0.423482,
+          "evalMs": 207.066,
+          "doneReason": "stop",
+          "raw": "{\"candidateIds\": [\"candidate-1\"]}",
+          "providerMs": 923.9705929999982
+        }
+      ],
+      "gpuPeakMiB": 7513,
+      "systemUsedPeakMiB": 4768.1328125,
+      "allocation": [
+        {
+          "name": "qwen3:8b",
+          "model": "qwen3:8b",
+          "size": 6194766806,
+          "digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen3",
+            "families": ["qwen3"],
+            "parameter_size": "8.2B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-11-05T19:21:08.022273353Z",
+          "size_vram": 6194766806,
+          "context_length": 8192,
+          "runner": "llamacpp"
+        }
+      ],
+      "match": {
+        "score": 70,
+        "recommendation": "Consider",
+        "requirements": [
+          {
+            "parentId": "p1",
+            "requirement": "Experience designing cloud-based architectures, APIs, integrations, data flows, and CI/CD practices.",
+            "priority": "required",
+            "category": "skill",
+            "jdQuote": "Experience designing cloud-based architectures, APIs, integrations, data flows, and CI/CD practices.",
+            "cvQuote": "Designed REST APIs.",
+            "status": "PARTIAL",
+            "credit": 0.6,
+            "coverage": {
+              "mode": "AND",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "cloud-based architectures",
+                  "jdQuote": "cloud-based architectures",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c2",
+                  "label": "APIs",
+                  "jdQuote": "APIs",
+                  "status": "EVIDENCED",
+                  "cvQuote": "Designed REST APIs.",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c3",
+                  "label": "integrations",
+                  "jdQuote": "integrations",
+                  "status": "EVIDENCED",
+                  "cvQuote": "Designed service integrations using RabbitMQ.",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c4",
+                  "label": "data flows",
+                  "jdQuote": "data flows",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c5",
+                  "label": "CI/CD practices",
+                  "jdQuote": "CI/CD practices",
+                  "status": "EVIDENCED",
+                  "cvQuote": "Designed GitLab CI/CD pipelines.",
+                  "conflictingQuotes": []
+                }
+              ],
+              "credit": 0.6,
+              "status": "PARTIAL",
+              "reason": "Review the selected component evidence."
+            }
+          },
+          {
+            "parentId": "p2",
+            "requirement": "MCP or knowledge graphs.",
+            "priority": "preferred",
+            "category": "skill",
+            "jdQuote": "MCP or knowledge graphs.",
+            "cvQuote": "Built MCP servers.",
+            "status": "EVIDENCED",
+            "credit": 1,
+            "coverage": {
+              "mode": "OR",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "MCP",
+                  "jdQuote": "MCP",
+                  "status": "EVIDENCED",
+                  "cvQuote": "Built MCP servers.",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c2",
+                  "label": "knowledge graphs",
+                  "jdQuote": "knowledge graphs",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                }
+              ],
+              "credit": 1,
+              "status": "EVIDENCED",
+              "reason": "Review the selected component evidence."
+            }
+          }
+        ],
+        "explanation": "Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Unknown/conflict earns zero. AI links and requirement completeness need human review; this is not a hiring probability.",
+        "advice": "Verify the required evidence gaps before applying. Add only accurate supporting experience to your CV.",
+        "matchId": "06733fac-42c6-482c-82c4-8c7f4ba60ab2",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "analyzedAt": "2026-11-05T19:16:07.093Z"
+      },
+      "p6Ms": 13878.733324,
+      "suggestions": {
+        "contractVersion": "1",
+        "matchId": "06733fac-42c6-482c-82c4-8c7f4ba60ab2",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "generatedAt": "2026-11-05T19:16:08.023Z",
+        "suggestions": [
+          {
+            "parentId": "p1",
+            "componentIds": ["c1", "c2", "c3", "c4", "c5"],
+            "requirement": "Experience designing cloud-based architectures, APIs, integrations, data flows, and CI/CD practices.",
+            "priority": "required",
+            "status": "PARTIAL",
+            "kind": "clarify",
+            "reason": "Only some components are evidenced; this passage does not establish the full requirement.",
+            "wording": null,
+            "clarification": "Can you verify an accurate example? Add only what you can substantiate, with its role, scope and qualifiers.",
+            "jdEvidence": [
+              {
+                "parentId": "p1",
+                "componentId": "c1",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "cloud-based architectures"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c2",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "APIs"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c3",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "integrations"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c4",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "data flows"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c5",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "CI/CD practices"
+              }
+            ],
+            "cvEvidence": [
+              {
+                "parentId": "p1",
+                "componentId": "c2",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "saved_cv_text",
+                "quote": "Designed REST APIs.",
+                "role": "support",
+                "span": {
+                  "start": 0,
+                  "end": 19
+                }
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c3",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "saved_cv_text",
+                "quote": "Designed service integrations using RabbitMQ.",
+                "role": "support",
+                "span": {
+                  "start": 20,
+                  "end": 65
+                }
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c5",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "saved_cv_text",
+                "quote": "Designed GitLab CI/CD pipelines.",
+                "role": "support",
+                "span": {
+                  "start": 66,
+                  "end": 98
+                }
+              }
+            ],
+            "id": "candidate-1",
+            "rank": 1
+          }
+        ]
+      },
+      "p7Ms": 931.487076999998,
+      "statusPass": true,
+      "success": true,
+      "totalMs": 14810.227410000007
+    },
+    {
+      "model": "qwen3:8b",
+      "rep": 1,
+      "case": "sql-work",
+      "calls": [
+        {
+          "pass": "measurement",
+          "ms": 289.97966299999825,
+          "promptTokens": 881,
+          "evalTokens": 1,
+          "loadMs": 0.90027,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\n"
+        },
+        {
+          "pass": "generation",
+          "ms": 6433.119393000001,
+          "promptTokens": 881,
+          "evalTokens": 282,
+          "loadMs": 0.774682,
+          "evalMs": 6396.814,
+          "doneReason": "stop",
+          "raw": "{\n  \"requirements\": [\n    {\n      \"requirement\": \"Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server\",\n      \"priority\": \"required\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server\",\n      \"cvQuote\": \"Skills: SQL Server\",\n      \"parentId\": \"p1\",\n      \"components\": [\n        {\n          \"componentId\": \"c1\",\n          \"jdQuote\": \"MySQL\",\n          \"cvQuote\": \"\"\n        },\n        {\n          \"componentId\": \"c2\",\n          \"jdQuote\": \"Oracle\",\n          \"cvQuote\": \"\"\n        },\n        {\n          \"componentId\": \"c3\",\n          \"jdQuote\": \"SQL Server\",\n          \"cvQuote\": \"Skills: SQL Server\"\n        }\n      ]\n    },\n    {\n      \"requirement\": \"Rust\",\n      \"priority\": \"preferred\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"Rust\",\n      \"cvQuote\": \"\",\n      \"parentId\": \"p2\",\n      \"components\": [\n        {\n          \"componentId\": \"c1\",\n          \"jdQuote\": \"Rust\",\n          \"cvQuote\": \"\"\n        }\n      ]\n    }\n  ]\n}",
+          "providerMs": 6725.610443999998
+        },
+        {
+          "pass": "measurement",
+          "ms": 439.8820180000039,
+          "promptTokens": 799,
+          "evalTokens": 1,
+          "loadMs": 0.895655,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\""
+        },
+        {
+          "pass": "generation",
+          "ms": 238.77254399999947,
+          "promptTokens": 799,
+          "evalTokens": 10,
+          "loadMs": 0.481662,
+          "evalMs": 206.533,
+          "doneReason": "stop",
+          "raw": "{\"candidateIds\": [\"candidate-1\"]}",
+          "providerMs": 681.9769520000045
+        }
+      ],
+      "gpuPeakMiB": 7531,
+      "systemUsedPeakMiB": 4981.61328125,
+      "allocation": [
+        {
+          "name": "qwen3:8b",
+          "model": "qwen3:8b",
+          "size": 6194766806,
+          "digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen3",
+            "families": ["qwen3"],
+            "parameter_size": "8.2B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-11-05T19:21:15.503346536Z",
+          "size_vram": 6194766806,
+          "context_length": 8192,
+          "runner": "llamacpp"
+        }
+      ],
+      "match": {
+        "score": 38,
+        "recommendation": "Low Fit",
+        "requirements": [
+          {
+            "parentId": "p1",
+            "requirement": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "priority": "required",
+            "category": "skill",
+            "jdQuote": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "cvQuote": "Developed enterprise features using SQL Server.",
+            "status": "PARTIAL",
+            "credit": 0.5,
+            "coverage": {
+              "mode": "OR",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "MySQL",
+                  "jdQuote": "MySQL",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c2",
+                  "label": "Oracle",
+                  "jdQuote": "Oracle",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c3",
+                  "label": "SQL Server",
+                  "jdQuote": "SQL Server",
+                  "status": "PARTIAL",
+                  "cvQuote": "Developed enterprise features using SQL Server.",
+                  "conflictingQuotes": [],
+                  "observations": [
+                    {
+                      "kind": "experience",
+                      "cvQuote": "Developed enterprise features using SQL Server."
+                    },
+                    {
+                      "kind": "mention",
+                      "cvQuote": "Skills: SQL Server"
+                    }
+                  ],
+                  "qualificationReason": "Project experience is evidenced; proficiency remains unverified."
+                }
+              ],
+              "credit": 0.5,
+              "status": "PARTIAL",
+              "reason": "SQL Server project experience is evidenced; proficiency at the requested level remains unverified."
+            }
+          },
+          {
+            "parentId": "p2",
+            "requirement": "Rust",
+            "priority": "preferred",
+            "category": "skill",
+            "jdQuote": "Rust",
+            "cvQuote": "",
+            "status": "NOT_EVIDENCED",
+            "credit": 0,
+            "coverage": {
+              "mode": "SINGLE",
+              "credit": 0,
+              "status": "NOT_EVIDENCED",
+              "reason": "Review the selected evidence.",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "Rust",
+                  "jdQuote": "Rust",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                }
+              ]
+            }
+          }
+        ],
+        "explanation": "Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Unknown/conflict earns zero. AI links and requirement completeness need human review; this is not a hiring probability.",
+        "advice": "Verify the required evidence gaps before applying. Add only accurate supporting experience to your CV.",
+        "matchId": "2cb21906-3617-41c0-b1a4-b8ad06660d16",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "analyzedAt": "2026-11-05T19:16:14.818Z"
+      },
+      "p6Ms": 6732.323381000002,
+      "suggestions": {
+        "contractVersion": "1",
+        "matchId": "2cb21906-3617-41c0-b1a4-b8ad06660d16",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "generatedAt": "2026-11-05T19:16:15.504Z",
+        "suggestions": [
+          {
+            "parentId": "p1",
+            "componentIds": ["c1", "c2", "c3"],
+            "requirement": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "priority": "required",
+            "status": "PARTIAL",
+            "kind": "clarify",
+            "reason": "Only some components are evidenced; this passage does not establish the full requirement.",
+            "wording": null,
+            "clarification": "Can you verify an accurate example? Add only what you can substantiate, with its role, scope and qualifiers.",
+            "jdEvidence": [
+              {
+                "parentId": "p1",
+                "componentId": "c1",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "MySQL"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c2",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "Oracle"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c3",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "SQL Server"
+              }
+            ],
+            "cvEvidence": [
+              {
+                "parentId": "p1",
+                "componentId": "c3",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "saved_cv_text",
+                "quote": "Developed enterprise features using SQL Server.",
+                "role": "support",
+                "span": {
+                  "start": 19,
+                  "end": 66
+                }
+              }
+            ],
+            "id": "candidate-1",
+            "rank": 1
+          }
+        ]
+      },
+      "p7Ms": 685.967469999996,
+      "statusPass": true,
+      "success": true,
+      "totalMs": 7418.299047
+    },
+    {
+      "model": "qwen3:8b",
+      "rep": 1,
+      "case": "sql-proficiency",
+      "calls": [
+        {
+          "pass": "measurement",
+          "ms": 252.4725049999979,
+          "promptTokens": 869,
+          "evalTokens": 1,
+          "loadMs": 0.495901,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\n"
+        },
+        {
+          "pass": "generation",
+          "ms": 6794.993248000006,
+          "promptTokens": 869,
+          "evalTokens": 298,
+          "loadMs": 0.588286,
+          "evalMs": 6759.425,
+          "doneReason": "stop",
+          "raw": "{\n  \"requirements\": [\n    {\n      \"requirement\": \"Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server\",\n      \"priority\": \"required\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server\",\n      \"cvQuote\": \"Independently designed SQL Server database schemas for a production billing application.\",\n      \"parentId\": \"p1\",\n      \"components\": [\n        {\n          \"componentId\": \"c1\",\n          \"jdQuote\": \"MySQL\",\n          \"cvQuote\": \"\"\n        },\n        {\n          \"componentId\": \"c2\",\n          \"jdQuote\": \"Oracle\",\n          \"cvQuote\": \"\"\n        },\n        {\n          \"componentId\": \"c3\",\n          \"jdQuote\": \"SQL Server\",\n          \"cvQuote\": \"Independently designed SQL Server database schemas for a production billing application.\"\n        }\n      ]\n    },\n    {\n      \"requirement\": \"Rust\",\n      \"priority\": \"preferred\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"Rust\",\n      \"cvQuote\": \"\",\n      \"parentId\": \"p2\",\n      \"components\": [\n        {\n          \"componentId\": \"c1\",\n          \"jdQuote\": \"Rust\",\n          \"cvQuote\": \"\"\n        }\n      ]\n    }\n  ]\n}",
+          "providerMs": 7049.837076000003
+        },
+        {
+          "pass": "measurement",
+          "ms": 444.36818800000765,
+          "promptTokens": 801,
+          "evalTokens": 1,
+          "loadMs": 1.71537,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\""
+        },
+        {
+          "pass": "generation",
+          "ms": 236.6008359999978,
+          "promptTokens": 801,
+          "evalTokens": 10,
+          "loadMs": 0.482612,
+          "evalMs": 205.079,
+          "doneReason": "stop",
+          "raw": "{\"candidateIds\": [\"candidate-2\"]}",
+          "providerMs": 683.7485880000022
+        }
+      ],
+      "gpuPeakMiB": 7536,
+      "systemUsedPeakMiB": 5135.078125,
+      "allocation": [
+        {
+          "name": "qwen3:8b",
+          "model": "qwen3:8b",
+          "size": 6194766806,
+          "digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen3",
+            "families": ["qwen3"],
+            "parameter_size": "8.2B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-11-05T19:21:23.335478982Z",
+          "size_vram": 6194766806,
+          "context_length": 8192,
+          "runner": "llamacpp"
+        }
+      ],
+      "match": {
+        "score": 75,
+        "recommendation": "Apply",
+        "requirements": [
+          {
+            "parentId": "p1",
+            "requirement": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "priority": "required",
+            "category": "skill",
+            "jdQuote": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "cvQuote": "Independently designed SQL Server database schemas for a production billing application.",
+            "status": "EVIDENCED",
+            "credit": 1,
+            "coverage": {
+              "mode": "OR",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "MySQL",
+                  "jdQuote": "MySQL",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c2",
+                  "label": "Oracle",
+                  "jdQuote": "Oracle",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c3",
+                  "label": "SQL Server",
+                  "jdQuote": "SQL Server",
+                  "status": "EVIDENCED",
+                  "cvQuote": "Independently designed SQL Server database schemas for a production billing application.",
+                  "conflictingQuotes": []
+                }
+              ],
+              "credit": 1,
+              "status": "EVIDENCED",
+              "reason": "Review the selected component evidence."
+            }
+          },
+          {
+            "parentId": "p2",
+            "requirement": "Rust",
+            "priority": "preferred",
+            "category": "skill",
+            "jdQuote": "Rust",
+            "cvQuote": "",
+            "status": "NOT_EVIDENCED",
+            "credit": 0,
+            "coverage": {
+              "mode": "SINGLE",
+              "credit": 0,
+              "status": "NOT_EVIDENCED",
+              "reason": "Review the selected evidence.",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "Rust",
+                  "jdQuote": "Rust",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                }
+              ]
+            }
+          }
+        ],
+        "explanation": "Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Unknown/conflict earns zero. AI links and requirement completeness need human review; this is not a hiring probability.",
+        "advice": "Review the quoted evidence and tailor your application using only qualifications you can substantiate.",
+        "matchId": "d78de5a9-8080-4c61-a2e0-a1a729e73ce4",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "analyzedAt": "2026-11-05T19:16:22.647Z"
+      },
+      "p6Ms": 7056.37412,
+      "suggestions": {
+        "contractVersion": "1",
+        "matchId": "d78de5a9-8080-4c61-a2e0-a1a729e73ce4",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "generatedAt": "2026-11-05T19:16:23.336Z",
+        "suggestions": [
+          {
+            "parentId": "p1",
+            "componentIds": ["c1", "c2", "c3"],
+            "requirement": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "priority": "required",
+            "status": "EVIDENCED",
+            "kind": "clarify",
+            "reason": "The evidence needs context or verification before wording can be offered.",
+            "wording": null,
+            "clarification": "Can you verify an accurate example? Add only what you can substantiate, with its role, scope and qualifiers.",
+            "jdEvidence": [
+              {
+                "parentId": "p1",
+                "componentId": "c1",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "MySQL"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c2",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "Oracle"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c3",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "SQL Server"
+              }
+            ],
+            "cvEvidence": [
+              {
+                "parentId": "p1",
+                "componentId": "c3",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "saved_cv_text",
+                "quote": "Independently designed SQL Server database schemas for a production billing application.",
+                "role": "support",
+                "span": {
+                  "start": 0,
+                  "end": 88
+                }
+              }
+            ],
+            "id": "candidate-2",
+            "rank": 1
+          }
+        ]
+      },
+      "p7Ms": 689.0427720000007,
+      "statusPass": true,
+      "success": true,
+      "totalMs": 7745.426935999996
+    },
+    {
+      "model": "qwen3:8b",
+      "rep": 1,
+      "case": "sql-keywords",
+      "calls": [
+        {
+          "pass": "measurement",
+          "ms": 239.4831000000122,
+          "promptTokens": 865,
+          "evalTokens": 1,
+          "loadMs": 0.630705,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\n"
+        },
+        {
+          "pass": "generation",
+          "ms": 7022.105347999997,
+          "promptTokens": 865,
+          "evalTokens": 308,
+          "loadMs": 0.94978,
+          "evalMs": 6984.451,
+          "doneReason": "stop",
+          "raw": "{\n  \"requirements\": [\n    {\n      \"requirement\": \"Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server\",\n      \"priority\": \"required\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server\",\n      \"cvQuote\": \"Skills: SQL Server, Oracle, MySQL\",\n      \"parentId\": \"p1\",\n      \"components\": [\n        {\n          \"componentId\": \"c1\",\n          \"jdQuote\": \"MySQL\",\n          \"cvQuote\": \"Skills: SQL Server, Oracle, MySQL\"\n        },\n        {\n          \"componentId\": \"c2\",\n          \"jdQuote\": \"Oracle\",\n          \"cvQuote\": \"Skills: SQL Server, Oracle, MySQL\"\n        },\n        {\n          \"componentId\": \"c3\",\n          \"jdQuote\": \"SQL Server\",\n          \"cvQuote\": \"Skills: SQL Server, Oracle, MySQL\"\n        }\n      ]\n    },\n    {\n      \"requirement\": \"Rust\",\n      \"priority\": \"preferred\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"Rust\",\n      \"cvQuote\": \"\",\n      \"parentId\": \"p2\",\n      \"components\": [\n        {\n          \"componentId\": \"c1\",\n          \"jdQuote\": \"Rust\",\n          \"cvQuote\": \"\"\n        }\n      ]\n    }\n  ]\n}",
+          "providerMs": 7264.322217000008
+        },
+        {
+          "pass": "measurement",
+          "ms": 371.03917000000365,
+          "promptTokens": 701,
+          "evalTokens": 1,
+          "loadMs": 1.039072,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\""
+        },
+        {
+          "pass": "generation",
+          "ms": 230.39670099999057,
+          "promptTokens": 701,
+          "evalTokens": 10,
+          "loadMs": 1.238251,
+          "evalMs": 199.903,
+          "doneReason": "stop",
+          "raw": "{\"candidateIds\": [\"candidate-1\"]}",
+          "providerMs": 603.7711979999876
+        }
+      ],
+      "gpuPeakMiB": 7536,
+      "systemUsedPeakMiB": 5143.5,
+      "allocation": [
+        {
+          "name": "qwen3:8b",
+          "model": "qwen3:8b",
+          "size": 6194766806,
+          "digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen3",
+            "families": ["qwen3"],
+            "parameter_size": "8.2B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-11-05T19:21:31.281896852Z",
+          "size_vram": 6194766806,
+          "context_length": 8192,
+          "runner": "llamacpp"
+        }
+      ],
+      "match": {
+        "score": 0,
+        "recommendation": "Low Fit",
+        "requirements": [
+          {
+            "parentId": "p1",
+            "requirement": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "priority": "required",
+            "category": "skill",
+            "jdQuote": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "cvQuote": "",
+            "status": "NOT_EVIDENCED",
+            "credit": 0,
+            "coverage": {
+              "mode": "OR",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "MySQL",
+                  "jdQuote": "MySQL",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": [],
+                  "observations": [
+                    {
+                      "kind": "mention",
+                      "cvQuote": "Skills: SQL Server, Oracle, MySQL"
+                    }
+                  ],
+                  "qualificationReason": "Mentioned in the CV; proficiency remains unverified."
+                },
+                {
+                  "id": "c2",
+                  "label": "Oracle",
+                  "jdQuote": "Oracle",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": [],
+                  "observations": [
+                    {
+                      "kind": "mention",
+                      "cvQuote": "Skills: SQL Server, Oracle, MySQL"
+                    }
+                  ],
+                  "qualificationReason": "Mentioned in the CV; proficiency remains unverified."
+                },
+                {
+                  "id": "c3",
+                  "label": "SQL Server",
+                  "jdQuote": "SQL Server",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": [],
+                  "observations": [
+                    {
+                      "kind": "mention",
+                      "cvQuote": "Skills: SQL Server, Oracle, MySQL"
+                    }
+                  ],
+                  "qualificationReason": "Mentioned in the CV; proficiency remains unverified."
+                }
+              ],
+              "credit": 0,
+              "status": "NOT_EVIDENCED",
+              "reason": "Database mentions are present in the CV; proficiency at the requested level remains unverified."
+            }
+          },
+          {
+            "parentId": "p2",
+            "requirement": "Rust",
+            "priority": "preferred",
+            "category": "skill",
+            "jdQuote": "Rust",
+            "cvQuote": "",
+            "status": "NOT_EVIDENCED",
+            "credit": 0,
+            "coverage": {
+              "mode": "SINGLE",
+              "credit": 0,
+              "status": "NOT_EVIDENCED",
+              "reason": "Review the selected evidence.",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "Rust",
+                  "jdQuote": "Rust",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                }
+              ]
+            }
+          }
+        ],
+        "explanation": "Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Unknown/conflict earns zero. AI links and requirement completeness need human review; this is not a hiring probability.",
+        "advice": "Verify the required evidence gaps before applying. Add only accurate supporting experience to your CV.",
+        "matchId": "d2b30bcd-fae6-4d0a-a0a3-9b692377c045",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "analyzedAt": "2026-11-05T19:16:30.675Z"
+      },
+      "p6Ms": 7272.472568000012,
+      "suggestions": {
+        "contractVersion": "1",
+        "matchId": "d2b30bcd-fae6-4d0a-a0a3-9b692377c045",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "generatedAt": "2026-11-05T19:16:31.283Z",
+        "suggestions": [
+          {
+            "parentId": "p1",
+            "componentIds": ["c1", "c2", "c3"],
+            "requirement": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "priority": "required",
+            "status": "NOT_EVIDENCED",
+            "kind": "clarify",
+            "reason": "Not evidenced in the saved CV does not mean you lack this qualification.",
+            "wording": null,
+            "clarification": "Can you verify an accurate example? Add only what you can substantiate, with its role, scope and qualifiers.",
+            "jdEvidence": [
+              {
+                "parentId": "p1",
+                "componentId": "c1",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "MySQL"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c2",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "Oracle"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c3",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "SQL Server"
+              }
+            ],
+            "cvEvidence": [],
+            "id": "candidate-1",
+            "rank": 1
+          }
+        ]
+      },
+      "p7Ms": 607.6786519999878,
+      "statusPass": true,
+      "success": true,
+      "totalMs": 7880.164162999994
+    },
+    {
+      "model": "qwen3:8b",
+      "rep": 2,
+      "case": "and-or",
+      "calls": [
+        {
+          "pass": "measurement",
+          "ms": 238.3121470000042,
+          "promptTokens": 944,
+          "evalTokens": 1,
+          "loadMs": 0.759776,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\n"
+        },
+        {
+          "pass": "generation",
+          "ms": 9390.261138999995,
+          "promptTokens": 944,
+          "evalTokens": 415,
+          "loadMs": 1.958118,
+          "evalMs": 9355.41,
+          "doneReason": "stop",
+          "raw": "{\n  \"requirements\": [\n    {\n      \"requirement\": \"Experience designing cloud-based architectures, APIs, integrations, data flows, and CI/CD practices.\",\n      \"priority\": \"required\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"Experience designing cloud-based architectures, APIs, integrations, data flows, and CI/CD practices.\",\n      \"cvQuote\": \"Designed REST APIs.\\nDesigned service integrations using RabbitMQ.\\nDesigned GitLab CI/CD pipelines.\",\n      \"parentId\": \"p1\",\n      \"components\": [\n        {\n          \"componentId\": \"c1\",\n          \"jdQuote\": \"cloud-based architectures\",\n          \"cvQuote\": \"\"\n        },\n        {\n          \"componentId\": \"c2\",\n          \"jdQuote\": \"APIs\",\n          \"cvQuote\": \"Designed REST APIs.\"\n        },\n        {\n          \"componentId\": \"c3\",\n          \"jdQuote\": \"integrations\",\n          \"cvQuote\": \"Designed service integrations using RabbitMQ.\"\n        },\n        {\n          \"componentId\": \"c4\",\n          \"jdQuote\": \"data flows\",\n          \"cvQuote\": \"\"\n        },\n        {\n          \"componentId\": \"c5\",\n          \"jdQuote\": \"CI/CD practices\",\n          \"cvQuote\": \"Designed GitLab CI/CD pipelines.\"\n        }\n      ]\n    },\n    {\n      \"requirement\": \"MCP or knowledge graphs.\",\n      \"priority\": \"preferred\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"MCP or knowledge graphs.\",\n      \"cvQuote\": \"Built MCP servers.\",\n      \"parentId\": \"p2\",\n      \"components\": [\n        {\n          \"componentId\": \"c1\",\n          \"jdQuote\": \"MCP\",\n          \"cvQuote\": \"Built MCP servers.\"\n        },\n        {\n          \"componentId\": \"c2\",\n          \"jdQuote\": \"knowledge graphs\",\n          \"cvQuote\": \"\"\n        }\n      ]\n    }\n  ]\n}",
+          "providerMs": 9630.580363999994
+        },
+        {
+          "pass": "measurement",
+          "ms": 184.55967000000237,
+          "promptTokens": 1342,
+          "evalTokens": 1,
+          "loadMs": 1.273432,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\""
+        },
+        {
+          "pass": "generation",
+          "ms": 234.25041700000293,
+          "promptTokens": 1342,
+          "evalTokens": 10,
+          "loadMs": 0.670178,
+          "evalMs": 203.527,
+          "doneReason": "stop",
+          "raw": "{\"candidateIds\": [\"candidate-1\"]}",
+          "providerMs": 422.0884559999977
+        }
+      ],
+      "gpuPeakMiB": 7536,
+      "systemUsedPeakMiB": 5067.44140625,
+      "allocation": [
+        {
+          "name": "qwen3:8b",
+          "model": "qwen3:8b",
+          "size": 6194766806,
+          "digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen3",
+            "families": ["qwen3"],
+            "parameter_size": "8.2B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-11-05T19:21:41.404125355Z",
+          "size_vram": 6194766806,
+          "context_length": 8192,
+          "runner": "llamacpp"
+        }
+      ],
+      "match": {
+        "score": 70,
+        "recommendation": "Consider",
+        "requirements": [
+          {
+            "parentId": "p1",
+            "requirement": "Experience designing cloud-based architectures, APIs, integrations, data flows, and CI/CD practices.",
+            "priority": "required",
+            "category": "skill",
+            "jdQuote": "Experience designing cloud-based architectures, APIs, integrations, data flows, and CI/CD practices.",
+            "cvQuote": "Designed REST APIs.",
+            "status": "PARTIAL",
+            "credit": 0.6,
+            "coverage": {
+              "mode": "AND",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "cloud-based architectures",
+                  "jdQuote": "cloud-based architectures",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c2",
+                  "label": "APIs",
+                  "jdQuote": "APIs",
+                  "status": "EVIDENCED",
+                  "cvQuote": "Designed REST APIs.",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c3",
+                  "label": "integrations",
+                  "jdQuote": "integrations",
+                  "status": "EVIDENCED",
+                  "cvQuote": "Designed service integrations using RabbitMQ.",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c4",
+                  "label": "data flows",
+                  "jdQuote": "data flows",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c5",
+                  "label": "CI/CD practices",
+                  "jdQuote": "CI/CD practices",
+                  "status": "EVIDENCED",
+                  "cvQuote": "Designed GitLab CI/CD pipelines.",
+                  "conflictingQuotes": []
+                }
+              ],
+              "credit": 0.6,
+              "status": "PARTIAL",
+              "reason": "Review the selected component evidence."
+            }
+          },
+          {
+            "parentId": "p2",
+            "requirement": "MCP or knowledge graphs.",
+            "priority": "preferred",
+            "category": "skill",
+            "jdQuote": "MCP or knowledge graphs.",
+            "cvQuote": "Built MCP servers.",
+            "status": "EVIDENCED",
+            "credit": 1,
+            "coverage": {
+              "mode": "OR",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "MCP",
+                  "jdQuote": "MCP",
+                  "status": "EVIDENCED",
+                  "cvQuote": "Built MCP servers.",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c2",
+                  "label": "knowledge graphs",
+                  "jdQuote": "knowledge graphs",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                }
+              ],
+              "credit": 1,
+              "status": "EVIDENCED",
+              "reason": "Review the selected component evidence."
+            }
+          }
+        ],
+        "explanation": "Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Unknown/conflict earns zero. AI links and requirement completeness need human review; this is not a hiring probability.",
+        "advice": "Verify the required evidence gaps before applying. Add only accurate supporting experience to your CV.",
+        "matchId": "056305a7-c8c7-4a35-9f27-bd0861d794c7",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "analyzedAt": "2026-11-05T19:16:40.978Z"
+      },
+      "p6Ms": 9636.154955000005,
+      "suggestions": {
+        "contractVersion": "1",
+        "matchId": "056305a7-c8c7-4a35-9f27-bd0861d794c7",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "generatedAt": "2026-11-05T19:16:41.405Z",
+        "suggestions": [
+          {
+            "parentId": "p1",
+            "componentIds": ["c1", "c2", "c3", "c4", "c5"],
+            "requirement": "Experience designing cloud-based architectures, APIs, integrations, data flows, and CI/CD practices.",
+            "priority": "required",
+            "status": "PARTIAL",
+            "kind": "clarify",
+            "reason": "Only some components are evidenced; this passage does not establish the full requirement.",
+            "wording": null,
+            "clarification": "Can you verify an accurate example? Add only what you can substantiate, with its role, scope and qualifiers.",
+            "jdEvidence": [
+              {
+                "parentId": "p1",
+                "componentId": "c1",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "cloud-based architectures"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c2",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "APIs"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c3",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "integrations"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c4",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "data flows"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c5",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "CI/CD practices"
+              }
+            ],
+            "cvEvidence": [
+              {
+                "parentId": "p1",
+                "componentId": "c2",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "saved_cv_text",
+                "quote": "Designed REST APIs.",
+                "role": "support",
+                "span": {
+                  "start": 0,
+                  "end": 19
+                }
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c3",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "saved_cv_text",
+                "quote": "Designed service integrations using RabbitMQ.",
+                "role": "support",
+                "span": {
+                  "start": 20,
+                  "end": 65
+                }
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c5",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "saved_cv_text",
+                "quote": "Designed GitLab CI/CD pipelines.",
+                "role": "support",
+                "span": {
+                  "start": 66,
+                  "end": 98
+                }
+              }
+            ],
+            "id": "candidate-1",
+            "rank": 1
+          }
+        ]
+      },
+      "p7Ms": 426.7118899999914,
+      "statusPass": true,
+      "success": true,
+      "totalMs": 10062.872181999992
+    },
+    {
+      "model": "qwen3:8b",
+      "rep": 2,
+      "case": "sql-work",
+      "calls": [
+        {
+          "pass": "measurement",
+          "ms": 271.0888930000074,
+          "promptTokens": 881,
+          "evalTokens": 1,
+          "loadMs": 0.745708,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\n"
+        },
+        {
+          "pass": "generation",
+          "ms": 6406.489837999994,
+          "promptTokens": 881,
+          "evalTokens": 282,
+          "loadMs": 0.951221,
+          "evalMs": 6372.407,
+          "doneReason": "stop",
+          "raw": "{\n  \"requirements\": [\n    {\n      \"requirement\": \"Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server\",\n      \"priority\": \"required\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server\",\n      \"cvQuote\": \"Skills: SQL Server\",\n      \"parentId\": \"p1\",\n      \"components\": [\n        {\n          \"componentId\": \"c1\",\n          \"jdQuote\": \"MySQL\",\n          \"cvQuote\": \"\"\n        },\n        {\n          \"componentId\": \"c2\",\n          \"jdQuote\": \"Oracle\",\n          \"cvQuote\": \"\"\n        },\n        {\n          \"componentId\": \"c3\",\n          \"jdQuote\": \"SQL Server\",\n          \"cvQuote\": \"Skills: SQL Server\"\n        }\n      ]\n    },\n    {\n      \"requirement\": \"Rust\",\n      \"priority\": \"preferred\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"Rust\",\n      \"cvQuote\": \"\",\n      \"parentId\": \"p2\",\n      \"components\": [\n        {\n          \"componentId\": \"c1\",\n          \"jdQuote\": \"Rust\",\n          \"cvQuote\": \"\"\n        }\n      ]\n    }\n  ]\n}",
+          "providerMs": 6680.689975000001
+        },
+        {
+          "pass": "measurement",
+          "ms": 381.29591299999447,
+          "promptTokens": 799,
+          "evalTokens": 1,
+          "loadMs": 0.957976,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\""
+        },
+        {
+          "pass": "generation",
+          "ms": 232.62421300000278,
+          "promptTokens": 799,
+          "evalTokens": 10,
+          "loadMs": 0.474169,
+          "evalMs": 202.407,
+          "doneReason": "stop",
+          "raw": "{\"candidateIds\": [\"candidate-1\"]}",
+          "providerMs": 617.8173189999943
+        }
+      ],
+      "gpuPeakMiB": 7543,
+      "systemUsedPeakMiB": 5131.76953125,
+      "allocation": [
+        {
+          "name": "qwen3:8b",
+          "model": "qwen3:8b",
+          "size": 6194766806,
+          "digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen3",
+            "families": ["qwen3"],
+            "parameter_size": "8.2B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-11-05T19:21:48.780169567Z",
+          "size_vram": 6194766806,
+          "context_length": 8192,
+          "runner": "llamacpp"
+        }
+      ],
+      "match": {
+        "score": 38,
+        "recommendation": "Low Fit",
+        "requirements": [
+          {
+            "parentId": "p1",
+            "requirement": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "priority": "required",
+            "category": "skill",
+            "jdQuote": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "cvQuote": "Developed enterprise features using SQL Server.",
+            "status": "PARTIAL",
+            "credit": 0.5,
+            "coverage": {
+              "mode": "OR",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "MySQL",
+                  "jdQuote": "MySQL",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c2",
+                  "label": "Oracle",
+                  "jdQuote": "Oracle",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c3",
+                  "label": "SQL Server",
+                  "jdQuote": "SQL Server",
+                  "status": "PARTIAL",
+                  "cvQuote": "Developed enterprise features using SQL Server.",
+                  "conflictingQuotes": [],
+                  "observations": [
+                    {
+                      "kind": "experience",
+                      "cvQuote": "Developed enterprise features using SQL Server."
+                    },
+                    {
+                      "kind": "mention",
+                      "cvQuote": "Skills: SQL Server"
+                    }
+                  ],
+                  "qualificationReason": "Project experience is evidenced; proficiency remains unverified."
+                }
+              ],
+              "credit": 0.5,
+              "status": "PARTIAL",
+              "reason": "SQL Server project experience is evidenced; proficiency at the requested level remains unverified."
+            }
+          },
+          {
+            "parentId": "p2",
+            "requirement": "Rust",
+            "priority": "preferred",
+            "category": "skill",
+            "jdQuote": "Rust",
+            "cvQuote": "",
+            "status": "NOT_EVIDENCED",
+            "credit": 0,
+            "coverage": {
+              "mode": "SINGLE",
+              "credit": 0,
+              "status": "NOT_EVIDENCED",
+              "reason": "Review the selected evidence.",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "Rust",
+                  "jdQuote": "Rust",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                }
+              ]
+            }
+          }
+        ],
+        "explanation": "Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Unknown/conflict earns zero. AI links and requirement completeness need human review; this is not a hiring probability.",
+        "advice": "Verify the required evidence gaps before applying. Add only accurate supporting experience to your CV.",
+        "matchId": "d7874f63-e831-47c7-bc95-33ca0d9d4667",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "analyzedAt": "2026-11-05T19:16:48.157Z"
+      },
+      "p6Ms": 6687.542108999987,
+      "suggestions": {
+        "contractVersion": "1",
+        "matchId": "d7874f63-e831-47c7-bc95-33ca0d9d4667",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "generatedAt": "2026-11-05T19:16:48.781Z",
+        "suggestions": [
+          {
+            "parentId": "p1",
+            "componentIds": ["c1", "c2", "c3"],
+            "requirement": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "priority": "required",
+            "status": "PARTIAL",
+            "kind": "clarify",
+            "reason": "Only some components are evidenced; this passage does not establish the full requirement.",
+            "wording": null,
+            "clarification": "Can you verify an accurate example? Add only what you can substantiate, with its role, scope and qualifiers.",
+            "jdEvidence": [
+              {
+                "parentId": "p1",
+                "componentId": "c1",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "MySQL"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c2",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "Oracle"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c3",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "SQL Server"
+              }
+            ],
+            "cvEvidence": [
+              {
+                "parentId": "p1",
+                "componentId": "c3",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "saved_cv_text",
+                "quote": "Developed enterprise features using SQL Server.",
+                "role": "support",
+                "span": {
+                  "start": 19,
+                  "end": 66
+                }
+              }
+            ],
+            "id": "candidate-1",
+            "rank": 1
+          }
+        ]
+      },
+      "p7Ms": 623.6605899999995,
+      "statusPass": true,
+      "success": true,
+      "totalMs": 7311.230517000004
+    },
+    {
+      "model": "qwen3:8b",
+      "rep": 2,
+      "case": "sql-proficiency",
+      "calls": [
+        {
+          "pass": "measurement",
+          "ms": 238.40437600000587,
+          "promptTokens": 869,
+          "evalTokens": 1,
+          "loadMs": 0.6841,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\n"
+        },
+        {
+          "pass": "generation",
+          "ms": 6817.620693000004,
+          "promptTokens": 869,
+          "evalTokens": 298,
+          "loadMs": 0.989119,
+          "evalMs": 6782.117,
+          "doneReason": "stop",
+          "raw": "{\n  \"requirements\": [\n    {\n      \"requirement\": \"Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server\",\n      \"priority\": \"required\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server\",\n      \"cvQuote\": \"Independently designed SQL Server database schemas for a production billing application.\",\n      \"parentId\": \"p1\",\n      \"components\": [\n        {\n          \"componentId\": \"c1\",\n          \"jdQuote\": \"MySQL\",\n          \"cvQuote\": \"\"\n        },\n        {\n          \"componentId\": \"c2\",\n          \"jdQuote\": \"Oracle\",\n          \"cvQuote\": \"\"\n        },\n        {\n          \"componentId\": \"c3\",\n          \"jdQuote\": \"SQL Server\",\n          \"cvQuote\": \"Independently designed SQL Server database schemas for a production billing application.\"\n        }\n      ]\n    },\n    {\n      \"requirement\": \"Rust\",\n      \"priority\": \"preferred\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"Rust\",\n      \"cvQuote\": \"\",\n      \"parentId\": \"p2\",\n      \"components\": [\n        {\n          \"componentId\": \"c1\",\n          \"jdQuote\": \"Rust\",\n          \"cvQuote\": \"\"\n        }\n      ]\n    }\n  ]\n}",
+          "providerMs": 7059.131487000006
+        },
+        {
+          "pass": "measurement",
+          "ms": 145.88450000000012,
+          "promptTokens": 801,
+          "evalTokens": 1,
+          "loadMs": 1.735692,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\""
+        },
+        {
+          "pass": "generation",
+          "ms": 230.96097400000144,
+          "promptTokens": 801,
+          "evalTokens": 10,
+          "loadMs": 0.469837,
+          "evalMs": 202.403,
+          "doneReason": "stop",
+          "raw": "{\"candidateIds\": [\"candidate-2\"]}",
+          "providerMs": 378.70541900000535
+        }
+      ],
+      "gpuPeakMiB": 7542,
+      "systemUsedPeakMiB": 5154.45703125,
+      "allocation": [
+        {
+          "name": "qwen3:8b",
+          "model": "qwen3:8b",
+          "size": 6194766806,
+          "digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen3",
+            "families": ["qwen3"],
+            "parameter_size": "8.2B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-11-05T19:21:56.29525977Z",
+          "size_vram": 6194766806,
+          "context_length": 8192,
+          "runner": "llamacpp"
+        }
+      ],
+      "match": {
+        "score": 75,
+        "recommendation": "Apply",
+        "requirements": [
+          {
+            "parentId": "p1",
+            "requirement": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "priority": "required",
+            "category": "skill",
+            "jdQuote": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "cvQuote": "Independently designed SQL Server database schemas for a production billing application.",
+            "status": "EVIDENCED",
+            "credit": 1,
+            "coverage": {
+              "mode": "OR",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "MySQL",
+                  "jdQuote": "MySQL",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c2",
+                  "label": "Oracle",
+                  "jdQuote": "Oracle",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                },
+                {
+                  "id": "c3",
+                  "label": "SQL Server",
+                  "jdQuote": "SQL Server",
+                  "status": "EVIDENCED",
+                  "cvQuote": "Independently designed SQL Server database schemas for a production billing application.",
+                  "conflictingQuotes": []
+                }
+              ],
+              "credit": 1,
+              "status": "EVIDENCED",
+              "reason": "Review the selected component evidence."
+            }
+          },
+          {
+            "parentId": "p2",
+            "requirement": "Rust",
+            "priority": "preferred",
+            "category": "skill",
+            "jdQuote": "Rust",
+            "cvQuote": "",
+            "status": "NOT_EVIDENCED",
+            "credit": 0,
+            "coverage": {
+              "mode": "SINGLE",
+              "credit": 0,
+              "status": "NOT_EVIDENCED",
+              "reason": "Review the selected evidence.",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "Rust",
+                  "jdQuote": "Rust",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                }
+              ]
+            }
+          }
+        ],
+        "explanation": "Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Unknown/conflict earns zero. AI links and requirement completeness need human review; this is not a hiring probability.",
+        "advice": "Review the quoted evidence and tailor your application using only qualifications you can substantiate.",
+        "matchId": "8b5061d3-e995-4b1a-a28b-f0bce9d7d07a",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "analyzedAt": "2026-11-05T19:16:55.913Z"
+      },
+      "p6Ms": 7066.050929999998,
+      "suggestions": {
+        "contractVersion": "1",
+        "matchId": "8b5061d3-e995-4b1a-a28b-f0bce9d7d07a",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "generatedAt": "2026-11-05T19:16:56.296Z",
+        "suggestions": [
+          {
+            "parentId": "p1",
+            "componentIds": ["c1", "c2", "c3"],
+            "requirement": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "priority": "required",
+            "status": "EVIDENCED",
+            "kind": "clarify",
+            "reason": "The evidence needs context or verification before wording can be offered.",
+            "wording": null,
+            "clarification": "Can you verify an accurate example? Add only what you can substantiate, with its role, scope and qualifiers.",
+            "jdEvidence": [
+              {
+                "parentId": "p1",
+                "componentId": "c1",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "MySQL"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c2",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "Oracle"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c3",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "SQL Server"
+              }
+            ],
+            "cvEvidence": [
+              {
+                "parentId": "p1",
+                "componentId": "c3",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "saved_cv_text",
+                "quote": "Independently designed SQL Server database schemas for a production billing application.",
+                "role": "support",
+                "span": {
+                  "start": 0,
+                  "end": 88
+                }
+              }
+            ],
+            "id": "candidate-2",
+            "rank": 1
+          }
+        ]
+      },
+      "p7Ms": 382.6313139999984,
+      "statusPass": true,
+      "success": true,
+      "totalMs": 7448.68675600001
+    },
+    {
+      "model": "qwen3:8b",
+      "rep": 2,
+      "case": "sql-keywords",
+      "calls": [
+        {
+          "pass": "measurement",
+          "ms": 214.76881700000376,
+          "promptTokens": 865,
+          "evalTokens": 1,
+          "loadMs": 0.534972,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\n"
+        },
+        {
+          "pass": "generation",
+          "ms": 7166.343384000007,
+          "promptTokens": 865,
+          "evalTokens": 308,
+          "loadMs": 0.634902,
+          "evalMs": 7132.322,
+          "doneReason": "stop",
+          "raw": "{\n  \"requirements\": [\n    {\n      \"requirement\": \"Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server\",\n      \"priority\": \"required\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server\",\n      \"cvQuote\": \"Skills: SQL Server, Oracle, MySQL\",\n      \"parentId\": \"p1\",\n      \"components\": [\n        {\n          \"componentId\": \"c1\",\n          \"jdQuote\": \"MySQL\",\n          \"cvQuote\": \"Skills: SQL Server, Oracle, MySQL\"\n        },\n        {\n          \"componentId\": \"c2\",\n          \"jdQuote\": \"Oracle\",\n          \"cvQuote\": \"Skills: SQL Server, Oracle, MySQL\"\n        },\n        {\n          \"componentId\": \"c3\",\n          \"jdQuote\": \"SQL Server\",\n          \"cvQuote\": \"Skills: SQL Server, Oracle, MySQL\"\n        }\n      ]\n    },\n    {\n      \"requirement\": \"Rust\",\n      \"priority\": \"preferred\",\n      \"category\": \"skill\",\n      \"jdQuote\": \"Rust\",\n      \"cvQuote\": \"\",\n      \"parentId\": \"p2\",\n      \"components\": [\n        {\n          \"componentId\": \"c1\",\n          \"jdQuote\": \"Rust\",\n          \"cvQuote\": \"\"\n        }\n      ]\n    }\n  ]\n}",
+          "providerMs": 7383.391924999989
+        },
+        {
+          "pass": "measurement",
+          "ms": 343.69047699999646,
+          "promptTokens": 701,
+          "evalTokens": 1,
+          "loadMs": 0.813155,
+          "evalMs": 0.001,
+          "doneReason": "length",
+          "raw": "{\""
+        },
+        {
+          "pass": "generation",
+          "ms": 234.7292860000016,
+          "promptTokens": 701,
+          "evalTokens": 10,
+          "loadMs": 1.329585,
+          "evalMs": 201.517,
+          "doneReason": "stop",
+          "raw": "{\"candidateIds\": [\"candidate-1\"]}",
+          "providerMs": 580.6921970000112
+        }
+      ],
+      "gpuPeakMiB": 7534,
+      "systemUsedPeakMiB": 5245.0859375,
+      "allocation": [
+        {
+          "name": "qwen3:8b",
+          "model": "qwen3:8b",
+          "size": 6194766806,
+          "digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen3",
+            "families": ["qwen3"],
+            "parameter_size": "8.2B",
+            "quantization_level": "Q4_K_M"
+          },
+          "expires_at": "2026-11-05T19:22:04.360217802Z",
+          "size_vram": 6194766806,
+          "context_length": 8192,
+          "runner": "llamacpp"
+        }
+      ],
+      "match": {
+        "score": 0,
+        "recommendation": "Low Fit",
+        "requirements": [
+          {
+            "parentId": "p1",
+            "requirement": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "priority": "required",
+            "category": "skill",
+            "jdQuote": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "cvQuote": "",
+            "status": "NOT_EVIDENCED",
+            "credit": 0,
+            "coverage": {
+              "mode": "OR",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "MySQL",
+                  "jdQuote": "MySQL",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": [],
+                  "observations": [
+                    {
+                      "kind": "mention",
+                      "cvQuote": "Skills: SQL Server, Oracle, MySQL"
+                    }
+                  ],
+                  "qualificationReason": "Mentioned in the CV; proficiency remains unverified."
+                },
+                {
+                  "id": "c2",
+                  "label": "Oracle",
+                  "jdQuote": "Oracle",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": [],
+                  "observations": [
+                    {
+                      "kind": "mention",
+                      "cvQuote": "Skills: SQL Server, Oracle, MySQL"
+                    }
+                  ],
+                  "qualificationReason": "Mentioned in the CV; proficiency remains unverified."
+                },
+                {
+                  "id": "c3",
+                  "label": "SQL Server",
+                  "jdQuote": "SQL Server",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": [],
+                  "observations": [
+                    {
+                      "kind": "mention",
+                      "cvQuote": "Skills: SQL Server, Oracle, MySQL"
+                    }
+                  ],
+                  "qualificationReason": "Mentioned in the CV; proficiency remains unverified."
+                }
+              ],
+              "credit": 0,
+              "status": "NOT_EVIDENCED",
+              "reason": "Database mentions are present in the CV; proficiency at the requested level remains unverified."
+            }
+          },
+          {
+            "parentId": "p2",
+            "requirement": "Rust",
+            "priority": "preferred",
+            "category": "skill",
+            "jdQuote": "Rust",
+            "cvQuote": "",
+            "status": "NOT_EVIDENCED",
+            "credit": 0,
+            "coverage": {
+              "mode": "SINGLE",
+              "credit": 0,
+              "status": "NOT_EVIDENCED",
+              "reason": "Review the selected evidence.",
+              "components": [
+                {
+                  "id": "c1",
+                  "label": "Rust",
+                  "jdQuote": "Rust",
+                  "status": "NOT_EVIDENCED",
+                  "cvQuote": "",
+                  "conflictingQuotes": []
+                }
+              ]
+            }
+          }
+        ],
+        "explanation": "Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Unknown/conflict earns zero. AI links and requirement completeness need human review; this is not a hiring probability.",
+        "advice": "Verify the required evidence gaps before applying. Add only accurate supporting experience to your CV.",
+        "matchId": "c6afe71b-5500-476b-9aff-cf4fce4c02ea",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "analyzedAt": "2026-11-05T19:17:03.776Z"
+      },
+      "p6Ms": 7390.208872000003,
+      "suggestions": {
+        "contractVersion": "1",
+        "matchId": "c6afe71b-5500-476b-9aff-cf4fce4c02ea",
+        "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+        "generatedAt": "2026-11-05T19:17:04.361Z",
+        "suggestions": [
+          {
+            "parentId": "p1",
+            "componentIds": ["c1", "c2", "c3"],
+            "requirement": "Thành thạo ít nhất một hệ quản trị cơ sở dữ liệu: MySQL, Oracle OR SQL Server",
+            "priority": "required",
+            "status": "NOT_EVIDENCED",
+            "kind": "clarify",
+            "reason": "Not evidenced in the saved CV does not mean you lack this qualification.",
+            "wording": null,
+            "clarification": "Can you verify an accurate example? Add only what you can substantiate, with its role, scope and qualifiers.",
+            "jdEvidence": [
+              {
+                "parentId": "p1",
+                "componentId": "c1",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "MySQL"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c2",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "Oracle"
+              },
+              {
+                "parentId": "p1",
+                "componentId": "c3",
+                "cvUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "jobUpdatedAt": "2026-11-05T00:00:00.000Z",
+                "source": "canonical_saved_job_requirement",
+                "quote": "SQL Server"
+              }
+            ],
+            "cvEvidence": [],
+            "id": "candidate-1",
+            "rank": 1
+          }
+        ]
+      },
+      "p7Ms": 584.9179849999928,
+      "statusPass": true,
+      "success": true,
+      "totalMs": 7975.131883000009
+    }
+  ]
+}

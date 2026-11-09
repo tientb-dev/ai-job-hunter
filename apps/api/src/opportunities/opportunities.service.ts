@@ -72,6 +72,40 @@ export class OpportunitiesService {
     if (!row) throw new NotFoundException('Opportunity not found');
     return row;
   }
+  // Transactional job identity/revision read for the CV draft persistence boundary.
+  async forCvDraft(manager: EntityManager, ownerId: string, id: string) {
+    const row = await manager.getRepository(Opportunity).findOne({
+      where: { ownerId, id },
+      select: { id: true, updatedAt: true },
+      lock: { mode: 'pessimistic_read' },
+    });
+    if (!row) throw new NotFoundException('Opportunity not found');
+    return { id: row.id, updatedAt: row.updatedAt };
+  }
+  // Matching inputs only; tracking notes and original document bytes stay private.
+  async forTailoring(manager: EntityManager, ownerId: string, id: string) {
+    const row = await manager.getRepository(Opportunity).findOne({
+      where: { ownerId, id },
+      select: {
+        id: true,
+        updatedAt: true,
+        title: true,
+        company: true,
+        skills: true,
+        preferredSkills: true,
+        experience: true,
+        domain: true,
+        seniority: true,
+        description: true,
+        postText: true,
+        jdText: true,
+        discovery: true,
+      },
+      lock: { mode: 'pessimistic_read' },
+    });
+    if (!row) throw new NotFoundException('Opportunity not found');
+    return row;
+  }
   async document(id: string): Promise<JobDocument> {
     const row = await this.rows.findOne({
       where: { id, ownerId: LOCAL_OWNER_ID },

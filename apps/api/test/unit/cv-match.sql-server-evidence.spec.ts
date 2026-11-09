@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { memoryMatchRows } from '../support/memory-match-rows.js';
 import { MatchContexts } from '../../src/matching/match-context.js';
 import { suggestionCandidates } from '../../src/matching/suggestion-policy.js';
 import { expect, jest, test } from '@jest/globals';
@@ -158,6 +159,7 @@ test('mocked real service reads the saved parsed text and returns original unqua
     new AiService(provider),
     new MatchingService(),
     { get: async () => job } as unknown as OpportunitiesService,
+    memoryMatchRows(),
   );
   const result = await service.analyze('synthetic-job');
   expect(result.requirements[0]?.coverage.components[2]).toMatchObject({

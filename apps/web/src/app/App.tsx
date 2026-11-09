@@ -2,6 +2,7 @@ import { theme } from './theme';
 import { PageHeader } from '../components/PageHeader';
 import { DiscoverJobsPage } from '../features/inbox/DiscoverJobsPage';
 import { JobInbox } from '../features/inbox/JobInbox';
+import { TailoredCvPage } from '../features/inbox/TailoredCvPage';
 import { JobEditor } from '../features/inbox/JobEditor';
 import { lazy, Suspense, useState } from 'react';
 import {
@@ -317,6 +318,7 @@ export function App() {
               }
             />
             <Route path="/cv" element={<Dashboard />} />
+            <Route path="/jobs/:id/tailored-cv" element={<TailoredCvPage />} />
             <Route path="/jobs" element={<JobInbox />} />
             <Route
               path="/jobs/new"

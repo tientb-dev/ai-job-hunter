@@ -55,6 +55,10 @@ export class ExtractionService implements OnModuleDestroy {
   ) {}
 
   parseCv(input: CvExtractionInput): Promise<ExtractionSource> {
+    return this.run(async () => (await this.parseCvSource(input)).source);
+  }
+
+  parseCvWithLayout(input: CvExtractionInput) {
     return this.run(() => this.parseCvSource(input));
   }
 
@@ -64,7 +68,10 @@ export class ExtractionService implements OnModuleDestroy {
     this.ensureAvailable();
     const source = createExtractionSource(parsed.source);
     if (source.format !== format) throw new ExtractionError('INVALID_SOURCE');
-    return freeze(source);
+    return freeze({
+      source,
+      ...(parsed.pdfLayout ? { pdfLayout: parsed.pdfLayout } : {}),
+    });
   }
 
   extractPartial(

@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { memoryMatchRows } from '../support/memory-match-rows.js';
 import { expect, jest, test } from '@jest/globals';
 import type { Repository } from 'typeorm';
 import { AiService } from '../../src/ai/ai.service.js';
@@ -200,6 +201,7 @@ test('full discovered JD → real matching service → API-shaped result retains
     new AiService(provider),
     new MatchingService(),
     jobs as unknown as OpportunitiesService,
+    memoryMatchRows(),
   );
   const result = await service.analyze('synthetic');
   expect(result.requirements[0]).toMatchObject({

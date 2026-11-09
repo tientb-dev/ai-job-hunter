@@ -1,6 +1,12 @@
 import {
+  boundedPdfLayout,
+  PDF_LAYOUT_ITEMS,
+  type PdfTextItem,
+} from './pdf-layout.js';
+import {
   getDocument,
   PasswordResponses,
+  Util,
 } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { ExtractionError } from './extraction.errors.js';
 import { EXTRACTION_LIMITS as limits } from './extraction.limits.js';
@@ -116,6 +122,8 @@ async function parsePdfAttempt(
       throw new ExtractionError('DOCUMENT_TOO_LARGE');
     let text = '';
     let textBytes = 0;
+    const items: PdfTextItem[] = [];
+    let layoutComplete = true;
     const segments: SourceSegment[] = [];
     const warnings: ParsedDocument['warnings'][number][] = [
       { code: 'IMAGE_CONTENT_NOT_INTERPRETED' },
@@ -136,6 +144,7 @@ async function parsePdfAttempt(
       phase = 'PAGE_LOAD';
       const page = await document.getPage(pageNumber);
       phase = 'TEXT_STREAM';
+      const viewport = page.getViewport({ scale: 1 });
       const reader = page
         .streamTextContent({
           disableNormalization: true,
@@ -160,7 +169,31 @@ async function parsePdfAttempt(
           if (done) break;
           for (const item of value.items) {
             if ('str' in item) {
+              const start = text.length;
               append(item.str);
+              if (item.str.trim() && layoutComplete) {
+                if (items.length >= PDF_LAYOUT_ITEMS) {
+                  layoutComplete = false;
+                  items.length = 0;
+                } else {
+                  const t = Util.transform(viewport.transform, item.transform);
+                  const round = (n: number) => Math.round(n * 1000) / 1000;
+                  items.push({
+                    start,
+                    end: text.length,
+                    page: pageNumber,
+                    x: round(t[4]!),
+                    y: round(t[5]!),
+                    width: round(item.width),
+                    height: round(item.height),
+                    horizontal:
+                      item.dir === 'ltr' &&
+                      t[0]! > 0 &&
+                      Math.abs(t[1]!) < 0.01 &&
+                      Math.abs(t[2]!) < 0.01,
+                  });
+                }
+              }
               if (item.hasEOL) append('\n');
             }
           }
@@ -192,6 +225,7 @@ async function parsePdfAttempt(
     if (!text.trim()) throw new ExtractionError('NO_EXTRACTABLE_TEXT');
     return {
       source: createExtractionSource({ format: 'pdf', text, segments }),
+      pdfLayout: boundedPdfLayout(text, items, layoutComplete),
       pageCount: document.numPages,
       warnings,
     };

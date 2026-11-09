@@ -549,10 +549,12 @@ test('a result arriving after a saved-job revision change stays invalidated and 
   const view = render(<CvMatchPanel jobId="synthetic" revision="1" />);
   await screen.findByText('Saved CV: synthetic.pdf');
   fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
-  expect(screen.getByRole('status')).toBeVisible();
+  expect(screen.getByText('Processing locally…')).toBeVisible();
   view.rerender(<CvMatchPanel jobId="synthetic" revision="2" />);
   finish(Response.json(result));
-  await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
+  await waitFor(() =>
+    expect(screen.queryByText('Processing locally…')).toBeNull(),
+  );
   expect(screen.queryByLabelText(/Fit score:/)).toBeNull();
   fetch.mockResolvedValueOnce(Response.json(result));
   fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
