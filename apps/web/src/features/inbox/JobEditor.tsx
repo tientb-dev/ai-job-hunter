@@ -1,4 +1,5 @@
 import { DuplicateJobNotice } from './DuplicateJobNotice';
+import { StatusChip } from '../../components/StatusChip';
 import { useNotify } from '../../components/useNotify';
 import { SourceJdPreview } from './SourceJdPreview';
 import { ImportMethodCards, type ImportMethod } from './ImportMethodCards';
@@ -942,40 +943,21 @@ export function JobEditor({
                 useFlexGap
                 sx={{ flexWrap: 'wrap', alignItems: 'center', mt: 0.5 }}
               >
-                {[
-                  form.status.replaceAll('_', ' '),
-                  form.seniority,
-                  form.workMode,
-                  form.salary,
-                ]
+                {form.status && <StatusChip status={form.status} />}
+                {[form.seniority, form.workMode, form.salary]
                   .filter(
                     (value) => value.trim() && !/^unknown\b/iu.test(value),
                   )
-                  .map((value, index) =>
-                    index === 0 ? (
-                      <Chip
-                        key={index}
-                        label={value}
-                        size="small"
-                        variant="outlined"
-                        sx={{
-                          bgcolor: 'action.selected',
-                          color: 'primary.main',
-                          borderColor: 'divider',
-                          fontWeight: 600,
-                        }}
-                      />
-                    ) : (
-                      <Typography
-                        key={index}
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ lineHeight: '1.5rem' }}
-                      >
-                        {value}
-                      </Typography>
-                    ),
-                  )}
+                  .map((value, index) => (
+                    <Typography
+                      key={index}
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ lineHeight: '1.5rem' }}
+                    >
+                      {value}
+                    </Typography>
+                  ))}
                 <Chip
                   label="Unsaved changes"
                   size="small"

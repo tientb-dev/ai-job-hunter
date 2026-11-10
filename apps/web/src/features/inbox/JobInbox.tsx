@@ -1,11 +1,11 @@
 import { PageHeader } from '../../components/PageHeader';
+import { StatusChip } from '../../components/StatusChip';
 import { dueFollowUp, useLocalCalendarDate } from './follow-ups';
 import { useEffect, useState } from 'react';
 import {
   Alert,
   Box,
   Button,
-  Chip,
   CircularProgress,
   IconButton,
   SvgIcon,
@@ -26,7 +26,6 @@ import {
 import { Link } from 'react-router-dom';
 import { jobUrlInfo, opportunityRequest } from './opportunities-api';
 import type { Opportunity } from './opportunities-api';
-const label = (value: string) => value.replaceAll('_', ' ');
 const message = (error: unknown) =>
   error instanceof Error ? error.message : 'Request failed. Retry manually.';
 export function JobInbox() {
@@ -279,24 +278,7 @@ export function JobInbox() {
                                 },
                               }}
                             >
-                              <Chip
-                                size="small"
-                                variant="outlined"
-                                label={label(row.status)}
-                                sx={{
-                                  typography: 'caption',
-                                  bgcolor: 'action.hover',
-                                  borderColor: 'divider',
-                                  fontWeight: 500,
-                                  maxWidth: '100%',
-                                  height: 'auto',
-                                  minHeight: 24,
-                                  '& .MuiChip-label': {
-                                    whiteSpace: 'normal',
-                                    py: 0.5,
-                                  },
-                                }}
-                              />
+                              <StatusChip status={row.status} />
                               {row.followUpDate &&
                                 (urgency ? (
                                   <MuiLink

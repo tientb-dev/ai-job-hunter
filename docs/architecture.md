@@ -1891,3 +1891,16 @@ a user-entered replacement with empty evidence alongside the unchanged source
 reference, using existing revision/save/confirmation rules. It never changes old
 source/profile revisions or approved drafts, and does not label constructed URLs
 as source-verified links.
+
+### Ledger visual foundation
+
+The workspace moves from Calm Teal to Ledger: neutral warm-gray surfaces, one
+ink-blue primary for actions, links and focus, and MUI's default semantic status
+colors (their filled-Chip contrast is already covered by tests). IBM Plex Sans
+and Source Serif 4 are bundled with `@fontsource` because the previous Inter
+stack was never loaded and fell back to platform fonts; bundling avoids runtime
+font requests. The serif is scoped to the CV preview so CV templates stay
+independent of the app theme. Navigation is reduced to Jobs, Discover and My CV;
+retired placeholder routes redirect to Jobs. Alternatives considered: refining
+Calm Teal (lower churn, but teal kept meaning brand, action and status at once)
+and a document-only Paper theme (too sparse for job tables).

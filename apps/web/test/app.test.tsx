@@ -46,8 +46,6 @@ test.each(['/dashboard', '/jobs'])(
       </ThemeProvider>,
     );
     const user = userEvent.setup();
-    if (path === '/dashboard')
-      await user.click(screen.getByRole('link', { name: 'Go to Jobs' }));
     await user.click(await screen.findByRole('link', { name: job.title }));
     expect(
       await screen.findByRole('heading', { name: job.title }),
@@ -80,52 +78,24 @@ beforeEach(() => {
     ),
   );
 });
-test('Dashboard is an honest placeholder and Go to Jobs opens the sole listing', async () => {
-  show('/dashboard');
-  expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
-  expect(screen.getByRole('heading', { name: 'Coming soon' })).toBeVisible();
-  expect(
-    screen.getByText(/Job-search charts and statistics will be available/),
-  ).toBeVisible();
-  expect(screen.queryByRole('table')).toBeNull();
-  expect(
-    vi
-      .mocked(fetch)
-      .mock.calls.some(([url]) => url === '/api/v1/opportunities'),
-  ).toBe(false);
-  expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute(
-    'aria-current',
-    'page',
-  );
-  await userEvent
-    .setup()
-    .click(screen.getByRole('link', { name: 'Go to Jobs' }));
-  expect(screen.getByLabelText('Current route')).toHaveTextContent('/jobs');
-  expect(screen.getByRole('heading', { name: 'Jobs' })).toBeVisible();
-  expect(await screen.findByText('No saved opportunities yet')).toBeVisible();
-  expect(screen.getByRole('link', { name: 'Jobs' })).toHaveAttribute(
-    'aria-current',
-    'page',
-  );
-});
 test('root defaults to the canonical Jobs page', async () => {
   show('/');
   expect(screen.getByLabelText('Current route')).toHaveTextContent('/jobs');
   expect(await screen.findByText('API ready')).toBeInTheDocument();
 });
-test.each(['Candidates', 'Matches', 'Settings'])(
-  'navigates to the honest %s placeholder',
-  async (label) => {
-    show('/dashboard');
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('link', { name: label }));
-    expect(screen.getByRole('heading', { name: label })).toBeInTheDocument();
+test.each(['/dashboard', '/candidates', '/matches', '/settings'])(
+  'retired placeholder %s redirects to Jobs',
+  (path) => {
+    show(path);
+    expect(screen.getByLabelText('Current route')).toHaveTextContent('/jobs');
+    const navigation = screen.getByRole('navigation', {
+      name: 'Main navigation',
+    });
     expect(
-      screen.getByRole('heading', { name: 'Coming soon' }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText('This part of your workspace is not available yet.'),
-    ).toBeInTheDocument();
+      within(navigation)
+        .getAllByRole('link')
+        .map((link) => link.textContent),
+    ).toEqual(['Jobs', 'Discover', 'My CV']);
   },
 );
 test('unknown routes show not found and allow navigation home', async () => {
@@ -140,13 +110,9 @@ test('unknown routes show not found and allow navigation home', async () => {
 });
 
 test('keeps CV review accessible and discovery off the inbox', async () => {
-  show('/dashboard');
-  await userEvent
-    .setup()
-    .click(screen.getByRole('link', { name: 'CV & Review' }));
-  expect(
-    screen.getByRole('heading', { name: 'CV & Review' }),
-  ).toBeInTheDocument();
+  show('/jobs');
+  await userEvent.setup().click(screen.getByRole('link', { name: 'My CV' }));
+  expect(screen.getByRole('heading', { name: 'My CV' })).toBeInTheDocument();
   expect(
     screen.getByText('Existing CV/JD extraction and fact review'),
   ).toBeInTheDocument();
@@ -219,7 +185,7 @@ test('Discover Jobs supports direct links, navigation, retained results and hist
     name: 'Main navigation',
   });
   expect(
-    within(navigation).getByRole('link', { name: 'Discover Jobs' }),
+    within(navigation).getByRole('link', { name: 'Discover' }),
   ).toHaveAttribute('aria-current', 'page');
   expect(
     screen.getByRole('button', { name: 'Edit preferences' }),
@@ -253,9 +219,7 @@ test('Discover Jobs supports direct links, navigation, retained results and hist
     screen.getByRole('button', { name: 'Edit preferences' }),
   ).toBeVisible();
   await user.click(within(navigation).getByRole('link', { name: 'Jobs' }));
-  await user.click(
-    within(navigation).getByRole('link', { name: 'Discover Jobs' }),
-  );
+  await user.click(within(navigation).getByRole('link', { name: 'Discover' }));
   expect(router.state.location.pathname).toBe('/discover');
   expect(screen.getByRole('heading', { name: 'Discover Jobs' })).toBeVisible();
 });
@@ -271,15 +235,16 @@ test('mobile drawer restores focus on Escape and closes after route selection', 
       removeEventListener: vi.fn(),
     })),
   );
-  show('/dashboard');
+  show('/cv');
   const user = userEvent.setup();
   const trigger = screen.getByRole('button', { name: 'Open navigation' });
   expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
   await user.click(trigger);
   const drawer = screen.getByRole('dialog', { name: 'Workspace navigation' });
-  expect(
-    within(drawer).getByRole('link', { name: 'Dashboard' }),
-  ).toHaveAttribute('aria-current', 'page');
+  expect(within(drawer).getByRole('link', { name: 'My CV' })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
   await user.keyboard('{Escape}');
   await vi.waitFor(() =>
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),

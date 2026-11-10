@@ -19,6 +19,18 @@ const text = {
   overflowWrap: 'anywhere',
 } as const;
 
+// The CV page owns its presentation, independent of the app theme, so future
+// CV templates can replace it without touching workspace styles.
+const cvPaper = {
+  p: { xs: 2, sm: 4 },
+  bgcolor: '#fffdf8',
+  color: '#1d1b17',
+  fontFamily: '"Source Serif 4", Georgia, serif',
+  fontSize: '0.9375rem',
+  lineHeight: 1.55,
+  '& .MuiTypography-root': { fontFamily: 'inherit' },
+} as const;
+
 // Display text: reflowed; skills categories lose a trailing colon, as in export.
 const display = (fact: DraftFact) =>
   fact.field === 'skill_category'
@@ -179,7 +191,7 @@ export function CvSectionView({
 
 export function TailoredCvPreview({ document }: { document: Document }) {
   return (
-    <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
+    <Paper variant="outlined" sx={cvPaper}>
       <Stack spacing={3}>
         {sortSections(document.sections).map((section) =>
           displayEntries(document, section).length ? (

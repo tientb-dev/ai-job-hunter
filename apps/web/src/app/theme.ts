@@ -1,28 +1,33 @@
 import { createTheme } from '@mui/material/styles';
 
+// Ledger: neutral surfaces and one ink-blue accent. Status colors keep MUI's
+// defaults, whose filled-Chip contrast is covered by semantic-contrast tests.
 export const theme = createTheme({
   palette: {
-    primary: { main: '#176b5b' },
-    background: { default: '#f5f7f6', paper: '#ffffff' },
-    text: { primary: '#182823', secondary: '#53645d' },
-    divider: '#dce4df',
-    action: { selected: '#e8f2ee' },
+    primary: { main: '#2f5bd3', dark: '#2447a8', contrastText: '#ffffff' },
+    background: { default: '#f6f6f3', paper: '#ffffff' },
+    text: { primary: '#16181d', secondary: '#575c69' },
+    divider: '#e3e3dd',
+    action: { hover: '#f0f0ec', selected: '#eceef3' },
   },
   spacing: 8,
-  shape: { borderRadius: 8 },
+  shape: { borderRadius: 6 },
   typography: {
-    fontFamily: 'Inter, system-ui, sans-serif',
-    h4: { fontSize: '1.75rem', fontWeight: 600, lineHeight: 1.3 },
+    fontFamily: '"IBM Plex Sans", system-ui, sans-serif',
+    h4: { fontSize: '1.5rem', fontWeight: 600, lineHeight: 1.3 },
     // Preserve the existing section/body metrics used by CV Match.
-    h6: { fontSize: '1.25rem', fontWeight: 500, lineHeight: 1.6 },
-    subtitle1: { fontSize: '1rem', fontWeight: 400, lineHeight: 1.75 },
+    h6: { fontSize: '1.125rem', fontWeight: 600, lineHeight: 1.5 },
+    subtitle1: { fontSize: '1rem', fontWeight: 400, lineHeight: 1.6 },
     subtitle2: { fontSize: '0.875rem', fontWeight: 500, lineHeight: 1.57 },
-    body1: { fontSize: '1rem', lineHeight: 1.5 },
-    body2: { fontSize: '0.875rem', lineHeight: 1.43 },
-    caption: { fontSize: '0.75rem', lineHeight: 1.66 },
-    button: { textTransform: 'none' },
+    body1: { fontSize: '0.9375rem', lineHeight: 1.5 },
+    body2: { fontSize: '0.875rem', lineHeight: 1.45 },
+    caption: { fontSize: '0.75rem', lineHeight: 1.6 },
+    button: { textTransform: 'none', fontWeight: 500 },
   },
   components: {
+    MuiCssBaseline: {
+      styleOverrides: { body: { fontVariantNumeric: 'tabular-nums' } },
+    },
     MuiButton: {
       defaultProps: { disableElevation: true },
       styleOverrides: {
@@ -31,6 +36,15 @@ export const theme = createTheme({
           '&.Mui-focusVisible': {
             outline: `2px solid ${theme.palette.primary.main}`,
             outlineOffset: 2,
+          },
+        }),
+        outlined: ({ theme }) => ({
+          borderColor: theme.palette.divider,
+          color: theme.palette.text.primary,
+          backgroundColor: theme.palette.background.paper,
+          '&:hover': {
+            borderColor: theme.palette.text.secondary,
+            backgroundColor: theme.palette.action.hover,
           },
         }),
         sizeSmall: { minHeight: 32 },
@@ -48,15 +62,27 @@ export const theme = createTheme({
         }),
       },
     },
+    MuiPaper: {
+      styleOverrides: {
+        outlined: { borderRadius: 8 },
+      },
+    },
     MuiOutlinedInput: { styleOverrides: { root: { borderRadius: 6 } } },
     MuiChip: {
       styleOverrides: {
         root: ({ theme }) => ({
+          fontWeight: 500,
           // Keep the warning fill; only filled warning indicators need dark text.
           '&.MuiChip-filled.MuiChip-colorWarning': {
             color: theme.palette.grey[900],
           },
         }),
+      },
+    },
+    MuiAlert: { styleOverrides: { root: { borderRadius: 6 } } },
+    MuiTab: {
+      styleOverrides: {
+        root: { textTransform: 'none', fontWeight: 500, minHeight: 44 },
       },
     },
     MuiToggleButton: {

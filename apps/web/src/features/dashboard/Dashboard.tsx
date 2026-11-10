@@ -18,7 +18,7 @@ export function Dashboard() {
   return (
     <Stack spacing={3}>
       <PageHeader
-        title="CV & Review"
+        title="My CV"
         description="Existing CV upload, document parsing, partial extraction, and fact review."
       />
       <Box component="details" role="region" aria-label="CV/JD analysis">

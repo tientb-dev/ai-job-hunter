@@ -18,16 +18,20 @@ another scroll owner or viewport-height calculation to a page header.
 
 ## Typography and icons
 
-- Page title: `h4` rendered as `h1`, 28px, weight 600, line height 1.3.
-- Section title: `h6` rendered as `h2`, 20px, weight 500, line height 1.6.
+- Page title: `h4` rendered as `h1`, 24px, weight 600, line height 1.3.
+- Section title: `h6` rendered as `h2`, 18px, weight 600, line height 1.5.
 - Subsection: `subtitle1` rendered as `h3`, 16px; use local weight 600 for emphasis.
 - Field/group label: `subtitle2`, 14px, weight 500.
-- Body: `body1`, 16px, line height 1.5.
+- Body: `body1`, 15px, line height 1.5.
 - Dense rows and supporting copy: `body2`, 14px, line height about 1.43.
 - Metadata: `caption`, 12px, line height about 1.66; do not use for primary content.
 
 Sizes are defined in rem. Preserve CV Match's existing score and local emphasis.
-The font stack is Inter, system-ui, sans-serif; Inter is not bundled or downloaded.
+The app font is IBM Plex Sans, bundled locally through `@fontsource` (no runtime
+font requests). CV previews own their presentation: Source Serif 4 on a paper
+surface, set in the preview component rather than the app theme, so future CV
+templates can change it independently. Job status uses `StatusChip` (dot plus
+sentence-case label) so color is never the only cue.
 Use 20px icons for standard inline controls and 24px for illustrative import
 choices. Size icons at their use sites rather than globally resizing all MUI
 icons. Decorative icons are hidden from assistive technology; icon-only actions
@@ -99,7 +103,7 @@ behavior justify it; use MUI primitives directly otherwise.
 
 ## Semantic contrast and destructive actions
 
-Keep the primary teal and warning orange fills. Normal-sized text must reach
+Keep the ink-blue primary (Ledger) and MUI's default warning orange fills. Normal-sized text must reach
 at least 4.5:1 against its actual background. Filled warning Chips use
 `palette.grey[900]` text on the existing `palette.warning.main` fill through a
 narrow theme override; other Chip variants and warning Alerts retain their own

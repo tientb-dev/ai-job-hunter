@@ -1,5 +1,4 @@
 import { theme } from './theme';
-import { PageHeader } from '../components/PageHeader';
 import { DiscoverJobsPage } from '../features/inbox/DiscoverJobsPage';
 import { JobInbox } from '../features/inbox/JobInbox';
 import { TailoredCvPage } from '../features/inbox/TailoredCvPage';
@@ -14,7 +13,6 @@ import {
   IconButton,
   SvgIcon,
   useMediaQuery,
-  Paper,
   Stack,
   Typography,
 } from '@mui/material';
@@ -34,68 +32,10 @@ const UiAcceptancePreview = import.meta.env.DEV
   : null;
 
 const navigation = [
-  { label: 'Dashboard', path: '/dashboard' },
   { label: 'Jobs', path: '/jobs' },
-  { label: 'Discover Jobs', path: '/discover' },
-  { label: 'CV & Review', path: '/cv' },
-  { label: 'Candidates', path: '/candidates' },
-  { label: 'Matches', path: '/matches' },
-  { label: 'Settings', path: '/settings' },
+  { label: 'Discover', path: '/discover' },
+  { label: 'My CV', path: '/cv' },
 ];
-function ComingSoon({ title }: { title: string }) {
-  return (
-    <Stack spacing={2}>
-      <PageHeader title={title} />
-      <Paper variant="outlined" sx={{ p: 4 }}>
-        <Typography variant="h6" component="h2" gutterBottom>
-          Coming soon
-        </Typography>
-        <Typography color="text.secondary">
-          This part of your workspace is not available yet.
-        </Typography>
-      </Paper>
-    </Stack>
-  );
-}
-function DashboardPlaceholder() {
-  return (
-    <Stack spacing={2}>
-      <PageHeader title="Dashboard" />
-      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={3}
-          sx={{
-            alignItems: { xs: 'flex-start', sm: 'center' },
-            justifyContent: 'space-between',
-          }}
-        >
-          <Box sx={{ maxWidth: '52ch' }}>
-            <Typography
-              variant="h6"
-              component="h2"
-              sx={{ fontWeight: 600, mb: 1 }}
-            >
-              Coming soon
-            </Typography>
-            <Typography color="text.secondary">
-              Job-search charts and statistics will be available here in the
-              future. Manage your saved jobs in Jobs.
-            </Typography>
-          </Box>
-          <Button
-            component={Link}
-            to="/jobs"
-            variant="contained"
-            sx={{ flexShrink: 0, minHeight: 44 }}
-          >
-            Go to Jobs
-          </Button>
-        </Stack>
-      </Paper>
-    </Stack>
-  );
-}
 export function App() {
   const [navigationOpen, setNavigationOpen] = useState(false);
   const desktop = useMediaQuery(theme.breakpoints.up('md'), {
@@ -109,8 +49,7 @@ export function App() {
       >
         <Typography
           variant="subtitle1"
-          color="primary"
-          sx={{ fontWeight: 700, letterSpacing: '-0.02em' }}
+          sx={{ fontWeight: 600, letterSpacing: '-0.01em' }}
         >
           AI Job Hunter
         </Typography>
@@ -126,19 +65,6 @@ export function App() {
           </IconButton>
         )}
       </Stack>
-      <Typography
-        variant="caption"
-        color="text.secondary"
-        sx={{
-          display: 'block',
-          px: 1.5,
-          mb: 1,
-          fontWeight: 600,
-          letterSpacing: '0.06em',
-        }}
-      >
-        WORKSPACE
-      </Typography>
       <Stack
         component="nav"
         id="workspace-navigation"
@@ -157,11 +83,9 @@ export function App() {
               px: 1.5,
               color: 'text.secondary',
               fontWeight: 500,
-              borderLeft: '3px solid transparent',
               '&.active': {
                 bgcolor: 'action.selected',
-                color: 'primary.main',
-                borderLeftColor: 'primary.main',
+                color: 'text.primary',
                 fontWeight: 600,
               },
             }}
@@ -170,6 +94,11 @@ export function App() {
           </Button>
         ))}
       </Stack>
+      {desktop && (
+        <Box sx={{ mt: 'auto', pt: 2 }}>
+          <ApiReadiness />
+        </Box>
+      )}
     </>
   );
   const jobsMatch = useMatch('/jobs');
@@ -190,14 +119,14 @@ export function App() {
         minHeight: bounded ? 0 : '100vh',
         height: bounded ? '100dvh' : undefined,
         display: 'grid',
-        gridTemplateColumns: { xs: '1fr', md: '230px minmax(0, 1fr)' },
+        gridTemplateColumns: { xs: '1fr', md: '208px minmax(0, 1fr)' },
         gridTemplateRows: bounded ? 'minmax(0, 1fr)' : '1fr',
       }}
     >
       <Box
         component="aside"
         sx={{
-          display: { xs: 'none', md: 'block' },
+          display: { xs: 'none', md: 'flex' },
           minHeight: bounded ? 0 : undefined,
           overflowY: bounded ? 'auto' : undefined,
           bgcolor: 'background.paper',
@@ -205,6 +134,7 @@ export function App() {
           borderColor: 'divider',
           px: 2,
           py: 2,
+          flexDirection: 'column',
         }}
       >
         {desktop && navigationContent}
@@ -240,7 +170,12 @@ export function App() {
         <Container
           component="header"
           maxWidth="lg"
-          sx={{ px: { xs: 2, sm: 3 }, py: { xs: 0.5, md: 1 }, flexShrink: 0 }}
+          sx={{
+            display: { xs: 'block', md: 'none' },
+            px: { xs: 2, sm: 3 },
+            py: 0.5,
+            flexShrink: 0,
+          }}
         >
           <Stack
             direction="row"
@@ -273,25 +208,14 @@ export function App() {
                   <path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z" />
                 </SvgIcon>
               </IconButton>
-              <Typography
-                variant="subtitle2"
-                color="primary"
-                sx={{ display: { xs: 'block', md: 'none' }, fontWeight: 700 }}
-              >
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
                 AI Job Hunter
               </Typography>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ display: { xs: 'none', md: 'block' } }}
-              >
-                Make your next move count.
-              </Typography>
             </Stack>
-            <ApiReadiness />
+            {!desktop && <ApiReadiness />}
           </Stack>
         </Container>
-        <Divider sx={{ flexShrink: 0 }} />
+        <Divider sx={{ flexShrink: 0, display: { md: 'none' } }} />
         <Container
           component="main"
           maxWidth="lg"
@@ -308,7 +232,6 @@ export function App() {
         >
           <Routes>
             <Route path="/" element={<Navigate to="/jobs" replace />} />
-            <Route path="/dashboard" element={<DashboardPlaceholder />} />
             <Route
               path="/discover"
               element={
@@ -347,20 +270,16 @@ export function App() {
                 }
               />
             )}
-            {navigation
-              .filter(
-                (item) =>
-                  !['/dashboard', '/discover', '/cv', '/jobs'].includes(
-                    item.path,
-                  ),
-              )
-              .map(({ label, path }) => (
+            {/* Retired placeholder pages keep old bookmarks working. */}
+            {['/dashboard', '/candidates', '/matches', '/settings'].map(
+              (path) => (
                 <Route
                   key={path}
                   path={path}
-                  element={<ComingSoon title={label} />}
+                  element={<Navigate to="/jobs" replace />}
                 />
-              ))}
+              ),
+            )}
             <Route
               path="*"
               element={
