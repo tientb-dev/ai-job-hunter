@@ -64,10 +64,12 @@ test('resume bypasses completed source work, preserves draft pins and explains e
   expect(
     screen.getByText(/Your saved draft below stays available/),
   ).toBeVisible();
-  // An open draft drives the next action even though the match is stale.
-  expect(screen.getByRole('status', { name: 'Next step' })).toHaveTextContent(
-    /Decide each suggestion and save, then continue to Approve & Export/,
-  );
+  // An open draft drives the next action even though the match is stale: the
+  // progress card carries it, so the duplicate Next banner is not shown.
+  expect(screen.queryByRole('status', { name: 'Next step' })).toBeNull();
+  expect(
+    screen.getByRole('region', { name: 'Review progress' }),
+  ).toHaveTextContent(/suggestions decided/);
   expect(screen.getByText(/Pinned source/)).toHaveTextContent(
     draft.document.pins.sourceRevisionId.slice(0, 8),
   );

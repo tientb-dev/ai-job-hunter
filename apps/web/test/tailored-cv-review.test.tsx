@@ -190,8 +190,10 @@ test('complete CV supports explicit proposal acceptance, save, exact approval, r
   await screen.findByText('This saved draft revision is approved.');
   expect(state.saved().document.review.approval?.revision).toBe(3);
   fireEvent.click(screen.getByRole('button', { name: 'Reload saved draft' }));
+  // Revision and approval live on the draft card.
+  const card = await screen.findByRole('region', { name: 'Current draft' });
   await waitFor(() =>
-    expect(screen.getByText(/Saved revision 3 · Approved/)).toBeVisible(),
+    expect(card).toHaveTextContent(/Approved.*Saved version 3/),
   );
   fireEvent.click(screen.getByRole('button', { name: 'Edit experience' }));
   fireEvent.change(
