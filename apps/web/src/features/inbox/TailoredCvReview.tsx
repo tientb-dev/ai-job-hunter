@@ -1,7 +1,17 @@
 import { ProposalComparison } from './ProposalComparison';
 import { DraftPanel } from './DraftPanel';
-import { CvSectionView, TailoredCvPreview } from './TailoredCvPreview';
-import { includedEntries, promotedLinks, sortSections } from './cv-layout';
+import {
+  CvSectionView,
+  TailoredCvPreview,
+  type FactAnchorState,
+} from './TailoredCvPreview';
+import {
+  displayEntries,
+  includedEntries,
+  promotedLinks,
+  sortSections,
+  structuredRows,
+} from './cv-layout';
 import {
   decodeReadiness,
   generationReadiness,
@@ -31,6 +41,8 @@ import {
   Stack,
   TextField,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import {
   decodeDraft,
@@ -99,6 +111,9 @@ export function TailoredCvReview({
 }) {
   const [saved, setSaved] = useState<SavedDraft | null>(null);
   const [operations, setOperations] = useState<DraftOperation[]>([]);
+  // Document-first review: the suggestion selected in the CV or the panel.
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const mobile = useMediaQuery(useTheme().breakpoints.down('md'));
   const dirty = operations.length > 0;
   const [items, setItems] = useState<
     { id: string; revision: number; updatedAt: string }[]
@@ -108,44 +123,53 @@ export function TailoredCvReview({
     [error, setError] = useState(''),
     [message, setMessage] = useState('');
   const [editing, setEditing] = useState<string | null>(null);
+  // Fact whose wording is being edited from its suggestion card.
+  const [contextEdit, setContextEdit] = useState<string | null>(null);
   const saveButton = useRef<HTMLButtonElement>(null);
   const keptOriginal = useRef(false);
   const [keepOriginalOpen, setKeepOriginalOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [listFailed, setListFailed] = useState(false);
   const [opening, setOpening] = useState<string | null>(null);
-  const [generateOpen, setGenerateOpen] = useState(false);
+  // null: follow the default (open right after Source CV Review).
+  const [generateOpen, setGenerateOpen] = useState<boolean | null>(null);
+  const [generatedAfterSource, setGeneratedAfterSource] = useState(false);
+  const sourceJustSaved = continued && !generatedAfterSource;
   const [cvOpen, setCvOpen] = useState(false);
   const [reviewed, setReviewed] = useState(false);
   const [exporting, setExporting] = useState<'docx' | 'pdf' | null>(null);
   const [recoverable, setRecoverable] = useState<string[] | null>(null);
   const [refresh, setRefresh] = useState(0);
-  const readinessKey = JSON.stringify([
+  // Context without the recheck counter: a focus/timer recheck keeps the last
+  // answer for the same context, so dependent banners do not unmount and remount.
+  const readinessContext = JSON.stringify([
     jobId,
     jobRevision,
     cv?.updatedAt,
     matchId,
     readinessRevision,
-    refresh,
     active,
   ]);
+  const readinessKey = JSON.stringify([readinessContext, refresh]);
   const [preflight, setPreflight] = useState<{
     key: string;
+    context: string;
     server: DraftReadiness | null;
     error: string;
     checking: boolean;
-  }>({ key: '', server: null, error: '', checking: false });
+  }>({ key: '', context: '', server: null, error: '', checking: false });
   useEffect(() => {
     let cancelled = false;
     if (!active || !cv || !jobRevision) return;
     void Promise.resolve().then(async () => {
       if (cancelled) return;
-      setPreflight({
+      setPreflight((previous) => ({
         key: readinessKey,
-        server: null,
+        context: readinessContext,
+        server: previous.context === readinessContext ? previous.server : null,
         error: '',
         checking: true,
-      });
+      }));
       try {
         const value = decodeReadiness(
           await draftRequest(`/jobs/${jobId}/drafts/readiness`, {
@@ -157,6 +181,7 @@ export function TailoredCvReview({
         if (!cancelled)
           setPreflight({
             key: readinessKey,
+            context: readinessContext,
             server: value,
             error: '',
             checking: false,
@@ -165,6 +190,7 @@ export function TailoredCvReview({
         if (!cancelled)
           setPreflight({
             key: readinessKey,
+            context: readinessContext,
             server: null,
             error:
               error instanceof Error
@@ -177,8 +203,9 @@ export function TailoredCvReview({
     return () => {
       cancelled = true;
     };
-  }, [active, cv, jobId, jobRevision, matchId, readinessKey]);
-  const server = preflight.key === readinessKey ? preflight.server : null;
+  }, [active, cv, jobId, jobRevision, matchId, readinessContext, readinessKey]);
+  const server =
+    preflight.context === readinessContext ? preflight.server : null;
   useEffect(() => {
     onReadinessChange?.(
       server,
@@ -255,20 +282,41 @@ export function TailoredCvReview({
     jobRevision: !!jobRevision,
     disabled: blocked,
     dirty,
-    checking: active && (preflight.key !== readinessKey || preflight.checking),
+    // Show "checking" only when there is no answer yet for this context; a
+    // focus/timer recheck keeps the last answer instead of flashing.
+    checking:
+      active &&
+      !server &&
+      (preflight.key !== readinessKey || preflight.checking),
     error: preflight.key === readinessKey ? preflight.error : '',
     server,
     blockedReason,
   });
   const accept = useCallback(
     (value: unknown) => {
-      setSaved(decodeDraft(value, jobId));
+      const draft = decodeDraft(value, jobId);
+      setSaved(draft);
+      // Keep the switcher in sync: a generated draft joins the list (newest
+      // first); a saved one updates its revision and time in place.
+      const meta = {
+        id: draft.id,
+        revision: draft.revision,
+        updatedAt: draft.updatedAt,
+      };
+      setItems((old) =>
+        old.some((item) => item.id === meta.id)
+          ? old.map((item) => (item.id === meta.id ? meta : item))
+          : // Outside the wizard the list may be unloaded; never fake a count.
+            wizardStep !== undefined || old.length
+            ? [meta, ...old]
+            : old,
+      );
       setOperations([]);
       setReviewed(false);
       setRecoverable(null);
       setEditing(null);
     },
-    [jobId],
+    [jobId, wizardStep],
   );
   async function list(token: number, before?: string) {
     const value = (await draftRequest(`/jobs/${jobId}/drafts/list`, {
@@ -568,15 +616,125 @@ export function TailoredCvReview({
   const reducedMotion = () =>
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const showSuggestion = (id: string) =>
+  // Suggestions in panel order: unproposed checks first, then the queue.
+  const navIds = [
+    ...verificationCards
+      .filter((card) => !card.fact.proposedWording)
+      .map((card) => card.fact.id),
+    ...queueOrder.map((card) => card.fact.id),
+  ];
+  const openConflicts = new Set(
+    blockingIssues
+      .filter(
+        ({ index }) => !document?.review.acknowledgedIssues.includes(index),
+      )
+      .map(({ issue }) => issue.factId),
+  );
+  const anchorStates: Record<string, FactAnchorState> = Object.fromEntries([
+    ...verificationCards
+      .filter((card) => !card.fact.proposedWording)
+      .map(({ fact }) => [
+        fact.id,
+        document?.review.factReviews[fact.id]?.wording === 'user_edited'
+          ? 'decided'
+          : 'conflict',
+      ]),
+    ...proposalCards.map(({ fact, state, group }) => [
+      fact.id,
+      state.exportIncluded === false
+        ? 'excluded'
+        : openConflicts.has(fact.id) ||
+            (group === 'check' && state.proposal === 'pending')
+          ? 'conflict'
+          : state.proposal === 'pending'
+            ? 'pending'
+            : 'decided',
+    ]),
+  ]);
+  const docReview = isWizard && wizardStep === 2 && navIds.length > 0;
+  // Same layout helpers as the preview: facts merged into another line (dates)
+  // or excluded from download have no anchor of their own.
+  const anchored = new Set(
+    document
+      ? sortSections(document.sections).flatMap((section) =>
+          displayEntries(document, section).flatMap((entry) =>
+            ['experience', 'projects', 'education'].includes(section.kind)
+              ? structuredRows(section.kind, entry.facts).map((row) => row.id)
+              : entry.facts.map((fact) => fact.id),
+          ),
+        )
+      : [],
+  );
+  // Bring a CV line into the upper-middle of what is actually visible: above the
+  // mobile sheet when it is open. A line already comfortably visible stays put.
+  const revealAnchor = (id: string) =>
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        const el = window.document.querySelector<HTMLElement>(
+          `[data-fact-id="${CSS.escape(id)}"]`,
+        );
+        if (!el) return;
+        const sheet = window.document
+          .getElementById('review-sheet-title')
+          ?.closest<HTMLElement>('[role="dialog"]');
+        const top = 16;
+        const bottom = sheet
+          ? sheet.getBoundingClientRect().top
+          : window.innerHeight;
+        const rect = el.getBoundingClientRect();
+        const margin = 48;
+        if (rect.top >= top + margin && rect.bottom <= bottom - margin) return;
+        window.scrollBy?.({
+          top: rect.top - (top + (bottom - top) * 0.3),
+          behavior: reducedMotion() ? 'auto' : 'smooth',
+        });
+      }),
+    );
+  // Selecting from the CV opens the matching card in the panel or sheet.
+  const selectSuggestion = (id: string) => {
+    setActiveId(id);
+    if (docReview) revealAnchor(id);
     requestAnimationFrame(() => {
       const el = window.document.getElementById(`suggestion-${id}`);
-      el?.scrollIntoView?.({
-        block: 'start',
-        behavior: reducedMotion() ? 'auto' : 'smooth',
-      });
-      el?.focus({ preventScroll: true });
+      const panel = window.document.getElementById('review-panel');
+      if (docReview && panel && el && panel.contains(el))
+        panel.scrollTo?.({
+          // Clear the sticky Previous/Next header at the top of the panel.
+          top:
+            el.offsetTop -
+            ((panel.firstElementChild as HTMLElement | null)?.offsetHeight ??
+              0) -
+            8,
+          behavior: reducedMotion() ? 'auto' : 'smooth',
+        });
+      else if (!(docReview && mobile))
+        el?.scrollIntoView?.({
+          block: 'start',
+          behavior: reducedMotion() ? 'auto' : 'smooth',
+        });
+      (docReview && mobile
+        ? window.document.getElementById('review-sheet-title')
+        : el
+      )?.focus({ preventScroll: true });
     });
+  };
+  const showSuggestion = (id: string) => selectSuggestion(id);
+  const step = (delta: number) => {
+    const at = activeId ? navIds.indexOf(activeId) : -1;
+    const next =
+      navIds[(at + delta + navIds.length) % navIds.length] ?? navIds[0]!;
+    showSuggestion(next);
+  };
+  const closeSuggestion = () => {
+    const id = activeId;
+    setActiveId(null);
+    if (id)
+      requestAnimationFrame(() =>
+        window.document
+          .querySelector<HTMLElement>(`[data-fact-id="${CSS.escape(id)}"]`)
+          ?.focus(),
+      );
+  };
   // After a decision, offer the next undecided suggestion (wrapping), or the
   // action bar once every suggestion is decided.
   function advanceFrom(id: string) {
@@ -591,10 +749,293 @@ export function TailoredCvReview({
     const next = undecidedIds.slice(at + 1).find((x) => x !== id) ?? rest[0]!;
     showSuggestion(next);
   }
+  // One editor for a fact's wording, used by the Full CV editor and by the
+  // suggestion cards. Both read the same derived draft and queue the same edit.
+  const factField = (
+    fact: (typeof facts)[number],
+    label: string,
+    autoFocus = false,
+  ) => (
+    <TextField
+      label={label}
+      fullWidth
+      multiline
+      autoFocus={autoFocus}
+      value={fact.acceptedText}
+      disabled={blocked}
+      error={!fact.acceptedText.trim()}
+      slotProps={{
+        htmlInput: { maxLength: 4000 },
+      }}
+      onChange={(e) =>
+        queue({
+          action: 'edit',
+          factId: fact.id,
+          text: e.target.value,
+        })
+      }
+      helperText="Edits are user-authored wording, not original-source evidence."
+    />
+  );
+  const contextualEdit = (fact: (typeof facts)[number], where: string) =>
+    contextEdit === fact.id ? (
+      <Stack spacing={1} sx={{ mt: 1.5 }}>
+        {factField(fact, `Your wording: ${where}`, true)}
+        <Box>
+          <Button size="small" onClick={() => setContextEdit(null)}>
+            Done editing
+          </Button>
+        </Box>
+      </Stack>
+    ) : (
+      <Box sx={{ mt: 1 }}>
+        <Button
+          size="small"
+          disabled={blocked}
+          aria-label={`Edit wording for ${where}`}
+          onClick={() => setContextEdit(fact.id)}
+        >
+          Edit wording
+        </Button>
+      </Box>
+    );
+  const renderCheck = ({
+    fact,
+    section,
+    where,
+  }: (typeof verificationCards)[number]) => (
+    <Alert
+      key={`verify-${fact.id}`}
+      id={fact.proposedWording ? undefined : `suggestion-${fact.id}`}
+      tabIndex={-1}
+      severity="warning"
+      variant="outlined"
+      aria-label={`Needs your verification for ${fact.field}`}
+    >
+      <Stack spacing={1}>
+        <Typography variant="subtitle1" component="h4" sx={{ fontWeight: 600 }}>
+          {where} · not in your CV: {fact.verification!.details.join(', ')}
+        </Typography>
+        <Typography sx={{ whiteSpace: 'pre-wrap' }}>
+          {fact.verification!.text}
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Not included or exported. Use it only if you can confirm the details;
+          replace every [placeholder] with your own facts.
+        </Typography>
+        <Box>
+          <Button
+            variant="outlined"
+            disabled={blocked}
+            onClick={() => {
+              // In document review, edit in place; otherwise open Full CV.
+              if (docReview) setContextEdit(fact.id);
+              else {
+                setEditing(section.id);
+                setCvOpen(true);
+              }
+              queue({
+                action: 'edit',
+                factId: fact.id,
+                text: fact.verification!.text,
+              });
+            }}
+          >
+            Use as my draft
+          </Button>
+        </Box>
+        {docReview && contextEdit === fact.id && contextualEdit(fact, where)}
+      </Stack>
+    </Alert>
+  );
+  const renderProposal = ({
+    fact,
+    state,
+    where,
+    checkReasons,
+    reviewNotes,
+  }: (typeof proposalCards)[number]) => (
+    <Box
+      key={fact.id}
+      id={`suggestion-${fact.id}`}
+      tabIndex={-1}
+      sx={{
+        scrollMarginTop: 16,
+        scrollMarginBottom: 96,
+        borderRadius: 1,
+        '&:focus-visible': {
+          outline: '2px solid',
+          outlineColor: 'primary.main',
+          outlineOffset: 2,
+        },
+      }}
+    >
+      <ProposalComparison
+        original={state.reviewedText}
+        suggestion={fact.proposedWording!.text}
+        proposal={state.proposal}
+        manuallyEdited={state.wording === 'user_edited'}
+        where={where}
+        why={fact.proposedWording!.explanation}
+        needsCheck={checkReasons.join(' ') || undefined}
+        reviewNote={reviewNotes.join(' ') || undefined}
+        evidence={evidenceFor(fact)}
+        disabled={blocked}
+        onDecision={(action) => {
+          const wasPending = state.proposal === 'pending';
+          queue({ action, factId: fact.id });
+          if (isWizard && wasPending) advanceFrom(fact.id);
+        }}
+      />
+      {docReview && contextualEdit(fact, where)}
+    </Box>
+  );
+  const position = activeId ? navIds.indexOf(activeId) + 1 : 0;
+  const reviewNav = (
+    <Stack
+      direction="row"
+      spacing={1}
+      sx={{
+        alignItems: 'center',
+        position: 'sticky',
+        top: 0,
+        zIndex: 3,
+        bgcolor: 'background.default',
+        py: 1,
+      }}
+    >
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+          {position
+            ? `Suggestion ${position} of ${navIds.length}`
+            : `${navIds.length} suggestions`}
+        </Typography>
+        <LinearProgress
+          variant="determinate"
+          value={
+            proposalCards.length ? (decided / proposalCards.length) * 100 : 100
+          }
+          aria-label="Suggestions decided"
+          sx={{ mt: 0.5, height: 4, borderRadius: 2 }}
+        />
+      </Box>
+      <Button
+        size="small"
+        variant="outlined"
+        aria-label="Previous suggestion"
+        onClick={() => step(-1)}
+      >
+        Previous
+      </Button>
+      <Button
+        size="small"
+        variant="outlined"
+        aria-label="Next suggestion"
+        onClick={() => step(1)}
+      >
+        Next
+      </Button>
+    </Stack>
+  );
+  const unanchored = navIds.filter((id) => !anchored.has(id));
+  const unanchoredNote =
+    docReview && unanchored.length > 0 ? (
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+        {unanchored.length} suggestion
+        {unanchored.length === 1 ? ' is' : 's are'} not shown in the CV
+        (excluded from download or not placed). Review{' '}
+        {unanchored.length === 1 ? 'it' : 'them'} in this list.
+      </Typography>
+    ) : null;
+  const activeProposal = proposalCards.find(
+    (card) => card.fact.id === activeId,
+  );
+  const activeCheck = verificationCards.find(
+    (card) => card.fact.id === activeId,
+  );
+  const reviewSheet = mobile ? (
+    <>
+      {!activeId && (
+        <Button variant="outlined" sx={{ mb: 2 }} onClick={() => step(1)}>
+          Review suggestions ({navIds.length})
+        </Button>
+      )}
+      {activeId && (
+        <Paper
+          role="dialog"
+          aria-modal="false"
+          aria-labelledby="review-sheet-title"
+          elevation={8}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') closeSuggestion();
+          }}
+          sx={{
+            position: 'fixed',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 1200,
+            maxHeight: '70vh',
+            overflowY: 'auto',
+            borderRadius: '12px 12px 0 0',
+            p: 2,
+            pt: 1,
+          }}
+        >
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{
+              alignItems: 'center',
+              mb: 1,
+              position: 'sticky',
+              top: -8,
+              zIndex: 1,
+              bgcolor: 'background.paper',
+              py: 1,
+            }}
+          >
+            <Typography
+              id="review-sheet-title"
+              tabIndex={-1}
+              variant="subtitle2"
+              sx={{ flex: 1 }}
+            >
+              Suggestion {position} of {navIds.length}
+            </Typography>
+            <Button
+              size="small"
+              aria-label="Previous suggestion"
+              onClick={() => step(-1)}
+            >
+              Previous
+            </Button>
+            <Button
+              size="small"
+              aria-label="Next suggestion"
+              onClick={() => step(1)}
+            >
+              Next
+            </Button>
+            <Button size="small" onClick={closeSuggestion}>
+              Close
+            </Button>
+          </Stack>
+          {activeProposal
+            ? renderProposal(activeProposal)
+            : activeCheck
+              ? renderCheck(activeCheck)
+              : null}
+        </Paper>
+      )}
+    </>
+  ) : null;
   // Set on a successful wizard save; Continue takes focus as soon as it renders.
   const focusContinue = useRef(false);
   function saveDraft() {
     if (!saved) return;
+    const wasApproved =
+      saved.document.review.approval?.revision === saved.revision;
     void run(async (token) => {
       const value = await draftRequest(`/drafts/${saved.id}/review`, {
         expectedRevision: saved.revision,
@@ -602,7 +1043,9 @@ export function TailoredCvReview({
       });
       if (token === epoch.current) {
         accept(value);
-        setMessage('Draft saved. Approval cleared.');
+        setMessage(
+          wasApproved ? 'Draft saved. Approval cleared.' : 'Draft saved.',
+        );
         if (isWizard) focusContinue.current = true;
       }
     });
@@ -749,7 +1192,7 @@ export function TailoredCvReview({
           {message}
         </Alert>
       )}
-      {continued && (
+      {sourceJustSaved && (
         <Typography role="status">
           Source review saved. Check readiness below, then choose Generate new
           draft. Existing drafts can be loaded separately.
@@ -759,9 +1202,12 @@ export function TailoredCvReview({
         <Box
           component={isWizard && saved ? 'details' : 'div'}
           id="generate-new-draft"
+          // Space the readiness alert, actions and messages (they touched).
+          // Margins, not flex gap: <details> content ignores the host's gap.
+          sx={{ '& > * + *': { mt: 1.5 } }}
           {...(isWizard && saved
             ? {
-                open: generateOpen,
+                open: generateOpen ?? sourceJustSaved,
                 onToggle: (event: React.SyntheticEvent<HTMLElement>) =>
                   setGenerateOpen(
                     (event.currentTarget as HTMLDetailsElement).open,
@@ -829,6 +1275,9 @@ export function TailoredCvReview({
                   ? 'outlined'
                   : 'contained'
               }
+              // Same-context rechecks keep the last valid answer (no disabled
+              // flash); a changed context clears it, and the server rejects
+              // stale job, CV, profile or match pins at generation.
               disabled={!readiness.ready}
               onClick={() =>
                 void run(async (token) => {
@@ -842,8 +1291,10 @@ export function TailoredCvReview({
                   );
                   if (token === epoch.current) {
                     accept(value);
+                    setGeneratedAfterSource(true);
+                    setGenerateOpen(false);
                     setMessage(
-                      'New draft generated. Existing drafts are unchanged.',
+                      'New draft generated and opened. Existing drafts are unchanged.',
                     );
                   }
                 })
@@ -1178,207 +1629,415 @@ export function TailoredCvReview({
             </Box>
           )}
           <Box hidden={wizardStep === 3}>
-            <Stack spacing={3} sx={{ mb: 2 }}>
-              {groups.map((group) => {
-                const proposals = proposalCards.filter(
-                  (card) => card.group === group.key,
-                );
-                const checks = group.key === 'check' ? verificationCards : [];
-                if (!proposals.length && !checks.length) return null;
-                return (
-                  <Stack
-                    key={group.key}
-                    component="section"
-                    spacing={1.5}
-                    aria-labelledby={`review-group-${group.key}`}
-                  >
-                    <Typography
-                      id={`review-group-${group.key}`}
-                      variant="h6"
-                      component="h3"
+            {docReview ? (
+              <>
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: {
+                      xs: '1fr',
+                      md: 'minmax(0, 1fr) minmax(320px, 400px)',
+                    },
+                    gap: 3,
+                    alignItems: 'start',
+                    mb: 2,
+                  }}
+                >
+                  <Box sx={{ minWidth: 0 }}>
+                    <TailoredCvPreview
+                      document={document}
+                      anchors={{
+                        states: anchorStates,
+                        activeId,
+                        onSelect: selectSuggestion,
+                      }}
+                    />
+                  </Box>
+                  {!mobile && (
+                    <Box
+                      id="review-panel"
+                      component="aside"
+                      aria-label="Suggestions"
+                      onFocus={(event) => {
+                        const id = (event.target as HTMLElement)
+                          .closest<HTMLElement>('[id^="suggestion-"]')
+                          ?.id.slice('suggestion-'.length);
+                        if (id && id !== activeId) setActiveId(id);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Escape' && activeId)
+                          closeSuggestion();
+                      }}
+                      sx={{
+                        position: 'sticky',
+                        top: 16,
+                        maxHeight: 'calc(100vh - 32px)',
+                        overflowY: 'auto',
+                        overscrollBehavior: 'contain',
+                        minWidth: 0,
+                        '& [id^="suggestion-"]': { borderRadius: 1 },
+                        ...(activeId && {
+                          [`& [id="suggestion-${activeId}"]`]: {
+                            boxShadow: '0 0 0 2px #2f5bd3',
+                          },
+                        }),
+                      }}
                     >
-                      {group.title} ({proposals.length + checks.length})
-                      <Typography
-                        component="span"
-                        variant="body2"
-                        color="text.secondary"
-                      >
-                        {' '}
-                        · {group.hint}
-                      </Typography>
-                    </Typography>
-                    {checks.map(({ fact, section, where }) => (
-                      <Alert
-                        key={`verify-${fact.id}`}
-                        severity="warning"
-                        variant="outlined"
-                        aria-label={`Needs your verification for ${fact.field}`}
-                      >
-                        <Stack spacing={1}>
-                          <Typography
-                            variant="subtitle1"
-                            component="h4"
-                            sx={{ fontWeight: 600 }}
-                          >
-                            {where} · not in your CV:{' '}
-                            {fact.verification!.details.join(', ')}
-                          </Typography>
-                          <Typography sx={{ whiteSpace: 'pre-wrap' }}>
-                            {fact.verification!.text}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            Not included or exported. Use it only if you can
-                            confirm the details; replace every [placeholder]
-                            with your own facts.
-                          </Typography>
-                          <Box>
-                            <Button
-                              variant="outlined"
-                              disabled={blocked}
-                              onClick={() => {
-                                setEditing(section.id);
-                                setCvOpen(true);
-                                queue({
-                                  action: 'edit',
-                                  factId: fact.id,
-                                  text: fact.verification!.text,
-                                });
-                              }}
+                      {reviewNav}
+                      {unanchoredNote}
+                      <Stack spacing={3} sx={{ mb: 2, mt: 2 }}>
+                        {groups.map((group) => {
+                          const proposals = proposalCards.filter(
+                            (card) => card.group === group.key,
+                          );
+                          const checks =
+                            group.key === 'check' ? verificationCards : [];
+                          if (!proposals.length && !checks.length) return null;
+                          return (
+                            <Stack
+                              key={group.key}
+                              component="section"
+                              spacing={1.5}
+                              aria-labelledby={`review-group-${group.key}`}
                             >
-                              Use as my draft
-                            </Button>
-                          </Box>
-                        </Stack>
-                      </Alert>
-                    ))}
-                    {proposals.map(
-                      ({ fact, state, where, checkReasons, reviewNotes }) => (
+                              <Typography
+                                id={`review-group-${group.key}`}
+                                variant="h6"
+                                component="h3"
+                              >
+                                {group.title} (
+                                {proposals.length + checks.length})
+                                <Typography
+                                  component="span"
+                                  variant="body2"
+                                  color="text.secondary"
+                                >
+                                  {' '}
+                                  · {group.hint}
+                                </Typography>
+                              </Typography>
+                              {checks.map(renderCheck)}
+                              {proposals.map(renderProposal)}
+                            </Stack>
+                          );
+                        })}
+                      </Stack>
+                      {isWizard && wizardStep === 2 && (
                         <Box
-                          key={fact.id}
-                          id={`suggestion-${fact.id}`}
+                          id="review-action-bar"
                           tabIndex={-1}
+                          component="section"
+                          aria-label="Review actions"
                           sx={{
-                            scrollMarginTop: 16,
-                            scrollMarginBottom: 96,
+                            // Sticky from sm up; on phones it stays in the page flow so it
+                            // never covers suggestion text.
+                            position: { xs: 'static', sm: 'sticky' },
+                            bottom: 0,
+                            zIndex: 2,
+                            mb: 2,
+                            px: { xs: 1.5, sm: 2 },
+                            py: 1.25,
+                            bgcolor: 'background.paper',
+                            border: 1,
+                            borderColor: 'divider',
                             borderRadius: 1,
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: 1,
+                            alignItems: 'center',
                             '&:focus-visible': {
                               outline: '2px solid',
                               outlineColor: 'primary.main',
-                              outlineOffset: 2,
                             },
+                            '& .MuiButton-root': { minHeight: 40 },
                           }}
                         >
-                          <ProposalComparison
-                            original={state.reviewedText}
-                            suggestion={fact.proposedWording!.text}
-                            proposal={state.proposal}
-                            manuallyEdited={state.wording === 'user_edited'}
-                            where={where}
-                            why={fact.proposedWording!.explanation}
-                            needsCheck={checkReasons.join(' ') || undefined}
-                            reviewNote={reviewNotes.join(' ') || undefined}
-                            evidence={evidenceFor(fact)}
-                            disabled={blocked}
-                            onDecision={(action) => {
-                              const wasPending = state.proposal === 'pending';
-                              queue({ action, factId: fact.id });
-                              if (isWizard && wasPending) advanceFrom(fact.id);
-                            }}
-                          />
+                          <Typography
+                            variant="body2"
+                            role="status"
+                            sx={{ fontWeight: 600, mr: 'auto', minWidth: 0 }}
+                          >
+                            {decided} of {proposalCards.length} decided
+                            {dirty ? ' · unsaved changes' : ''}
+                          </Typography>
+                          {pending > 0 && (
+                            <>
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                disabled={blocked}
+                                onClick={() => showSuggestion(undecidedIds[0]!)}
+                              >
+                                Next undecided
+                              </Button>
+                              <Button
+                                size="small"
+                                disabled={blocked}
+                                onClick={() => setKeepOriginalOpen(true)}
+                              >
+                                Keep remaining originals
+                              </Button>
+                            </>
+                          )}
+                          {dirty && (
+                            <Button
+                              ref={saveButton}
+                              size="small"
+                              variant="contained"
+                              disabled={
+                                blocked || blank || operations.length > 384
+                              }
+                              onClick={saveDraft}
+                            >
+                              Save draft
+                            </Button>
+                          )}
+                          {!dirty &&
+                            (approvalReady || approvedUnchanged) &&
+                            onContinueToApproval && (
+                              <Button
+                                ref={(el: HTMLButtonElement | null) => {
+                                  if (el && focusContinue.current) {
+                                    focusContinue.current = false;
+                                    el.focus();
+                                  }
+                                }}
+                                size="small"
+                                variant="contained"
+                                disabled={blocked}
+                                onClick={onContinueToApproval}
+                              >
+                                Continue to Approve &amp; Export
+                              </Button>
+                            )}
                         </Box>
-                      ),
-                    )}
-                  </Stack>
-                );
-              })}
-            </Stack>
-            {isWizard && wizardStep === 2 && (
-              <Box
-                id="review-action-bar"
-                tabIndex={-1}
-                component="section"
-                aria-label="Review actions"
-                sx={{
-                  // Sticky from sm up; on phones it stays in the page flow so it
-                  // never covers suggestion text.
-                  position: { xs: 'static', sm: 'sticky' },
-                  bottom: 0,
-                  zIndex: 2,
-                  mb: 2,
-                  px: { xs: 1.5, sm: 2 },
-                  py: 1.25,
-                  bgcolor: 'background.paper',
-                  border: 1,
-                  borderColor: 'divider',
-                  borderRadius: 1,
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: 1,
-                  alignItems: 'center',
-                  '&:focus-visible': {
-                    outline: '2px solid',
-                    outlineColor: 'primary.main',
-                  },
-                  '& .MuiButton-root': { minHeight: 40 },
-                }}
-              >
-                <Typography
-                  variant="body2"
-                  role="status"
-                  sx={{ fontWeight: 600, mr: 'auto', minWidth: 0 }}
-                >
-                  {decided} of {proposalCards.length} decided
-                  {dirty ? ' · unsaved changes' : ''}
-                </Typography>
-                {pending > 0 && (
+                      )}
+                    </Box>
+                  )}
+                </Box>
+                {mobile && (
                   <>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      disabled={blocked}
-                      onClick={() => showSuggestion(undecidedIds[0]!)}
-                    >
-                      Next undecided
-                    </Button>
-                    <Button
-                      size="small"
-                      disabled={blocked}
-                      onClick={() => setKeepOriginalOpen(true)}
-                    >
-                      Keep remaining originals
-                    </Button>
+                    {isWizard && wizardStep === 2 && (
+                      <Box
+                        id="review-action-bar"
+                        tabIndex={-1}
+                        component="section"
+                        aria-label="Review actions"
+                        sx={{
+                          // Sticky from sm up; on phones it stays in the page flow so it
+                          // never covers suggestion text.
+                          position: { xs: 'static', sm: 'sticky' },
+                          bottom: 0,
+                          zIndex: 2,
+                          mb: 2,
+                          px: { xs: 1.5, sm: 2 },
+                          py: 1.25,
+                          bgcolor: 'background.paper',
+                          border: 1,
+                          borderColor: 'divider',
+                          borderRadius: 1,
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          gap: 1,
+                          alignItems: 'center',
+                          '&:focus-visible': {
+                            outline: '2px solid',
+                            outlineColor: 'primary.main',
+                          },
+                          '& .MuiButton-root': { minHeight: 40 },
+                        }}
+                      >
+                        <Typography
+                          variant="body2"
+                          role="status"
+                          sx={{ fontWeight: 600, mr: 'auto', minWidth: 0 }}
+                        >
+                          {decided} of {proposalCards.length} decided
+                          {dirty ? ' · unsaved changes' : ''}
+                        </Typography>
+                        {pending > 0 && (
+                          <>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              disabled={blocked}
+                              onClick={() => showSuggestion(undecidedIds[0]!)}
+                            >
+                              Next undecided
+                            </Button>
+                            <Button
+                              size="small"
+                              disabled={blocked}
+                              onClick={() => setKeepOriginalOpen(true)}
+                            >
+                              Keep remaining originals
+                            </Button>
+                          </>
+                        )}
+                        {dirty && (
+                          <Button
+                            ref={saveButton}
+                            size="small"
+                            variant="contained"
+                            disabled={
+                              blocked || blank || operations.length > 384
+                            }
+                            onClick={saveDraft}
+                          >
+                            Save draft
+                          </Button>
+                        )}
+                        {!dirty &&
+                          (approvalReady || approvedUnchanged) &&
+                          onContinueToApproval && (
+                            <Button
+                              ref={(el: HTMLButtonElement | null) => {
+                                if (el && focusContinue.current) {
+                                  focusContinue.current = false;
+                                  el.focus();
+                                }
+                              }}
+                              size="small"
+                              variant="contained"
+                              disabled={blocked}
+                              onClick={onContinueToApproval}
+                            >
+                              Continue to Approve &amp; Export
+                            </Button>
+                          )}
+                      </Box>
+                    )}
+                    {reviewSheet}
                   </>
                 )}
-                {dirty && (
-                  <Button
-                    ref={saveButton}
-                    size="small"
-                    variant="contained"
-                    disabled={blocked || blank || operations.length > 384}
-                    onClick={saveDraft}
+              </>
+            ) : (
+              <>
+                <Stack spacing={3} sx={{ mb: 2 }}>
+                  {groups.map((group) => {
+                    const proposals = proposalCards.filter(
+                      (card) => card.group === group.key,
+                    );
+                    const checks =
+                      group.key === 'check' ? verificationCards : [];
+                    if (!proposals.length && !checks.length) return null;
+                    return (
+                      <Stack
+                        key={group.key}
+                        component="section"
+                        spacing={1.5}
+                        aria-labelledby={`review-group-${group.key}`}
+                      >
+                        <Typography
+                          id={`review-group-${group.key}`}
+                          variant="h6"
+                          component="h3"
+                        >
+                          {group.title} ({proposals.length + checks.length})
+                          <Typography
+                            component="span"
+                            variant="body2"
+                            color="text.secondary"
+                          >
+                            {' '}
+                            · {group.hint}
+                          </Typography>
+                        </Typography>
+                        {checks.map(renderCheck)}
+                        {proposals.map(renderProposal)}
+                      </Stack>
+                    );
+                  })}
+                </Stack>
+                {isWizard && wizardStep === 2 && (
+                  <Box
+                    id="review-action-bar"
+                    tabIndex={-1}
+                    component="section"
+                    aria-label="Review actions"
+                    sx={{
+                      // Sticky from sm up; on phones it stays in the page flow so it
+                      // never covers suggestion text.
+                      position: { xs: 'static', sm: 'sticky' },
+                      bottom: 0,
+                      zIndex: 2,
+                      mb: 2,
+                      px: { xs: 1.5, sm: 2 },
+                      py: 1.25,
+                      bgcolor: 'background.paper',
+                      border: 1,
+                      borderColor: 'divider',
+                      borderRadius: 1,
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 1,
+                      alignItems: 'center',
+                      '&:focus-visible': {
+                        outline: '2px solid',
+                        outlineColor: 'primary.main',
+                      },
+                      '& .MuiButton-root': { minHeight: 40 },
+                    }}
                   >
-                    Save draft
-                  </Button>
-                )}
-                {!dirty &&
-                  (approvalReady || approvedUnchanged) &&
-                  onContinueToApproval && (
-                    <Button
-                      ref={(el: HTMLButtonElement | null) => {
-                        if (el && focusContinue.current) {
-                          focusContinue.current = false;
-                          el.focus();
-                        }
-                      }}
-                      size="small"
-                      variant="contained"
-                      disabled={blocked}
-                      onClick={onContinueToApproval}
+                    <Typography
+                      variant="body2"
+                      role="status"
+                      sx={{ fontWeight: 600, mr: 'auto', minWidth: 0 }}
                     >
-                      Continue to Approve &amp; Export
-                    </Button>
-                  )}
-              </Box>
+                      {decided} of {proposalCards.length} decided
+                      {dirty ? ' · unsaved changes' : ''}
+                    </Typography>
+                    {pending > 0 && (
+                      <>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          disabled={blocked}
+                          onClick={() => showSuggestion(undecidedIds[0]!)}
+                        >
+                          Next undecided
+                        </Button>
+                        <Button
+                          size="small"
+                          disabled={blocked}
+                          onClick={() => setKeepOriginalOpen(true)}
+                        >
+                          Keep remaining originals
+                        </Button>
+                      </>
+                    )}
+                    {dirty && (
+                      <Button
+                        ref={saveButton}
+                        size="small"
+                        variant="contained"
+                        disabled={blocked || blank || operations.length > 384}
+                        onClick={saveDraft}
+                      >
+                        Save draft
+                      </Button>
+                    )}
+                    {!dirty &&
+                      (approvalReady || approvedUnchanged) &&
+                      onContinueToApproval && (
+                        <Button
+                          ref={(el: HTMLButtonElement | null) => {
+                            if (el && focusContinue.current) {
+                              focusContinue.current = false;
+                              el.focus();
+                            }
+                          }}
+                          size="small"
+                          variant="contained"
+                          disabled={blocked}
+                          onClick={onContinueToApproval}
+                        >
+                          Continue to Approve &amp; Export
+                        </Button>
+                      )}
+                  </Box>
+                )}
+              </>
             )}
             <Box
               component="details"
@@ -1483,25 +2142,10 @@ export function TailoredCvReview({
                                   return (
                                     <Stack spacing={1} key={fact.id}>
                                       {editing === section.id ? (
-                                        <TextField
-                                          label={`${fact.field} (${section.kind}, entry ${index + 1})`}
-                                          fullWidth
-                                          multiline
-                                          value={fact.acceptedText}
-                                          disabled={blocked}
-                                          error={!fact.acceptedText.trim()}
-                                          slotProps={{
-                                            htmlInput: { maxLength: 4000 },
-                                          }}
-                                          onChange={(e) =>
-                                            queue({
-                                              action: 'edit',
-                                              factId: fact.id,
-                                              text: e.target.value,
-                                            })
-                                          }
-                                          helperText="Edits are user-authored wording, not original-source evidence."
-                                        />
+                                        factField(
+                                          fact,
+                                          `${fact.field} (${section.kind}, entry ${index + 1})`,
+                                        )
                                       ) : (
                                         <Typography
                                           sx={{ whiteSpace: 'pre-wrap' }}

@@ -181,7 +181,7 @@ test('complete CV supports explicit proposal acceptance, save, exact approval, r
     screen.queryByRole('checkbox', { name: /I checked this fact/ }),
   ).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
-  await screen.findByText('Draft saved. Approval cleared.');
+  await screen.findByText('Draft saved.');
   expect(state.saved().revision).toBe(2);
   fireEvent.click(
     screen.getByRole('checkbox', { name: /I reviewed the complete saved CV/ }),
@@ -293,7 +293,7 @@ test('generation pins reviewed profile and saved job timestamp, separately from 
   );
   fireEvent.click(screen.getByRole('button', { name: 'Generate new draft' }));
   await screen.findByText(
-    'New draft generated. Existing drafts are unchanged.',
+    'New draft generated and opened. Existing drafts are unchanged.',
   );
   const call = fetch.mock.calls.find(([url]) => url.endsWith('/drafts'));
   expect(call).toBeDefined();
@@ -333,7 +333,7 @@ test('downloads use exact saved approval, errors retain work, and inclusion chan
     screen.queryByRole('checkbox', { name: /I checked this fact/ }),
   ).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
-  await screen.findByText('Draft saved. Approval cleared.');
+  await screen.findByText('Draft saved.');
   fireEvent.click(
     screen.getByRole('checkbox', { name: /I reviewed the complete saved CV/ }),
   );
@@ -490,7 +490,7 @@ test('bulk keep-original confirms pending-only decisions, retains inclusion and 
     screen.getByText(/Unsaved changes — approval will be cleared/),
   ).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
-  await screen.findByText('Draft saved. Approval cleared.');
+  await screen.findByText('Draft saved.');
   expect(state.saved().document.review.factReviews[accepted.id]!.proposal).toBe(
     'accepted',
   );

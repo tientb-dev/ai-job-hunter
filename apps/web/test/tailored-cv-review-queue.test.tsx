@@ -1,6 +1,6 @@
 import { ThemeProvider } from '@mui/material';
 import { expect, test, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from './render';
+import { fireEvent, render, screen, waitFor, within } from './render';
 import { theme } from '../src/app/theme';
 import { TailoredCvReview } from '../src/features/inbox/TailoredCvReview';
 import { draftJobId, tailoredDraftFixture } from './fixtures/tailored-cv';
@@ -118,4 +118,71 @@ test('Next undecided jumps to the first undecided suggestion', async () => {
   await waitFor(() =>
     expect(document.activeElement?.id).toBe('suggestion-description'),
   );
+});
+
+const anchor = (id: string) =>
+  document.querySelector<HTMLElement>(`[data-fact-id="${id}"]`)!;
+
+test('CV anchors open their suggestion and show decision state in text', async () => {
+  setup();
+  await screen.findByRole('region', { name: 'Review actions' });
+  const second = anchor('pending-two');
+  expect(second).toHaveAccessibleName(/suggestion to review/);
+  fireEvent.click(second);
+  await waitFor(() =>
+    expect(document.activeElement?.id).toBe('suggestion-pending-two'),
+  );
+  expect(second).toHaveAttribute('aria-pressed', 'true');
+  expect(screen.getByText('Suggestion 2 of 2')).toBeVisible();
+  fireEvent.click(
+    within(document.activeElement as HTMLElement).getByRole('button', {
+      name: /^Keep original for/,
+    }),
+  );
+  await waitFor(() =>
+    expect(anchor('pending-two')).toHaveAccessibleName(/suggestion decided/),
+  );
+});
+
+test('Previous and Next cycle suggestions; Escape returns focus to the CV', async () => {
+  setup();
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Next suggestion' }),
+  );
+  await waitFor(() =>
+    expect(document.activeElement?.id).toBe('suggestion-description'),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Next suggestion' }));
+  await waitFor(() =>
+    expect(document.activeElement?.id).toBe('suggestion-pending-two'),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Previous suggestion' }));
+  await waitFor(() =>
+    expect(document.activeElement?.id).toBe('suggestion-description'),
+  );
+  fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+  await waitFor(() => expect(anchor('description')).toHaveFocus());
+});
+
+test('contextual Edit queues the same edit the Full CV editor shows', async () => {
+  setup();
+  const bar = await screen.findByRole('region', { name: 'Review actions' });
+  fireEvent.click(anchor('pending-two'));
+  const card = await waitFor(() => {
+    const el = document.getElementById('suggestion-pending-two')!;
+    expect(el).toHaveFocus();
+    return el;
+  });
+  fireEvent.click(
+    within(card).getByRole('button', { name: /^Edit wording for/ }),
+  );
+  const field = within(card).getByRole('textbox', { name: /^Your wording/ });
+  expect(field).toHaveValue('Second reviewed sentence.');
+  fireEvent.change(field, { target: { value: 'My own second sentence.' } });
+  // The CV document and the unsaved state reflect the queued edit at once.
+  expect(anchor('pending-two')).toHaveTextContent('My own second sentence.');
+  expect(bar).toHaveTextContent('unsaved changes');
+  // An emptied value blocks Save, as in the Full CV editor.
+  fireEvent.change(field, { target: { value: ' ' } });
+  expect(screen.getByRole('button', { name: 'Save draft' })).toBeDisabled();
 });
