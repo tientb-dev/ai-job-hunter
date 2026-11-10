@@ -1,3 +1,4 @@
+import { MemoryRouter } from 'react-router-dom';
 import { readFileSync } from 'node:fs';
 import { expect, test, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
@@ -25,7 +26,11 @@ test.runIf(enabled)(
     const feed = decodeJobs(await response.json());
     expect(feed.jobs.length).toBeGreaterThan(0);
     liveHttp();
-    render(<Dashboard />);
+    render(
+      <MemoryRouter>
+        <Dashboard />
+      </MemoryRouter>,
+    );
     const links = await screen.findAllByRole(
       'link',
       { name: feed.jobs[0]!.title },

@@ -24,6 +24,7 @@ import {
   useMatch,
 } from 'react-router-dom';
 import { Dashboard } from '../features/dashboard/Dashboard';
+import { MyCv } from '../features/inbox/MyCv';
 import { ApiReadiness } from '../features/health/ApiReadiness';
 
 const UiAcceptancePreview = import.meta.env.DEV
@@ -232,7 +233,8 @@ export function App() {
                 />
               }
             />
-            <Route path="/cv" element={<Dashboard />} />
+            <Route path="/cv" element={<MyCv />} />
+            <Route path="/cv/analyze" element={<Dashboard />} />
             <Route path="/jobs" element={<JobInbox />} />
             <Route path="/jobs/new" element={<JobEditor key="new" />} />
             <Route path="/jobs/:id/*" element={<JobEditor />} />

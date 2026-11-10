@@ -1,6 +1,14 @@
 import { PageHeader } from '../../components/PageHeader';
 import { useEffect, useRef } from 'react';
-import { Alert, Box, CircularProgress, Stack, Typography } from '@mui/material';
+import {
+  Alert,
+  Box,
+  CircularProgress,
+  Link as MuiLink,
+  Stack,
+  Typography,
+} from '@mui/material';
+import { Link } from 'react-router-dom';
 import { AnalysisForm } from './AnalysisForm';
 import { AnalysisResult } from './AnalysisResult';
 import { useAnalysis } from './useAnalysis';
@@ -17,12 +25,19 @@ export function Dashboard() {
   }, [state.status]);
   return (
     <Stack spacing={3}>
+      <MuiLink
+        component={Link}
+        to="/cv"
+        variant="body2"
+        sx={{ alignSelf: 'flex-start' }}
+      >
+        Back to My CV
+      </MuiLink>
       <PageHeader
-        title="My CV"
-        description="Existing CV upload, document parsing, partial extraction, and fact review."
+        title="Quick CV and job analysis"
+        description="A one-off check of a CV against a job description. Nothing here changes your saved CV or jobs."
       />
-      <Box component="details" role="region" aria-label="CV/JD analysis">
-        <summary>Existing CV/JD extraction and fact review</summary>
+      <Box role="region" aria-label="CV/JD analysis">
         <Typography color="text.secondary">
           Local processing; inputs and results stay in memory until cleared or
           you leave this page. API readiness does not guarantee Ollama

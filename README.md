@@ -24,8 +24,8 @@ of missing ability.
   See the [P7 design and API contract](docs/audits/p7-cv-improvement-design.md).
 - On-demand discovery queues candidates from the configured Axon, Backbase,
   Temus and Go1 Vietnam Greenhouse boards for explicit review and Save. Discovery ranking is not CV suitability scoring.
-- `/cv` retains the CV/JD parsing and review dashboard. Candidates, Matches, and
-  Settings remain placeholders.
+- `/cv` (My CV) saves, replaces and reviews the one source CV that every job
+  uses; the one-off CV/JD analyzer is at `/cv/analyze`.
 
 No automatic application submission, messaging, calendar sync, or status history
 is implemented.

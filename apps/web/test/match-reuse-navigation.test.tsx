@@ -400,6 +400,10 @@ test('valid match does not skip an incomplete source review', async () => {
   expect(
     await screen.findByRole('button', { name: 'Review source CV' }),
   ).toBeEnabled();
+  expect(screen.getByRole('link', { name: 'Open in My CV' })).toHaveAttribute(
+    'href',
+    '/cv',
+  );
   expect(
     screen.getByText(/Saved match.*No new analysis is needed/),
   ).toBeEnabled();

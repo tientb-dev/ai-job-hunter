@@ -113,12 +113,21 @@ test('keeps CV review accessible and discovery off the inbox', async () => {
   show('/jobs');
   await userEvent.setup().click(screen.getByRole('link', { name: 'My CV' }));
   expect(screen.getByRole('heading', { name: 'My CV' })).toBeInTheDocument();
-  expect(
-    screen.getByText('Existing CV/JD extraction and fact review'),
-  ).toBeInTheDocument();
+  // The CV/JD analyzer is a secondary tool, not the main My CV view.
+  expect(screen.queryByLabelText(/job description/i)).not.toBeInTheDocument();
   expect(
     screen.queryByRole('button', { name: 'Use CV to find jobs' }),
   ).not.toBeInTheDocument();
+  await userEvent
+    .setup()
+    .click(screen.getByRole('link', { name: 'Quick CV and job analysis' }));
+  expect(
+    screen.getByRole('heading', { name: 'Quick CV and job analysis' }),
+  ).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'My CV' })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
 });
 
 test('Discover Jobs supports direct links, navigation, retained results and history', async () => {

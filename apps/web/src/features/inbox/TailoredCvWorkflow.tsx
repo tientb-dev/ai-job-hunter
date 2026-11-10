@@ -4,6 +4,7 @@ import {
   Alert,
   Box,
   Button,
+  Link as MuiLink,
   Paper,
   Stack,
   Step,
@@ -17,6 +18,7 @@ import { TailoredCvReview } from './TailoredCvReview';
 import { SourceCvReview } from './SourceCvReview';
 import { MatchGate } from './CvMatchSection';
 import { useCvMatch } from './useCvMatch';
+import { Link } from 'react-router-dom';
 
 /**
  * Tailored CV workspace: Source CV → Tailor & Review → Approve & Export.
@@ -367,7 +369,10 @@ export function TailoredCvWorkflow({
                 <Typography>
                   {cv
                     ? `Saved source CV: ${cv.fileName}`
-                    : 'Save a source CV, then review its facts below.'}
+                    : 'Save a source CV, then review its facts below.'}{' '}
+                  <MuiLink component={Link} to="/cv">
+                    Open in My CV
+                  </MuiLink>
                 </Typography>
                 <Button
                   component="label"
