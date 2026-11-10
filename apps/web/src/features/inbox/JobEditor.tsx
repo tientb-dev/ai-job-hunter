@@ -4,6 +4,7 @@ import { useNotify } from '../../components/useNotify';
 import { SourceJdPreview } from './SourceJdPreview';
 import { ImportMethodCards, type ImportMethod } from './ImportMethodCards';
 import { JobActionLayout } from './JobActionLayout';
+import { nextJobAction } from './next-action';
 import { WorkflowStepIcon } from '../../components/WorkflowStepIcon';
 import {
   workflowStepState,
@@ -44,6 +45,7 @@ import {
   StepLabel,
   TextField,
   Typography,
+  useMediaQuery,
   useTheme,
 } from '@mui/material';
 import {
@@ -165,6 +167,15 @@ export function JobEditor() {
   const [sourceCvDirty, setSourceCvDirty] = useState(false);
   const [tailoredDirty, setTailoredDirty] = useState(false);
   const [summary, setSummary] = useState<MatchPanelSummary | null>(null);
+  // Re-read draft and source state each time Overview is shown.
+  const [overviewVisits, setOverviewVisits] = useState(0);
+  const previousView = useRef(view);
+  useEffect(() => {
+    // Returning to Overview, not the first render, triggers the re-read.
+    if (view === 'overview' && previousView.current !== 'overview')
+      setOverviewVisits((n) => n + 1);
+    previousView.current = view;
+  }, [view]);
   const today = useLocalCalendarDate();
   const [step, setStep] = useState(0);
   const stepper = useRef<HTMLDivElement>(null);
@@ -177,6 +188,7 @@ export function JobEditor() {
   }, [step]);
   const [importMethod, setImportMethod] = useState<ImportMethod>('url');
   const theme = useTheme();
+  const phoneTabs = useMediaQuery(theme.breakpoints.down('sm'));
   const applicationPanel = useRef<HTMLDivElement>(null);
   const editPanel = useRef<HTMLDivElement>(null);
   const jobDetailsHeading = useRef<HTMLHeadingElement>(null);
@@ -608,6 +620,23 @@ export function JobEditor() {
   // The Tailored CV review only exists while its tab is mounted.
   const reviewDirty = view === 'tailored-cv' && tailoredDirty;
   const saved = JSON.parse(baseline.current) as OpportunityInput;
+  const nextAction =
+    id && summary
+      ? nextJobAction({
+          followUp: dueFollowUp(saved.followUpDate, saved.status, today),
+          status: saved.status,
+          cvSaved: summary.cvSaved,
+          sourceReason: summary.sourceReason,
+          matchStatus: summary.matchStatus,
+          draft: summary.draft && {
+            pending: summary.draft.pending,
+            approved: summary.draft.approved,
+            outdated:
+              !!savedJobUpdatedAt &&
+              summary.draft.jobUpdatedAt !== savedJobUpdatedAt,
+          },
+        })
+      : null;
   useLayoutEffect(() => {
     if (!id || view !== 'edit' || loading) return;
     // The mobile shell can leave the details heading below the field viewport.
@@ -1111,21 +1140,24 @@ export function JobEditor() {
           </Box>
           {id ? (
             <Stack
-              direction="row"
+              direction={{ xs: 'column', sm: 'row' }}
               spacing={1}
               sx={{
-                alignItems: 'center',
+                alignItems: { xs: 'stretch', sm: 'center' },
                 minWidth: 0,
                 borderBottom: 1,
                 borderColor: 'divider',
+                pb: { xs: 1, sm: 0 },
               }}
             >
               <Tabs
                 value={view === 'edit' ? false : view}
                 onChange={(_, value: WorkspaceView) => setView(value)}
-                variant="scrollable"
-                scrollButtons={true}
-                allowScrollButtonsMobile
+                // Phones: all four tabs in a 2x2 grid, so none hide behind
+                // scroll arrows; wider screens keep the single scrollable row.
+                variant={phoneTabs ? 'standard' : 'scrollable'}
+                scrollButtons={phoneTabs ? false : true}
+                allowScrollButtonsMobile={!phoneTabs}
                 sx={{
                   minWidth: 0,
                   maxWidth: '100%',
@@ -1165,6 +1197,27 @@ export function JobEditor() {
                     display: { xs: 'inline-flex', md: 'none' },
                   },
                   '& .MuiTabs-scrollButtons.Mui-disabled': { opacity: 0.3 },
+                  // Badges wrap under the label rather than clipping it.
+                  '& .MuiTab-root .MuiStack-root': { flexWrap: 'wrap' },
+                  // Last, so these replace the scrollable-row rules above.
+                  ...(phoneTabs && {
+                    '& .MuiTabs-list': {
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: 0.5,
+                    },
+                    '& .MuiTabs-indicator': { display: 'none' },
+                    '& .MuiTab-root.MuiTab-root': {
+                      maxWidth: 'none',
+                      borderRadius: 1.5,
+                      border: 1,
+                      borderColor: 'divider',
+                    },
+                    '& .MuiTab-root.Mui-selected': {
+                      borderColor: 'primary.main',
+                      borderRadius: 1.5,
+                    },
+                  }),
                 }}
                 aria-label="Job sections"
               >
@@ -1218,6 +1271,7 @@ export function JobEditor() {
                 sx={{
                   flexShrink: 0,
                   minHeight: 36,
+                  alignSelf: { xs: 'flex-end', sm: 'center' },
                   // One primary per view: Save stays the only filled button.
                   '&[aria-current="page"]': {
                     bgcolor: 'action.selected',
@@ -1271,6 +1325,50 @@ export function JobEditor() {
               aria-labelledby="job-tab-0"
               hidden={view !== 'overview'}
             >
+              {nextAction && (
+                <Paper
+                  variant="outlined"
+                  component="section"
+                  aria-labelledby="next-action-title"
+                  sx={{
+                    p: 2,
+                    mb: 2,
+                    borderLeft: 4,
+                    borderLeftColor: 'primary.main',
+                    display: 'flex',
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    gap: 1.5,
+                    alignItems: { sm: 'center' },
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography
+                      id="next-action-title"
+                      variant="subtitle2"
+                      component="h2"
+                    >
+                      Next suggested action
+                    </Typography>
+                    <Typography>{nextAction.text}</Typography>
+                  </Box>
+                  <Button
+                    component={Link}
+                    to={
+                      nextAction.to === '/cv'
+                        ? '/cv'
+                        : `${base}/${nextAction.to}`
+                    }
+                    variant="contained"
+                    sx={{
+                      flexShrink: 0,
+                      alignSelf: { xs: 'stretch', sm: 'center' },
+                    }}
+                  >
+                    {nextAction.label}
+                  </Button>
+                </Paper>
+              )}
               <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
                 <Stack spacing={2}>
                   <Typography
@@ -1367,6 +1465,7 @@ export function JobEditor() {
               onReviewDirtyChange={setSourceCvDirty}
               view={view === 'match' ? 'match' : 'hidden'}
               onSummary={setSummary}
+              summaryRefresh={overviewVisits}
               onGoToMatch={() => {
                 setView('match');
                 document

@@ -16,11 +16,24 @@ interface CvMatchPanelProps {
   onGoToMatch?: () => void;
   onReviewDirtyChange?: (dirty: boolean) => void;
   onSummary?: (summary: MatchPanelSummary) => void;
+  /** Changing it re-reads the summary's draft and source state. */
+  summaryRefresh?: number;
 }
 export interface MatchPanelSummary {
   matchStatus: string;
   score: number | null;
-  draft: { revision: number; jobUpdatedAt: string } | null;
+  /** undefined while loading; null when the job has no draft. */
+  draft: LatestDraft | null | undefined;
+  /** null while loading. */
+  cvSaved: boolean | null;
+  /** Read-only source review readiness reason; undefined while unknown. */
+  sourceReason: string | null | undefined;
+}
+interface LatestDraft {
+  revision: number;
+  jobUpdatedAt: string;
+  pending: number;
+  approved: boolean;
 }
 
 /**
@@ -53,17 +66,32 @@ function JobMatchPanel({
   jobDirty = false,
   onGoToMatch,
   onSummary,
+  summaryRefresh = 0,
 }: Omit<CvMatchPanelProps, 'wizard'>) {
   const match = useCvMatch(jobId, revision, jobUpdatedAt);
   const { busy, result, cv, attempt, contextRejected, rejectContext } = match;
   const inspection = useRef<MatchInspection>(null);
   const [suggesting, setSuggesting] = useState(false);
   // Loaded once per job for the workspace tab badge; no review state is implied.
-  const latestDraft = useLatestDraft(jobId, Boolean(onSummary));
+  const latestDraft = useLatestDraft(jobId, Boolean(onSummary), summaryRefresh);
+  const sourceReason = useSourceReason(
+    jobId,
+    jobUpdatedAt,
+    cv?.updatedAt,
+    Boolean(onSummary) && latestDraft === null,
+    summaryRefresh,
+  );
   const score = result?.score ?? null;
+  const cvSaved = match.cvLoaded ? Boolean(cv) : null;
   useEffect(() => {
-    onSummary?.({ matchStatus: match.matchStatus, score, draft: latestDraft });
-  }, [onSummary, match.matchStatus, score, latestDraft]);
+    onSummary?.({
+      matchStatus: match.matchStatus,
+      score,
+      draft: latestDraft,
+      cvSaved,
+      sourceReason,
+    });
+  }, [onSummary, match.matchStatus, score, latestDraft, cvSaved, sourceReason]);
   const [source, setSource] = useState({ jobId, revision });
   if (source.jobId !== jobId || source.revision !== revision) {
     setSource({ jobId, revision });
@@ -113,34 +141,88 @@ function JobMatchPanel({
 }
 
 /** Read-only lookup of the newest saved draft, used only for the tab badge. */
-function useLatestDraft(jobId: string, enabled: boolean) {
-  const [latest, setLatest] = useState<{
-    revision: number;
-    jobUpdatedAt: string;
-  } | null>(null);
+// Read-only: the latest draft's review state, for the job workspace summary.
+function useLatestDraft(jobId: string, enabled: boolean, refresh: number) {
+  const [latest, setLatest] = useState<LatestDraft | null | undefined>(
+    undefined,
+  );
   useEffect(() => {
     if (!enabled) return;
     let active = true;
-    draftRequest(`/jobs/${jobId}/drafts/list`, { before: null }).then(
+    void (async () => {
+      const value = (await draftRequest(`/jobs/${jobId}/drafts/list`, {
+        before: null,
+      })) as { items?: unknown[] } | null;
+      const item = value?.items?.[0] as
+        | { id?: unknown; revision?: unknown; jobUpdatedAt?: unknown }
+        | undefined;
+      if (!item) return null;
+      if (
+        typeof item.id !== 'string' ||
+        !Number.isSafeInteger(item.revision) ||
+        typeof item.jobUpdatedAt !== 'string'
+      )
+        throw Error();
+      const draft = (await draftRequest(`/drafts/${item.id}`)) as {
+        revision?: unknown;
+        document?: {
+          review?: {
+            factReviews?: Record<string, { proposal?: unknown }>;
+            approval?: { revision?: unknown } | null;
+          };
+        };
+      } | null;
+      const review = draft?.document?.review;
+      if (!review?.factReviews) throw Error();
+      return {
+        revision: item.revision as number,
+        jobUpdatedAt: item.jobUpdatedAt,
+        pending: Object.values(review.factReviews).filter(
+          (s) => s.proposal === 'pending',
+        ).length,
+        approved:
+          review.approval?.revision !== undefined &&
+          review.approval.revision === draft?.revision,
+      };
+    })().then(
       (value) => {
-        const item = (value as { items?: unknown[] } | null)?.items?.[0] as
-          { revision?: unknown; jobUpdatedAt?: unknown } | undefined;
-        if (
-          active &&
-          item &&
-          Number.isSafeInteger(item.revision) &&
-          typeof item.jobUpdatedAt === 'string'
-        )
-          setLatest({
-            revision: item.revision as number,
-            jobUpdatedAt: item.jobUpdatedAt,
-          });
+        if (active) setLatest(value);
       },
       () => undefined,
     );
     return () => {
       active = false;
     };
-  }, [jobId, enabled]);
+  }, [jobId, enabled, refresh]);
   return latest;
+}
+
+// Read-only readiness without a match reports only source review state.
+function useSourceReason(
+  jobId: string,
+  jobUpdatedAt: string | undefined,
+  cvUpdatedAt: string | undefined,
+  enabled: boolean,
+  refresh: number,
+) {
+  const [reason, setReason] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (!enabled || !jobUpdatedAt || !cvUpdatedAt) return;
+    let active = true;
+    draftRequest(`/jobs/${jobId}/drafts/readiness`, {
+      expectedJobUpdatedAt: jobUpdatedAt,
+      expectedSavedCvUpdatedAt: cvUpdatedAt,
+      matchId: null,
+    }).then(
+      (value) => {
+        const next = (value as { reason?: unknown } | null)?.reason;
+        if (active) setReason(typeof next === 'string' ? next : null);
+      },
+      () => undefined,
+    );
+    return () => {
+      active = false;
+    };
+  }, [jobId, jobUpdatedAt, cvUpdatedAt, enabled, refresh]);
+  return reason;
 }
