@@ -57,7 +57,7 @@ function mount(path = '/jobs/new') {
           <Routes>
             <Route path="/jobs" element={<div>Inbox destination</div>} />
             <Route path="/jobs/new" element={<JobEditor key="new" />} />
-            <Route path="/jobs/:id" element={<JobEditor />} />
+            <Route path="/jobs/:id/*" element={<JobEditor />} />
           </Routes>
         ),
       },
@@ -102,7 +102,15 @@ function mockApi() {
   return fetch;
 }
 const tab = (name: string) =>
-  fireEvent.click(screen.getByRole('tab', { name }));
+  fireEvent.click(
+    name === 'Edit JD'
+      ? screen.getByRole('link', { name })
+      : screen.getByRole('tab', {
+          name: new RegExp(
+            `^${name === 'CV Match' || name === 'Improve CV' ? 'Match' : name}`,
+          ),
+        }),
+  );
 
 test('creation is import then review; extraction advances, back preserves edits, saves SAVED without tracker', async () => {
   const fetch = mockApi();
@@ -257,11 +265,9 @@ test('unsaved link navigation, browser back, and refresh are guarded; stay retai
   const stay = screen.getByRole('button', { name: 'Stay and edit' });
   const discard = screen.getByRole('button', { name: 'Discard and leave' });
   await waitFor(() => expect(stay).toHaveFocus());
-  expect(stay).toHaveClass('MuiButton-outlined');
-  expect(discard).toHaveClass('MuiButton-colorError', 'MuiButton-outlined');
-  expect(
-    getComputedStyle(discard).getPropertyValue('--variant-outlinedColor'),
-  ).toBe(theme.palette.error.main);
+  // Stay is the primary action; Discard is neutral until hovered.
+  expect(stay).toHaveClass('MuiButton-contained', 'MuiButton-colorPrimary');
+  expect(discard).toHaveClass('MuiButton-outlined', 'MuiButton-colorPrimary');
   expect(
     stay.compareDocumentPosition(discard) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
@@ -463,7 +469,7 @@ test('missing work-mode evidence clears obsolete automatic values but preserves 
   );
 });
 
-test('narrow tab strip supports all five tabs and keyboard selection without losing edits', async () => {
+test('narrow tab strip supports all four tabs and keyboard selection without losing edits', async () => {
   vi.stubGlobal('innerWidth', 360);
   mockApi();
   mount(`/jobs/${id}`);
@@ -472,10 +478,9 @@ test('narrow tab strip supports all five tabs and keyboard selection without los
   const tabs = screen.getAllByRole('tab');
   expect(tabs.map((tab) => tab.textContent)).toEqual([
     'Overview',
-    'CV Match',
-    'Improve CV',
+    'Match',
+    'Tailored CV',
     'Application',
-    'Edit JD',
   ]);
   const strip = screen
     .getByRole('tablist', { name: 'Job sections' })
@@ -483,12 +488,15 @@ test('narrow tab strip supports all five tabs and keyboard selection without los
   expect(strip).toHaveStyle({ maxWidth: '100%', minWidth: '0' });
   expect(strip.querySelector('.MuiTabs-scrollButtonsHideMobile')).toBeNull();
   await user.click(tabs[0]!);
-  await user.keyboard(
-    '{ArrowRight}{ArrowRight}{ArrowRight}{ArrowRight}{Enter}',
-  );
-  expect(screen.getByRole('tab', { name: 'Edit JD' })).toHaveAttribute(
+  await user.keyboard('{ArrowRight}{ArrowRight}{ArrowRight}{Enter}');
+  expect(screen.getByRole('tab', { name: /^Application/ })).toHaveAttribute(
     'aria-selected',
     'true',
+  );
+  await user.click(screen.getByRole('link', { name: 'Edit JD' }));
+  expect(screen.getByRole('link', { name: 'Edit JD' })).toHaveAttribute(
+    'aria-current',
+    'page',
   );
   expect(
     screen.getByRole('region', { name: 'Job save actions' }),
@@ -558,13 +566,7 @@ test('discovery provenance appears once between the tabs and every active panel'
   );
   mount(`/jobs/${id}`);
   await screen.findByRole('heading', { name: 'Synthetic engineer' });
-  for (const name of [
-    'Overview',
-    'CV Match',
-    'Improve CV',
-    'Application',
-    'Edit JD',
-  ]) {
+  for (const name of ['Overview', 'Match', 'Application', 'Edit JD']) {
     tab(name);
     const banner = screen.getByLabelText('Discovery provenance');
     expect(screen.getAllByLabelText('Discovery provenance')).toHaveLength(1);
@@ -574,7 +576,9 @@ test('discovery provenance appears once between the tabs and every active panel'
     );
     expect(banner.closest('[role="tabpanel"]')).toBeNull();
     const strip = screen.getByRole('tablist', { name: 'Job sections' });
-    const panel = screen.getByRole('tabpanel', { name });
+    const panel = screen.getByRole('tabpanel', {
+      name: new RegExp(`^${name}`),
+    });
     expect(
       banner.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
@@ -636,7 +640,7 @@ test('Edit JD contains its heading, fields and save guidance in one outlined sur
   mockApi();
   mount(`/jobs/${id}`);
   await screen.findByDisplayValue('Synthetic engineer');
-  fireEvent.click(screen.getByRole('tab', { name: 'Edit JD' }));
+  fireEvent.click(screen.getByRole('link', { name: 'Edit JD' }));
   const panel = screen.getByRole('tabpanel', { name: 'Edit JD' });
   expect(panel).toHaveStyle({ borderWidth: '1px', borderStyle: 'solid' });
   expect(panel).toContainElement(

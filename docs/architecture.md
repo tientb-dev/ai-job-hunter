@@ -1904,3 +1904,19 @@ independent of the app theme. Navigation is reduced to Jobs, Discover and My CV;
 retired placeholder routes redirect to Jobs. Alternatives considered: refining
 Calm Teal (lower churn, but teal kept meaning brand, action and status at once)
 and a document-only Paper theme (too sparse for job tables).
+
+### Job workspace navigation
+
+Each job is one workspace at `/jobs/:id/*` with tabs Overview, Match, Tailored
+CV and Application (`/jobs/:id`, `/match`, `/tailored-cv`, `/application`);
+Edit JD is a header action at `/jobs/:id/edit`. One route keeps `JobEditor`
+mounted across sections, so hidden form and source-review state survive tab
+changes without re-fetching. The unsaved-changes guard therefore allows
+navigation inside the workspace, except leaving the Tailored CV tab with unsaved
+review decisions (that workflow unmounts). Legacy `?tab=` links redirect;
+Improve CV advice now sits below the Match assessment. Tab badges use loaded data
+only: match score or Outdated, Outdated for a draft built on an older job
+version (the draft list has no review/approval state, and a revision number does
+not convey it, so nothing else is shown), and follow-up due state or date. Match
+messaging separates "Not analyzed yet" (no saved match) from "Outdated" (a saved
+match invalidated by CV, job or rule changes) in both the assessment and advice.

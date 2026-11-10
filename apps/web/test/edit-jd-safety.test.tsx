@@ -55,7 +55,7 @@ function setup(conflict = false, failSave = false) {
   });
   vi.stubGlobal('fetch', fetch);
   const router = createMemoryRouter(
-    [{ path: '/jobs/:id', element: <JobEditor /> }],
+    [{ path: '/jobs/:id/*', element: <JobEditor /> }],
     { initialEntries: [`/jobs/${id}`] },
   );
   render(
@@ -67,7 +67,7 @@ function setup(conflict = false, failSave = false) {
 }
 async function edit() {
   await screen.findByRole('heading', { name: 'Saved role' });
-  fireEvent.click(screen.getByRole('tab', { name: 'Edit JD' }));
+  fireEvent.click(screen.getByRole('link', { name: 'Edit JD' }));
 }
 const save = () => screen.getByRole('button', { name: 'Save changes' });
 function lastPayload(fetch: ReturnType<typeof setup>['fetch']) {

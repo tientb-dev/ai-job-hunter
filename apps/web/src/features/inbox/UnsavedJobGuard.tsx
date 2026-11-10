@@ -17,10 +17,13 @@ export function UnsavedJobGuard({
   dirty,
   savedNavigation,
   sourceCvDirty = false,
+  allowPath,
 }: {
   dirty: boolean;
   sourceCvDirty?: boolean;
   savedNavigation: RefObject<boolean>;
+  /** Destinations that keep the edited state mounted, so need no prompt. */
+  allowPath?: (pathname: string) => boolean;
 }) {
   useBeforeUnload((event) => {
     if (sourceCvDirty || (dirty && !savedNavigation.current)) {
@@ -35,6 +38,7 @@ export function UnsavedJobGuard({
       dirty={dirty}
       sourceCvDirty={sourceCvDirty}
       savedNavigation={savedNavigation}
+      allowPath={allowPath}
     />
   ) : null;
 }
@@ -42,13 +46,17 @@ function RouteGuard({
   dirty,
   savedNavigation,
   sourceCvDirty,
+  allowPath,
 }: {
   dirty: boolean;
   sourceCvDirty: boolean;
   savedNavigation: RefObject<boolean>;
+  allowPath?: (pathname: string) => boolean;
 }) {
   const blocker = useBlocker(
-    () => sourceCvDirty || (dirty && !savedNavigation.current),
+    ({ nextLocation }) =>
+      !allowPath?.(nextLocation.pathname) &&
+      (sourceCvDirty || (dirty && !savedNavigation.current)),
   );
   const stay = useRef<HTMLButtonElement>(null);
   function handleDialogFocus(event: FocusEvent<HTMLElement>) {
@@ -81,7 +89,8 @@ function RouteGuard({
       <DialogActions>
         <Button
           ref={stay}
-          variant="outlined"
+          variant="contained"
+          // Programmatic focus lands here, so :focus (not only focus-visible) shows the ring.
           sx={(theme) => ({
             '&:focus': {
               outline: `2px solid ${theme.palette.primary.main}`,
@@ -93,8 +102,14 @@ function RouteGuard({
           Stay and edit
         </Button>
         <Button
-          color="error"
           variant="outlined"
+          sx={{
+            '&:hover': {
+              color: 'error.main',
+              borderColor: 'error.main',
+              bgcolor: 'transparent',
+            },
+          }}
           onClick={() => blocker.state === 'blocked' && blocker.proceed()}
         >
           Discard and leave

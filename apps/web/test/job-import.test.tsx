@@ -65,7 +65,7 @@ function mount() {
     <MemoryRouter initialEntries={['/jobs/new']}>
       <Routes>
         <Route path="/jobs/new" element={<JobEditor />} />
-        <Route path="/jobs/:id" element={<JobEditor />} />
+        <Route path="/jobs/:id/*" element={<JobEditor />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -438,7 +438,7 @@ test('complete synthetic extraction populates new review fields and corrections 
   render(
     <MemoryRouter initialEntries={[`/jobs/${id}`]}>
       <Routes>
-        <Route path="/jobs/:id" element={<JobEditor />} />
+        <Route path="/jobs/:id/*" element={<JobEditor />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -512,12 +512,12 @@ test('a saved manually cleared field stays empty in manual Edit JD', async () =>
   render(
     <MemoryRouter initialEntries={[`/jobs/${id}`]}>
       <Routes>
-        <Route path="/jobs/:id" element={<JobEditor />} />
+        <Route path="/jobs/:id/*" element={<JobEditor />} />
       </Routes>
     </MemoryRouter>,
   );
   await screen.findByDisplayValue('AI Developer');
-  fireEvent.click(screen.getByRole('tab', { name: 'Edit JD' }));
+  fireEvent.click(screen.getByRole('link', { name: 'Edit JD' }));
   expect(screen.getByLabelText('Company')).toHaveValue('');
   expect(
     screen.queryByRole('button', { name: 'Extract with AI' }),
@@ -555,7 +555,7 @@ test('all contact methods display, save and reload for manual Edit JD', async ()
   render(
     <MemoryRouter initialEntries={[`/jobs/${id}`]}>
       <Routes>
-        <Route path="/jobs/:id" element={<JobEditor />} />
+        <Route path="/jobs/:id/*" element={<JobEditor />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -564,7 +564,7 @@ test('all contact methods display, save and reload for manual Edit JD', async ()
       contacts,
     ),
   );
-  fireEvent.click(screen.getByRole('tab', { name: 'Edit JD' }));
+  fireEvent.click(screen.getByRole('link', { name: 'Edit JD' }));
   const manual = 'Manual contact correction\n' + contacts;
   fireEvent.change(screen.getByLabelText('Recruiter / contact notes'), {
     target: { value: manual },

@@ -193,7 +193,8 @@ test('explicit suggestions show four compact cards, a header count and preserve 
   fireEvent.click(screen.getByRole('button', { name: 'Show less' }));
   expect(within(section()).getAllByRole('article')).toHaveLength(4);
   fireEvent.click(screen.getByRole('button', { name: 'Open CV Match' }));
-  expect(screen.queryByRole('region', { name: 'Improve your CV' })).toBeNull();
+  // Workspace Match shows the assessment with its gaps-and-advice below.
+  expect(screen.getByRole('region', { name: 'Improve your CV' })).toBeVisible();
   expect(screen.getByLabelText('Fit score: 50/100 (heuristic)')).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Open Improve CV' }));
   expect(within(section()).getAllByRole('article')).toHaveLength(4);

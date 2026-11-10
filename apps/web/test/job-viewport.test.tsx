@@ -98,7 +98,7 @@ test('Edit JD and Application scroll only their form while preserving edits and 
   mount(`/jobs/${id}`);
   await screen.findByRole('heading', { name: 'Synthetic engineer' });
   expect(shell().style.height).toBe('');
-  fireEvent.click(screen.getByRole('tab', { name: 'Edit JD' }));
+  fireEvent.click(screen.getByRole('link', { name: 'Edit JD' }));
   const editFields = screen.getByRole('region', {
     name: 'Scrollable job fields',
   });
@@ -115,7 +115,7 @@ test('Edit JD and Application scroll only their form while preserving edits and 
   });
   fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
   expect(await screen.findByText('Changes saved')).toBeVisible();
-  fireEvent.click(screen.getByRole('tab', { name: 'Application' }));
+  fireEvent.click(screen.getByRole('tab', { name: /^Application/ }));
   await waitFor(() => expect(shell().style.height).toBe(''));
   const applicationFields = screen.getByRole('region', {
     name: 'Scrollable job fields',
@@ -129,7 +129,7 @@ test('Edit JD and Application scroll only their form while preserving edits and 
   expect(applicationFields).not.toContainElement(
     screen.getByRole('button', { name: 'Save changes' }),
   );
-  fireEvent.click(screen.getByRole('tab', { name: 'Edit JD' }));
+  fireEvent.click(screen.getByRole('link', { name: 'Edit JD' }));
   expect(
     screen.getByRole('region', { name: 'Scrollable job fields' }),
   ).toContainElement(screen.getByLabelText('Job description'));
@@ -146,7 +146,10 @@ function applicationGeometry() {
       );
       const top =
         this.getAttribute('role') === 'tabpanel' &&
-        ['Application', 'Edit JD'].includes(tab?.textContent ?? '')
+        // Edit JD is a header action now, so its panel is named directly.
+        ['Application', 'Edit JD'].includes(
+          tab?.textContent ?? this.getAttribute('aria-label') ?? '',
+        )
           ? 430
           : 0;
       const height =
@@ -170,7 +173,7 @@ test('Application keeps header and footer outside its desktop form scroller, pre
   vi.stubGlobal('innerWidth', 1440);
   vi.stubGlobal('innerHeight', 900);
   applicationGeometry();
-  mount(`/jobs/${id}?tab=application`);
+  mount(`/jobs/${id}/application`);
   await screen.findByRole('heading', { name: 'Application details' });
   const fields = screen.getByRole('region', { name: 'Scrollable job fields' });
   const save = screen.getByRole('button', { name: 'Save changes' });
@@ -219,9 +222,13 @@ test.each([
     vi.stubGlobal('innerWidth', width);
     vi.stubGlobal('innerHeight', height);
     applicationGeometry();
-    mount(`/jobs/${id}?tab=application`);
+    mount(`/jobs/${id}/application`);
     await screen.findByRole('heading', { name: 'Application details' });
-    fireEvent.click(screen.getByRole('tab', { name: tab }));
+    fireEvent.click(
+      tab === 'Edit JD'
+        ? screen.getByRole('link', { name: tab })
+        : screen.getByRole('tab', { name: new RegExp(`^${tab}`) }),
+    );
     expect(
       screen.queryByRole('region', { name: 'Scrollable job fields' }),
     ).not.toBeInTheDocument();

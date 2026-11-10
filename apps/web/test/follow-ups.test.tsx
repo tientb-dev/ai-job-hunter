@@ -43,7 +43,7 @@ function mount(rows: ReturnType<typeof makeJob>[], path = '/jobs') {
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/jobs" element={<JobInbox />} />
-        <Route path="/jobs/:id" element={<JobEditor />} />
+        <Route path="/jobs/:id/*" element={<JobEditor />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -113,8 +113,8 @@ test('filters due items in existing order, preserves excluded dates and opens Ap
       name: 'Due today: open Application for Today job',
     }),
   );
-  await screen.findByRole('tab', { name: 'Application' });
-  expect(screen.getByRole('tab', { name: 'Application' })).toHaveAttribute(
+  await screen.findByRole('tab', { name: /^Application/ });
+  expect(screen.getByRole('tab', { name: /^Application/ })).toHaveAttribute(
     'aria-selected',
     'true',
   );
@@ -129,7 +129,11 @@ test('filters due items in existing order, preserves excluded dates and opens Ap
   expect(JSON.stringify(rows)).toBe(snapshot);
   expect(
     fetch.mock.calls.every(
-      ([, init]) => !init?.method || init.method === 'GET',
+      // The workspace tab badge reads the draft list through a read-only POST.
+      ([url, init]) =>
+        !init?.method ||
+        init.method === 'GET' ||
+        String(url).endsWith('/drafts/list'),
     ),
   ).toBe(true);
 });
@@ -208,8 +212,8 @@ test('paginates ten jobs, filters before slicing, resets pages, and keeps naviga
       name: 'Due today: open Application for Job 11',
     }),
   );
-  await screen.findByRole('tab', { name: 'Application' });
-  expect(screen.getByRole('tab', { name: 'Application' })).toHaveAttribute(
+  await screen.findByRole('tab', { name: /^Application/ });
+  expect(screen.getByRole('tab', { name: /^Application/ })).toHaveAttribute(
     'aria-selected',
     'true',
   );

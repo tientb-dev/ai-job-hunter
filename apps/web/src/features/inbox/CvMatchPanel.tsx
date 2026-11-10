@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { draftRequest } from './tailored-cv.contract';
-import { Link, useInRouterContext } from 'react-router-dom';
-import { Alert, Box, Button, Paper, Stack, Typography } from '@mui/material';
+import { Box, Paper } from '@mui/material';
 import { CvSuggestionsSection } from './CvSuggestionsSection';
 import { CvMatchSection, type MatchInspection } from './CvMatchSection';
 import { TailoredCvWorkflow } from './TailoredCvWorkflow';
@@ -16,6 +15,12 @@ interface CvMatchPanelProps {
   jobDirty?: boolean;
   onGoToMatch?: () => void;
   onReviewDirtyChange?: (dirty: boolean) => void;
+  onSummary?: (summary: MatchPanelSummary) => void;
+}
+export interface MatchPanelSummary {
+  matchStatus: string;
+  score: number | null;
+  draft: { revision: number; jobUpdatedAt: string } | null;
 }
 
 /**
@@ -36,7 +41,10 @@ export function CvMatchPanel({ wizard = false, ...props }: CvMatchPanelProps) {
   );
 }
 
-/** Job Detail: CV Match assessment and Improve CV (P7 suggestions) tabs. */
+/**
+ * Job workspace Match tab: assessment plus P7 gaps-and-advice suggestions.
+ * `improve` shows the suggestions alone (embedded/legacy use).
+ */
 function JobMatchPanel({
   jobId,
   revision,
@@ -44,13 +52,18 @@ function JobMatchPanel({
   view = 'match',
   jobDirty = false,
   onGoToMatch,
+  onSummary,
 }: Omit<CvMatchPanelProps, 'wizard'>) {
-  const routing = useInRouterContext();
   const match = useCvMatch(jobId, revision, jobUpdatedAt);
   const { busy, result, cv, attempt, contextRejected, rejectContext } = match;
   const inspection = useRef<MatchInspection>(null);
   const [suggesting, setSuggesting] = useState(false);
-  const latestDraft = useLatestDraft(jobId, view === 'improve');
+  // Loaded once per job for the workspace tab badge; no review state is implied.
+  const latestDraft = useLatestDraft(jobId, Boolean(onSummary));
+  const score = result?.score ?? null;
+  useEffect(() => {
+    onSummary?.({ matchStatus: match.matchStatus, score, draft: latestDraft });
+  }, [onSummary, match.matchStatus, score, latestDraft]);
   const [source, setSource] = useState({ jobId, revision });
   if (source.jobId !== jobId || source.revision !== revision) {
     setSource({ jobId, revision });
@@ -67,48 +80,12 @@ function JobMatchPanel({
         uploadBlocked={suggesting}
       />
       <Box
-        role="tabpanel"
-        id="job-panel-2"
-        aria-labelledby="job-tab-2"
-        hidden={view !== 'improve'}
+        component="section"
+        aria-label="Gaps and advice"
+        hidden={view === 'hidden'}
+        sx={{ mt: 3 }}
       >
         <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, minWidth: 0 }}>
-          <Stack spacing={2} sx={{ mb: 3 }}>
-            <Typography variant="h6" component="h2">
-              Tailored CV
-            </Typography>
-            <Typography>
-              Build a version of your CV for this job from facts you have
-              reviewed. You approve every change before downloading.
-            </Typography>
-            <Stack component="ul" spacing={0.5} sx={{ m: 0, pl: 2.5 }}>
-              <Typography component="li" variant="body2">
-                CV Match: {matchSummary(match.matchStatus)}
-              </Typography>
-              {latestDraft && (
-                <Typography component="li" variant="body2">
-                  Latest draft: revision {latestDraft.revision}, saved{' '}
-                  {new Date(latestDraft.updatedAt).toLocaleString()}
-                </Typography>
-              )}
-            </Stack>
-            <Button
-              sx={{ alignSelf: 'flex-start' }}
-              component={routing ? Link : 'a'}
-              {...(routing
-                ? { to: `/jobs/${jobId}/tailored-cv` }
-                : { href: `/jobs/${jobId}/tailored-cv` })}
-              variant="contained"
-              disabled={jobDirty}
-            >
-              {latestDraft ? 'Continue tailored CV' : 'Start tailored CV'}
-            </Button>
-            {jobDirty && (
-              <Alert severity="info">
-                Save job changes in Edit JD before opening Tailored CV.
-              </Alert>
-            )}
-          </Stack>
           <CvSuggestionsSection
             key={`${result?.matchId ?? 'none'}:${attempt}:${contextRejected}`}
             result={result}
@@ -116,7 +93,12 @@ function JobMatchPanel({
             disabled={busy}
             cvSaved={!!cv}
             jobDirty={jobDirty}
-            rejected={contextRejected}
+            // The hook rejects context for every non-valid status; a match that
+            // never existed (or has no CV) is "not analyzed", not outdated.
+            rejected={
+              contextRejected &&
+              !['MISSING', 'CV_UNAVAILABLE'].includes(match.matchStatus)
+            }
             onBusyChange={setSuggesting}
             onGoToMatch={() => onGoToMatch?.()}
             onInvalidContext={rejectContext}
@@ -130,23 +112,11 @@ function JobMatchPanel({
   );
 }
 
-function matchSummary(status: string) {
-  return status === 'VALID'
-    ? 'saved and current'
-    : status === 'CHECKING'
-      ? 'checking…'
-      : ['STALE_CV', 'STALE_JOB', 'EXPIRED'].includes(status)
-        ? 'out of date, reanalyze before tailoring'
-        : status === 'CV_UNAVAILABLE'
-          ? 'save a CV first'
-          : 'not analyzed yet';
-}
-
-/** Read-only lookup of the newest saved draft, used only for the resume hint. */
+/** Read-only lookup of the newest saved draft, used only for the tab badge. */
 function useLatestDraft(jobId: string, enabled: boolean) {
   const [latest, setLatest] = useState<{
     revision: number;
-    updatedAt: string;
+    jobUpdatedAt: string;
   } | null>(null);
   useEffect(() => {
     if (!enabled) return;
@@ -154,17 +124,16 @@ function useLatestDraft(jobId: string, enabled: boolean) {
     draftRequest(`/jobs/${jobId}/drafts/list`, { before: null }).then(
       (value) => {
         const item = (value as { items?: unknown[] } | null)?.items?.[0] as
-          { revision?: unknown; updatedAt?: unknown } | undefined;
+          { revision?: unknown; jobUpdatedAt?: unknown } | undefined;
         if (
           active &&
           item &&
           Number.isSafeInteger(item.revision) &&
-          typeof item.updatedAt === 'string' &&
-          Number.isFinite(Date.parse(item.updatedAt))
+          typeof item.jobUpdatedAt === 'string'
         )
           setLatest({
             revision: item.revision as number,
-            updatedAt: item.updatedAt,
+            jobUpdatedAt: item.jobUpdatedAt,
           });
       },
       () => undefined,

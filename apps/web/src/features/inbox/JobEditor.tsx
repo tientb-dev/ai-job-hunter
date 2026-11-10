@@ -14,7 +14,8 @@ import {
   urlImportHelp,
   type UrlJobPreview,
 } from './job-url-import';
-import { CvMatchPanel } from './CvMatchPanel';
+import { CvMatchPanel, type MatchPanelSummary } from './CvMatchPanel';
+import { dueFollowUp, useLocalCalendarDate } from './follow-ups';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -40,7 +41,13 @@ import {
   Typography,
   useTheme,
 } from '@mui/material';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import {
+  Link,
+  Navigate,
+  useLocation,
+  useNavigate,
+  useParams,
+} from 'react-router-dom';
 import {
   emptyOpportunity,
   fieldLabels,
@@ -61,8 +68,76 @@ const message = (error: unknown) =>
   error instanceof Error
     ? error.message
     : 'Request failed. Retry or enter fields manually.';
+/** Tab labels with badges derived only from loaded data; absent data shows none. */
+function workspaceTabs({
+  summary,
+  followUp,
+  followUpDate,
+  jobUpdatedAt,
+}: {
+  summary: MatchPanelSummary | null;
+  followUp: string | null;
+  followUpDate: string | null;
+  jobUpdatedAt: string;
+}) {
+  const draft = summary?.draft;
+  const badge = (text: string, warn = false) => ({ text, warn });
+  return [
+    { label: 'Overview', value: 'overview', badge: null },
+    {
+      label: 'Match',
+      value: 'match',
+      badge:
+        summary?.matchStatus === 'VALID' && summary.score !== null
+          ? badge(`${summary.score}%`)
+          : ['STALE_CV', 'STALE_JOB', 'EXPIRED'].includes(
+                summary?.matchStatus ?? '',
+              )
+            ? badge('Outdated', true)
+            : null,
+    },
+    {
+      label: 'Tailored CV',
+      value: 'tailored-cv',
+      // Revision numbers say nothing about review state, so only staleness shows.
+      badge:
+        draft && jobUpdatedAt && draft.jobUpdatedAt !== jobUpdatedAt
+          ? badge('Outdated', true)
+          : null,
+    },
+    {
+      label: 'Application',
+      value: 'application',
+      badge: followUp
+        ? badge(followUp, true)
+        : followUpDate
+          ? badge(
+              new Date(`${followUpDate}T00:00`).toLocaleDateString(undefined, {
+                month: 'short',
+                day: 'numeric',
+              }),
+            )
+          : null,
+    },
+  ] as const;
+}
 const latestContactDate = (dates: string[]) =>
   dates.reduce((latest, date) => (date > latest ? date : latest), '');
+
+const workspaceViews = [
+  'overview',
+  'match',
+  'tailored-cv',
+  'application',
+  'edit',
+] as const;
+type WorkspaceView = (typeof workspaceViews)[number];
+// Pre-workspace links used ?tab=; Improve CV advice now lives under Match.
+const legacyTabs: Record<string, WorkspaceView> = {
+  match: 'match',
+  improve: 'match',
+  application: 'application',
+};
 
 export function JobEditor({
   onViewportLayoutChange,
@@ -72,22 +147,24 @@ export function JobEditor({
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const requestedTab = new URLSearchParams(location.search).get('tab');
-  const requestedView =
-    requestedTab === 'application' ||
-    requestedTab === 'improve' ||
-    requestedTab === 'match'
-      ? requestedTab
+  // Each workspace section has its own URL under /jobs/:id; the component stays
+  // mounted across sections, so hidden form and review state is preserved.
+  const base = `/jobs/${id}`;
+  const segment = location.pathname.slice(base.length + 1).split('/')[0] ?? '';
+  const view: WorkspaceView =
+    id && (workspaceViews as readonly string[]).includes(segment)
+      ? (segment as WorkspaceView)
       : 'overview';
-  const [entryKey, setEntryKey] = useState(location.key);
-  const [view, setView] = useState(requestedView);
+  const legacyTab = new URLSearchParams(location.search).get('tab');
+  const setView = (next: WorkspaceView) => {
+    if (next !== view) navigate(next === 'overview' ? base : `${base}/${next}`);
+  };
   const [savedRevision, setSavedRevision] = useState(0);
   const [savedJobUpdatedAt, setSavedJobUpdatedAt] = useState('');
   const [sourceCvDirty, setSourceCvDirty] = useState(false);
-  if (entryKey !== location.key) {
-    setEntryKey(location.key);
-    setView(requestedView);
-  }
+  const [tailoredDirty, setTailoredDirty] = useState(false);
+  const [summary, setSummary] = useState<MatchPanelSummary | null>(null);
+  const today = useLocalCalendarDate();
   const [step, setStep] = useState(0);
   const [importMethod, setImportMethod] = useState<ImportMethod>('url');
   const theme = useTheme();
@@ -524,6 +601,9 @@ export function JobEditor({
     Boolean(file) ||
     contactDate !== latestContactDate(form.contactDates);
   const disabled = busy || extracting || parsing || loadFailed;
+  // The Tailored CV review only exists while its tab is mounted.
+  const reviewDirty = view === 'tailored-cv' && tailoredDirty;
+  const saved = JSON.parse(baseline.current) as OpportunityInput;
   useLayoutEffect(() => {
     if (!id || view !== 'edit' || loading) return;
     // The mobile shell can leave the details heading below the field viewport.
@@ -850,10 +930,27 @@ export function JobEditor({
       spacing={3}
       sx={{ minWidth: 0, ...(usesViewport && { flex: 1, minHeight: 0 }) }}
     >
+      {id && legacyTab && (
+        <Navigate
+          replace
+          to={
+            legacyTabs[legacyTab] && legacyTabs[legacyTab] !== 'overview'
+              ? `${base}/${legacyTabs[legacyTab]}`
+              : base
+          }
+        />
+      )}
       <UnsavedJobGuard
         dirty={dirty || sourceCvDirty}
-        sourceCvDirty={sourceCvDirty}
+        sourceCvDirty={sourceCvDirty || reviewDirty}
         savedNavigation={savedNavigation}
+        allowPath={(path) =>
+          // Sections share one mounted editor; only the Tailored CV review
+          // unmounts when its tab is left.
+          id !== undefined &&
+          (path === base || path.startsWith(`${base}/`)) &&
+          !(reviewDirty && path !== `${base}/tailored-cv`)
+        }
       />
       <JobActionLayout
         scrollable={usesViewport}
@@ -1009,75 +1106,124 @@ export function JobEditor({
               )}
           </Box>
           {id ? (
-            <Tabs
-              value={view}
-              onChange={(_, value: string) => setView(value)}
-              variant="scrollable"
-              scrollButtons={true}
-              allowScrollButtonsMobile
+            <Stack
+              direction="row"
+              spacing={1}
               sx={{
+                alignItems: 'center',
                 minWidth: 0,
-                maxWidth: '100%',
-                '& .MuiTabs-scroller': {
-                  overflowX: 'auto',
-                  overscrollBehaviorX: 'contain',
-                  scrollPaddingInline: '2px',
-                },
-                '& .MuiTabs-list': {
-                  width: 'max-content',
-                  minWidth: '100%',
-                  px: '2px',
-                },
-                minHeight: 44,
                 borderBottom: 1,
                 borderColor: 'divider',
-                '& .MuiTab-root': {
-                  flexShrink: 0,
-                  minHeight: 44,
-                  textTransform: 'none',
-                  px: 2,
-                  py: 1,
-                  fontWeight: 500,
-                  color: 'text.secondary',
-                },
-                '& .MuiTab-root.Mui-selected': {
-                  bgcolor: 'action.selected',
-                  color: 'primary.main',
-                  fontWeight: 600,
-                  borderRadius: '6px 6px 0 0',
-                },
-                '& .MuiTab-root.Mui-focusVisible': {
-                  outline: '2px solid',
-                  outlineColor: 'primary.main',
-                  outlineOffset: -3,
-                },
-                '& .MuiTabs-scrollButtons': {
-                  display: { xs: 'inline-flex', md: 'none' },
-                },
-                '& .MuiTabs-scrollButtons.Mui-disabled': { opacity: 0.3 },
               }}
-              aria-label="Job sections"
             >
-              {[
-                'Overview',
-                'CV Match',
-                'Improve CV',
-                'Application',
-                'Edit JD',
-              ].map((label, index) => (
-                <Tab
-                  key={label}
-                  label={label}
-                  value={
-                    ['overview', 'match', 'improve', 'application', 'edit'][
-                      index
-                    ]
-                  }
-                  id={`job-tab-${index}`}
-                  aria-controls={`job-panel-${index}`}
-                />
-              ))}
-            </Tabs>
+              <Tabs
+                value={view === 'edit' ? false : view}
+                onChange={(_, value: WorkspaceView) => setView(value)}
+                variant="scrollable"
+                scrollButtons={true}
+                allowScrollButtonsMobile
+                sx={{
+                  minWidth: 0,
+                  maxWidth: '100%',
+                  '& .MuiTabs-scroller': {
+                    overflowX: 'auto',
+                    overscrollBehaviorX: 'contain',
+                    scrollPaddingInline: '2px',
+                  },
+                  '& .MuiTabs-list': {
+                    width: 'max-content',
+                    minWidth: '100%',
+                    px: '2px',
+                  },
+                  minHeight: 44,
+                  flex: 1,
+                  '& .MuiTab-root': {
+                    flexShrink: 0,
+                    minHeight: 44,
+                    textTransform: 'none',
+                    px: 2,
+                    py: 1,
+                    fontWeight: 500,
+                    color: 'text.secondary',
+                  },
+                  '& .MuiTab-root.Mui-selected': {
+                    bgcolor: 'action.selected',
+                    color: 'primary.main',
+                    fontWeight: 600,
+                    borderRadius: '6px 6px 0 0',
+                  },
+                  '& .MuiTab-root.Mui-focusVisible': {
+                    outline: '2px solid',
+                    outlineColor: 'primary.main',
+                    outlineOffset: -3,
+                  },
+                  '& .MuiTabs-scrollButtons': {
+                    display: { xs: 'inline-flex', md: 'none' },
+                  },
+                  '& .MuiTabs-scrollButtons.Mui-disabled': { opacity: 0.3 },
+                }}
+                aria-label="Job sections"
+              >
+                {workspaceTabs({
+                  summary,
+                  followUp: dueFollowUp(
+                    saved.followUpDate,
+                    saved.status,
+                    today,
+                  ),
+                  followUpDate: saved.followUpDate,
+                  jobUpdatedAt: savedJobUpdatedAt,
+                }).map(({ label, value, badge }, index) => (
+                  <Tab
+                    key={value}
+                    value={value}
+                    id={`job-tab-${index}`}
+                    aria-controls={`job-panel-${index}`}
+                    label={
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        sx={{ alignItems: 'center' }}
+                      >
+                        <span>{label}</span>
+                        {badge && (
+                          <Typography
+                            component="span"
+                            variant="caption"
+                            sx={{
+                              color: badge.warn
+                                ? 'error.dark'
+                                : 'text.secondary',
+                              fontWeight: 500,
+                            }}
+                          >
+                            {badge.text}
+                          </Typography>
+                        )}
+                      </Stack>
+                    }
+                  />
+                ))}
+              </Tabs>
+              <Button
+                component={Link}
+                to={`${base}/edit`}
+                size="small"
+                variant="outlined"
+                aria-current={view === 'edit' ? 'page' : undefined}
+                sx={{
+                  flexShrink: 0,
+                  minHeight: 36,
+                  // One primary per view: Save stays the only filled button.
+                  '&[aria-current="page"]': {
+                    bgcolor: 'action.selected',
+                    fontWeight: 600,
+                  },
+                }}
+              >
+                Edit JD
+              </Button>
+            </Stack>
           ) : (
             <Stepper activeStep={step}>
               <Step>
@@ -1198,13 +1344,8 @@ export function JobEditor({
               jobUpdatedAt={savedJobUpdatedAt}
               jobDirty={dirty}
               onReviewDirtyChange={setSourceCvDirty}
-              view={
-                view === 'match'
-                  ? 'match'
-                  : view === 'improve'
-                    ? 'improve'
-                    : 'hidden'
-              }
+              view={view === 'match' ? 'match' : 'hidden'}
+              onSummary={setSummary}
               onGoToMatch={() => {
                 setView('match');
                 document
@@ -1212,6 +1353,25 @@ export function JobEditor({
                   ?.focus({ preventScroll: true });
               }}
             />
+          )}
+          {id && !loading && !loadFailed && view === 'tailored-cv' && (
+            <Box role="tabpanel" id="job-panel-2" aria-labelledby="job-tab-2">
+              {dirty ? (
+                <Alert severity="info">
+                  Save job changes in Edit JD before opening Tailored CV.
+                </Alert>
+              ) : (
+                <CvMatchPanel
+                  key={id}
+                  jobId={id}
+                  revision={savedJobUpdatedAt}
+                  jobUpdatedAt={savedJobUpdatedAt}
+                  view="improve"
+                  wizard
+                  onReviewDirtyChange={setTailoredDirty}
+                />
+              )}
+            </Box>
           )}
           <Box
             component="form"
@@ -1237,7 +1397,7 @@ export function JobEditor({
                 ref={editPanel}
                 role={id ? 'tabpanel' : undefined}
                 id="job-panel-4"
-                aria-labelledby={id ? 'job-tab-4' : undefined}
+                aria-label={id ? 'Edit JD' : undefined}
                 spacing={3}
                 sx={{
                   display: id && view !== 'edit' ? 'none' : undefined,

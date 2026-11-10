@@ -23,7 +23,7 @@ function mount(path: string) {
       <Routes>
         <Route path="/jobs" element={<JobInbox />} />
         <Route path="/jobs/new" element={<JobEditor />} />
-        <Route path="/jobs/:id" element={<JobEditor />} />
+        <Route path="/jobs/:id/*" element={<JobEditor />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -82,7 +82,7 @@ test('edits notes and follow-up date and keeps input on save failure', async () 
   vi.stubGlobal('fetch', fetch);
   mount(`/jobs/${id}`);
   await screen.findByDisplayValue('Synthetic engineer');
-  fireEvent.click(screen.getByRole('tab', { name: 'Application' }));
+  fireEvent.click(screen.getByRole('tab', { name: /^Application/ }));
   fireEvent.change(screen.getByLabelText('Application notes'), {
     target: { value: 'Synthetic call notes' },
   });
@@ -108,7 +108,7 @@ test('changes status freely and sends the selected status to the API', async () 
   vi.stubGlobal('fetch', fetch);
   mount(`/jobs/${id}`);
   await screen.findByDisplayValue('Synthetic engineer');
-  fireEvent.click(screen.getByRole('tab', { name: 'Application' }));
+  fireEvent.click(screen.getByRole('tab', { name: /^Application/ }));
   await userEvent.click(
     screen.getByRole('combobox', { name: 'Application status' }),
   );
@@ -145,7 +145,7 @@ test('last HR contact survives create, save, reopen and replacement without chan
   });
   fireEvent.click(screen.getByRole('button', { name: 'Confirm and save job' }));
   await screen.findByRole('heading', { name: 'Job overview' });
-  fireEvent.click(screen.getByRole('tab', { name: 'Application' }));
+  fireEvent.click(screen.getByRole('tab', { name: /^Application/ }));
   fireEvent.change(screen.getByLabelText('Last HR contact date'), {
     target: { value: '2026-10-30' },
   });
@@ -165,7 +165,7 @@ test('last HR contact survives create, save, reopen and replacement without chan
       '2026-10-30',
     ),
   );
-  fireEvent.click(screen.getByRole('tab', { name: 'Application' }));
+  fireEvent.click(screen.getByRole('tab', { name: /^Application/ }));
   // Correct the current entry, rather than append another contact date.
   fireEvent.change(screen.getByLabelText('Last HR contact date'), {
     target: { value: '2026-10-29' },
@@ -186,7 +186,7 @@ test('last HR contact survives create, save, reopen and replacement without chan
       '2026-10-29',
     ),
   );
-  fireEvent.click(screen.getByRole('tab', { name: 'Application' }));
+  fireEvent.click(screen.getByRole('tab', { name: /^Application/ }));
   expect(screen.getByLabelText('Application notes')).toHaveValue(
     'Synthetic tracking notes',
   );
@@ -256,7 +256,7 @@ test.each([
     );
     const view = mount(`/jobs/${id}`);
     await screen.findByDisplayValue(row.title);
-    fireEvent.click(screen.getByRole('tab', { name: 'Application' }));
+    fireEvent.click(screen.getByRole('tab', { name: /^Application/ }));
     expect(screen.getByLabelText('Last HR contact date')).toHaveValue(
       [...dates].sort().at(-1) ?? '',
     );
@@ -265,7 +265,7 @@ test.each([
     });
     expect(screen.getByText('Unsaved changes')).toBeVisible();
     fireEvent.click(screen.getByRole('tab', { name: 'Overview' }));
-    fireEvent.click(screen.getByRole('tab', { name: 'Application' }));
+    fireEvent.click(screen.getByRole('tab', { name: /^Application/ }));
     expect(screen.getByLabelText('Last HR contact date')).toHaveValue(value);
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     await screen.findByText(/Could not save or load opportunities/);
@@ -288,7 +288,7 @@ test.each([
     view.unmount();
     mount(`/jobs/${id}`);
     await screen.findByDisplayValue(row.title);
-    fireEvent.click(screen.getByRole('tab', { name: 'Application' }));
+    fireEvent.click(screen.getByRole('tab', { name: /^Application/ }));
     expect(screen.getByLabelText('Last HR contact date')).toHaveValue(latest);
   },
 );
@@ -309,7 +309,7 @@ test('application details set, reopen, edit, survive failure and clear independe
   );
   let view = mount(`/jobs/${id}`);
   await screen.findByDisplayValue(row.title);
-  fireEvent.click(screen.getByRole('tab', { name: 'Application' }));
+  fireEvent.click(screen.getByRole('tab', { name: /^Application/ }));
   fireEvent.change(screen.getByLabelText('Next follow-up date'), {
     target: { value: '2026-11-05' },
   });
@@ -332,7 +332,7 @@ test('application details set, reopen, edit, survive failure and clear independe
   view.unmount();
   view = mount(`/jobs/${id}`);
   await screen.findByDisplayValue('Referral');
-  fireEvent.click(screen.getByRole('tab', { name: 'Application' }));
+  fireEvent.click(screen.getByRole('tab', { name: /^Application/ }));
   expect(screen.getByLabelText('Applied date')).toHaveValue('2024-02-29');
   fail = true;
   fireEvent.change(screen.getByLabelText('Applied date'), {
@@ -374,7 +374,7 @@ test('application details set, reopen, edit, survive failure and clear independe
   view.unmount();
   mount(`/jobs/${id}`);
   await screen.findByDisplayValue(row.title);
-  fireEvent.click(screen.getByRole('tab', { name: 'Application' }));
+  fireEvent.click(screen.getByRole('tab', { name: /^Application/ }));
   expect(screen.getByLabelText('Applied date')).toHaveValue('');
   expect(screen.getByLabelText('Application channel')).toHaveValue('');
 });
@@ -394,7 +394,7 @@ test('preserves full contact history on unrelated saves and replaces within the 
   );
   mount(`/jobs/${id}`);
   await screen.findByDisplayValue(row.title);
-  fireEvent.click(screen.getByRole('tab', { name: 'Application' }));
+  fireEvent.click(screen.getByRole('tab', { name: /^Application/ }));
   fireEvent.change(screen.getByLabelText('Application notes'), {
     target: { value: 'Synthetic note' },
   });
@@ -423,7 +423,7 @@ test('dirty chip stays in metadata and save success is a dismissible notificatio
   );
   mount(`/jobs/${id}`);
   await screen.findByDisplayValue(row.title);
-  fireEvent.click(screen.getByRole('tab', { name: 'Application' }));
+  fireEvent.click(screen.getByRole('tab', { name: /^Application/ }));
   const chip = screen.getByText('Unsaved changes').closest('.MuiChip-root')!;
   const metadata = chip.parentElement;
   const tabs = screen.getByRole('tablist');
@@ -484,7 +484,7 @@ test('save failure persists until dismissed, preserves edits and blocks duplicat
   vi.stubGlobal('fetch', fetch);
   mount(`/jobs/${id}`);
   await screen.findByDisplayValue(row.title);
-  fireEvent.click(screen.getByRole('tab', { name: 'Application' }));
+  fireEvent.click(screen.getByRole('tab', { name: /^Application/ }));
   const notes = screen.getByLabelText('Application notes');
   fireEvent.change(notes, { target: { value: 'Keep this edit' } });
   const form = notes.closest('form')!;

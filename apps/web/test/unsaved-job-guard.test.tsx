@@ -99,8 +99,8 @@ test('Escape preserves the blocked dialog, Tab stays trapped, and only explicit 
   const user = userEvent.setup();
   const { dialog, stay } = await openWithKeyboard(user);
   const discard = screen.getByRole('button', { name: 'Discard and leave' });
-  expect(stay).toHaveClass('MuiButton-outlined', 'MuiButton-colorPrimary');
-  expect(discard).toHaveClass('MuiButton-outlined', 'MuiButton-colorError');
+  expect(stay).toHaveClass('MuiButton-contained', 'MuiButton-colorPrimary');
+  expect(discard).toHaveClass('MuiButton-outlined', 'MuiButton-colorPrimary');
   await user.keyboard('{Escape}');
   expect(dialog).toBeVisible();
   expect(router.state.location.pathname).toBe('/edit');
@@ -174,7 +174,7 @@ test.each(['{Enter}', ' '])(
       ),
     );
     const router = createMemoryRouter([{ path: '*', element: <App /> }], {
-      initialEntries: [`/jobs/${id}?tab=application`],
+      initialEntries: [`/jobs/${id}/application`],
     });
     render(
       <StrictMode>
@@ -203,7 +203,7 @@ test.each(['{Enter}', ' '])(
     const stay = within(dialog).getByRole('button', { name: 'Stay and edit' });
     expect(document.activeElement).toBe(stay);
     expect(sidebar).not.toHaveFocus();
-    expect(router.state.location.pathname).toBe(`/jobs/${id}`);
+    expect(router.state.location.pathname).toBe(`/jobs/${id}/application`);
     const discard = within(dialog).getByRole('button', {
       name: 'Discard and leave',
     });
@@ -220,7 +220,7 @@ test.each(['{Enter}', ' '])(
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
     );
     expect(document.activeElement).toBe(sidebar);
-    expect(router.state.location.pathname).toBe(`/jobs/${id}`);
+    expect(router.state.location.pathname).toBe(`/jobs/${id}/application`);
     expect(
       screen.getByRole('textbox', { name: 'Application notes' }),
     ).toHaveValue('Unsaved Application notes');
