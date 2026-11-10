@@ -382,6 +382,18 @@ test('manual source selection is retained when readiness refreshes', async () =>
       screen.getByRole('heading', { name: 'Step 1 of 3 · Source CV' }),
     ).toHaveFocus(),
   );
+  // A complete step that is current shows its number, not a checkmark.
+  const source = document.getElementById('tailored-step-0')!;
+  const sourceIcon = source.querySelector('[data-step-state]')!;
+  expect(sourceIcon).toHaveAttribute('data-step-state', 'current');
+  expect(sourceIcon).toHaveTextContent('1');
+  expect(sourceIcon.querySelector('svg')).toBeNull();
+  expect(source).toHaveAttribute('aria-current', 'step');
+  expect(
+    document
+      .getElementById('tailored-step-1')!
+      .querySelector('[data-step-state]'),
+  ).not.toHaveAttribute('data-step-state', 'current');
 });
 
 test('a replacement from another view is adopted on focus without analysis', async () => {
