@@ -471,7 +471,19 @@ export function segmentSource(source: string): Passage[] {
       continue;
     }
     if (kind === 'skills' && !label && knownSkillCategory.test(title)) {
-      push(start, end, false, 'skill_category');
+      // Without PDF geometry a lone category word right after a value line may
+      // be that line's wrap ("…, Stakeholder / Communication"); ask the user.
+      const previous = raw.at(-1);
+      push(
+        start,
+        end,
+        false,
+        'skill_category',
+        previous?.kind === 'skills' &&
+          !previous.heading &&
+          previous.hint !== 'skill_category' &&
+          previous.block === block,
+      );
       continue;
     }
     if (

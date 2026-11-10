@@ -545,7 +545,8 @@ test('Load selected older approved draft from preview opens Step 3 and preserves
   await screen.findByRole('heading', { name: 'Step 2 of 3 · Tailor & Review' });
   fireEvent.click(screen.getByText('Switch draft (2)'));
   fireEvent.click(screen.getByRole('button', { name: /^Draft 1 .*version 3/ }));
-  await screen.findByText('Distinct older draft content.');
+  // Shown in the CV document and in its suggestion card.
+  await screen.findAllByText('Distinct older draft content.');
   expect(screen.getByText(/Opened Draft 1\./)).toBeVisible();
   expect(
     screen.getByRole('button', { name: /^Draft 1 .*Open now$/ }),
@@ -555,7 +556,9 @@ test('Load selected older approved draft from preview opens Step 3 and preserves
   ).toBeVisible();
   fireEvent.focus(window);
   fireEvent.click(screen.getByText(/^Full CV:/));
-  expect(screen.getByText('Distinct older draft content.')).toBeVisible();
+  expect(
+    screen.getAllByText('Distinct older draft content.').at(-1),
+  ).toBeVisible();
 });
 
 test.each(['VALID', 'EXPIRED', 'MISSING'])(
@@ -691,7 +694,9 @@ test('focus revalidation keeps saved workspace and completion labels stable whil
   expect(
     screen.getAllByText('Assisted a team prototype only.')[0],
   ).toBeVisible();
-  expect(generate).toBeDisabled();
+  // Same-context revalidation keeps the last valid readiness: no disabled
+  // flash. The server still rejects stale pins at generation.
+  expect(generate).toBeEnabled();
   state.releaseRefresh();
   await waitFor(() => expect(generate).toBeEnabled());
   expect(lists()).toBe(listBefore);

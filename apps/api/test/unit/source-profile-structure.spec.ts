@@ -706,3 +706,20 @@ test('model-labelled employers without a source group get no shared link', () =>
     doc.sections.flatMap((s) => s.entries).some((e) => e.employerFactId),
   ).toBe(false);
 });
+
+test('text-only skills: a category word after a value line may be a wrap, so it is uncertain', () => {
+  // Two-column PDF rows flattened to text: the Leadership row wraps onto a
+  // second line that happens to match a category name (synthetic data).
+  const text =
+    'Alex Example\nTECHNICAL SKILLS\nLeadership Team Leadership, Agile, Stakeholder\nCommunication\nBackend Java, Spring Boot\n';
+  const wrapped = sourcePassages(text).find(
+    (p) => p.text.trim() === 'Communication',
+  )!;
+  expect(wrapped.uncertain).toBe(true);
+  // A category line that opens the block is still recognized with confidence.
+  const opening = sourcePassages(
+    'Alex Example\nTECHNICAL SKILLS\nCommunication\nPublic speaking, Writing\n',
+  ).find((p) => p.text.trim() === 'Communication')!;
+  expect(opening.hint).toBe('skill_category');
+  expect(opening.uncertain).toBeFalsy();
+});

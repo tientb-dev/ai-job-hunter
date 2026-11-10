@@ -1920,3 +1920,27 @@ version (the draft list has no review/approval state, and a revision number does
 not convey it, so nothing else is shown), and follow-up due state or date. Match
 messaging separates "Not analyzed yet" (no saved match) from "Outdated" (a saved
 match invalidated by CV, job or rule changes) in both the assessment and advice.
+
+### Document-first Tailored CV review
+
+In Tailor & Review the CV preview is the primary surface. Each fact with a
+suggestion is an anchor keyed by its stable fact id (`data-fact-id`), supplied
+through an optional preview context so the CV component stays theme-independent
+and renders unchanged without it. Anchor states (to review, decided, excluded,
+needs your check) use distinct underline styles plus screen-reader text, never
+color alone. Desktop shows the existing suggestion cards in a sticky panel synced
+with the document; mobile shows the selected card in a non-modal bottom sheet.
+Cards, queued operations, explicit Save, conflict acknowledgement, the Full CV
+editor (edit, include, restore), approval and export are reused unchanged.
+Suggestions without an anchor (excluded, or merged into another line by the
+layout) stay reachable from the panel list and Previous/Next.
+Suggestion cards offer a contextual Edit that renders the same fact field as
+the Full CV editor; both read the derived draft and queue the same `edit`
+operation, so unsaved state, validation and explicit Save stay shared.
+
+Text-only Skills structuring (no PDF geometry) no longer labels a lone category
+word that directly follows a value line as a confident `skill_category`: in
+flattened two-column tables it is usually that row's wrapped value. It is
+proposed as uncertain for the user to confirm. Saved profiles and drafts keep
+their confirmed structure; correcting one means re-reviewing the source CV and
+generating a new draft.

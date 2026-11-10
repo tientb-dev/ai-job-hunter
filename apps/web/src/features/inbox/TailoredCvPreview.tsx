@@ -1,3 +1,4 @@
+import { createContext, useContext, type KeyboardEvent } from 'react';
 import { Box, Link, Paper, Stack, Typography } from '@mui/material';
 import type { DraftFact } from './tailored-cv.contract';
 import {
@@ -31,6 +32,99 @@ const cvPaper = {
   '& .MuiTypography-root': { fontFamily: 'inherit' },
 } as const;
 
+export type FactAnchorState = 'pending' | 'decided' | 'excluded' | 'conflict';
+/** Optional review overlay: facts with a suggestion become selectable anchors. */
+export interface FactAnchors {
+  states: Record<string, FactAnchorState>;
+  activeId: string | null;
+  onSelect: (factId: string) => void;
+}
+const visuallyHidden = {
+  // Pixel strings: in sx a bare 1 means 100%.
+  position: 'absolute',
+  width: '1px',
+  height: '1px',
+  margin: '-1px',
+  padding: 0,
+  border: 0,
+  overflow: 'hidden',
+  clip: 'rect(0 0 0 0)',
+  whiteSpace: 'nowrap',
+} as const;
+const AnchorContext = createContext<FactAnchors | null>(null);
+const anchorLabel: Record<FactAnchorState, string> = {
+  pending: 'suggestion to review',
+  decided: 'suggestion decided',
+  excluded: 'excluded from download',
+  conflict: 'needs your check',
+};
+// Distinct line styles so state never relies on color alone.
+const anchorStyle: Record<FactAnchorState, object> = {
+  pending: { textDecorationStyle: 'dashed', textDecorationColor: '#a35f00' },
+  conflict: { textDecorationStyle: 'wavy', textDecorationColor: '#c2372e' },
+  decided: { textDecorationStyle: 'solid', textDecorationColor: '#1f7a45' },
+  excluded: { textDecorationLine: 'line-through', opacity: 0.6 },
+};
+function useAnchor(id: string) {
+  const anchors = useContext(AnchorContext);
+  const state = anchors?.states[id];
+  if (!anchors || !state) return { props: {}, sx: {}, label: null };
+  const active = anchors.activeId === id;
+  return {
+    props: {
+      'data-fact-id': id,
+      role: 'button',
+      tabIndex: 0,
+      'aria-pressed': active,
+      onClick: () => anchors.onSelect(id),
+      onKeyDown: (event: KeyboardEvent) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          anchors.onSelect(id);
+        }
+      },
+    },
+    sx: {
+      cursor: 'pointer',
+      borderRadius: '2px',
+      textDecorationLine: 'underline',
+      textDecorationThickness: '2px',
+      textUnderlineOffset: '3px',
+      scrollMarginTop: 96,
+      ...anchorStyle[state],
+      ...(active && {
+        bgcolor: 'rgba(47, 91, 211, 0.10)',
+        boxShadow: 'inset 3px 0 0 #2f5bd3',
+      }),
+      '&:focus-visible': { outline: '2px solid #2f5bd3', outlineOffset: 2 },
+    },
+    label: (
+      <Box component="span" sx={visuallyHidden}>
+        {` (${anchorLabel[state]})`}
+      </Box>
+    ),
+  };
+}
+function FactText({
+  id,
+  children,
+  sx,
+  ...props
+}: {
+  id: string;
+  children: React.ReactNode;
+  sx?: object;
+  component?: React.ElementType;
+} & Omit<React.ComponentProps<typeof Typography>, 'id' | 'sx'>) {
+  const anchor = useAnchor(id);
+  return (
+    <Typography {...props} {...anchor.props} sx={{ ...sx, ...anchor.sx }}>
+      {children}
+      {anchor.label}
+    </Typography>
+  );
+}
+
 // Display text: reflowed; skills categories lose a trailing colon, as in export.
 const display = (fact: DraftFact) =>
   fact.field === 'skill_category'
@@ -53,14 +147,15 @@ function Lines({
   weight?: number;
 }) {
   return facts.map((fact) => (
-    <Typography
+    <FactText
       key={fact.id}
+      id={fact.id}
       variant={variant}
       color={color}
       sx={{ ...text, fontWeight: weight }}
     >
       {display(fact)}
-    </Typography>
+    </FactText>
   ));
 }
 
@@ -72,20 +167,21 @@ function EntryView({ kind, facts }: { kind: string; facts: DraftFact[] }) {
     return (
       <Box>
         {name.map((fact) => (
-          <Typography
+          <FactText
             key={fact.id}
+            id={fact.id}
             variant="h6"
             component="p"
             sx={{ ...text, fontWeight: 600 }}
           >
             {display(fact)}
-          </Typography>
+          </FactText>
         ))}
         <Lines facts={headline} color="text.secondary" />
         {rest.map((fact) => {
           const href = professionalProfileHref(fact.acceptedText);
           return (
-            <Typography key={fact.id} variant="body2" sx={text}>
+            <FactText key={fact.id} id={fact.id} variant="body2" sx={text}>
               {href ? (
                 <Link href={href} target="_blank" rel="noopener noreferrer">
                   {display(fact)}
@@ -93,7 +189,7 @@ function EntryView({ kind, facts }: { kind: string; facts: DraftFact[] }) {
               ) : (
                 display(fact)
               )}
-            </Typography>
+            </FactText>
           );
         })}
       </Box>
@@ -131,9 +227,12 @@ function EntryView({ kind, facts }: { kind: string; facts: DraftFact[] }) {
               spacing={{ xs: 0, sm: 2 }}
               sx={{ justifyContent: 'space-between', pt: 0.5 }}
             >
-              <Typography sx={{ ...text, minWidth: 0, fontWeight: 600 }}>
+              <FactText
+                id={row.id}
+                sx={{ ...text, minWidth: 0, fontWeight: 600 }}
+              >
                 {row.text}
-              </Typography>
+              </FactText>
               {row.aside && (
                 <Typography
                   variant="body2"
@@ -145,14 +244,15 @@ function EntryView({ kind, facts }: { kind: string; facts: DraftFact[] }) {
               )}
             </Stack>
           ) : (
-            <Typography
+            <FactText
               key={row.id}
+              id={row.id}
               variant={row.style === 'detail' ? 'body2' : 'body1'}
               color={row.style === 'detail' ? 'text.secondary' : undefined}
               sx={text}
             >
               {row.text}
-            </Typography>
+            </FactText>
           ),
         )}
       </Stack>
@@ -189,33 +289,41 @@ export function CvSectionView({
   );
 }
 
-export function TailoredCvPreview({ document }: { document: Document }) {
+export function TailoredCvPreview({
+  document,
+  anchors = null,
+}: {
+  document: Document;
+  anchors?: FactAnchors | null;
+}) {
   return (
-    <Paper variant="outlined" sx={cvPaper}>
-      <Stack spacing={3}>
-        {sortSections(document.sections).map((section) =>
-          displayEntries(document, section).length ? (
-            <Box key={section.id}>
-              {section.kind !== 'contact' && (
-                <Typography
-                  variant="subtitle1"
-                  component="h3"
-                  sx={{
-                    fontWeight: 600,
-                    pb: 0.5,
-                    mb: 1,
-                    borderBottom: 1,
-                    borderColor: 'divider',
-                  }}
-                >
-                  {sectionTitle(section.kind)}
-                </Typography>
-              )}
-              <CvSectionView document={document} section={section} />
-            </Box>
-          ) : null,
-        )}
-      </Stack>
-    </Paper>
+    <AnchorContext.Provider value={anchors}>
+      <Paper variant="outlined" sx={cvPaper}>
+        <Stack spacing={3}>
+          {sortSections(document.sections).map((section) =>
+            displayEntries(document, section).length ? (
+              <Box key={section.id}>
+                {section.kind !== 'contact' && (
+                  <Typography
+                    variant="subtitle1"
+                    component="h3"
+                    sx={{
+                      fontWeight: 600,
+                      pb: 0.5,
+                      mb: 1,
+                      borderBottom: 1,
+                      borderColor: 'divider',
+                    }}
+                  >
+                    {sectionTitle(section.kind)}
+                  </Typography>
+                )}
+                <CvSectionView document={document} section={section} />
+              </Box>
+            ) : null,
+          )}
+        </Stack>
+      </Paper>
+    </AnchorContext.Provider>
   );
 }

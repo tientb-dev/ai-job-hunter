@@ -72,3 +72,26 @@ test('no notice when the draft uses the current review', async () => {
   await screen.findByText(/suggestions decided/);
   expect(screen.queryByRole('alert', { name: 'Earlier CV review' })).toBeNull();
 });
+
+test('returning to the tab rechecks readiness without remounting the notice', async () => {
+  setup('00000000-0000-4000-8000-00000000abcd');
+  const notice = await screen.findByRole('alert', {
+    name: 'Earlier CV review',
+  });
+  const readinessCalls = () =>
+    vi
+      .mocked(fetch)
+      .mock.calls.filter(([url]) => String(url).endsWith('/drafts/readiness'))
+      .length;
+  const before = readinessCalls();
+  // Window focus fires when the user switches back to this browser tab.
+  fireEvent.focus(window);
+  await waitFor(() => expect(readinessCalls()).toBeGreaterThan(before));
+  // The same element stays mounted through the recheck (no unmount/remount).
+  expect(notice).toBeInTheDocument();
+  await waitFor(() =>
+    expect(screen.getByRole('alert', { name: 'Earlier CV review' })).toBe(
+      notice,
+    ),
+  );
+});

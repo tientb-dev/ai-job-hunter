@@ -427,7 +427,11 @@ test('unsafe wording is flagged and discarded while the complete original CV rem
   await ready();
   mode = 'unsafe';
   const response = await post().expect(201);
-  expect(JSON.stringify(response.body.document)).not.toContain('500');
+  // Match the rejected wording itself: random ids, hashes and timestamps in
+  // the document can contain "500" by chance.
+  expect(JSON.stringify(response.body.document)).not.toContain(
+    'Led 500 production Kubernetes',
+  );
   expect(response.body.document.reviewIssues).toContainEqual(
     expect.objectContaining({ code: 'CV_DRAFT_UNSAFE_REWRITE' }),
   );
