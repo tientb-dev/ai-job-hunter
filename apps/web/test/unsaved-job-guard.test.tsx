@@ -192,7 +192,7 @@ test.each(['{Enter}', ' '])(
     // dialog action from the test or substituting a local editor Back link.
     const sidebar = within(
       screen.getByRole('navigation', { name: 'Main navigation' }),
-    ).getByRole('link', { name: 'Settings' });
+    ).getByRole('link', { name: 'My CV' });
     for (let i = 0; document.activeElement !== sidebar && i < 50; i++)
       await user.tab();
     expect(document.activeElement).toBe(sidebar);

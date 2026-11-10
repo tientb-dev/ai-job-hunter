@@ -531,7 +531,7 @@ test.each(['NEW', 'SEEN', 'SAVED', 'DISMISSED'] as const)(
       expect(button).not.toHaveClass('MuiButton-contained');
     }
     expect(within(filters).getByRole('button', { name: 'All' })).toHaveStyle({
-      backgroundColor: 'rgba(23, 107, 91, 0.08)',
+      backgroundColor: 'rgba(47, 91, 211, 0.08)',
     });
     await userEvent.click(review);
     const dialog = await screen.findByRole('dialog', {
