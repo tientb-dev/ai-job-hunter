@@ -5,6 +5,7 @@ import {
   Button,
   Link as MuiLink,
   Paper,
+  Skeleton,
   Stack,
   Typography,
 } from '@mui/material';
@@ -16,6 +17,7 @@ import { SourceCvReview } from './SourceCvReview';
 import { UnsavedJobGuard } from './UnsavedJobGuard';
 import type { SavedCv } from './useCvMatch';
 
+// null: no review saved yet.
 type Progress = { reviewed: number; total: number } | null;
 
 // Read-only summary of the saved review. Capture is idempotent for an
@@ -45,7 +47,8 @@ export function MyCv() {
   const [loaded, setLoaded] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
-  const [progress, setProgress] = useState<Progress>(null);
+  // undefined while loading; 'error' must never read as "not reviewed".
+  const [progress, setProgress] = useState<Progress | 'error'>();
   const [reviewDirty, setReviewDirty] = useState(false);
   const [reviewBusy, setReviewBusy] = useState(false);
   const saved = useRef(false);
@@ -69,7 +72,7 @@ export function MyCv() {
   }, []);
   const refreshProgress = useCallback(() => {
     if (!cv) return;
-    readProgress(cv).then(setProgress, () => setProgress(null));
+    readProgress(cv).then(setProgress, () => setProgress('error'));
   }, [cv]);
   useEffect(refreshProgress, [refreshProgress]);
   async function upload(file: File) {
@@ -80,7 +83,7 @@ export function MyCv() {
         method: 'POST',
         body: importUpload({}, file),
       });
-      setProgress(null);
+      setProgress(undefined);
       setCv(next);
     } catch (failure) {
       setError(
@@ -92,7 +95,10 @@ export function MyCv() {
   }
   const locked = uploading || reviewBusy || reviewDirty;
   const reviewed =
-    progress && progress.total > 0 && progress.reviewed === progress.total;
+    typeof progress === 'object' &&
+    progress !== null &&
+    progress.total > 0 &&
+    progress.reviewed === progress.total;
   return (
     <Stack spacing={3} sx={{ minWidth: 0 }}>
       <UnsavedJobGuard
@@ -115,19 +121,68 @@ export function MyCv() {
             Source CV
           </Typography>
           {!loaded ? (
-            <Typography role="status">Loading your CV…</Typography>
+            // Reserves the file, date, status, button and note rows of a saved CV.
+            <Stack spacing={1.5} role="status" aria-label="Loading your CV">
+              <Box>
+                <Skeleton width="45%" />
+                <Skeleton
+                  variant="text"
+                  width="35%"
+                  sx={{ fontSize: '0.875rem' }}
+                />
+                <Skeleton
+                  variant="text"
+                  width="30%"
+                  sx={{ fontSize: '0.875rem', mt: 0.5 }}
+                />
+              </Box>
+              <Skeleton
+                variant="rounded"
+                sx={{
+                  height: { xs: 44, sm: 36 },
+                  width: { xs: '100%', sm: 170 },
+                }}
+              />
+              {/* The replace note wraps to two lines on phones. */}
+              <Typography variant="body2" component="div">
+                <Skeleton width="90%" />
+                <Skeleton width="30%" sx={{ display: { sm: 'none' } }} />
+              </Typography>
+            </Stack>
           ) : cv ? (
             <Box sx={{ overflowWrap: 'anywhere' }}>
               <Typography sx={{ fontWeight: 600 }}>{cv.fileName}</Typography>
               <Typography variant="body2" color="text.secondary">
                 Saved {new Date(cv.updatedAt).toLocaleString()}
               </Typography>
-              <Typography variant="body2" role="status" sx={{ mt: 0.5 }}>
-                {!progress
-                  ? 'Not reviewed yet'
-                  : reviewed
-                    ? `Reviewed · ${progress.total} of ${progress.total} sections`
-                    : `${progress.reviewed} of ${progress.total} sections reviewed`}
+              <Typography
+                variant="body2"
+                role="status"
+                component="div"
+                sx={{ mt: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}
+              >
+                {progress === undefined ? (
+                  <Skeleton width={170} aria-label="Loading review status" />
+                ) : progress === 'error' ? (
+                  <>
+                    Review status unavailable.
+                    <Button
+                      size="small"
+                      onClick={() => {
+                        setProgress(undefined);
+                        refreshProgress();
+                      }}
+                    >
+                      Retry
+                    </Button>
+                  </>
+                ) : !progress ? (
+                  'Not reviewed yet'
+                ) : reviewed ? (
+                  `Reviewed · ${progress.total} of ${progress.total} sections`
+                ) : (
+                  `${progress.reviewed} of ${progress.total} sections reviewed`
+                )}
               </Typography>
             </Box>
           ) : (
@@ -180,6 +235,13 @@ export function MyCv() {
             key={cv.updatedAt}
             myCv
             wizardEntry={!reviewed}
+            entryState={
+              progress === undefined
+                ? 'loading'
+                : progress === 'error'
+                  ? 'unknown'
+                  : undefined
+            }
             cv={cv}
             disabled={uploading}
             onDirtyChange={setReviewDirty}
