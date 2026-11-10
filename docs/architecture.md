@@ -11,7 +11,7 @@ package or separate application-tracking service.
 Vite serves the browser on loopback port 5173 and proxies `/api` to port 3000.
 API routes use `/api/v1`; liveness is independent of database readiness.
 `App.tsx` mounts Job Inbox at `/dashboard` and `/jobs`, JobEditor at `/jobs/new`
-and `/jobs/:id`, and the retained CV/review dashboard at `/cv`.
+and `/jobs/:id`, My CV at `/cv`, and the retained CV/JD analyzer at `/cv/analyze`.
 
 ## Module ownership and product flows
 
@@ -1904,6 +1904,18 @@ independent of the app theme. Navigation is reduced to Jobs, Discover and My CV;
 retired placeholder routes redirect to Jobs. Alternatives considered: refining
 Calm Teal (lower churn, but teal kept meaning brand, action and status at once)
 and a document-only Paper theme (too sparse for job tables).
+
+### My CV
+
+`/cv` is the home of the shared source CV. It reuses the existing owner-scoped
+endpoints (`/opportunities/cv/current`, `/tailored-cv/sources…`) and
+`SourceCvReview`, so My CV and each job's Source CV step read and write the same
+persisted review; no new state or data model. Progress is read by capturing the
+current CV (idempotent for an unchanged CV) and reading its latest profile,
+without creating one. Job views fetch the CV on mount, so returning from My CV
+shows the latest state. Replacing the CV never touches drafts, which stay pinned
+to their own source revision. The legacy analyzer moved to `/cv/analyze` as a
+secondary tool rather than being removed.
 
 ### Job workspace navigation
 

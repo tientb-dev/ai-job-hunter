@@ -44,8 +44,11 @@ export function SourceCvReview({
   onContinue,
   onSaved,
   wizardEntry = false,
+  myCv = false,
 }: {
   wizardEntry?: boolean;
+  /** Shared My CV page: shorter intro, safeguard shown once the review opens. */
+  myCv?: boolean;
   cv: { fileName: string; updatedAt: string } | null;
   disabled: boolean;
   onDirtyChange: (dirty: boolean) => void;
@@ -430,14 +433,14 @@ export function SourceCvReview({
       component="section"
       spacing={2}
       sx={{
-        mt: 3,
+        mt: onContinue ? 3 : 0,
         minWidth: 0,
         overflowWrap: 'anywhere',
         '& .MuiButton-root': { minHeight: 44 },
       }}
       aria-labelledby="source-cv-review-title"
     >
-      <Divider />
+      {onContinue && <Divider />}
       <Typography
         id="source-cv-review-title"
         tabIndex={-1}
@@ -449,12 +452,17 @@ export function SourceCvReview({
       <Typography>
         {legacy
           ? 'Organize your saved CV first. Then check highlighted details and mark each section as checked.'
-          : 'Check that your CV is organized correctly and mark each section as checked. Save draft keeps unfinished work; Complete review saves and continues to your tailored CV.'}
+          : !myCv
+            ? 'Check that your CV is organized correctly and mark each section as checked. Save draft keeps unfinished work; Complete review saves and continues to your tailored CV.'
+            : 'Check and correct your CV details before using them to tailor applications. Your review is shared across jobs.'}
       </Typography>
-      <Typography variant="body2" color="text.secondary">
-        Confirmation records your review, not independent verification. Original
-        text and evidence are kept when you make corrections.
-      </Typography>
+      {/* My CV keeps this safeguard inside the opened review; the job flow always shows it. */}
+      {(!myCv || profile) && (
+        <Typography variant="body2" color="text.secondary">
+          Confirmation records your review, not independent verification.
+          Original text and evidence are kept when you make corrections.
+        </Typography>
+      )}
       {!profile && reuseOffer && (
         <Alert severity="info" aria-label="Earlier review found">
           <Stack spacing={1.5}>
@@ -496,7 +504,7 @@ export function SourceCvReview({
           disabled={blocked || !cv}
           onClick={() => void run(openReview)}
         >
-          Review source CV
+          {myCv && !wizardEntry ? 'View / Edit review' : 'Review source CV'}
         </Button>
       )}
       {!cv && (
@@ -1597,7 +1605,7 @@ export function SourceCvReview({
                       setMessage(
                         onContinue
                           ? 'Source CV review complete.'
-                          : 'Source review complete. Generate your tailored CV next.',
+                          : 'Source review complete. Tailored CVs will use this review.',
                       );
                       onContinue?.();
                     });

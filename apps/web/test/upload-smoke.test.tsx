@@ -1,3 +1,4 @@
+import { MemoryRouter } from 'react-router-dom';
 import { execFileSync } from 'node:child_process';
 import { expect, test, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
@@ -52,9 +53,10 @@ for (const scenario of [
             }),
       );
       vi.stubGlobal('fetch', fetch);
-      render(<Dashboard />);
-      fireEvent.click(
-        screen.getByText('Existing CV/JD extraction and fact review'),
+      render(
+        <MemoryRouter>
+          <Dashboard />
+        </MemoryRouter>,
       );
       await userEvent.upload(
         screen.getByLabelText('CV file (PDF or DOCX)'),

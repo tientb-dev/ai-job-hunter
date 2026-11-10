@@ -1,3 +1,4 @@
+import { MemoryRouter } from 'react-router-dom';
 import { expect, test, vi } from 'vitest';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -150,7 +151,11 @@ test('input edits and Clear remove completed feedback with the result', async ()
     'fetch',
     vi.fn().mockImplementation(() => json(completed())),
   );
-  render(<Dashboard />);
+  render(
+    <MemoryRouter>
+      <Dashboard />
+    </MemoryRouter>,
+  );
   await fillAndAnalyze();
   await screen.findByRole('group', { name: 'Feedback for requirement 1' });
   await userEvent.click(
@@ -187,7 +192,11 @@ test('cancellation and subsequent incomplete or client-error results cannot reta
     .mockResolvedValueOnce(json(completed()))
     .mockRejectedValueOnce(new Error('private network failure'));
   vi.stubGlobal('fetch', fetch);
-  render(<Dashboard />);
+  render(
+    <MemoryRouter>
+      <Dashboard />
+    </MemoryRouter>,
+  );
   await fillAndAnalyze();
   await screen.findByRole('group', { name: 'Feedback for requirement 1' });
   await userEvent.click(

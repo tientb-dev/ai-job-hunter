@@ -1,3 +1,4 @@
+import { MemoryRouter } from 'react-router-dom';
 import { expect, test, vi } from 'vitest';
 import {
   act,
@@ -25,9 +26,10 @@ import {
 } from '../src/features/dashboard/analysis-validation';
 import { completed, incomplete } from './fixtures/analysis';
 function renderDashboard() {
-  const view = render(<Dashboard />);
-  fireEvent.click(
-    screen.getByText('Existing CV/JD extraction and fact review'),
+  const view = render(
+    <MemoryRouter>
+      <Dashboard />
+    </MemoryRouter>,
   );
   return view;
 }
