@@ -524,10 +524,10 @@ test('empty Inbox keeps primary Add and outlined task navigation alternatives', 
   );
   mount('/jobs');
   await screen.findByText('No saved opportunities yet');
-  expect(screen.getByRole('link', { name: 'Discover Jobs' })).toHaveClass(
+  expect(screen.getByRole('link', { name: 'Discover jobs' })).toHaveClass(
     'MuiButton-outlined',
   );
-  const add = screen.getAllByRole('link', { name: 'Add Job' });
+  const add = screen.getAllByRole('link', { name: 'Add job' });
   expect(add).toHaveLength(2);
   expect(add[0]).toHaveClass('MuiButton-contained');
   expect(add[1]).toHaveClass('MuiButton-outlined');

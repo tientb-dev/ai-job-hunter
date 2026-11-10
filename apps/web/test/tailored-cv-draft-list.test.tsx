@@ -85,7 +85,7 @@ test('after Source CV Review the new-draft action is open; a generated draft joi
   );
   // Discoverable without generating anything automatically.
   expect(document.getElementById('generate-new-draft')).toHaveAttribute('open');
-  expect(screen.getByText(/Source review saved/)).toBeVisible();
+  expect(screen.getByText(/Check readiness below, then choose/)).toBeVisible();
   const generate = screen.getByRole('button', { name: 'Generate new draft' });
   await waitFor(() => expect(generate).toBeEnabled());
   fireEvent.click(generate);
@@ -93,7 +93,7 @@ test('after Source CV Review the new-draft action is open; a generated draft joi
   expect(within(current).getByRole('heading')).toHaveTextContent(
     'Draft 2 of 2',
   );
-  expect(screen.queryByText(/Source review saved/)).toBeNull();
+  expect(screen.queryByText(/Check readiness below, then choose/)).toBeNull();
   fireEvent.click(screen.getByText('Switch draft (2)'));
   expect(
     screen.getByRole('button', { name: /^Draft 2 .*Open now$/ }),

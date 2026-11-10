@@ -1,4 +1,11 @@
-import { useContext, useRef, type FocusEvent, type RefObject } from 'react';
+import { DialogCloseButton } from '../../components/DialogCloseButton';
+import {
+  useContext,
+  useEffect,
+  useRef,
+  type FocusEvent,
+  type RefObject,
+} from 'react';
 import {
   Alert,
   Button,
@@ -59,6 +66,39 @@ function RouteGuard({
       (sourceCvDirty || (dirty && !savedNavigation.current)),
   );
   const stay = useRef<HTMLButtonElement>(null);
+  // Last edited control outside dialogs; Stay returns focus there instead of the nav link.
+  const lastField = useRef<HTMLElement | null>(null);
+  const stayed = useRef(false);
+  useEffect(() => {
+    const track = (event: Event) => {
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        target.matches('input, textarea, select, [contenteditable="true"]') &&
+        !target.closest('[role="dialog"]')
+      )
+        lastField.current = target;
+    };
+    document.addEventListener('focusin', track);
+    return () => document.removeEventListener('focusin', track);
+  }, []);
+  const stayHere = () => {
+    if (blocker.state !== 'blocked') return;
+    stayed.current = true;
+    blocker.reset();
+  };
+  // Runs after MUI's own restore to the trigger, which stays the fallback.
+  const restoreField = () => {
+    const field = lastField.current;
+    if (
+      stayed.current &&
+      field?.isConnected &&
+      !field.matches(':disabled') &&
+      field.getClientRects().length > 0
+    )
+      field.focus();
+    stayed.current = false;
+  };
   function handleDialogFocus(event: FocusEvent<HTMLElement>) {
     const button = stay.current;
     // Let Modal/FocusTrap establish and record initial surface focus first.
@@ -77,8 +117,14 @@ function RouteGuard({
       open={blocker.state === 'blocked'}
       aria-labelledby="unsaved-job-title"
       onFocus={handleDialogFocus}
+      // Escape and X behave like Stay and edit: navigation stays blocked, nothing is discarded.
+      onClose={stayHere}
+      slotProps={{ transition: { onExited: restoreField } }}
     >
-      <DialogTitle id="unsaved-job-title">Leave unsaved changes?</DialogTitle>
+      <DialogCloseButton onClick={stayHere} />
+      <DialogTitle id="unsaved-job-title" sx={{ pr: 7 }}>
+        Leave unsaved changes?
+      </DialogTitle>
       <DialogContent>
         <Alert severity="warning">
           {sourceCvDirty
@@ -97,7 +143,7 @@ function RouteGuard({
               outlineOffset: 2,
             },
           })}
-          onClick={() => blocker.state === 'blocked' && blocker.reset()}
+          onClick={stayHere}
         >
           Stay and edit
         </Button>

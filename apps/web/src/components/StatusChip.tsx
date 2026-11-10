@@ -9,6 +9,9 @@ const tones: Record<string, Tone> = {
   CONTACTED: 'info',
   JD_RECEIVED: 'info',
   REJECTED: 'error',
+  // Discovery candidates
+  NEW: 'primary',
+  DISMISSED: 'error',
 };
 
 const sentence = (value: string) => {

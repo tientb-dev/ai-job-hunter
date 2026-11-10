@@ -139,11 +139,7 @@ const legacyTabs: Record<string, WorkspaceView> = {
   application: 'application',
 };
 
-export function JobEditor({
-  onViewportLayoutChange,
-}: {
-  onViewportLayoutChange?: (bounded: boolean) => void;
-}) {
+export function JobEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -166,17 +162,20 @@ export function JobEditor({
   const [summary, setSummary] = useState<MatchPanelSummary | null>(null);
   const today = useLocalCalendarDate();
   const [step, setStep] = useState(0);
+  const stepper = useRef<HTMLDivElement>(null);
+  const shownStep = useRef(step);
+  useEffect(() => {
+    // Page scroll: bring the new step into view, but not on first render.
+    if (shownStep.current === step) return;
+    shownStep.current = step;
+    stepper.current?.scrollIntoView?.({ block: 'start' });
+  }, [step]);
   const [importMethod, setImportMethod] = useState<ImportMethod>('url');
   const theme = useTheme();
   const applicationPanel = useRef<HTMLDivElement>(null);
   const editPanel = useRef<HTMLDivElement>(null);
   const jobDetailsHeading = useRef<HTMLHeadingElement>(null);
   const [formHeight, setFormHeight] = useState<number | null>(null);
-  const usesViewport = !id;
-  useLayoutEffect(() => {
-    onViewportLayoutChange?.(usesViewport);
-    return () => onViewportLayoutChange?.(false);
-  }, [onViewportLayoutChange, usesViewport]);
   const baseline = useRef(JSON.stringify(emptyOpportunity()));
   const savedNavigation = useRef(false);
   const [form, setForm] = useState<OpportunityInput>(emptyOpportunity);
@@ -724,11 +723,13 @@ export function JobEditor({
                   helperText={
                     !jobUrlInfo(form.originalLink).valid
                       ? 'Enter a full HTTP(S) URL without credentials, or leave it blank.'
-                      : `${jobUrlInfo(form.originalLink).platform ? `Platform: ${jobUrlInfo(form.originalLink).platform}. ` : ''}Fetching is manual and supports ITviec only.`
+                      : jobUrlInfo(form.originalLink).platform &&
+                        `Platform: ${jobUrlInfo(form.originalLink).platform}.`
                   }
                 />
                 <Button
                   variant="outlined"
+                  sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
                   disabled={disabled || !canFetchJobUrl(form.originalLink)}
                   onClick={() => void fetchFromUrl()}
                   aria-describedby="url-import-help"
@@ -859,6 +860,7 @@ export function JobEditor({
           <Button
             type="button"
             variant="outlined"
+            sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
             disabled={disabled || (!form.postText.trim() && !file)}
             onClick={() => void extract()}
           >
@@ -902,7 +904,7 @@ export function JobEditor({
               alignItems: 'flex-end',
               justifyContent: 'flex-end',
             }
-          : { '& > .MuiButton-root': { flex: 1, minWidth: 0 } }),
+          : { justifyContent: 'flex-end' }),
       }}
     >
       {!id && (
@@ -926,10 +928,7 @@ export function JobEditor({
     </Stack>
   );
   return (
-    <Stack
-      spacing={3}
-      sx={{ minWidth: 0, ...(usesViewport && { flex: 1, minHeight: 0 }) }}
-    >
+    <Stack spacing={3} sx={{ minWidth: 0 }}>
       {id && legacyTab && (
         <Navigate
           replace
@@ -953,7 +952,7 @@ export function JobEditor({
         }
       />
       <JobActionLayout
-        scrollable={usesViewport}
+        scrollable={false}
         scrollKey={id ? view : String(step)}
         feedbackKey={error}
         active={!id && step === 1}
@@ -1015,7 +1014,7 @@ export function JobEditor({
           )}
           <Box sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>
             <Typography variant="h4" component="h1">
-              {id ? form.title || 'Job details' : 'Add Job'}
+              {id ? form.title || 'Job details' : 'Add job'}
             </Typography>
             <Typography variant={id ? 'body2' : 'body1'} color="text.secondary">
               {id ? (
@@ -1225,7 +1224,7 @@ export function JobEditor({
               </Button>
             </Stack>
           ) : (
-            <Stepper activeStep={step}>
+            <Stepper activeStep={step} ref={stepper}>
               <Step>
                 <StepLabel>Import sources</StepLabel>
               </Step>
@@ -1302,15 +1301,6 @@ export function JobEditor({
                       </Box>
                     ))}
                   </Box>
-                  {form.originalLink && jobUrlInfo(form.originalLink).valid && (
-                    <MuiLink
-                      href={form.originalLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      View Original Job
-                    </MuiLink>
-                  )}
                   <Box component="details">
                     <Typography
                       component="summary"
@@ -1649,16 +1639,6 @@ export function JobEditor({
                         ))}
                       </TextField>
                     )}
-                    {form.originalLink &&
-                      jobUrlInfo(form.originalLink).valid && (
-                        <MuiLink
-                          href={form.originalLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          View Original Job
-                        </MuiLink>
-                      )}
                     <TextField
                       label="Job description"
                       multiline

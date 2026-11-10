@@ -1,9 +1,11 @@
+import { DialogCloseButton } from '../../components/DialogCloseButton';
+import { StatusChip } from '../../components/StatusChip';
 import { useNotify } from '../../components/useNotify';
 import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Button,
-  Chip,
+  Box,
   Dialog,
   DialogActions,
   DialogContent,
@@ -105,8 +107,8 @@ export function DiscoveryCandidateReview({
           severity: 'success',
           text:
             result.outcome === 'created'
-              ? 'Job saved to Inbox.'
-              : 'Linked to the existing Inbox job. Its details and application history are unchanged.',
+              ? 'Job saved to Jobs.'
+              : 'Linked to the existing job. Its details and application history are unchanged.',
         });
       } else {
         const result = await discoveryRequest<CandidateDetail>(
@@ -184,10 +186,9 @@ export function DiscoveryCandidateReview({
             )}
             {candidate && (
               <>
-                <Chip
-                  label={candidate.status}
-                  sx={{ alignSelf: 'flex-start' }}
-                />
+                <Box sx={{ alignSelf: 'flex-start' }}>
+                  <StatusChip status={candidate.status} />
+                </Box>
                 <Typography>
                   {[
                     candidate.company,
@@ -256,7 +257,7 @@ export function DiscoveryCandidateReview({
             '& .MuiButton-root': { minHeight: { xs: 44, sm: 36 } },
           }}
         >
-          <Button variant="outlined" disabled={busy} onClick={onClose}>
+          <Button disabled={busy} onClick={onClose}>
             Close review
           </Button>
           {candidate && !loading && (
@@ -274,6 +275,13 @@ export function DiscoveryCandidateReview({
                 <Button
                   disabled={busy}
                   variant="outlined"
+                  // Neutral until hovered: dismissing is a negative, not a primary, action.
+                  sx={{
+                    '&:hover': {
+                      color: 'error.main',
+                      borderColor: 'error.main',
+                    },
+                  }}
                   onClick={() => void act('DISMISSED')}
                 >
                   Dismiss
@@ -285,7 +293,7 @@ export function DiscoveryCandidateReview({
                   to={`/jobs/${candidate.opportunityId}`}
                   variant="outlined"
                 >
-                  Open Inbox job
+                  Open in Jobs
                 </Button>
               ) : (
                 <Button
@@ -293,7 +301,7 @@ export function DiscoveryCandidateReview({
                   variant="contained"
                   onClick={() => void act('SAVE')}
                 >
-                  Save to Inbox
+                  Save to Jobs
                 </Button>
               )}
             </>
@@ -309,10 +317,11 @@ export function DiscoveryCandidateReview({
         fullWidth
         aria-labelledby="duplicate-confirm-title"
       >
-        <DialogTitle id="duplicate-confirm-title">
+        <DialogCloseButton disabled={busy} onClick={() => setConflict(null)} />
+        <DialogTitle id="duplicate-confirm-title" sx={{ pr: 7 }}>
           {conflict?.code === 'POSSIBLE_DUPLICATE'
             ? 'Possible duplicate job'
-            : 'Multiple exact Inbox matches'}
+            : 'Multiple exact matches in Jobs'}
         </DialogTitle>
         <DialogContent>
           <Stack spacing={2}>
@@ -335,7 +344,7 @@ export function DiscoveryCandidateReview({
             ))}
             <Typography>
               {conflict?.code === 'POSSIBLE_DUPLICATE'
-                ? 'Create a separate Inbox job only if these are different openings. Existing jobs will not be changed.'
+                ? 'Create a separate job only if these are different openings. Existing jobs will not be changed.'
                 : 'No job was created or linked. Review the existing jobs; this candidate remains in the queue.'}
             </Typography>
           </Stack>
@@ -355,7 +364,7 @@ export function DiscoveryCandidateReview({
               disabled={busy}
               onClick={() => void act('SAVE', true)}
             >
-              Create separate Inbox job
+              Save as separate job
             </Button>
           )}
         </DialogActions>

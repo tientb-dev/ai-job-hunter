@@ -674,7 +674,7 @@ test('manual URL survives extraction, save and reopen without fetching the URL',
   );
   await screen.findByRole('heading', { name: 'Job overview' });
   expect(
-    screen.getByRole('link', { name: 'View Original Job' }),
+    screen.getByRole('link', { name: 'Open original job' }),
   ).toHaveAttribute('href', url);
   expect(screen.getByLabelText('Original link')).toHaveValue(url);
   expect(

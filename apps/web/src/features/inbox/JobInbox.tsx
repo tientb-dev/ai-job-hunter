@@ -75,7 +75,7 @@ export function JobInbox() {
         description="Your opportunities, conversations, and next steps."
         actions={
           <Button component={Link} to="/jobs/new" variant="contained">
-            Add Job
+            Add job
           </Button>
         }
       />
@@ -109,7 +109,7 @@ export function JobInbox() {
             }}
           >
             <Typography id="saved-jobs-heading" component="h2" variant="h6">
-              Saved Jobs{!loading && !error ? ` (${rows.length})` : ''}
+              Saved jobs{!loading && !error ? ` (${rows.length})` : ''}
             </Typography>
             <ToggleButtonGroup
               sx={{
@@ -378,14 +378,14 @@ export function JobInbox() {
                               to="/discover"
                               variant="outlined"
                             >
-                              Discover Jobs
+                              Discover jobs
                             </Button>
                             <Button
                               component={Link}
                               to="/jobs/new"
                               variant="outlined"
                             >
-                              Add Job
+                              Add job
                             </Button>
                           </Stack>
                         )}

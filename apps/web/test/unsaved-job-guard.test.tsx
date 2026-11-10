@@ -94,23 +94,48 @@ test.each(['{Enter}', ' '])(
   },
 );
 
-test('Escape preserves the blocked dialog, Tab stays trapped, and only explicit Discard navigates', async () => {
+test('Escape and the X dismiss like Stay, Tab stays trapped, and only explicit Discard navigates', async () => {
   const router = mount();
   const user = userEvent.setup();
-  const { dialog, stay } = await openWithKeyboard(user);
+  const { stay } = await openWithKeyboard(user);
   const discard = screen.getByRole('button', { name: 'Discard and leave' });
   expect(stay).toHaveClass('MuiButton-contained', 'MuiButton-colorPrimary');
   expect(discard).toHaveClass('MuiButton-outlined', 'MuiButton-colorPrimary');
-  await user.keyboard('{Escape}');
-  expect(dialog).toBeVisible();
-  expect(router.state.location.pathname).toBe('/edit');
-  expect(stay).toHaveFocus();
+  const link = screen.getByRole('link', {
+    name: 'Back to Inbox',
+    hidden: true,
+  });
+  for (const dismiss of [
+    () => user.keyboard('{Escape}'),
+    () => user.click(screen.getByRole('button', { name: 'Close dialog' })),
+  ]) {
+    await dismiss();
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    );
+    expect(router.state.location.pathname).toBe('/edit');
+    expect(screen.getByRole('textbox', { name: 'Draft' })).toHaveValue(
+      'Unsaved synthetic draft',
+    );
+    expect(link).toHaveFocus();
+    await user.keyboard('{Enter}');
+    await screen.findByRole('dialog');
+  }
+  const reopenedStay = screen.getByRole('button', { name: 'Stay and edit' });
+  await waitFor(() => expect(reopenedStay).toHaveFocus());
+  const reopenedDiscard = screen.getByRole('button', {
+    name: 'Discard and leave',
+  });
+  const close = screen.getByRole('button', { name: 'Close dialog' });
   await user.tab();
-  expect(discard).toHaveFocus();
+  expect(reopenedDiscard).toHaveFocus();
   await user.tab();
-  expect(stay).toHaveFocus();
+  expect(close).toHaveFocus();
+  await user.tab();
+  expect(reopenedStay).toHaveFocus();
   await user.tab({ shift: true });
-  expect(discard).toHaveFocus();
+  await user.tab({ shift: true });
+  expect(reopenedDiscard).toHaveFocus();
   await user.keyboard(' ');
   expect(
     await screen.findByRole('heading', { name: 'Inbox destination' }),
@@ -142,7 +167,6 @@ test('MUI surface autofocus hands focus to Stay without mount autofocus or trans
     await user.tab();
     expect(document.activeElement).toBe(discard);
     // A modal render does not give initial-focus ownership back to Stay.
-    await user.keyboard('{Escape}');
     await act(async () => {
       await new Promise((resolve) =>
         setTimeout(resolve, theme.transitions.duration.enteringScreen + 30),
@@ -207,10 +231,14 @@ test.each(['{Enter}', ' '])(
     const discard = within(dialog).getByRole('button', {
       name: 'Discard and leave',
     });
+    const close = within(dialog).getByRole('button', { name: 'Close dialog' });
     await user.tab();
     expect(document.activeElement).toBe(discard);
     await user.tab();
+    expect(document.activeElement).toBe(close);
+    await user.tab();
     expect(document.activeElement).toBe(stay);
+    await user.tab({ shift: true });
     await user.tab({ shift: true });
     expect(document.activeElement).toBe(discard);
     await user.tab({ shift: true });
@@ -285,4 +313,30 @@ test('Stay shows the same outline for programmatic focus and removes it when foc
   expect(screen.getByRole('textbox', { name: 'Draft' })).toHaveValue(
     'Unsaved draft',
   );
+});
+
+test('Escape, X and Stay return focus to the last edited field, keeping edits', async () => {
+  // jsdom has no layout; report the field as rendered so restoration applies.
+  vi.spyOn(HTMLElement.prototype, 'getClientRects').mockReturnValue([
+    {},
+  ] as unknown as DOMRectList);
+  const router = mount();
+  const user = userEvent.setup();
+  const draft = screen.getByRole('textbox', { name: 'Draft' });
+  await user.type(draft, 'Unsaved synthetic draft');
+  for (const dismiss of [
+    () => user.keyboard('{Escape}'),
+    () => user.click(screen.getByRole('button', { name: 'Close dialog' })),
+    () => user.click(screen.getByRole('button', { name: 'Stay and edit' })),
+  ]) {
+    await user.click(
+      screen.getByRole('link', { name: 'Back to Inbox', hidden: true }),
+    );
+    await screen.findByRole('dialog', { name: 'Leave unsaved changes?' });
+    await dismiss();
+    await waitFor(() => expect(draft).toHaveFocus());
+    expect(router.state.location.pathname).toBe('/edit');
+    expect(draft).toHaveValue('Unsaved synthetic draft');
+  }
+  vi.restoreAllMocks();
 });

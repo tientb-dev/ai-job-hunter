@@ -54,12 +54,10 @@ test('one portal host queues notifications without replacing persistent errors',
   await act(async () => {
     await vi.advanceTimersByTimeAsync(300);
   });
-  expect(screen.getByRole('status')).toHaveTextContent('Saved successfully');
-  expect(screen.getByRole('status')).toHaveAttribute('aria-live', 'polite');
-  await act(async () => {
-    await vi.advanceTimersByTimeAsync(3500);
-  });
+  // The newer info toast superseded the queued success; the error stayed.
   expect(screen.getByRole('status')).toHaveTextContent('Information');
+  expect(screen.getByRole('status')).toHaveAttribute('aria-live', 'polite');
+  expect(screen.queryByText('Saved successfully')).not.toBeInTheDocument();
   await act(async () => {
     await vi.advanceTimersByTimeAsync(6500);
   });

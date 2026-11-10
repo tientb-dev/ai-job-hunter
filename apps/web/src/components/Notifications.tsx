@@ -7,7 +7,19 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [queue, setQueue] = useState<(Notification & { id: number })[]>([]);
   const notify = useCallback((message: Notification) => {
     const entry = { ...message, id: ++sequence.current };
-    setQueue((current) => [...current, entry]);
+    // The latest completion wins: older success/info toasts would only report
+    // stale state late. Errors and warnings stay queued until dismissed.
+    setQueue((current) =>
+      message.severity === 'success' || message.severity === 'info'
+        ? [
+            ...current.filter(
+              (item) =>
+                item.severity === 'error' || item.severity === 'warning',
+            ),
+            entry,
+          ]
+        : [...current, entry],
+    );
   }, []);
   const current = queue[0];
   return (

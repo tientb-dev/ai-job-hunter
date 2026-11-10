@@ -2,10 +2,15 @@ import { parentPort, workerData } from 'node:worker_threads';
 import { ExtractionError } from './extraction.errors.js';
 import { parserErrorCodes, validateParseRequest } from './parser.protocol.js';
 import { diagnosticFromError } from './pdf-parser.diagnostics.js';
+import { isLateStreamEnqueue } from './pdf-stream-race.js';
 import type { ParseRequest } from './parser.protocol.js';
 import type { ParseResponse } from './parser.protocol.js';
 
 if (!parentPort) throw new Error('Parser worker requires a parent port');
+for (const event of ['uncaughtException', 'unhandledRejection'] as const)
+  process.on(event, (error: unknown) => {
+    if (!isLateStreamEnqueue(error)) throw error;
+  });
 let response: ParseResponse;
 let request: ParseRequest | undefined;
 try {

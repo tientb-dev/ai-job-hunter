@@ -74,7 +74,7 @@ export function DiscoverJobsPage({
         spacing={2}
         sx={{ flexShrink: 0 }}
       >
-        <PageHeader title="Discover Jobs" />
+        <PageHeader title="Discover jobs" />
         <DiscoverJobs onDiscovered={() => setRevision((value) => value + 1)} />
       </Stack>
       <DiscoveryQueue revision={revision} bounded={bounded} />

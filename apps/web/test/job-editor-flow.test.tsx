@@ -363,7 +363,7 @@ test('synthetic document stays attached across steps and reaches extraction unch
   expect(uploaded.type).toBe(document.type);
 });
 
-test('review actions occupy a separate row and language fields stay in the scroll region', async () => {
+test('review actions occupy a separate row below the language fields', async () => {
   const fetch = mockApi();
   mount();
   fetch.mockResolvedValueOnce(
@@ -396,10 +396,8 @@ test('review actions occupy a separate row and language fields stay in the scrol
     name: 'Confirm and save job',
   });
   const actions = screen.getByRole('region', { name: 'Job save actions' });
-  const fields = screen.getByRole('region', { name: 'Scrollable job fields' });
   expect(actions).toContainElement(save);
-  expect(fields).not.toContainElement(save);
-  expect(fields).toContainElement(
+  expect(actions).not.toContainElement(
     screen.getByLabelText('Required language requirements'),
   );
   expect(screen.getByLabelText('Required language requirements')).toBeVisible();
@@ -519,7 +517,7 @@ test('narrow tab strip supports all four tabs and keyboard selection without los
   ).toContainElement(screen.getByRole('button', { name: 'Save changes' }));
 });
 
-test('Overview keeps inline external navigation and an accessible Jobs breadcrumb', async () => {
+test('Job header keeps one original-job link and an accessible Jobs breadcrumb', async () => {
   const fetch = mockApi();
   fetch.mockResolvedValueOnce(
     Response.json({
@@ -529,7 +527,7 @@ test('Overview keeps inline external navigation and an accessible Jobs breadcrum
   );
   mount('/jobs/' + id);
   const original = await screen.findByRole('link', {
-    name: 'View Original Job',
+    name: 'Open original job',
   });
   expect(original).toHaveClass('MuiLink-root');
   expect(original).not.toHaveClass('MuiButton-root');

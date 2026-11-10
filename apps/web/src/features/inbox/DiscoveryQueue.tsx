@@ -1,9 +1,9 @@
+import { StatusChip } from '../../components/StatusChip';
 import { useEffect, useMemo, useState } from 'react';
 import { alpha } from '@mui/material/styles';
 import {
   Alert,
   Button,
-  Chip,
   Divider,
   Box,
   Paper,
@@ -245,7 +245,7 @@ export function DiscoveryQueue({
                     >
                       {candidate.title}
                     </Typography>
-                    <Chip size="small" label={candidate.status} />
+                    <StatusChip status={candidate.status} />
                   </Stack>
                   <Typography
                     variant="body2"
@@ -286,7 +286,8 @@ export function DiscoveryQueue({
                   sx={{ flexWrap: 'wrap' }}
                 >
                   <Button
-                    variant="outlined"
+                    // Per-row action stays tertiary so Run discovery leads.
+                    variant="text"
                     onClick={() =>
                       setParams((current) => {
                         const next = new URLSearchParams(current);
@@ -306,7 +307,7 @@ export function DiscoveryQueue({
                       to={`/jobs/${candidate.opportunityId}`}
                       variant="outlined"
                     >
-                      Open Inbox job
+                      Open in Jobs
                     </Button>
                   )}
                 </Stack>

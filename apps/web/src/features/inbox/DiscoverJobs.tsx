@@ -72,7 +72,7 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
   return (
     <Paper
       component="section"
-      aria-label="Discover Jobs"
+      aria-label="Discovery run"
       variant="outlined"
       sx={{ p: 2 }}
     >
@@ -84,7 +84,7 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
         >
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography variant="body2">
-              Up to 50 new candidates per run. Review before saving to Inbox.
+              Up to 50 new candidates per run. Review before saving to Jobs.
             </Typography>
             <Typography
               variant="body2"
@@ -112,7 +112,7 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
             onClick={() => void discover()}
             sx={{ flexShrink: 0, minHeight: { xs: 44, sm: 36 } }}
           >
-            Discover Jobs
+            Run discovery
           </Button>
         </Stack>
         {expanded && (
@@ -303,7 +303,7 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
               ) : summary.eligible === 0 ? (
                 <Typography variant="body2">
                   No eligible candidates in this run. Try different selected
-                  stacks or Add Job. Your Queue includes previous runs and is
+                  stacks or Add job. Your Queue includes previous runs and is
                   unchanged.
                 </Typography>
               ) : null}
@@ -362,7 +362,7 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
                 </Button>
                 {summary.eligible === 0 && (
                   <Button component={Link} to="/jobs/new" variant="outlined">
-                    Add Job
+                    Add job
                   </Button>
                 )}
               </Stack>

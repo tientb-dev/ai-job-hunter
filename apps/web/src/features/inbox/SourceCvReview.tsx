@@ -1,3 +1,5 @@
+import { DialogCloseButton } from '../../components/DialogCloseButton';
+import { useNotify } from '../../components/useNotify';
 import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -56,7 +58,15 @@ export function SourceCvReview({
   const [document, setDocument] = useState<CvProfileDocument | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
+  // Transient completion messages are toasts; persistent workflow states
+  // (approval, readiness, blockers) stay inline below.
+  const notify = useNotify();
+  const setMessage = (
+    text: string,
+    severity: 'success' | 'info' = 'success',
+  ) => {
+    if (text) notify({ severity, text });
+  };
   const [reason, setReason] = useState('');
   const [editing, setEditing] = useState<string | null>(null);
   const [issuesOpen, setIssuesOpen] = useState(false);
@@ -482,6 +492,7 @@ export function SourceCvReview({
       {!profile && !reuseOffer && (
         <Button
           variant={wizardEntry ? 'contained' : 'outlined'}
+          sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
           disabled={blocked || !cv}
           onClick={() => void run(openReview)}
         >
@@ -504,11 +515,6 @@ export function SourceCvReview({
         </Typography>
       )}
       {error && <Alert severity="error">{error}</Alert>}
-      {message && (
-        <Alert severity="success" role="status">
-          {message}
-        </Alert>
-      )}
       {profile && source && document && (
         <>
           <Typography variant="body2">
@@ -655,7 +661,11 @@ export function SourceCvReview({
             onClose={() => !busy && setRebuildOpen(false)}
             aria-labelledby="rebuild-source-title"
           >
-            <DialogTitle id="rebuild-source-title">
+            <DialogCloseButton
+              disabled={busy}
+              onClick={() => setRebuildOpen(false)}
+            />
+            <DialogTitle id="rebuild-source-title" sx={{ pr: 7 }}>
               Organize your CV?
             </DialogTitle>
             <DialogContent>
@@ -1583,11 +1593,13 @@ export function SourceCvReview({
                         accept(value, source);
                       }
                       setEditing(null);
-                      if (onContinue) onContinue();
-                      else
-                        setMessage(
-                          'Source review complete. Generate your tailored CV next.',
-                        );
+                      // The app-level toast outlives the step change.
+                      setMessage(
+                        onContinue
+                          ? 'Source CV review complete.'
+                          : 'Source review complete. Generate your tailored CV next.',
+                      );
+                      onContinue?.();
                     });
                   }}
                 >

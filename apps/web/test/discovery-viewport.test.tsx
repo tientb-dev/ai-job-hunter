@@ -157,7 +157,7 @@ test('desktop constrains only rows while controls, pagination, Review and notifi
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
     );
     expect(rows.scrollTop).toBe(150);
-    fireEvent.click(screen.getByRole('button', { name: 'Discover Jobs' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Run discovery' }));
     const notice = await screen.findByText(/10 eligible · 0 added · 10 known/);
     expect(notice.closest('.MuiSnackbar-root')).toHaveStyle({
       position: 'fixed',
