@@ -13,7 +13,11 @@ const savedCv = {
 };
 
 // Synthetic API: one saved CV (or none) and its review profile.
-function mount(cv: typeof savedCv | null, confirmed = 0) {
+function mount(
+  cv: typeof savedCv | null,
+  confirmed = 0,
+  profileResponse?: () => Promise<Response>,
+) {
   const profile = cvProfileFixture();
   profile.document.sections.forEach((section, index) => {
     if (index < confirmed) section.review = 'confirmed';
@@ -29,7 +33,8 @@ function mount(cv: typeof savedCv | null, confirmed = 0) {
     }
     if (url.endsWith('/sources') || url.endsWith('/content'))
       return Response.json(sourceCvFixture);
-    if (url.endsWith('/profile')) return Response.json(profile);
+    if (url.endsWith('/profile'))
+      return profileResponse ? profileResponse() : Response.json(profile);
     throw Error(`Unexpected request: ${url}`);
   });
   vi.stubGlobal('fetch', fetch);
@@ -136,4 +141,90 @@ test('replacing the CV updates the summary and never touches tailored drafts', a
   expect(
     fetch.mock.calls.some(([url]) => String(url).includes('/drafts')),
   ).toBe(false);
+});
+
+test('a reviewed CV that loads slowly never shows a guessed status or action', async () => {
+  let release!: () => void;
+  const { total } = mount(
+    savedCv,
+    Infinity,
+    () =>
+      new Promise<Response>((resolve) => {
+        const profile = cvProfileFixture();
+        profile.document.sections.forEach((s) => (s.review = 'confirmed'));
+        release = () => resolve(Response.json(profile));
+      }),
+  );
+  expect(await screen.findByText(savedCv.fileName)).toBeVisible();
+  await waitFor(() => expect(release).toBeDefined());
+  expect(screen.getByLabelText('Loading review status')).toBeInTheDocument();
+  expect(screen.queryByText('Not reviewed yet')).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', {
+      name: /Review source CV|View \/ Edit review/,
+    }),
+  ).not.toBeInTheDocument();
+  release();
+  expect(
+    await screen.findByText(`Reviewed · ${total} of ${total} sections`),
+  ).toBeVisible();
+  expect(
+    screen.getByRole('button', { name: 'View / Edit review' }),
+  ).toHaveClass('MuiButton-outlined');
+});
+
+test('a failed profile request reads as unavailable and can be retried', async () => {
+  let fail = true;
+  const { total } = mount(savedCv, Infinity, async () => {
+    if (fail) return new Response(null, { status: 503 });
+    const profile = cvProfileFixture();
+    profile.document.sections.forEach((s) => (s.review = 'confirmed'));
+    return Response.json(profile);
+  });
+  expect(await screen.findByText('Review status unavailable.')).toBeVisible();
+  expect(screen.queryByText('Not reviewed yet')).not.toBeInTheDocument();
+  // The review stays reachable without guessing its entry point.
+  expect(screen.getByRole('button', { name: 'Open review' })).toHaveClass(
+    'MuiButton-outlined',
+  );
+  fail = false;
+  await userEvent.setup().click(screen.getByRole('button', { name: 'Retry' }));
+  expect(
+    await screen.findByText(`Reviewed · ${total} of ${total} sections`),
+  ).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'Open review' })).toBeNull();
+});
+
+test('Open review after a status failure never creates or resets a review', async () => {
+  let fail = true;
+  const { fetch, total } = mount(savedCv, Infinity, async () => {
+    if (fail) return new Response(null, { status: 503 });
+    const profile = cvProfileFixture();
+    profile.document.sections.forEach((s) => (s.review = 'confirmed'));
+    return Response.json(profile);
+  });
+  const creates = () =>
+    fetch.mock.calls.filter(
+      ([url, init]) =>
+        String(url).endsWith('/profiles') &&
+        (init as RequestInit | undefined)?.method === 'POST',
+    ).length;
+  const user = userEvent.setup();
+  const open = await screen.findByRole('button', { name: 'Open review' });
+  // Still failing: the error is reported, nothing is created.
+  await user.click(open);
+  await waitFor(() => expect(open).toBeEnabled());
+  expect(creates()).toBe(0);
+  // Recovered: the existing reviewed profile opens unchanged.
+  fail = false;
+  await user.click(screen.getByRole('button', { name: 'Open review' }));
+  expect(
+    await screen.findByText(
+      /Confirmation records your review, not independent verification/,
+    ),
+  ).toBeVisible();
+  expect(creates()).toBe(0);
+  expect(
+    await screen.findByText(`Reviewed · ${total} of ${total} sections`),
+  ).toBeVisible();
 });

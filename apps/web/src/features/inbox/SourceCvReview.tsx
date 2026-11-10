@@ -10,6 +10,7 @@ import {
   Chip,
   Divider,
   MenuItem,
+  Skeleton,
   Stack,
   TextField,
   Typography,
@@ -44,9 +45,12 @@ export function SourceCvReview({
   onContinue,
   onSaved,
   wizardEntry = false,
+  entryState,
   myCv = false,
 }: {
   wizardEntry?: boolean;
+  /** My CV: review progress is still loading, or failed so the entry point is unknown. */
+  entryState?: 'loading' | 'unknown';
   /** Shared My CV page: shorter intro, safeguard shown once the review opens. */
   myCv?: boolean;
   cv: { fileName: string; updatedAt: string } | null;
@@ -497,7 +501,26 @@ export function SourceCvReview({
           </Stack>
         </Alert>
       )}
-      {!profile && !reuseOffer && (
+      {!profile && !reuseOffer && entryState === 'loading' && (
+        // Same footprint as the action, so it appears without moving anything.
+        <Skeleton
+          variant="rounded"
+          height={44}
+          aria-hidden="true"
+          sx={{ width: { xs: '100%', sm: 180 } }}
+        />
+      )}
+      {!profile && !reuseOffer && entryState === 'unknown' && (
+        <Button
+          variant="outlined"
+          sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
+          disabled={blocked || !cv}
+          onClick={() => void run(openReview)}
+        >
+          Open review
+        </Button>
+      )}
+      {!profile && !reuseOffer && !entryState && (
         <Button
           variant={wizardEntry ? 'contained' : 'outlined'}
           sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
