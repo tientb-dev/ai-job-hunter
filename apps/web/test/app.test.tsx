@@ -78,12 +78,17 @@ beforeEach(() => {
     ),
   );
 });
-test('root defaults to the canonical Jobs page', async () => {
+test('root defaults to the Dashboard', async () => {
   show('/');
-  expect(screen.getByLabelText('Current route')).toHaveTextContent('/jobs');
+  expect(screen.getByLabelText('Current route')).toHaveTextContent(
+    '/dashboard',
+  );
+  expect(
+    screen.getByRole('heading', { name: 'Dashboard' }),
+  ).toBeInTheDocument();
   expect(await screen.findByText('API ready')).toBeInTheDocument();
 });
-test.each(['/dashboard', '/candidates', '/matches', '/settings'])(
+test.each(['/candidates', '/matches', '/settings'])(
   'retired placeholder %s redirects to Jobs',
   (path) => {
     show(path);
@@ -95,7 +100,7 @@ test.each(['/dashboard', '/candidates', '/matches', '/settings'])(
       within(navigation)
         .getAllByRole('link')
         .map((link) => link.textContent),
-    ).toEqual(['Jobs', 'Discover', 'My CV']);
+    ).toEqual(['Dashboard', 'Jobs', 'Discover', 'My CV']);
   },
 );
 test('unknown routes show not found and allow navigation home', async () => {

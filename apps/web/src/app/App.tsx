@@ -25,6 +25,7 @@ import {
 } from 'react-router-dom';
 import { Dashboard } from '../features/dashboard/Dashboard';
 import { MyCv } from '../features/inbox/MyCv';
+import { Home } from '../features/home/Home';
 import { ApiReadiness } from '../features/health/ApiReadiness';
 
 const UiAcceptancePreview = import.meta.env.DEV
@@ -32,6 +33,7 @@ const UiAcceptancePreview = import.meta.env.DEV
   : null;
 
 const navigation = [
+  { label: 'Dashboard', path: '/dashboard' },
   { label: 'Jobs', path: '/jobs' },
   { label: 'Discover', path: '/discover' },
   { label: 'My CV', path: '/cv' },
@@ -224,7 +226,8 @@ export function App() {
           }}
         >
           <Routes>
-            <Route path="/" element={<Navigate to="/jobs" replace />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<Home />} />
             <Route
               path="/discover"
               element={
@@ -253,15 +256,13 @@ export function App() {
               />
             )}
             {/* Retired placeholder pages keep old bookmarks working. */}
-            {['/dashboard', '/candidates', '/matches', '/settings'].map(
-              (path) => (
-                <Route
-                  key={path}
-                  path={path}
-                  element={<Navigate to="/jobs" replace />}
-                />
-              ),
-            )}
+            {['/candidates', '/matches', '/settings'].map((path) => (
+              <Route
+                key={path}
+                path={path}
+                element={<Navigate to="/jobs" replace />}
+              />
+            ))}
             <Route
               path="*"
               element={
