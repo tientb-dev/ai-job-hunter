@@ -232,11 +232,11 @@ export type CvMatchState = ReturnType<typeof useCvMatch>;
 export const matchStatusMessages: Record<string, string> = {
   MISSING: 'Not analyzed yet. Analyze CV Match to continue.',
   EXPIRED:
-    'Matching rules were updated since this analysis. Re-analyze CV Match; your source review and drafts are retained.',
+    'Outdated. Matching rules were updated since this analysis. Re-analyze CV Match; your source review and drafts are retained.',
   STALE_CV:
-    'Your CV changed since the saved match. Re-analyze CV Match with the current CV.',
+    'Outdated. Your CV changed since the saved match. Re-analyze CV Match with the current CV.',
   STALE_JOB:
-    'The job changed since the saved match. Re-analyze CV Match with the current job requirements.',
+    'Outdated. The job changed since the saved match. Re-analyze CV Match with the current job requirements.',
   CV_UNAVAILABLE:
     'Save a source CV before analyzing CV Match. Existing drafts can still be resumed.',
 };

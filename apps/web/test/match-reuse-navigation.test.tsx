@@ -1,14 +1,15 @@
 import {
   createMemoryRouter,
   RouterProvider,
+  Link,
   useParams,
 } from 'react-router-dom';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import userEvent from '@testing-library/user-event';
 import { expect, test, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from './render';
+import { UnsavedJobGuard } from '../src/features/inbox/UnsavedJobGuard';
 import { CvMatchPanel } from '../src/features/inbox/CvMatchPanel';
-import { TailoredCvPage } from '../src/features/inbox/TailoredCvPage';
 import { syntheticMatch } from './fixtures/cv-suggestions';
 import { tailoredDraftFixture, draftJobId } from './fixtures/tailored-cv';
 
@@ -157,6 +158,8 @@ function setup(
     return (
       <>
         <button onClick={() => setView('improve')}>Improve CV tab</button>
+        {/* Stand-in for the workspace Tailored CV tab link. */}
+        <Link to={`/jobs/${id}/tailored-cv`}>Continue tailored CV</Link>
         <CvMatchPanel
           jobId={id!}
           revision="1"
@@ -166,10 +169,35 @@ function setup(
       </>
     );
   }
+  // The workspace mounts the Tailored CV workflow in its own tab; this stand-in
+  // keeps the navigation under test focused on CV Match reuse.
+  function Tailored() {
+    const { id } = useParams();
+    const [dirty, setDirty] = useState(false);
+    const savedNavigation = useRef(false);
+    return (
+      <>
+        <UnsavedJobGuard
+          dirty={false}
+          sourceCvDirty={dirty}
+          savedNavigation={savedNavigation}
+        />
+        <Link to={`/jobs/${id}`}>Back to job</Link>
+        <CvMatchPanel
+          jobId={id!}
+          revision={draft.updatedAt}
+          jobUpdatedAt={draft.updatedAt}
+          view="improve"
+          wizard
+          onReviewDirtyChange={setDirty}
+        />
+      </>
+    );
+  }
   const router = createMemoryRouter(
     [
+      { path: '/jobs/:id/tailored-cv', element: <Tailored /> },
       { path: '/jobs/:id', element: <Job /> },
-      { path: '/jobs/:id/tailored-cv', element: <TailoredCvPage /> },
     ],
     {
       initialEntries: [

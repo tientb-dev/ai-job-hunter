@@ -76,7 +76,7 @@ function mount(path = '/jobs/new') {
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/jobs/new" element={<JobEditor key="new" />} />
-        <Route path="/jobs/:id" element={<JobEditor />} />
+        <Route path="/jobs/:id/*" element={<JobEditor />} />
       </Routes>
     </MemoryRouter>,
   );

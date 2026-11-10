@@ -283,7 +283,7 @@ export function JobInbox() {
                                 (urgency ? (
                                   <MuiLink
                                     component={Link}
-                                    to={`/jobs/${row.id}?tab=application`}
+                                    to={`/jobs/${row.id}/application`}
                                     aria-label={`${urgency}: open Application for ${row.title}`}
                                     title={row.followUpDate}
                                     color="text.primary"

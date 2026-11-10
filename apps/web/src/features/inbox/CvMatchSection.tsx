@@ -1174,8 +1174,8 @@ export function MatchGate({
             </Button>
             <Button
               {...(routing
-                ? { component: Link, to: `/jobs/${jobId}?tab=match` }
-                : { component: 'a', href: `/jobs/${jobId}?tab=match` })}
+                ? { component: Link, to: `/jobs/${jobId}/match` }
+                : { component: 'a', href: `/jobs/${jobId}/match` })}
               disabled={!result}
             >
               View full assessment

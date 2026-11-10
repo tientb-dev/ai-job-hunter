@@ -146,7 +146,7 @@ test('resume bypasses completed source work, preserves draft pins and explains e
   );
 });
 
-test('Improve CV keeps suggestions and links to the dedicated workspace', async () => {
+test('Improve CV advice stays separate from the Tailored CV tab', async () => {
   vi.stubGlobal(
     'fetch',
     vi.fn(async () => Response.json(null)),
@@ -156,10 +156,11 @@ test('Improve CV keeps suggestions and links to the dedicated workspace', async 
       <CvMatchPanel jobId={draftJobId} revision="1" view="improve" />
     </MemoryRouter>,
   );
-  expect(screen.getByRole('link', { name: /tailored CV$/ })).toHaveAttribute(
-    'href',
-    `/jobs/${draftJobId}/tailored-cv`,
-  );
+  // Tailored CV is a workspace tab now; the advice panel no longer links to it.
+  expect(screen.queryByRole('link', { name: /tailored CV$/ })).toBeNull();
+  expect(
+    await screen.findByRole('region', { name: 'Improve your CV' }),
+  ).toBeVisible();
   expect(
     screen.queryByRole('button', { name: 'Review source CV' }),
   ).not.toBeInTheDocument();

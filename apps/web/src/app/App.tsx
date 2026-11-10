@@ -1,7 +1,6 @@
 import { theme } from './theme';
 import { DiscoverJobsPage } from '../features/inbox/DiscoverJobsPage';
 import { JobInbox } from '../features/inbox/JobInbox';
-import { TailoredCvPage } from '../features/inbox/TailoredCvPage';
 import { JobEditor } from '../features/inbox/JobEditor';
 import { lazy, Suspense, useState } from 'react';
 import {
@@ -106,7 +105,7 @@ export function App() {
   const discoveryPage = Boolean(useMatch('/discover'));
   const [discoveryViewport, setDiscoveryViewport] = useState(false);
   const newJob = Boolean(useMatch('/jobs/new'));
-  const jobDetails = Boolean(useMatch('/jobs/:id'));
+  const jobDetails = Boolean(useMatch('/jobs/:id/*'));
   const [editorViewport, setEditorViewport] = useState(false);
   const bounded =
     inbox ||
@@ -241,7 +240,6 @@ export function App() {
               }
             />
             <Route path="/cv" element={<Dashboard />} />
-            <Route path="/jobs/:id/tailored-cv" element={<TailoredCvPage />} />
             <Route path="/jobs" element={<JobInbox />} />
             <Route
               path="/jobs/new"
@@ -253,7 +251,7 @@ export function App() {
               }
             />
             <Route
-              path="/jobs/:id"
+              path="/jobs/:id/*"
               element={<JobEditor onViewportLayoutChange={setEditorViewport} />}
             />
             {UiAcceptancePreview && (

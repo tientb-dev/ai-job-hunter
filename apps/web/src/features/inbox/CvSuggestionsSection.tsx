@@ -192,11 +192,11 @@ export function CvSuggestionsSection({
     : disabled
       ? 'CV analysis or upload is in progress. Wait for it to finish.'
       : stale
-        ? 'This match is no longer current. Reanalyze in CV Match before requesting suggestions.'
+        ? 'Outdated. This match is no longer current. Reanalyze in CV Match before requesting suggestions.'
         : !cvSaved
           ? 'Save a CV in CV Match, then analyze it against this job.'
           : !ready
-            ? 'Analyze your saved CV against this job first. Suggestions use the evidence from that analysis.'
+            ? 'Not analyzed yet. Analyze your saved CV against this job first. Suggestions use the evidence from that analysis.'
             : '';
   return (
     <Box component="section" aria-labelledby={heading} sx={{ minWidth: 0 }}>

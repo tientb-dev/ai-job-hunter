@@ -49,7 +49,7 @@ function setup() {
     <ThemeProvider theme={theme}>
       <MemoryRouter initialEntries={[`/jobs/${id}`]}>
         <Routes>
-          <Route path="/jobs/:id" element={<JobEditor />} />
+          <Route path="/jobs/:id/*" element={<JobEditor />} />
         </Routes>
       </MemoryRouter>
     </ThemeProvider>,
@@ -57,17 +57,24 @@ function setup() {
   return { fetch };
 }
 const tab = (name: string) =>
-  fireEvent.click(screen.getByRole('tab', { name }));
+  fireEvent.click(
+    name === 'Edit JD'
+      ? screen.getByRole('link', { name })
+      : screen.getByRole('tab', {
+          name: new RegExp(
+            `^${name === 'CV Match' || name === 'Improve CV' ? 'Match' : name}`,
+          ),
+        }),
+  );
 
-test('real Job Details shares one match across five tabs, compact cards and cross-tab evidence', async () => {
+test('real Job Details shares one match across workspace tabs, compact cards and cross-tab evidence', async () => {
   const { fetch } = setup();
   await screen.findByRole('heading', { name: 'Synthetic engineer' });
   expect(screen.getAllByRole('tab').map((el) => el.textContent)).toEqual([
     'Overview',
-    'CV Match',
-    'Improve CV',
+    'Match',
+    'Tailored CV',
     'Application',
-    'Edit JD',
   ]);
   tab('Improve CV');
   expect(
@@ -104,11 +111,14 @@ test('real Job Details shares one match across five tabs, compact cards and cros
     name: 'Partial: Experience designing APIs and integrations',
   });
   await waitFor(() => expect(target).toHaveFocus());
-  expect(screen.getByRole('tab', { name: 'CV Match' })).toHaveAttribute(
+  expect(screen.getByRole('tab', { name: /^Match/ })).toHaveAttribute(
     'aria-selected',
     'true',
   );
-  expect(screen.queryByRole('heading', { name: 'Improve your CV' })).toBeNull();
+  // Advice now sits below the assessment in the same Match tab.
+  expect(
+    screen.getByRole('heading', { name: 'Improve your CV' }),
+  ).toBeVisible();
   tab('Improve CV');
   expect(screen.getAllByRole('article')).toHaveLength(3);
   expect(
