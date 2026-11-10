@@ -190,7 +190,7 @@ test('Discover Jobs supports direct links, navigation, retained results and hist
   expect(
     screen.getByRole('button', { name: 'Edit preferences' }),
   ).toBeVisible();
-  await user.click(screen.getByRole('button', { name: 'Discover Jobs' }));
+  await user.click(screen.getByRole('button', { name: 'Run discovery' }));
   const notification = await screen.findByText(
     '1 eligible · 1 added · 0 known · 0 over limit',
   );
@@ -221,7 +221,7 @@ test('Discover Jobs supports direct links, navigation, retained results and hist
   await user.click(within(navigation).getByRole('link', { name: 'Jobs' }));
   await user.click(within(navigation).getByRole('link', { name: 'Discover' }));
   expect(router.state.location.pathname).toBe('/discover');
-  expect(screen.getByRole('heading', { name: 'Discover Jobs' })).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Discover jobs' })).toBeVisible();
 });
 
 test('mobile drawer restores focus on Escape and closes after route selection', async () => {

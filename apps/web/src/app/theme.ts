@@ -26,7 +26,11 @@ export const theme = createTheme({
   },
   components: {
     MuiCssBaseline: {
-      styleOverrides: { body: { fontVariantNumeric: 'tabular-nums' } },
+      styleOverrides: {
+        // Reserve the page scrollbar's space so content doesn't shift when it appears.
+        html: { scrollbarGutter: 'stable' },
+        body: { fontVariantNumeric: 'tabular-nums' },
+      },
     },
     MuiButton: {
       defaultProps: { disableElevation: true },
@@ -47,14 +51,22 @@ export const theme = createTheme({
             backgroundColor: theme.palette.action.hover,
           },
         }),
-        sizeSmall: { minHeight: 32 },
-        sizeMedium: { minHeight: 36 },
+        // Touch targets: at least 44px on phones, compact sizes from sm up.
+        sizeSmall: ({ theme }) => ({
+          minHeight: 32,
+          [theme.breakpoints.down('sm')]: { minHeight: 44 },
+        }),
+        sizeMedium: ({ theme }) => ({
+          minHeight: 36,
+          [theme.breakpoints.down('sm')]: { minHeight: 44 },
+        }),
         sizeLarge: { minHeight: 44 },
       },
     },
     MuiIconButton: {
       styleOverrides: {
         root: ({ theme }) => ({
+          [theme.breakpoints.down('sm')]: { minWidth: 44, minHeight: 44 },
           '&.Mui-focusVisible': {
             outline: `2px solid ${theme.palette.primary.main}`,
             outlineOffset: 2,

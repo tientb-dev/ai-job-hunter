@@ -144,7 +144,11 @@ test('completed six-section review and fresh match enable P8 independently of P7
       screen.getByRole('button', { name: 'Generate new draft' }),
     ).toBeEnabled(),
   );
-  await screen.findByText(/Source review saved. Check readiness below/);
+  await screen.findByText(
+    /Check readiness below, then choose Generate new draft/,
+  );
+  // The completion toast survives the step change, once.
+  expect(screen.getAllByText('Source CV review complete.')).toHaveLength(1);
 });
 
 test('expired server context refreshes in place without repeating source review and survives tab navigation', async () => {

@@ -104,14 +104,7 @@ export function App() {
   const inbox = Boolean(jobsMatch);
   const discoveryPage = Boolean(useMatch('/discover'));
   const [discoveryViewport, setDiscoveryViewport] = useState(false);
-  const newJob = Boolean(useMatch('/jobs/new'));
-  const jobDetails = Boolean(useMatch('/jobs/:id/*'));
-  const [editorViewport, setEditorViewport] = useState(false);
-  const bounded =
-    inbox ||
-    newJob ||
-    (jobDetails && editorViewport) ||
-    (discoveryPage && discoveryViewport);
+  const bounded = inbox || (discoveryPage && discoveryViewport);
   return (
     <Box
       sx={{
@@ -241,19 +234,8 @@ export function App() {
             />
             <Route path="/cv" element={<Dashboard />} />
             <Route path="/jobs" element={<JobInbox />} />
-            <Route
-              path="/jobs/new"
-              element={
-                <JobEditor
-                  key="new"
-                  onViewportLayoutChange={setEditorViewport}
-                />
-              }
-            />
-            <Route
-              path="/jobs/:id/*"
-              element={<JobEditor onViewportLayoutChange={setEditorViewport} />}
-            />
+            <Route path="/jobs/new" element={<JobEditor key="new" />} />
+            <Route path="/jobs/:id/*" element={<JobEditor />} />
             {UiAcceptancePreview && (
               <Route
                 path="/dashboard/ui-check"

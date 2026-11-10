@@ -180,24 +180,28 @@ export function TailoredCvWorkflow({
           ? readinessReason && readinessReasons[readinessReason]
             ? readinessReasons[readinessReason].text
             : 'Review your CV facts in Source CV and save the review.'
-          : draftLoaded
-            ? // An open draft keeps its own pins; match state only gates new drafts.
-              approved
-              ? step === 2
-                ? 'This draft is approved. Download it below.'
-                : 'This draft is approved. Download it in Approve & Export.'
-              : step === 2
-                ? 'Confirm your review and approve this draft to download it.'
-                : approvalReady
-                  ? 'Review finished. Continue to Approve & Export.'
-                  : 'Decide each suggestion and save, then continue to Approve & Export.'
-            : hasDrafts
-              ? matchCurrent
-                ? 'Resume your latest draft, or generate a new one.'
-                : 'Resume your latest draft. A new draft needs a current CV Match.'
-              : matchCurrent
-                ? 'Generate a tailored draft from your reviewed CV.'
-                : 'Analyze CV Match for this job to start tailoring.';
+          : step === 0
+            ? hasDrafts && !draftLoaded
+              ? 'Your source CV is reviewed. Continue with it, or resume your latest draft.'
+              : 'Your source CV is reviewed. Continue with reviewed source to tailor it for this job.'
+            : draftLoaded
+              ? // An open draft keeps its own pins; match state only gates new drafts.
+                approved
+                ? step === 2
+                  ? 'This draft is approved. Download it below.'
+                  : 'This draft is approved. Download it in Approve & Export.'
+                : step === 2
+                  ? 'Confirm your review and approve this draft to download it.'
+                  : approvalReady
+                    ? 'Review finished. Continue to Approve & Export.'
+                    : 'Decide each suggestion and save, then continue to Approve & Export.'
+              : hasDrafts
+                ? matchCurrent
+                  ? 'Resume your latest draft, or generate a new one.'
+                  : 'Resume your latest draft. A new draft needs a current CV Match.'
+                : matchCurrent
+                  ? 'Generate a tailored draft from your reviewed CV.'
+                  : 'Analyze CV Match for this job to start tailoring.';
   return (
     <>
       <Stack spacing={2} sx={{ mb: 3 }}>
@@ -404,6 +408,7 @@ export function TailoredCvWorkflow({
             {step === 0 && sourceReady && (
               <Button
                 variant={hasDrafts && !draftLoaded ? 'outlined' : 'contained'}
+                sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
                 disabled={
                   reviewDirty || draftDirty || reviewBusy || draftBusy || busy
                 }

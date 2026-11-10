@@ -249,13 +249,13 @@ test('Inbox has no discovery panel and keeps grouped controls and bottom paginat
     screen.queryByRole('button', { name: 'Toggle Discover Jobs' }),
   ).not.toBeInTheDocument();
   expect(screen.queryByLabelText('Discovery location')).not.toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'Discover Jobs' })).toHaveAttribute(
+  expect(screen.getByRole('link', { name: 'Discover jobs' })).toHaveAttribute(
     'href',
     '/discover',
   );
-  const section = screen.getByRole('region', { name: 'Saved Jobs (0)' });
+  const section = screen.getByRole('region', { name: 'Saved jobs (0)' });
   expect(
-    within(section).getByRole('link', { name: 'Add Job' }),
+    within(section).getByRole('link', { name: 'Add job' }),
   ).toHaveAttribute('href', '/jobs/new');
   expect(
     within(section).getByRole('button', { name: 'All jobs' }),

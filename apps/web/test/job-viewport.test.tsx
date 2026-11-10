@@ -40,50 +40,40 @@ function mount(path = '/jobs/new') {
 function shell() {
   return screen.getByRole('main').parentElement!.parentElement!;
 }
-function expectSingleFormScroll() {
-  const fields = screen.getByRole('region', { name: 'Scrollable job fields' });
-  expect(fields).toHaveStyle({ overflowY: 'auto' });
-  let ancestor = fields.parentElement;
-  while (ancestor && ancestor !== document.body) {
-    expect(['auto', 'scroll', 'hidden']).not.toContain(
-      getComputedStyle(ancestor).overflowY,
-    );
-    ancestor = ancestor.parentElement;
-  }
-  expect(shell()).toHaveStyle({ height: '100dvh', minHeight: '0' });
-  expect(screen.getByRole('main')).toHaveStyle({ minHeight: '0', flex: '1' });
-  return fields;
-}
-
 test.each([360, 1280])(
-  'Add Job shares one constrained scroll owner across steps at width %s',
+  'Add Job uses page scroll and brings each new step into view at width %s',
   (width) => {
     vi.stubGlobal('innerWidth', width);
+    const scrolled: Element[] = [];
+    // jsdom has no scrollIntoView; record the targets instead.
+    Element.prototype.scrollIntoView = function (this: Element) {
+      scrolled.push(this);
+    };
     mount();
-    const fields = expectSingleFormScroll();
-    expect(fields).toContainElement(screen.getByLabelText('Recruitment post'));
-    expect(fields).toContainElement(
-      screen.getByRole('heading', { name: 'Add Job' }),
-    );
-    fields.scrollTop = 200;
+    expect(
+      screen.queryByRole('region', { name: 'Scrollable job fields' }),
+    ).toBeNull();
+    expect(shell().style.height).toBe('');
+    expect(scrolled).toHaveLength(0);
     fireEvent.change(screen.getByLabelText('Recruitment post'), {
       target: { value: 'Unsaved synthetic source' },
     });
     fireEvent.click(
       screen.getByRole('button', { name: 'Continue to Review & Save' }),
     );
-    expect(expectSingleFormScroll()).toBe(fields);
-    expect(fields.scrollTop).toBe(0);
+    const stepper = screen
+      .getByText('Import sources')
+      .closest('.MuiStepper-root');
+    expect(scrolled).toEqual([stepper]);
     expect(
       screen.getByRole('region', { name: 'Job save actions' }),
     ).toContainElement(
       screen.getByRole('button', { name: 'Confirm and save job' }),
     );
-    expect(fields).toContainElement(screen.getByLabelText('Job description'));
     fireEvent.click(
       screen.getByRole('button', { name: 'Back to Import sources' }),
     );
-    expect(expectSingleFormScroll()).toBe(fields);
+    expect(scrolled).toEqual([stepper, stepper]);
     expect(screen.getByLabelText('Recruitment post')).toHaveValue(
       'Unsaved synthetic source',
     );

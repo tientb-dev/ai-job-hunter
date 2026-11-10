@@ -49,7 +49,7 @@ test('preferences expand while discovery remains accessible and sends unchanged 
   vi.stubGlobal('fetch', fetch);
   mount();
   expect(fetch).not.toHaveBeenCalled();
-  expect(screen.getByRole('button', { name: 'Discover Jobs' })).toHaveClass(
+  expect(screen.getByRole('button', { name: 'Run discovery' })).toHaveClass(
     'MuiButton-contained',
   );
   expect(screen.getByRole('button', { name: 'Edit preferences' })).toHaveClass(
@@ -60,7 +60,7 @@ test('preferences expand while discovery remains accessible and sends unchanged 
   );
   expect(screen.getByText(/Up to 50 new candidates per run/)).toBeVisible();
   expect(screen.queryByLabelText('Preferred location')).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Discover Jobs' })).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Run discovery' })).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Edit preferences' }));
   expect(screen.getByLabelText('Preferred location')).toBeVisible();
   expect(screen.getByLabelText('Preferred location')).toHaveTextContent(
@@ -69,11 +69,11 @@ test('preferences expand while discovery remains accessible and sends unchanged 
   expect(
     screen.getByLabelText('Must mention any selected stack'),
   ).toHaveTextContent('Java, Spring Boot, Node.js, React');
-  fireEvent.click(screen.getByRole('button', { name: 'Discover Jobs' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Run discovery' }));
   expect(screen.getByRole('status')).toHaveTextContent(
     'Discovering public jobs',
   );
-  expect(screen.getByRole('button', { name: 'Discover Jobs' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Run discovery' })).toBeDisabled();
   for (const field of screen.getAllByRole('combobox'))
     expect(field).toHaveAttribute('aria-disabled', 'true');
   await act(async () => complete(Response.json(summary)));
@@ -91,7 +91,7 @@ test('preferences expand while discovery remains accessible and sends unchanged 
   );
   fireEvent.click(screen.getByRole('button', { name: 'Close run details' }));
   expect(
-    await screen.findByRole('button', { name: 'Discover Jobs' }),
+    await screen.findByRole('button', { name: 'Run discovery' }),
   ).toBeEnabled();
   expect(fetch).toHaveBeenCalledWith(
     '/api/v1/discovery/runs',
@@ -135,7 +135,7 @@ test('partial-source errors retain success counts, remaining guidance and cache 
     ),
   );
   mount();
-  fireEvent.click(screen.getByRole('button', { name: 'Discover Jobs' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Run discovery' }));
   await screen.findByText(/9 eligible · 3 added · 2 known · 4 over limit/);
   expect(screen.getByRole('alert')).toHaveTextContent('1 source unavailable');
 
@@ -166,16 +166,16 @@ test('zero results offer preference guidance, Add Job and Inbox links', async ()
     ),
   );
   mount();
-  fireEvent.click(screen.getByRole('button', { name: 'Discover Jobs' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Run discovery' }));
   await screen.findByText(/0 eligible · 0 added/);
   fireEvent.click(screen.getByRole('button', { name: 'Run details' }));
   expect(
     await screen.findByText(/No eligible candidates in this run/),
   ).toBeVisible();
-  expect(screen.getByRole('link', { name: 'Add Job' })).toHaveClass(
+  expect(screen.getByRole('link', { name: 'Add job' })).toHaveClass(
     'MuiButton-outlined',
   );
-  expect(screen.getByRole('link', { name: 'Add Job' })).toHaveAttribute(
+  expect(screen.getByRole('link', { name: 'Add job' })).toHaveAttribute(
     'href',
     '/jobs/new',
   );
@@ -201,7 +201,7 @@ test('request failure preserves edited preferences and supports a manual retry',
   await user.click(screen.getByRole('option', { name: 'Vietnam' }));
   await user.click(screen.getByRole('button', { name: 'Hide preferences' }));
   expect(screen.getByText(/Vietnam · Java/)).toBeVisible();
-  await user.click(screen.getByRole('button', { name: 'Discover Jobs' }));
+  await user.click(screen.getByRole('button', { name: 'Run discovery' }));
   await user.click(screen.getByRole('button', { name: 'Edit preferences' }));
   expect(await screen.findByRole('alert')).toHaveTextContent(
     'Discovery is already running',
@@ -212,7 +212,7 @@ test('request failure preserves edited preferences and supports a manual retry',
   expect(
     screen.queryByRole('link', { name: 'View Jobs' }),
   ).not.toBeInTheDocument();
-  await user.click(screen.getByRole('button', { name: 'Discover Jobs' }));
+  await user.click(screen.getByRole('button', { name: 'Run discovery' }));
   await screen.findByText(/5 eligible · 3 added/);
   fireEvent.click(screen.getByRole('button', { name: 'Run details' }));
   expect(await screen.findByRole('link', { name: 'View Jobs' })).toBeVisible();
@@ -229,7 +229,7 @@ test('run details displays four source outcomes, null counts, warnings and known
   );
   mount();
   const user = userEvent.setup();
-  await user.click(screen.getByRole('button', { name: 'Discover Jobs' }));
+  await user.click(screen.getByRole('button', { name: 'Run discovery' }));
   await screen.findByText(/5 eligible · 3 added · 2 known/);
   const trigger = screen.getByRole('button', { name: 'Run details' });
   trigger.focus();
@@ -287,7 +287,7 @@ test('all-source failure is a warning, never a no-match result or zero-job feed'
     ),
   );
   mount();
-  await userEvent.click(screen.getByRole('button', { name: 'Discover Jobs' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Run discovery' }));
   expect(await screen.findByRole('alert')).toHaveTextContent(
     'No sources available',
   );
@@ -312,7 +312,7 @@ test('successful run uses a success notification and consumes the additive respo
     vi.fn(async () => Response.json(result)),
   );
   mount();
-  await userEvent.click(screen.getByRole('button', { name: 'Discover Jobs' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Run discovery' }));
   const completion = await screen.findByText(
     '5 eligible · 3 added · 2 known · 0 over limit',
   );
@@ -344,7 +344,7 @@ test('edited preference labels preserve backend enum values and match-any stacks
   await user.click(screen.getByLabelText('Must mention any selected stack'));
   await user.click(screen.getByRole('option', { name: 'Java' }));
   await user.keyboard('{Escape}');
-  await user.click(screen.getByRole('button', { name: 'Discover Jobs' }));
+  await user.click(screen.getByRole('button', { name: 'Run discovery' }));
   await screen.findByText(/5 eligible · 3 added/);
   expect(JSON.parse(fetch.mock.calls[0]![1]!.body as string)).toEqual({
     location: 'Ho Chi Minh City',

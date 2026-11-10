@@ -1,3 +1,5 @@
+import type { Theme } from '@mui/material/styles';
+import { alpha } from '@mui/material/styles';
 import { createContext, useContext, type KeyboardEvent } from 'react';
 import { Box, Link, Paper, Stack, Typography } from '@mui/material';
 import type { DraftFact } from './tailored-cv.contract';
@@ -58,11 +60,21 @@ const anchorLabel: Record<FactAnchorState, string> = {
   excluded: 'excluded from download',
   conflict: 'needs your check',
 };
-// Distinct line styles so state never relies on color alone.
+// Review overlay (app UI, theme colours); the CV page itself keeps its own
+// palette. Distinct line styles so state never relies on colour alone.
 const anchorStyle: Record<FactAnchorState, object> = {
-  pending: { textDecorationStyle: 'dashed', textDecorationColor: '#a35f00' },
-  conflict: { textDecorationStyle: 'wavy', textDecorationColor: '#c2372e' },
-  decided: { textDecorationStyle: 'solid', textDecorationColor: '#1f7a45' },
+  pending: {
+    textDecorationStyle: 'dashed',
+    textDecorationColor: (t: Theme) => t.palette.warning.dark,
+  },
+  conflict: {
+    textDecorationStyle: 'wavy',
+    textDecorationColor: (t: Theme) => t.palette.error.main,
+  },
+  decided: {
+    textDecorationStyle: 'solid',
+    textDecorationColor: (t: Theme) => t.palette.success.main,
+  },
   excluded: { textDecorationLine: 'line-through', opacity: 0.6 },
 };
 function useAnchor(id: string) {
@@ -93,10 +105,14 @@ function useAnchor(id: string) {
       scrollMarginTop: 96,
       ...anchorStyle[state],
       ...(active && {
-        bgcolor: 'rgba(47, 91, 211, 0.10)',
-        boxShadow: 'inset 3px 0 0 #2f5bd3',
+        bgcolor: (t: Theme) => alpha(t.palette.primary.main, 0.1),
+        boxShadow: (t: Theme) => `inset 3px 0 0 ${t.palette.primary.main}`,
       }),
-      '&:focus-visible': { outline: '2px solid #2f5bd3', outlineOffset: 2 },
+      '&:focus-visible': {
+        outline: '2px solid',
+        outlineColor: 'primary.main',
+        outlineOffset: 2,
+      },
     },
     label: (
       <Box component="span" sx={visuallyHidden}>

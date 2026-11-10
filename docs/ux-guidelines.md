@@ -39,11 +39,23 @@ need an accessible name. A small icon does not imply a small interaction target.
 
 ## Buttons and forms
 
-Use sentence case, one contained primary action per task area, outlined secondary
-actions, and text tertiary actions. Theme button minimum heights are 32px small,
-36px medium, and 44px large; allow growth for wrapping and zoom. Use at least 44px
-targets for touch-oriented actions when adapting a screen. Buttons have no raised
-shadow and retain ripple behavior plus a visible keyboard focus outline.
+Use sentence case. Give each task group one clear primary (contained) action;
+secondary actions are outlined and tertiary or repeated per-row actions are text
+buttons. This is per task group, not one filled button per screen. Theme button
+minimum heights are 32px small and 36px medium from `sm` up, and 44px for every
+button and icon button below `sm`; allow growth for wrapping and zoom. Buttons
+have no raised shadow and keep ripple plus a visible keyboard focus outline.
+
+Dialog actions follow intent and risk rather than a fixed order. Keep the safe
+choice as the default focus and Escape behaviour. Destructive or negative choices
+(Discard, Dismiss) are neutral outlined buttons that turn red on hover, never the
+filled primary. Do not show the same action twice in one view (for example one
+"Open original job" link in the job header). Dismissible confirmation dialogs
+show a top-right X (`DialogCloseButton`, "Close dialog", 44px). X, Escape and the
+existing safe action behave identically, change nothing and return focus to the
+trigger; do not add a redundant Cancel. Discard and other destructive choices
+still need their explicit button. Secondary actions in a form column are
+content-width from `sm` up and full-width below it.
 
 Keep labels visible, errors adjacent to fields, and helper text concise. Use
 compact fields for filters and normal fields for editing; there is no global
@@ -73,8 +85,8 @@ Stack controls when space is insufficient and allow long text to wrap. Keep
 horizontal table overflow inside its container, not on the page. Preserve semantic
 headings, field labels, keyboard access, focus visibility and status announcements.
 Check narrow screens and 200% zoom; do not hide required actions or clip content.
-Preserve the editor's existing single field-scroll region and separate action row.
-Application keeps its header, tabs and provenance above a bounded desktop form
+Add Job uses normal page scroll (no fixed-height field scroller); moving between
+Import sources and Review & Save brings the stepper into view. Application keeps its header, tabs and provenance above a bounded desktop form
 scroller with a separate Save footer. Narrow or short viewports use natural page
 scrolling when there is insufficient form space. CV Match uses document scrolling.
 
@@ -82,6 +94,18 @@ For MVP, Edit JD is manual editing of saved job details and Job description.
 Source import and AI extraction belong to Add Job only. Preserve original source
 text/documents and evidence; manual edits must not clear conflict acknowledgements
 except to reset acknowledgement of a conflicting field that was edited again.
+
+## Feedback
+
+Use toasts (`useNotify`) for transient completion: saved, opened, generated,
+loaded. A newer success or info toast replaces older ones; errors and warnings
+stay until dismissed. Keep persistent workflow state inline: approval,
+readiness, blockers, conflicts and outdated sources. Background rechecks keep the
+last answer for the same context so banners, text and buttons do not flash or
+shift; a genuinely changed context clears it.
+
+Show statuses with `StatusChip` (dot plus sentence-case label). App UI uses theme
+tokens; the CV document preview keeps its own independent styling.
 
 ## Motion and layout stability
 
@@ -116,6 +140,7 @@ Use explicit error semantics for destructive actions such as “Discard and leav
 In the existing unsaved-change confirmation, keep “Stay and edit” first,
 outlined primary and initially focused; keep Discard last as outlined error.
 Ensure Stay receives focus as the dialog becomes visible, and retain native
-button Enter/Space activation, focus trapping and focus return. Preserve the guard and its
+button Enter/Space activation, focus trapping and focus return. Escape and the X
+act as Stay and edit. Preserve the guard and its
 Stay/Discard behavior. Reversible review actions such as Dismiss do not become
 destructive solely for visual consistency.

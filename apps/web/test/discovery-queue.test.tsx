@@ -208,12 +208,10 @@ test('explicit Save links existing Inbox job, retains review feedback and refres
   );
   await screen.findByText('Synthetic description');
   await userEvent.click(
-    await screen.findByRole('button', { name: 'Save to Inbox' }),
+    await screen.findByRole('button', { name: 'Save to Jobs' }),
   );
-  expect(
-    await screen.findByText(/Linked to the existing Inbox job/),
-  ).toBeVisible();
-  expect(screen.getByRole('link', { name: 'Open Inbox job' })).toHaveAttribute(
+  expect(await screen.findByText(/Linked to the existing job/)).toBeVisible();
+  expect(screen.getByRole('link', { name: 'Open in Jobs' })).toHaveAttribute(
     'href',
     '/jobs/00000000-0000-4000-8000-000000000099',
   );
@@ -257,13 +255,13 @@ test.each(['POSSIBLE_DUPLICATE', 'AMBIGUOUS_INBOX_MATCH'])(
     );
     await screen.findByText('Synthetic description');
     await userEvent.click(
-      await screen.findByRole('button', { name: 'Save to Inbox' }),
+      await screen.findByRole('button', { name: 'Save to Jobs' }),
     );
     const dialog = await screen.findByRole('dialog', {
       name:
         code === 'POSSIBLE_DUPLICATE'
           ? 'Possible duplicate job'
-          : 'Multiple exact Inbox matches',
+          : 'Multiple exact matches in Jobs',
     });
     expect(
       within(dialog).getByRole('link', { name: 'Existing opening' }),
@@ -273,7 +271,7 @@ test.each(['POSSIBLE_DUPLICATE', 'AMBIGUOUS_INBOX_MATCH'])(
     if (code === 'AMBIGUOUS_INBOX_MATCH') {
       expect(
         within(dialog).queryByRole('button', {
-          name: 'Create separate Inbox job',
+          name: 'Save as separate job',
         }),
       ).not.toBeInTheDocument();
       await userEvent.click(
@@ -286,14 +284,14 @@ test.each(['POSSIBLE_DUPLICATE', 'AMBIGUOUS_INBOX_MATCH'])(
       );
       expect(writes(fetch)).toHaveLength(1);
       await userEvent.click(
-        await screen.findByRole('button', { name: 'Save to Inbox' }),
+        await screen.findByRole('button', { name: 'Save to Jobs' }),
       );
       await userEvent.click(
         await screen.findByRole('button', {
-          name: 'Create separate Inbox job',
+          name: 'Save as separate job',
         }),
       );
-      await screen.findByRole('link', { name: 'Open Inbox job' });
+      await screen.findByRole('link', { name: 'Open in Jobs' });
       expect(JSON.parse(writes(fetch)[2]![1]!.body as string)).toEqual({
         confirmSeparate: true,
       });
@@ -316,7 +314,7 @@ test('failed Save retains detail, blocks duplicate submissions and permits retry
     await screen.findByRole('button', { name: 'Review Synthetic role 1' }),
   );
   await screen.findByText('Synthetic description');
-  const save = screen.getByRole('button', { name: 'Save to Inbox' });
+  const save = screen.getByRole('button', { name: 'Save to Jobs' });
   fireEvent.click(save);
   fireEvent.click(save);
   expect(save).toBeDisabled();
@@ -332,7 +330,7 @@ test('discovery refreshes persistent queue and uses new summary wording', async 
   const { fetch } = backend();
   mount();
   await screen.findByText('Synthetic role 1');
-  await userEvent.click(screen.getByRole('button', { name: 'Discover Jobs' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Run discovery' }));
   expect(
     await screen.findByText(/1 eligible · 0 added · 1 known · 0 over limit/),
   ).toBeVisible();
@@ -501,7 +499,7 @@ test('zero eligible run retains existing Queue history and selected filter', asy
   const { router } = mount('/discover?filter=seen&page=1');
   await screen.findByText('Synthetic role 1');
   const before = structuredClone(rows);
-  await userEvent.click(screen.getByRole('button', { name: 'Discover Jobs' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Run discovery' }));
   await screen.findByText(/0 eligible · 0 added · 0 known/);
   await waitFor(() =>
     expect(
@@ -521,7 +519,8 @@ test.each(['NEW', 'SEEN', 'SAVED', 'DISMISSED'] as const)(
     const review = await screen.findByRole('button', {
       name: 'Review Synthetic role 1',
     });
-    expect(review).toHaveClass('MuiButton-outlined');
+    // Row actions are tertiary; Run discovery is the page's primary action.
+    expect(review).toHaveClass('MuiButton-text');
     const filters = screen.getByRole('group', { name: 'Queue filter' });
     for (const button of within(filters).getAllByRole('button')) {
       expect(button).toHaveClass(
@@ -540,7 +539,7 @@ test.each(['NEW', 'SEEN', 'SAVED', 'DISMISSED'] as const)(
     await within(dialog).findByText('Synthetic description');
     expect(
       within(dialog).getByRole('button', { name: 'Close review' }),
-    ).toHaveClass('MuiButton-outlined');
+    ).toHaveClass('MuiButton-text');
     const seen = within(dialog).queryByRole('button', { name: 'Mark as seen' });
     if (status === 'NEW') expect(seen).toHaveClass('MuiButton-outlined');
     else expect(seen).toBeNull();
@@ -554,14 +553,14 @@ test.each(['NEW', 'SEEN', 'SAVED', 'DISMISSED'] as const)(
     } else expect(dismiss).toBeNull();
     if (status === 'SAVED') {
       expect(
-        within(dialog).getByRole('link', { name: 'Open Inbox job' }),
+        within(dialog).getByRole('link', { name: 'Open in Jobs' }),
       ).toHaveClass('MuiButton-outlined');
       expect(
-        within(dialog).queryByRole('button', { name: 'Save to Inbox' }),
+        within(dialog).queryByRole('button', { name: 'Save to Jobs' }),
       ).toBeNull();
     } else
       expect(
-        within(dialog).getByRole('button', { name: 'Save to Inbox' }),
+        within(dialog).getByRole('button', { name: 'Save to Jobs' }),
       ).toHaveClass('MuiButton-contained');
     expect(
       within(dialog).getByRole('link', { name: 'Original source job' }),

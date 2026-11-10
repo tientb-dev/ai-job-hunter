@@ -1,4 +1,7 @@
+import { DialogCloseButton } from '../../components/DialogCloseButton';
 import { ProposalComparison } from './ProposalComparison';
+import type { Theme } from '@mui/material/styles';
+import { useNotify } from '../../components/useNotify';
 import { DraftPanel } from './DraftPanel';
 import {
   CvSectionView,
@@ -120,14 +123,23 @@ export function TailoredCvReview({
   >([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false),
-    [error, setError] = useState(''),
-    [message, setMessage] = useState('');
+    [error, setError] = useState('');
+  // Transient completion messages are toasts; persistent workflow states
+  // (approval, readiness, blockers) stay inline below.
+  const notify = useNotify();
+  const setMessage = (
+    text: string,
+    severity: 'success' | 'info' = 'success',
+  ) => {
+    if (text) notify({ severity, text });
+  };
   const [editing, setEditing] = useState<string | null>(null);
   // Fact whose wording is being edited from its suggestion card.
   const [contextEdit, setContextEdit] = useState<string | null>(null);
   const saveButton = useRef<HTMLButtonElement>(null);
   const keptOriginal = useRef(false);
   const [keepOriginalOpen, setKeepOriginalOpen] = useState(false);
+  const keepCancel = useRef<HTMLButtonElement>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [listFailed, setListFailed] = useState(false);
   const [opening, setOpening] = useState<string | null>(null);
@@ -345,6 +357,7 @@ export function TailoredCvReview({
         value.items.length
           ? `Loaded ${value.items.length} saved draft${value.items.length === 1 ? '' : 's'}. Open a draft below.`
           : 'No saved drafts for this job yet. Generate your first draft when ready.',
+        value.items.length ? 'success' : 'info',
       );
     }
   }
@@ -1187,15 +1200,10 @@ export function TailoredCvReview({
         </>
       )}
       {error && <Alert severity="error">{error}</Alert>}
-      {message && (
-        <Alert severity="success" role="status">
-          {message}
-        </Alert>
-      )}
       {sourceJustSaved && (
         <Typography role="status">
-          Source review saved. Check readiness below, then choose Generate new
-          draft. Existing drafts can be loaded separately.
+          Check readiness below, then choose Generate new draft. Existing drafts
+          can be loaded separately.
         </Typography>
       )}
       {wizardStep !== 3 && (
@@ -1411,6 +1419,8 @@ export function TailoredCvReview({
             aria-labelledby="keep-original-title"
             slotProps={{
               transition: {
+                // autoFocus loses to the modal's own surface focus; land on the safe action.
+                onEntered: () => keepCancel.current?.focus(),
                 onExited: () => {
                   if (keptOriginal.current) {
                     saveButton.current?.focus({ preventScroll: true });
@@ -1420,7 +1430,8 @@ export function TailoredCvReview({
               },
             }}
           >
-            <DialogTitle id="keep-original-title">
+            <DialogCloseButton onClick={() => setKeepOriginalOpen(false)} />
+            <DialogTitle id="keep-original-title" sx={{ pr: 7 }}>
               Keep your original wording for the {pending} remaining suggestion
               {pending === 1 ? '' : 's'}?
             </DialogTitle>
@@ -1433,7 +1444,10 @@ export function TailoredCvReview({
               </Typography>
             </DialogContent>
             <DialogActions>
-              <Button autoFocus onClick={() => setKeepOriginalOpen(false)}>
+              <Button
+                ref={keepCancel}
+                onClick={() => setKeepOriginalOpen(false)}
+              >
                 Cancel
               </Button>
               <Button
@@ -1678,7 +1692,8 @@ export function TailoredCvReview({
                         '& [id^="suggestion-"]': { borderRadius: 1 },
                         ...(activeId && {
                           [`& [id="suggestion-${activeId}"]`]: {
-                            boxShadow: '0 0 0 2px #2f5bd3',
+                            boxShadow: (t: Theme) =>
+                              `0 0 0 2px ${t.palette.primary.main}`,
                           },
                         }),
                       }}
@@ -1749,7 +1764,9 @@ export function TailoredCvReview({
                               outline: '2px solid',
                               outlineColor: 'primary.main',
                             },
-                            '& .MuiButton-root': { minHeight: 40 },
+                            '& .MuiButton-root': {
+                              minHeight: { xs: 44, sm: 40 },
+                            },
                           }}
                         >
                           <Typography
@@ -1844,7 +1861,9 @@ export function TailoredCvReview({
                             outline: '2px solid',
                             outlineColor: 'primary.main',
                           },
-                          '& .MuiButton-root': { minHeight: 40 },
+                          '& .MuiButton-root': {
+                            minHeight: { xs: 44, sm: 40 },
+                          },
                         }}
                       >
                         <Typography
@@ -1976,7 +1995,7 @@ export function TailoredCvReview({
                         outline: '2px solid',
                         outlineColor: 'primary.main',
                       },
-                      '& .MuiButton-root': { minHeight: 40 },
+                      '& .MuiButton-root': { minHeight: { xs: 44, sm: 40 } },
                     }}
                   >
                     <Typography
