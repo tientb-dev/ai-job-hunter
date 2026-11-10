@@ -95,6 +95,16 @@ Source import and AI extraction belong to Add Job only. Preserve original source
 text/documents and evidence; manual edits must not clear conflict acknowledgements
 except to reset acknowledgement of a conflicting field that was edited again.
 
+## Steppers
+
+Workflow steppers (Add Job, Tailored CV) share `WorkflowStepIcon`. The current
+step always shows its number in a filled, ringed circle with a bold label, even
+when its work is complete; completed steps that are not current show a check;
+upcoming steps show an outlined number. Each step has a short status caption,
+and the current step is marked `aria-current="step"`. Clickable steps keep a
+44px minimum target and a visible keyboard focus ring. Navigation rules stay
+specific to each workflow.
+
 ## Feedback
 
 Use toasts (`useNotify`) for transient completion: saved, opened, generated,

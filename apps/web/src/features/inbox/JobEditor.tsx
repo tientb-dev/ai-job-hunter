@@ -4,6 +4,11 @@ import { useNotify } from '../../components/useNotify';
 import { SourceJdPreview } from './SourceJdPreview';
 import { ImportMethodCards, type ImportMethod } from './ImportMethodCards';
 import { JobActionLayout } from './JobActionLayout';
+import { WorkflowStepIcon } from '../../components/WorkflowStepIcon';
+import {
+  workflowStepState,
+  workflowStepperSx,
+} from '../../components/workflow-step';
 import { RequirementInputs } from './RequirementInputs';
 import { UnsavedJobGuard } from './UnsavedJobGuard';
 import { TopcvBookmarkletInstall } from './TopcvBookmarkletInstall';
@@ -1224,13 +1229,39 @@ export function JobEditor() {
               </Button>
             </Stack>
           ) : (
-            <Stepper activeStep={step} ref={stepper}>
-              <Step>
-                <StepLabel>Import sources</StepLabel>
-              </Step>
-              <Step>
-                <StepLabel>Review &amp; Save</StepLabel>
-              </Step>
+            <Stepper
+              activeStep={step}
+              alternativeLabel
+              ref={stepper}
+              aria-label="Add job steps"
+              sx={workflowStepperSx}
+            >
+              {['Import sources', 'Review & Save'].map((label, index) => {
+                const state = workflowStepState(index, step, index < step);
+                return (
+                  <Step
+                    key={label}
+                    aria-current={state === 'current' ? 'step' : undefined}
+                  >
+                    <StepLabel
+                      icon={
+                        <WorkflowStepIcon number={index + 1} state={state} />
+                      }
+                      optional={
+                        <Typography component="span" variant="caption">
+                          {state === 'current'
+                            ? 'Current'
+                            : state === 'completed'
+                              ? 'Complete'
+                              : 'Next'}
+                        </Typography>
+                      }
+                    >
+                      {label}
+                    </StepLabel>
+                  </Step>
+                );
+              })}
             </Stepper>
           )}
           {id && (

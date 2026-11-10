@@ -18,6 +18,11 @@ import { TailoredCvReview } from './TailoredCvReview';
 import { SourceCvReview } from './SourceCvReview';
 import { MatchGate } from './CvMatchSection';
 import { useCvMatch } from './useCvMatch';
+import { WorkflowStepIcon } from '../../components/WorkflowStepIcon';
+import {
+  workflowStepState,
+  workflowStepperSx,
+} from '../../components/workflow-step';
 import { Link } from 'react-router-dom';
 
 /**
@@ -213,6 +218,7 @@ export function TailoredCvWorkflow({
           activeStep={entryResolved ? step : -1}
           aria-label="Tailored CV steps"
           sx={{
+            ...workflowStepperSx,
             '& .MuiStep-root': {
               minWidth: 0,
               flex: 1,
@@ -290,6 +296,17 @@ export function TailoredCvWorkflow({
                     busy
                   }
                   onClick={() => goToStep(index)}
+                  // Current shows its number even when its work is complete.
+                  icon={
+                    <WorkflowStepIcon
+                      number={index + 1}
+                      state={
+                        entryResolved
+                          ? workflowStepState(index, step, complete)
+                          : 'upcoming'
+                      }
+                    />
+                  }
                   optional={
                     // Status stays in the accessible name; on phones it is
                     // visually hidden so three steps fit on one row.
