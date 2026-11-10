@@ -1078,6 +1078,69 @@ export function MatchGate({
     : null;
   const reanalyze =
     !!result || ['EXPIRED', 'STALE_CV', 'STALE_JOB'].includes(matchStatus);
+  // A current match is context, not the task: one row with score, freshness
+  // and actions. Missing, stale, checking and error states keep the full card.
+  const compact = current && !busy && !error && !matchReadError;
+  const assessmentLink = routing
+    ? { component: Link, to: `/jobs/${jobId}/match` }
+    : { component: 'a', href: `/jobs/${jobId}/match` };
+  if (compact)
+    return (
+      <Box
+        role="tabpanel"
+        id="job-panel-1"
+        aria-labelledby="tailored-step-1"
+        hidden={hidden}
+      >
+        <Paper
+          variant="outlined"
+          component="section"
+          aria-label="CV Match summary"
+          sx={{ px: { xs: 2, sm: 2.5 }, py: 1.5, minWidth: 0 }}
+        >
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={{ xs: 1, sm: 2 }}
+            useFlexGap
+            sx={{ alignItems: { sm: 'center' }, flexWrap: 'wrap' }}
+          >
+            <Chip
+              aria-label={`Fit score: ${result.score === null ? 'Not enough evidence' : `${result.score}/100`} (heuristic)`}
+              color={result.recommendation === 'Apply' ? 'success' : 'default'}
+              label={`${result.recommendation} · ${result.score === null ? 'not enough evidence' : `${result.score}/100`}`}
+              sx={{ alignSelf: 'flex-start' }}
+            />
+            <Typography
+              role="status"
+              variant="body2"
+              color="text.secondary"
+              sx={{ flex: 1, minWidth: 0 }}
+            >
+              Saved match
+              {validSourceDate(result.analyzedAt)
+                ? ` from ${new Date(result.analyzedAt).toLocaleString()}`
+                : ''}
+              . No new analysis is needed.
+            </Typography>
+            <Stack
+              direction="row"
+              spacing={1}
+              useFlexGap
+              sx={{ flexWrap: 'wrap' }}
+            >
+              <Button {...assessmentLink}>View full assessment</Button>
+              <Button
+                variant="outlined"
+                disabled={analyzeBlocked || !cv}
+                onClick={() => void match.analyze()}
+              >
+                Reanalyze CV Match
+              </Button>
+            </Stack>
+          </Stack>
+        </Paper>
+      </Box>
+    );
   return (
     <Box
       role="tabpanel"

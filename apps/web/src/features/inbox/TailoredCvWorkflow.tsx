@@ -361,26 +361,37 @@ export function TailoredCvWorkflow({
             >
               Step {step + 1} of 3 · {STEPS[step]}
             </Typography>
-            <NextStep
-              text={nextStep}
-              action={
-                hasDrafts && !draftLoaded ? (
-                  <Button
-                    variant="contained"
-                    disabled={
-                      reviewDirty ||
-                      draftDirty ||
-                      reviewBusy ||
-                      draftBusy ||
-                      busy
-                    }
-                    onClick={() => resumeDraft.current?.()}
-                  >
-                    Resume latest draft
-                  </Button>
-                ) : null
-              }
-            />
+            {/* With a draft open in Tailor & Review, the progress card states the
+                same next action; the banner returns for anything else. */}
+            {!(
+              step === 1 &&
+              draftLoaded &&
+              !approved &&
+              !approvalReady &&
+              !reviewDirty &&
+              !draftDirty
+            ) && (
+              <NextStep
+                text={nextStep}
+                action={
+                  hasDrafts && !draftLoaded ? (
+                    <Button
+                      variant="contained"
+                      disabled={
+                        reviewDirty ||
+                        draftDirty ||
+                        reviewBusy ||
+                        draftBusy ||
+                        busy
+                      }
+                      onClick={() => resumeDraft.current?.()}
+                    >
+                      Resume latest draft
+                    </Button>
+                  ) : null
+                }
+              />
+            )}
             {step === 0 && (
               <Stack spacing={1}>
                 <Typography>

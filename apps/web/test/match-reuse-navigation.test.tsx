@@ -7,7 +7,7 @@ import {
 import { useRef, useState } from 'react';
 import userEvent from '@testing-library/user-event';
 import { expect, test, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from './render';
+import { fireEvent, render, screen, waitFor, within } from './render';
 import { UnsavedJobGuard } from '../src/features/inbox/UnsavedJobGuard';
 import { CvMatchPanel } from '../src/features/inbox/CvMatchPanel';
 import { syntheticMatch } from './fixtures/cv-suggestions';
@@ -681,9 +681,7 @@ test('focus revalidation keeps saved workspace and completion labels stable whil
   });
   await screen.findByRole('tab', { name: /Source CV.*Complete/ });
   await screen.findByText(/Saved match.*No new analysis is needed/);
-  fireEvent.click(
-    screen.getByText('Generate a separate draft for the current job'),
-  );
+  fireEvent.click(screen.getByText('Generate a new draft instead'));
   const generate = screen.getByRole('button', { name: 'Generate new draft' });
   await waitFor(() => expect(generate).toBeEnabled());
   const lists = () =>
@@ -769,9 +767,7 @@ test.each(['EXPIRED', 'MISSING', 'STALE_CV', 'STALE_JOB'])(
     expect(
       screen.getByRole('heading', { name: 'Step 2 of 3 · Tailor & Review' }),
     ).toBeVisible();
-    fireEvent.click(
-      screen.getByText('Generate a separate draft for the current job'),
-    );
+    fireEvent.click(screen.getByText('Generate a new draft instead'));
     expect(
       screen.getByRole('button', { name: 'Generate new draft' }),
     ).toBeDisabled();
@@ -795,9 +791,7 @@ test('failed background checks retain the draft, report the error and block gene
   expect(
     screen.getByRole('heading', { name: 'Step 2 of 3 · Tailor & Review' }),
   ).toBeVisible();
-  fireEvent.click(
-    screen.getByText('Generate a separate draft for the current job'),
-  );
+  fireEvent.click(screen.getByText('Generate a new draft instead'));
   expect(
     screen.getByRole('button', { name: 'Generate new draft' }),
   ).toBeDisabled();
@@ -847,4 +841,72 @@ test('restoring the step on load does not focus the heading; a user step change 
       screen.getByRole('heading', { name: 'Step 1 of 3 · Source CV' }),
     ).toHaveFocus(),
   );
+});
+
+test('Step 2 leads with the open draft: compact match row, then draft, then the separate-draft option', async () => {
+  const state = setup({ draft: true });
+  await screen.findByRole('heading', { name: 'Step 2 of 3 · Tailor & Review' });
+  const summary = await screen.findByRole('region', {
+    name: 'CV Match summary',
+  });
+  // Score, freshness and both actions survive in one row.
+  expect(within(summary).getByLabelText(/Fit score: \d+\/100/)).toBeVisible();
+  expect(
+    within(summary).getByText(/Saved match.*No new analysis is needed/),
+  ).toBeVisible();
+  expect(
+    within(summary).getByRole('link', { name: 'View full assessment' }),
+  ).toHaveAttribute('href', expect.stringContaining('/match'));
+  expect(
+    within(summary).getByRole('button', { name: 'Reanalyze CV Match' }),
+  ).toHaveClass('MuiButton-outlined');
+  expect(screen.queryByText(/Tailoring uses the saved CV Match/)).toBeNull();
+  // The open draft comes before the option to generate another one.
+  const draft = await screen.findByRole('region', { name: 'Current draft' });
+  const generate = screen
+    .getByText('Generate a new draft instead')
+    .closest('details')!;
+  expect(
+    draft.compareDocumentPosition(generate) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  expect(generate).not.toHaveAttribute('open');
+  expect(generate).toHaveTextContent(
+    /open draft and its decisions stay unchanged/,
+  );
+  // Approval state is on the draft card, not repeated in the progress card,
+  // and the duplicate Next banner is not shown.
+  expect(within(draft).getByText('Not approved')).toBeVisible();
+  expect(
+    screen.getByRole('region', { name: 'Review progress' }),
+  ).not.toHaveTextContent(/Saved revision/);
+  expect(screen.queryByRole('status', { name: 'Next step' })).toBeNull();
+  expect(state.analyses()).toBe(0);
+});
+
+test('a stale match keeps the full explanation above the draft', async () => {
+  setup({ draft: true, status: 'STALE_CV' });
+  await screen.findByRole('heading', { name: 'Step 2 of 3 · Tailor & Review' });
+  expect(
+    await screen.findByText(/Your saved draft below stays available/),
+  ).toBeVisible();
+  expect(screen.queryByRole('region', { name: 'CV Match summary' })).toBeNull();
+});
+
+test('without a draft or match, Step 2 offers one Analyze action and keeps generation blocked', async () => {
+  const state = setup({ status: 'MISSING' });
+  await screen.findByRole('heading', { name: 'Step 2 of 3 · Tailor & Review' });
+  expect(
+    await screen.findByRole('button', { name: 'Analyze CV Match' }),
+  ).toHaveClass('MuiButton-contained');
+  await waitFor(() =>
+    expect(
+      screen.getByRole('button', { name: 'Generate new draft' }),
+    ).toBeDisabled(),
+  );
+  expect(screen.queryByRole('button', { name: 'Refresh CV Match' })).toBeNull();
+  expect(
+    screen.queryByText(/Analyze CV Match for this saved CV and job/),
+  ).toBeNull();
+  expect(screen.getByRole('status', { name: 'Next step' })).toBeVisible();
+  expect(state.analyses()).toBe(0);
 });

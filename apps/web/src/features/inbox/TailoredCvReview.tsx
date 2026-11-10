@@ -1169,12 +1169,128 @@ export function TailoredCvReview({
         )}
       </>
     );
+  // Only a missing match is fully covered by the CV Match card above; a stale
+  // match can still look current there, so its readiness message stays.
+  const matchOwnedAbove =
+    isWizard && !saved && server?.reason === 'CV_DRAFT_MATCH_REQUIRED';
+  const generateSection = wizardStep !== 3 && (
+    <Box
+      component={isWizard && saved ? 'details' : 'div'}
+      id="generate-new-draft"
+      // Space the readiness alert, actions and messages (they touched).
+      // Margins, not flex gap: <details> content ignores the host's gap.
+      sx={{ '& > * + *': { mt: 1.5 } }}
+      {...(isWizard && saved
+        ? {
+            open: generateOpen ?? sourceJustSaved,
+            onToggle: (event: React.SyntheticEvent<HTMLElement>) =>
+              setGenerateOpen((event.currentTarget as HTMLDetailsElement).open),
+          }
+        : {})}
+    >
+      {isWizard && saved && (
+        <Typography component="summary">
+          Generate a new draft instead
+        </Typography>
+      )}
+      {isWizard && saved && (
+        <Typography variant="body2" color="text.secondary">
+          Creates a separate draft from your current CV and match. The open
+          draft and its decisions stay unchanged.
+        </Typography>
+      )}
+      {/* In the workflow without a draft, the CV Match card above already
+          explains a missing match and offers Analyze. */}
+      {!matchOwnedAbove && (
+        <Alert severity={readiness.ready ? 'success' : 'info'} role="status">
+          {readiness.text}
+        </Alert>
+      )}
+      {readiness.action === 'match' && !matchOwnedAbove && (
+        <Button
+          variant={saved ? 'outlined' : 'contained'}
+          disabled={blocked || dirty || !onRefreshMatch}
+          onClick={onRefreshMatch}
+        >
+          Refresh CV Match
+        </Button>
+      )}
+      {readiness.action === 'review' && onReviewSource && (
+        <Button onClick={onReviewSource}>Go to Source CV Review</Button>
+      )}
+      {readiness.action === 'check' && (
+        <Button
+          disabled={blocked || dirty}
+          onClick={() => setRefresh((n) => n + 1)}
+        >
+          Check readiness again
+        </Button>
+      )}
+      {readiness.action === 'reload' && (
+        <Button
+          disabled={blocked || dirty}
+          onClick={() => window.location.reload()}
+        >
+          Reload job
+        </Button>
+      )}
+      {readiness.action === 'match' && matchRefreshError && (
+        <Alert severity="error">{matchRefreshError}</Alert>
+      )}
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+        {(!isWizard || listFailed) && (
+          <Button
+            variant="outlined"
+            disabled={blocked || dirty}
+            onClick={() =>
+              void run(async (token) => {
+                await list(token);
+                if (token === epoch.current) setListFailed(false);
+              })
+            }
+          >
+            {listFailed ? 'Retry loading drafts' : 'Load saved drafts'}
+          </Button>
+        )}
+        <Button
+          variant={
+            saved || items.length > 0 || !readiness.ready
+              ? 'outlined'
+              : 'contained'
+          }
+          // Same-context rechecks keep the last valid answer (no disabled
+          // flash); a changed context clears it, and the server rejects
+          // stale job, CV, profile or match pins at generation.
+          disabled={!readiness.ready}
+          onClick={() =>
+            void run(async (token) => {
+              if (!server?.ready || !server.pins) return;
+              const { sourceRevisionId: _sourceRevisionId, ...pins } =
+                server.pins;
+              void _sourceRevisionId;
+              const value = await draftRequest(`/jobs/${jobId}/drafts`, pins);
+              if (token === epoch.current) {
+                accept(value);
+                setGeneratedAfterSource(true);
+                setGenerateOpen(false);
+                setMessage(
+                  'New draft generated and opened. Existing drafts are unchanged.',
+                );
+              }
+            })
+          }
+        >
+          Generate new draft
+        </Button>
+      </Stack>
+    </Box>
+  );
   return (
     <Stack
       component="section"
       spacing={2}
       sx={{
-        mt: 3,
+        mt: isWizard ? 0 : 3,
         minWidth: 0,
         overflowWrap: 'anywhere',
         '& .MuiButton-root': { minHeight: 44 },
@@ -1206,113 +1322,7 @@ export function TailoredCvReview({
           can be loaded separately.
         </Typography>
       )}
-      {wizardStep !== 3 && (
-        <Box
-          component={isWizard && saved ? 'details' : 'div'}
-          id="generate-new-draft"
-          // Space the readiness alert, actions and messages (they touched).
-          // Margins, not flex gap: <details> content ignores the host's gap.
-          sx={{ '& > * + *': { mt: 1.5 } }}
-          {...(isWizard && saved
-            ? {
-                open: generateOpen ?? sourceJustSaved,
-                onToggle: (event: React.SyntheticEvent<HTMLElement>) =>
-                  setGenerateOpen(
-                    (event.currentTarget as HTMLDetailsElement).open,
-                  ),
-              }
-            : {})}
-        >
-          {isWizard && saved && (
-            <Typography component="summary">
-              Generate a separate draft for the current job
-            </Typography>
-          )}
-          <Alert severity={readiness.ready ? 'success' : 'info'} role="status">
-            {readiness.text}
-          </Alert>
-          {readiness.action === 'match' && (
-            <Button
-              variant={saved ? 'outlined' : 'contained'}
-              disabled={blocked || dirty || !onRefreshMatch}
-              onClick={onRefreshMatch}
-            >
-              Refresh CV Match
-            </Button>
-          )}
-          {readiness.action === 'review' && onReviewSource && (
-            <Button onClick={onReviewSource}>Go to Source CV Review</Button>
-          )}
-          {readiness.action === 'check' && (
-            <Button
-              disabled={blocked || dirty}
-              onClick={() => setRefresh((n) => n + 1)}
-            >
-              Check readiness again
-            </Button>
-          )}
-          {readiness.action === 'reload' && (
-            <Button
-              disabled={blocked || dirty}
-              onClick={() => window.location.reload()}
-            >
-              Reload job
-            </Button>
-          )}
-          {readiness.action === 'match' && matchRefreshError && (
-            <Alert severity="error">{matchRefreshError}</Alert>
-          )}
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-            {(!isWizard || listFailed) && (
-              <Button
-                variant="outlined"
-                disabled={blocked || dirty}
-                onClick={() =>
-                  void run(async (token) => {
-                    await list(token);
-                    if (token === epoch.current) setListFailed(false);
-                  })
-                }
-              >
-                {listFailed ? 'Retry loading drafts' : 'Load saved drafts'}
-              </Button>
-            )}
-            <Button
-              variant={
-                saved || items.length > 0 || !readiness.ready
-                  ? 'outlined'
-                  : 'contained'
-              }
-              // Same-context rechecks keep the last valid answer (no disabled
-              // flash); a changed context clears it, and the server rejects
-              // stale job, CV, profile or match pins at generation.
-              disabled={!readiness.ready}
-              onClick={() =>
-                void run(async (token) => {
-                  if (!server?.ready || !server.pins) return;
-                  const { sourceRevisionId: _sourceRevisionId, ...pins } =
-                    server.pins;
-                  void _sourceRevisionId;
-                  const value = await draftRequest(
-                    `/jobs/${jobId}/drafts`,
-                    pins,
-                  );
-                  if (token === epoch.current) {
-                    accept(value);
-                    setGeneratedAfterSource(true);
-                    setGenerateOpen(false);
-                    setMessage(
-                      'New draft generated and opened. Existing drafts are unchanged.',
-                    );
-                  }
-                })
-              }
-            >
-              Generate new draft
-            </Button>
-          </Stack>
-        </Box>
-      )}
+      {!(isWizard && saved) && generateSection}
       {busy && exporting && (
         <Typography role="status">
           Preparing {exporting.toUpperCase()} download…
@@ -1348,6 +1358,7 @@ export function TailoredCvReview({
           }}
         />
       )}
+      {isWizard && saved && generateSection}
       {document && saved && (
         <>
           {wizardStep !== 3 && (
@@ -1379,12 +1390,13 @@ export function TailoredCvReview({
                     variant="body2"
                     color="text.secondary"
                   >
-                    Saved revision {saved.revision} ·{' '}
+                    {/* The draft card shows revision and approval; repeat them
+                        only when the draft list (and so the card) is absent. */}
                     {dirty
                       ? 'Unsaved changes — approval will be cleared'
-                      : approvedUnchanged
-                        ? 'Approved'
-                        : 'Not approved'}
+                      : items.length === 0
+                        ? `Saved revision ${saved.revision} · ${approvedUnchanged ? 'Approved' : 'Not approved'}`
+                        : ''}
                   </Typography>
                 </Stack>
                 <LinearProgress
