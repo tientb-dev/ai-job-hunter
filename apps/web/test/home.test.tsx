@@ -311,3 +311,40 @@ test('Continue links to the job tab and recovers from a failed progress read', a
     }),
   ).toHaveAttribute('href', `/jobs/${job(1).id}/match`);
 });
+
+test('every follow-up row shows title, company if set, due date and its action', async () => {
+  stub(() =>
+    Promise.resolve(
+      Response.json([
+        job(1, { followUpDate: '2026-01-01', status: 'APPLIED' }),
+        job(2, { followUpDate: '2026-01-02', status: 'APPLIED' }),
+        job(3, { followUpDate: '2026-01-03', status: 'APPLIED', company: '' }),
+      ]),
+    ),
+  );
+  const followUps = await screen.findByRole('region', { name: 'Follow-ups' });
+  const rows = within(followUps).getAllByRole('listitem');
+  expect(rows).toHaveLength(2);
+  const [withCompany, withoutCompany] = rows as [HTMLElement, HTMLElement];
+  for (const [row, n] of [
+    [withCompany, 2],
+    [withoutCompany, 3],
+  ] as const) {
+    expect(
+      within(row).getByRole('link', { name: `Synthetic job ${n}` }),
+    ).toBeVisible();
+    expect(row.querySelector('time')).toHaveAttribute(
+      'dateTime',
+      `2026-01-0${n}`,
+    );
+    expect(within(row).getByText(/^Overdue/)).toBeVisible();
+    expect(
+      within(row).getByRole('link', {
+        name: `Open application for Synthetic job ${n}`,
+      }),
+    ).toHaveAttribute('href', `/jobs/${job(n).id}/application`);
+  }
+  expect(within(withCompany).getByText('Company 2')).toBeVisible();
+  // No placeholder or empty line for a missing company.
+  expect(withoutCompany.querySelectorAll('p')).toHaveLength(1);
+});

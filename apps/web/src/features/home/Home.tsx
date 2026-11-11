@@ -324,21 +324,20 @@ function FollowUps({ due }: { due: HomeSections['due'] }) {
                 <Stack
                   component="li"
                   key={job.id}
-                  direction="row"
-                  spacing={1}
-                  sx={{
-                    px: 2,
-                    py: 1,
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    borderTop: 1,
-                    borderColor: 'divider',
-                  }}
+                  spacing={0.5}
+                  sx={{ px: 2, py: 1, borderTop: 1, borderColor: 'divider' }}
                 >
+                  {/* Title and company get the full row; date and action sit below. */}
                   <JobTitle job={job} />
                   <Stack
-                    direction={{ xs: 'column', sm: 'row' }}
-                    sx={{ alignItems: 'flex-end', flexShrink: 0 }}
+                    direction="row"
+                    useFlexGap
+                    sx={{
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      columnGap: 1,
+                    }}
                   >
                     <FollowUpDate label={label} date={job.followUpDate!} />
                     {applicationLink(job, 'text')}
