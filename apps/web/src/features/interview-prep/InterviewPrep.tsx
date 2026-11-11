@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useBlocker } from 'react-router-dom';
 import {
   Accordion,
   AccordionDetails,
@@ -6,22 +7,34 @@ import {
   Alert,
   Box,
   Button,
+  ButtonBase,
   Chip,
   Collapse,
   LinearProgress,
+  List,
+  ListItemButton,
   Paper,
   Stack,
+  SvgIcon,
   TextField,
   ToggleButton,
   ToggleButtonGroup,
   Typography,
 } from '@mui/material';
 import { PageHeader } from '../../components/PageHeader';
+import { StatusChip } from '../../components/StatusChip';
 import {
+  AnswerConflictError,
   MAX_ANSWER_CHARS,
+  MAX_REFERENCE_ANSWER,
   PracticeError,
+  answerLength,
   fetchQuestions,
+  listAnswers,
+  removeAnswer,
   requestFeedback,
+  saveAnswer,
+  type SavedAnswer,
   type PracticeFeedback,
   type PracticeMode,
   type PracticeQuestion,
@@ -30,13 +43,33 @@ import {
 } from './interview-prep-api';
 import { useRecorder } from './useRecorder';
 
-const TOPICS: Record<PracticeTopic, { label: string; description: string }> = {
+/** Dirty = changed since the editor opened (an AI pre-fill alone is not an edit). */
+const isDirty = (editor: AnswerEditor | null) =>
+  !!editor && editor.text !== editor.initial;
+import {
+  Editor,
+  ReferenceAnswer,
+  SavedPrompt,
+  Step,
+  UnsavedAnswerDialog,
+  type AnswerEditor,
+  type PracticeView,
+} from './ReferenceAnswer';
+
+const TOPICS: Record<
+  PracticeTopic,
+  { label: string; description: string; icon: string }
+> = {
   hr: {
+    // chat bubble
+    icon: 'M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2m0 14H5.17L4 17.17V4h16z',
     label: 'HR communication',
     description:
       'Introduce yourself, talk about strengths, motivation, goals and teamwork.',
   },
   technical: {
+    // code brackets
+    icon: 'M9.4 16.6 4.8 12l4.6-4.6L8 6l-6 6 6 6zm5.2 0 4.6-4.6-4.6-4.6L16 6l6 6-6 6z',
     label: 'Technical communication',
     description:
       'Explain concepts, decisions, trade-offs and how you solve problems.',
@@ -87,7 +120,13 @@ type Status =
   | { kind: 'idle'; cancelled?: boolean }
   | { kind: 'loading' }
   | { kind: 'error'; message: string }
-  | { kind: 'done'; feedback: PracticeFeedback };
+  | {
+      kind: 'done';
+      feedback: PracticeFeedback;
+      /** The exact text that was sent, for "Keep my original". */
+      answer: string;
+      mode: PracticeMode;
+    };
 interface Attempt {
   mode: PracticeMode;
   text: string;
@@ -283,12 +322,24 @@ function Feedback({
   );
 }
 
-function Recorder({ recorder }: { recorder: ReturnType<typeof useRecorder> }) {
+const MIC =
+  'M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3m5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72z';
+
+function Recorder({
+  recorder,
+  title,
+  prominent = false,
+}: {
+  recorder: ReturnType<typeof useRecorder>;
+  title: string;
+  /** Step 3: the main action, so a filled button. */
+  prominent?: boolean;
+}) {
   const { state, url, start, stop } = recorder;
   return (
     <Stack spacing={1}>
       <Typography variant="subtitle2" component="h3">
-        Say it out loud (optional)
+        {title}
       </Typography>
       {url && state === 'ready' && (
         <Typography variant="body2" role="status">
@@ -325,9 +376,14 @@ function Recorder({ recorder }: { recorder: ReturnType<typeof useRecorder> }) {
             </Button>
           ) : (
             <Button
-              variant="outlined"
+              variant={prominent ? 'contained' : 'outlined'}
               onClick={() => void start()}
               disabled={state === 'requesting'}
+              startIcon={
+                <SvgIcon aria-hidden="true">
+                  <path d={MIC} />
+                </SvgIcon>
+              }
             >
               {url ? 'Record again' : 'Record'}
             </Button>
@@ -372,6 +428,25 @@ export function InterviewPrep() {
   const [shown, setShown] = useState(true);
   const [previous, setPrevious] = useState<Attempt | null>(null);
   const [previousShown, setPreviousShown] = useState(false);
+  // PR14: saved reference answers. 'error' never means "not prepared".
+  const [answersStatus, setAnswersStatus] = useState<
+    'loading' | 'error' | 'ready'
+  >('loading');
+  const [answers, setAnswers] = useState<Record<string, SavedAnswer>>({});
+  const [answersAttempt, setAnswersAttempt] = useState(0);
+  const [listOpen, setListOpen] = useState(false);
+  const [listFilter, setListFilter] = useState<'all' | 'prepared'>('all');
+  const [editor, setEditor] = useState<AnswerEditor | null>(null);
+  const [view, setView] = useState<PracticeView>('read');
+  const [revealed, setRevealed] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  // Question id whose answer was just saved: shows "Start speaking practice".
+  const [justSaved, setJustSaved] = useState<{
+    questionId: string;
+    origin: AnswerEditor['origin'];
+  } | null>(null);
+  const [tryOpen, setTryOpen] = useState(false);
+  const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
   const recorder = useRecorder();
   const request = useRef<AbortController | null>(null);
   // Only the latest request may update the screen.
@@ -392,6 +467,41 @@ export function InterviewPrep() {
     setLoadAttempt((n) => n + 1);
   };
   useEffect(() => () => request.current?.abort(), []);
+  useEffect(() => {
+    const controller = new AbortController();
+    listAnswers(controller.signal).then(
+      (rows) => {
+        setAnswers(Object.fromEntries(rows.map((a) => [a.questionId, a])));
+        setAnswersStatus('ready');
+      },
+      () => {
+        if (!controller.signal.aborted) setAnswersStatus('error');
+      },
+    );
+    return () => controller.abort();
+  }, [answersAttempt]);
+  const retryAnswers = () => {
+    setAnswersStatus('loading');
+    setAnswersAttempt((n) => n + 1);
+  };
+  const dirty = isDirty(editor);
+  // Route changes inside the app.
+  const blocker = useBlocker(dirty);
+  // Refresh or tab close: the browser's own native warning, no custom dialog.
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
+  /** Run an in-page navigation now, or after "Discard changes" if the editor is dirty. */
+  const guard = (action: () => void) => {
+    if (isDirty(editor)) setPendingLeave(() => action);
+    else action();
+  };
 
   const abandon = () => {
     sequence.current++;
@@ -406,25 +516,51 @@ export function InterviewPrep() {
     setPrevious(null);
     setPreviousShown(false);
     setHintsOpen(false);
+    setEditor(null);
+    setView('read');
+    setRevealed(false);
+    setNotice(null);
+    setJustSaved(null);
+    setTryOpen(false);
   };
-  const chooseTopic = (next: PracticeTopic) => {
+  const chooseTopic = (next: PracticeTopic, preparedOnly = false) => {
     const list = shuffle((questions ?? []).filter((q) => q.topic === next));
+    // "Practice prepared answers": open the filtered list on a prepared question.
+    const first = preparedOnly
+      ? Math.max(
+          0,
+          list.findIndex((q) => answers[q.id]),
+        )
+      : 0;
     freshQuestion();
     setTopic(next);
     setOrder(list);
-    setIndex(0);
-    setVariant(pick(list[0]?.variants.length ?? 1));
+    setIndex(first);
+    setVariant(pick(list[first]?.variants.length ?? 1));
+    setListOpen(preparedOnly);
+    setListFilter(preparedOnly ? 'prepared' : 'all');
   };
-  const nextQuestion = () => {
-    const nextIndex = (index + 1) % order.length;
+  const goTo = (nextIndex: number) => {
     freshQuestion();
     setIndex(nextIndex);
     setVariant(pick(order[nextIndex]?.variants.length ?? 1));
   };
-  const changeTopic = () => {
-    freshQuestion();
-    setTopic(null);
-  };
+  // Next question ignores the list filter: it walks the whole topic.
+  const nextQuestion = () => guard(() => goTo((index + 1) % order.length));
+  const selectQuestion = (id: string) =>
+    guard(() =>
+      goTo(
+        Math.max(
+          0,
+          order.findIndex((q) => q.id === id),
+        ),
+      ),
+    );
+  const changeTopic = () =>
+    guard(() => {
+      freshQuestion();
+      setTopic(null);
+    });
   const changeMode = (next: PracticeMode | null) => {
     if (!next || next === mode) return;
     abandon(); // a result for the other mode would be stale
@@ -452,7 +588,9 @@ export function InterviewPrep() {
       );
       if (ticket !== sequence.current) return;
       setShown(true);
-      setStatus({ kind: 'done', feedback });
+      setStatus({ kind: 'done', feedback, answer, mode });
+      // New feedback: offer the choices again, drop a stale post-save prompt.
+      setJustSaved((cur) => (cur?.origin === 'feedback' ? null : cur));
     } catch (error) {
       if (ticket !== sequence.current || controller.signal.aborted) return;
       setStatus({
@@ -478,6 +616,131 @@ export function InterviewPrep() {
     setStatus({ kind: 'idle' });
     recorder.reset();
     setTimeout(() => input.current?.focus(), 0);
+  };
+
+  // ------------------------------------------- PR14 reference answer actions
+  // One editor for both entry points; a dirty draft is never replaced silently.
+  const openEditor = (origin: AnswerEditor['origin'], chosen?: string) =>
+    guard(() => {
+      if (!question || answersStatus !== 'ready') return;
+      const saved = answers[question.id];
+      const shownSuggestion =
+        status.kind === 'done' ? status.feedback.suggestion : null;
+      // Step 2 pre-fill: saved answer → displayed safe suggestion → typed English (review) → empty.
+      const prefill =
+        chosen ??
+        saved?.answer ??
+        shownSuggestion ??
+        (mode === 'review' ? text.trim() : '');
+      setNotice(null);
+      setJustSaved(null);
+      setEditor({
+        origin,
+        questionId: question.id,
+        text: prefill,
+        initial: prefill,
+        baseVersion: saved?.version ?? null,
+        saving: false,
+        error: null,
+        conflict: null,
+      });
+    });
+  const storeAnswer = (id: string, value: SavedAnswer | null) =>
+    setAnswers((all) => {
+      const next = { ...all };
+      if (value) next[id] = value;
+      else delete next[id];
+      return next;
+    });
+  const save = async (base?: number | null) => {
+    if (!editor || editor.saving || answersStatus !== 'ready') return;
+    const target = editor;
+    const expectedVersion = base === undefined ? target.baseVersion : base;
+    const length = answerLength(target.text);
+    if (!length || length > MAX_REFERENCE_ANSWER) return;
+    setEditor({
+      ...target,
+      saving: true,
+      error: null,
+      baseVersion: expectedVersion,
+    });
+    try {
+      const saved = await saveAnswer(
+        target.questionId,
+        target.text.trim(),
+        expectedVersion,
+      );
+      storeAnswer(saved.questionId, saved);
+      // Saved: close the editor and open Speaking practice in Read Along.
+      setEditor((cur) => (cur?.questionId === saved.questionId ? null : cur));
+      setView('read');
+      setRevealed(false);
+      // No auto-scroll: the user chooses when to practise.
+      setJustSaved({ questionId: saved.questionId, origin: target.origin });
+    } catch (error) {
+      if (error instanceof AnswerConflictError) {
+        storeAnswer(target.questionId, error.current);
+        setEditor((cur) =>
+          cur?.questionId === target.questionId
+            ? {
+                ...cur,
+                saving: false,
+                conflict: { current: error.current, showSaved: false },
+              }
+            : cur,
+        );
+        return;
+      }
+      setEditor((cur) =>
+        cur?.questionId === target.questionId
+          ? {
+              ...cur,
+              saving: false,
+              error:
+                error instanceof PracticeError
+                  ? error.message
+                  : 'Your answer could not be saved. Your text is kept — try again.',
+            }
+          : cur,
+      );
+    }
+  };
+  const useSaved = () =>
+    setEditor((cur) =>
+      cur?.conflict?.current
+        ? {
+            ...cur,
+            text: cur.conflict.current.answer,
+            initial: cur.conflict.current.answer,
+            baseVersion: cur.conflict.current.version,
+            conflict: null,
+            error: null,
+          }
+        : cur,
+    );
+  // Explicit overwrite: still guarded by the latest known version (or a create).
+  const saveMine = () => void save(editor?.conflict?.current?.version ?? null);
+  const remove = async () => {
+    const saved = question ? answers[question.id] : undefined;
+    if (!saved || answersStatus !== 'ready') return;
+    setNotice(null);
+    setJustSaved(null);
+    try {
+      await removeAnswer(saved.questionId, saved.version);
+      storeAnswer(saved.questionId, null);
+    } catch (error) {
+      if (error instanceof AnswerConflictError) {
+        storeAnswer(saved.questionId, error.current);
+        setNotice(
+          'This answer changed in another tab, so nothing was removed. The latest saved state is shown.',
+        );
+      } else
+        setNotice(
+          error instanceof PracticeError
+            ? error.message
+            : 'The answer could not be removed. Try again.',
+        );
+    }
   };
 
   const header = (
@@ -514,10 +777,29 @@ export function InterviewPrep() {
   if (!topic || !question)
     return (
       <Stack spacing={3}>
-        {header}
-        <Typography variant="h6" component="h2">
-          Choose a topic
-        </Typography>
+        <PageHeader title="Interview Prep" />
+        <Box>
+          <Typography variant="h5" component="h2" sx={{ fontWeight: 600 }}>
+            Get comfortable speaking about your experience.
+          </Typography>
+          <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+            One question at a time. Simple English, real experience, your own
+            words.
+          </Typography>
+        </Box>
+        {answersStatus === 'error' && (
+          <Alert
+            severity="error"
+            action={
+              <Button color="inherit" onClick={retryAnswers}>
+                Retry
+              </Button>
+            }
+          >
+            Your saved answers couldn't be loaded. You can still practise with
+            AI help.
+          </Alert>
+        )}
         <Box
           sx={{
             display: 'grid',
@@ -530,19 +812,41 @@ export function InterviewPrep() {
               key={key}
               variant="outlined"
               sx={{
-                p: 2.5,
+                p: 3,
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 1.5,
               }}
             >
-              <Typography
-                variant="subtitle1"
-                component="h3"
-                sx={{ fontWeight: 600 }}
+              <Stack
+                direction="row"
+                spacing={1.5}
+                sx={{ alignItems: 'center' }}
               >
-                {TOPICS[key].label}
-              </Typography>
+                <Box
+                  aria-hidden="true"
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 1,
+                    display: 'grid',
+                    placeItems: 'center',
+                    bgcolor: 'action.hover',
+                    color: 'primary.main',
+                  }}
+                >
+                  <SvgIcon>
+                    <path d={TOPICS[key].icon} />
+                  </SvgIcon>
+                </Box>
+                <Typography
+                  variant="subtitle1"
+                  component="h3"
+                  sx={{ fontWeight: 600 }}
+                >
+                  {TOPICS[key].label}
+                </Typography>
+              </Stack>
               <Typography
                 variant="body2"
                 color="text.secondary"
@@ -550,7 +854,12 @@ export function InterviewPrep() {
               >
                 {TOPICS[key].description}
               </Typography>
-              <Box>
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={1}
+                useFlexGap
+                sx={{ flexWrap: 'wrap' }}
+              >
                 <Button
                   variant="contained"
                   onClick={() => chooseTopic(key)}
@@ -558,14 +867,60 @@ export function InterviewPrep() {
                 >
                   Start
                 </Button>
-              </Box>
+                {(() => {
+                  const n = questions.filter(
+                    (q) => q.topic === key && answers[q.id],
+                  ).length;
+                  return (
+                    <Button
+                      variant="outlined"
+                      onClick={() => chooseTopic(key, true)}
+                      disabled={answersStatus !== 'ready' || n === 0}
+                    >
+                      {answersStatus === 'ready'
+                        ? `Practice prepared answers (${n})`
+                        : answersStatus === 'loading'
+                          ? 'Practice prepared answers (…)'
+                          : 'Practice prepared answers (unavailable)'}
+                    </Button>
+                  );
+                })()}
+              </Stack>
             </Paper>
           ))}
         </Box>
       </Stack>
     );
 
+  const startPractice = () => {
+    setJustSaved(null);
+    setView('read'); // the recording is kept, as for any mode switch
+    setRevealed(false);
+    const heading = document.getElementById('speaking-practice');
+    heading?.scrollIntoView({ block: 'start' });
+    heading?.focus({ preventScroll: true });
+  };
+  const editorProps = {
+    onChange: (value: string) =>
+      setEditor((cur) => (cur ? { ...cur, text: value, error: null } : cur)),
+    onSave: () => void save(),
+    onCancel: () => guard(() => setEditor(null)),
+    onShowSaved: () =>
+      setEditor((cur) =>
+        cur?.conflict
+          ? {
+              ...cur,
+              conflict: { ...cur.conflict, showSaved: !cur.conflict.showSaved },
+            }
+          : cur,
+      ),
+    onUseSaved: useSaved,
+    onSaveMine: saveMine,
+  };
+  const savedFromFeedback =
+    justSaved?.origin === 'feedback' && justSaved.questionId === question.id;
   const loading = status.kind === 'loading';
+  const preparedCount = order.filter((q) => answers[q.id]).length;
   const feedback = status.kind === 'done' ? status.feedback : null;
   return (
     <Stack spacing={3} sx={{ maxWidth: 760, minWidth: 0 }}>
@@ -588,22 +943,22 @@ export function InterviewPrep() {
         aria-labelledby="practice-question"
         sx={{ p: { xs: 2, sm: 3 } }}
       >
-        <Stack spacing={2}>
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={1}
-            sx={{
-              justifyContent: 'space-between',
-              alignItems: { sm: 'center' },
-            }}
+        {/* Mobile: question first, Next last. Desktop: Next sits top right. DOM order = reading order. */}
+        <Box
+          sx={{
+            display: 'grid',
+            gap: 2,
+            gridTemplateColumns: { xs: '1fr', sm: '1fr auto' },
+            '& > *': { gridColumn: '1 / -1', minWidth: 0 },
+          }}
+        >
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ gridColumn: { sm: '1 / 2 !important' }, alignSelf: 'center' }}
           >
-            <Typography variant="caption" color="text.secondary">
-              {question.category} · Question {index + 1} of {order.length}
-            </Typography>
-            <Button variant="outlined" onClick={nextQuestion}>
-              Next question
-            </Button>
-          </Stack>
+            {question.category} · Question {index + 1} of {order.length}
+          </Typography>
           <Typography id="practice-question" variant="h6" component="h2">
             {question.variants[variant] ?? question.variants[0]}
           </Typography>
@@ -645,113 +1000,297 @@ export function InterviewPrep() {
               </Collapse>
             </Box>
           )}
-        </Stack>
+          <Button
+            variant="outlined"
+            onClick={nextQuestion}
+            sx={{
+              gridColumn: { sm: '2 / 3 !important' },
+              gridRow: { sm: 1 },
+              justifySelf: { sm: 'end' },
+            }}
+          >
+            Next question
+          </Button>
+        </Box>
       </Paper>
 
-      <Recorder recorder={recorder} />
-
-      <Stack
-        spacing={2}
-        component="form"
-        aria-label="Your answer"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void submit();
-        }}
-      >
-        <Stack spacing={1}>
-          <Typography
-            variant="subtitle2"
-            component="h3"
-            id="practice-mode-label"
-          >
-            How should AI help?
-          </Typography>
-          <ToggleButtonGroup
-            exclusive
-            value={mode}
-            onChange={(_e, value: PracticeMode | null) => changeMode(value)}
-            aria-labelledby="practice-mode-label"
-            sx={{ flexWrap: 'wrap' }}
-          >
-            {(Object.keys(MODES) as PracticeMode[]).map((key) => (
-              <ToggleButton
-                key={key}
-                value={key}
-                sx={{ textTransform: 'none', minHeight: 44 }}
-              >
-                {MODES[key].label}
-              </ToggleButton>
-            ))}
-          </ToggleButtonGroup>
-        </Stack>
-        <TextField
-          inputRef={input}
-          label={MODES[mode].field}
-          multiline
-          minRows={4}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-              e.preventDefault();
-              void submit();
-            }
-          }}
-          helperText={`${MODES[mode].helper} ${text.length}/${MAX_ANSWER_CHARS} · Ctrl+Enter to send`}
-          slotProps={{
-            htmlInput: {
-              maxLength: MAX_ANSWER_CHARS,
-              lang: mode === 'review' ? 'en' : undefined,
+      <Box>
+        <ButtonBase
+          onClick={() => setListOpen((v) => !v)}
+          aria-expanded={listOpen}
+          aria-controls="question-list"
+          sx={{
+            width: '100%',
+            minHeight: 48,
+            px: 2,
+            py: 1,
+            gap: 1.5,
+            justifyContent: 'flex-start',
+            textAlign: 'left',
+            border: 1,
+            borderColor: 'divider',
+            borderRadius: 1,
+            bgcolor: 'background.paper',
+            '&:hover': { bgcolor: 'action.hover' },
+            '&.Mui-focusVisible': {
+              outline: (t) => `2px solid ${t.palette.primary.main}`,
+              outlineOffset: 2,
             },
           }}
-          fullWidth
-        />
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={1}
-          sx={{ alignItems: { sm: 'center' } }}
         >
-          <Button
-            type="submit"
-            variant="contained"
-            disabled={loading || !text.trim()}
+          <Typography sx={{ fontWeight: 600, flex: 1, whiteSpace: 'nowrap' }}>
+            Browse questions
+          </Typography>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ whiteSpace: 'nowrap' }}
           >
-            {MODES[mode].action}
-          </Button>
-          {loading && (
-            <Button variant="outlined" onClick={cancel}>
-              Cancel
+            {answersStatus === 'ready' ? (
+              <>
+                <Box
+                  component="span"
+                  sx={{ display: { xs: 'none', sm: 'inline' } }}
+                >
+                  {preparedCount} prepared · {order.length} questions
+                </Box>
+                <Box
+                  component="span"
+                  sx={{ display: { xs: 'inline', sm: 'none' } }}
+                >
+                  {preparedCount} / {order.length} prepared
+                </Box>
+              </>
+            ) : (
+              `${order.length} questions`
+            )}
+          </Typography>
+          <SvgIcon
+            aria-hidden="true"
+            sx={{
+              color: 'text.secondary',
+              transition: 'transform 150ms',
+              transform: listOpen ? 'rotate(180deg)' : 'none',
+            }}
+          >
+            <path d="M16.59 8.59 12 13.17 7.41 8.59 6 10l6 6 6-6z" />
+          </SvgIcon>
+        </ButtonBase>
+        <Collapse in={listOpen} id="question-list">
+          <Paper variant="outlined" sx={{ mt: 1, p: { xs: 1.5, sm: 2 } }}>
+            <Stack spacing={1.5}>
+              <ToggleButtonGroup
+                exclusive
+                size="small"
+                value={listFilter}
+                onChange={(_e, v: 'all' | 'prepared' | null) =>
+                  v && setListFilter(v)
+                }
+                aria-label="Filter questions"
+              >
+                <ToggleButton
+                  value="all"
+                  sx={{ textTransform: 'none', minHeight: 44 }}
+                >
+                  All
+                </ToggleButton>
+                <ToggleButton
+                  value="prepared"
+                  sx={{ textTransform: 'none', minHeight: 44 }}
+                  disabled={answersStatus !== 'ready'}
+                >
+                  Prepared
+                </ToggleButton>
+              </ToggleButtonGroup>
+              {(() => {
+                const rows = [...order]
+                  .sort((a, b) => a.id.localeCompare(b.id))
+                  .filter((q) => listFilter === 'all' || answers[q.id]);
+                if (!rows.length)
+                  return (
+                    <Typography variant="body2" color="text.secondary">
+                      No prepared answers in this topic yet.
+                    </Typography>
+                  );
+                return (
+                  <List
+                    dense
+                    disablePadding
+                    aria-label="Questions in this topic"
+                  >
+                    {rows.map((q) => (
+                      <ListItemButton
+                        key={q.id}
+                        selected={q.id === question.id}
+                        aria-current={q.id === question.id ? 'true' : undefined}
+                        onClick={() => selectQuestion(q.id)}
+                        sx={{
+                          gap: 1.5,
+                          alignItems: 'flex-start',
+                          flexWrap: 'wrap',
+                          minHeight: 44,
+                        }}
+                      >
+                        <Box sx={{ flex: '1 1 220px', minWidth: 0 }}>
+                          <Typography
+                            variant="body2"
+                            sx={{ overflowWrap: 'anywhere' }}
+                          >
+                            {q.variants[0]}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {q.category}
+                          </Typography>
+                        </Box>
+                        <StatusChip
+                          status={
+                            answersStatus === 'ready'
+                              ? answers[q.id]
+                                ? 'PREPARED'
+                                : 'NOT_PREPARED'
+                              : answersStatus === 'loading'
+                                ? 'LOADING'
+                                : 'UNKNOWN'
+                          }
+                        />
+                      </ListItemButton>
+                    ))}
+                  </List>
+                );
+              })()}
+            </Stack>
+          </Paper>
+        </Collapse>
+      </Box>
+
+      <Step
+        n={1}
+        id="prepare-answer"
+        title="Prepare your answer"
+        intro="Write it yourself or get help expressing it in English."
+      >
+        <Stack
+          spacing={2}
+          component="form"
+          aria-label="Your answer"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void submit();
+          }}
+        >
+          <Stack spacing={1}>
+            <Typography
+              variant="subtitle2"
+              component="h3"
+              id="practice-mode-label"
+            >
+              How should AI help?
+            </Typography>
+            <ToggleButtonGroup
+              exclusive
+              value={mode}
+              onChange={(_e, value: PracticeMode | null) => changeMode(value)}
+              aria-labelledby="practice-mode-label"
+              sx={{ flexWrap: 'wrap' }}
+            >
+              {(Object.keys(MODES) as PracticeMode[]).map((key) => (
+                <ToggleButton
+                  key={key}
+                  value={key}
+                  sx={{ textTransform: 'none', minHeight: 44 }}
+                >
+                  {MODES[key].label}
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+          </Stack>
+          <TextField
+            inputRef={input}
+            label={MODES[mode].field}
+            multiline
+            minRows={4}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                void submit();
+              }
+            }}
+            helperText={`${MODES[mode].helper} ${text.length}/${MAX_ANSWER_CHARS} · Ctrl+Enter to send`}
+            slotProps={{
+              htmlInput: {
+                maxLength: MAX_ANSWER_CHARS,
+                lang: mode === 'review' ? 'en' : undefined,
+              },
+            }}
+            fullWidth
+          />
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1}
+            sx={{ alignItems: { sm: 'center' } }}
+          >
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={loading || !text.trim()}
+            >
+              {MODES[mode].action}
             </Button>
+            {loading && (
+              <Button variant="outlined" onClick={cancel}>
+                Cancel
+              </Button>
+            )}
+          </Stack>
+          {loading && (
+            <Stack spacing={1} role="status">
+              <LinearProgress aria-label="Waiting for feedback" />
+              <Typography variant="body2" color="text.secondary">
+                Checking with the local AI… usually under 10 seconds.
+              </Typography>
+            </Stack>
+          )}
+          {status.kind === 'idle' && status.cancelled && (
+            <Typography variant="body2" color="text.secondary" role="status">
+              Stopped waiting. Your text is kept. The local AI may still finish
+              in the background.
+            </Typography>
+          )}
+          {status.kind === 'error' && (
+            <Alert
+              severity="error"
+              action={
+                <Button color="inherit" onClick={() => void submit()}>
+                  Retry
+                </Button>
+              }
+            >
+              {status.message}
+            </Alert>
           )}
         </Stack>
-        {loading && (
-          <Stack spacing={1} role="status">
-            <LinearProgress aria-label="Waiting for feedback" />
-            <Typography variant="body2" color="text.secondary">
-              Checking with the local AI… usually under 10 seconds.
-            </Typography>
-          </Stack>
+
+        {/* One recorder: in step 3 when the answer is prepared, otherwise here (collapsed). */}
+        {!(answersStatus === 'ready' && answers[question.id] && !editor) && (
+          <Box>
+            <Button
+              variant="text"
+              onClick={() => setTryOpen((v) => !v)}
+              aria-expanded={tryOpen}
+              aria-controls="try-speaking"
+            >
+              Want to try speaking first?
+            </Button>
+            <Collapse in={tryOpen} id="try-speaking">
+              <Box sx={{ mt: 1 }}>
+                <Recorder recorder={recorder} title="Try speaking (optional)" />
+              </Box>
+            </Collapse>
+          </Box>
         )}
-        {status.kind === 'idle' && status.cancelled && (
-          <Typography variant="body2" color="text.secondary" role="status">
-            Stopped waiting. Your text is kept. The local AI may still finish in
-            the background.
-          </Typography>
-        )}
-        {status.kind === 'error' && (
-          <Alert
-            severity="error"
-            action={
-              <Button color="inherit" onClick={() => void submit()}>
-                Retry
-              </Button>
-            }
-          >
-            {status.message}
-          </Alert>
-        )}
-      </Stack>
+      </Step>
 
       {feedback && (
         <Paper
@@ -780,15 +1319,73 @@ export function InterviewPrep() {
                   ? 'Now hide the suggestion and say your answer out loud again.'
                   : 'Now say your answer out loud again, using the feedback above.'}
               </Typography>
-              <Box>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
                 <Button variant="contained" onClick={tryAgain}>
                   Try again
                 </Button>
-              </Box>
+              </Stack>
             </Stack>
+            {/* Hidden once this feedback's choice was saved: one next action remains. */}
+            {answersStatus === 'ready' &&
+              !savedFromFeedback &&
+              (feedback.suggestion ||
+                (status.kind === 'done' && status.mode === 'review')) && (
+                <Stack spacing={1}>
+                  <Typography
+                    variant="subtitle1"
+                    component="h3"
+                    sx={{ fontWeight: 600 }}
+                  >
+                    Choose your reference answer
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {feedback.suggestion
+                      ? 'Start from the AI suggestion or your own words. You can edit it before saving.'
+                      : 'No safe rewrite is available. Start from your own words and edit them before saving.'}
+                  </Typography>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                    {/* suggestion is non-null only when PR13's meaning guards passed */}
+                    {feedback.suggestion && (
+                      <Button
+                        variant="contained"
+                        onClick={() =>
+                          openEditor('feedback', feedback.suggestion!)
+                        }
+                      >
+                        Use suggested answer
+                      </Button>
+                    )}
+                    {status.kind === 'done' && status.mode === 'review' && (
+                      <Button
+                        variant="outlined"
+                        onClick={() => openEditor('feedback', status.answer)}
+                      >
+                        Keep my original
+                      </Button>
+                    )}
+                  </Stack>
+                </Stack>
+              )}
           </Stack>
         </Paper>
       )}
+
+      {/* The editor under Feedback; it stays even if new feedback arrives or the mode changes. */}
+      {answersStatus === 'ready' &&
+        (editor?.origin === 'feedback' && editor.questionId === question.id ? (
+          <Paper
+            variant="outlined"
+            component="section"
+            aria-label="Edit your reference answer"
+            sx={{ p: { xs: 2, sm: 3 } }}
+          >
+            <Editor {...editorProps} editor={editor} />
+          </Paper>
+        ) : savedFromFeedback ? (
+          <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
+            <SavedPrompt onStart={startPractice} />
+          </Paper>
+        ) : null)}
 
       {previous && (
         <Accordion disableGutters variant="outlined">
@@ -817,6 +1414,51 @@ export function InterviewPrep() {
           </AccordionDetails>
         </Accordion>
       )}
+      <ReferenceAnswer
+        key={question.id}
+        status={answersStatus}
+        saved={answers[question.id]}
+        editor={editor?.questionId === question.id ? editor : null}
+        view={view}
+        revealed={revealed}
+        recorder={
+          <Recorder recorder={recorder} title="Say it out loud" prominent />
+        }
+        notice={notice}
+        onRetryLoad={retryAnswers}
+        onFinalize={() => openEditor('step2')}
+        onEditorChange={editorProps.onChange}
+        onSave={editorProps.onSave}
+        onCancel={editorProps.onCancel}
+        onShowSaved={editorProps.onShowSaved}
+        onUseSaved={useSaved}
+        onSaveMine={saveMine}
+        onView={(next) => {
+          setView(next); // the recording is kept across modes
+          setRevealed(false);
+        }}
+        onReveal={() => setRevealed((v) => !v)}
+        onRemove={remove}
+        justSaved={
+          justSaved?.origin === 'step2' && justSaved.questionId === question.id
+        }
+        onStartPractice={startPractice}
+      />
+
+      <UnsavedAnswerDialog
+        open={!!pendingLeave || blocker.state === 'blocked'}
+        onStay={() => {
+          setPendingLeave(null);
+          if (blocker.state === 'blocked') blocker.reset();
+        }}
+        onDiscard={() => {
+          const action = pendingLeave;
+          setPendingLeave(null);
+          setEditor(null);
+          if (blocker.state === 'blocked') blocker.proceed();
+          action?.();
+        }}
+      />
     </Stack>
   );
 }

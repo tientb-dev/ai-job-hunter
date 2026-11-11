@@ -6,3 +6,7 @@ pnpm-lock.yaml
 
 # Locally installed agent skills
 /.agents/skills/
+
+# Local agent/browser output (untracked, not project source)
+/.playwright-mcp/
+/artifacts/

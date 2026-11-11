@@ -38,6 +38,17 @@ import {
   parseFeedbackRequest,
 } from '../../src/interview-prep/interview-prep.policy.js';
 import { compileOutputSchema } from '../../src/ai/ai.schema.js';
+import {
+  InterviewAnswersService,
+  MAX_REFERENCE_ANSWER,
+  parseSaveBody,
+  parseVersion,
+} from '../../src/interview-prep/interview-answers.service.js';
+import {
+  PUBLISHED_QUESTION_IDS,
+  RETIRED_QUESTION_IDS,
+} from '../../src/interview-prep/interview-prep.questions.js';
+import { InterviewPrepError } from '../../src/interview-prep/interview-prep.policy.js';
 
 const q = (id: string) => findQuestion(id)!;
 const CV = [
@@ -73,7 +84,8 @@ describe('question bank', () => {
       INTERVIEW_QUESTIONS.filter((x) => x.topic === 'technical').length,
     ).toBeGreaterThanOrEqual(5);
     for (const x of INTERVIEW_QUESTIONS) {
-      expect(x.variants.length).toBeGreaterThanOrEqual(2);
+      // PR14 split some questions to one wording each: one ID = one meaning.
+      expect(x.variants.length).toBeGreaterThanOrEqual(1);
       // "Why did you use RabbitMQ?" would assume experience the user may not have.
       if (x.kind === 'personal')
         for (const v of x.variants)
@@ -384,6 +396,13 @@ const generateStructured =
   jest.fn<(r: { prompt: string }) => Promise<unknown>>();
 const reviewedFacts = jest.fn<(owner: string) => Promise<string[] | null>>();
 const origin = { Host: '127.0.0.1:3000', Origin: 'http://127.0.0.1:5173' };
+const answersService = {
+  list: jest.fn<(owner: string) => Promise<unknown[]>>(),
+  save: jest.fn<
+    (owner: string, id: unknown, body: unknown) => Promise<unknown>
+  >(),
+  remove: jest.fn<(owner: string, id: unknown, v: unknown) => Promise<void>>(),
+};
 let app: INestApplication;
 beforeAll(async () => {
   const module = await Test.createTestingModule({
@@ -393,6 +412,7 @@ beforeAll(async () => {
       FoundationLocalGuard,
       { provide: AiService, useValue: { generateStructured } },
       { provide: TailoredDraftService, useValue: { reviewedFacts } },
+      { provide: InterviewAnswersService, useValue: answersService },
     ],
   }).compile();
   app = module.createNestApplication();
@@ -726,12 +746,28 @@ describe('technical learning hints', () => {
 });
 
 describe('question wording variant', () => {
-  const ok = { questionId: 'tech-tradeoff-01', mode: 'review', answer: 'x' };
+  const ok = { questionId: 'hr-learning-01', mode: 'review', answer: 'x' };
   test('uses the displayed wording and defaults to the first', () => {
-    expect(parseFeedbackRequest({ ...ok, variant: 1 }).questionText).toMatch(
-      /synchronous and asynchronous/u,
+    expect(parseFeedbackRequest({ ...ok, variant: 1 }).questionText).toBe(
+      'What have you learned recently in your work?',
     );
-    expect(parseFeedbackRequest(ok).questionText).toMatch(/monolith/u);
+    expect(parseFeedbackRequest(ok).questionText).toMatch(
+      /learned recently at work/u,
+    );
+    // After the PR14 split, the sync/async wording lives under its own ID.
+    expect(() =>
+      parseFeedbackRequest({
+        ...ok,
+        questionId: 'tech-tradeoff-01',
+        variant: 1,
+      }),
+    ).toThrow(
+      expect.objectContaining({ errorCode: 'INTERVIEW_INVALID_REQUEST' }),
+    );
+    expect(
+      parseFeedbackRequest({ ...ok, questionId: 'tech-tradeoff-02' })
+        .questionText,
+    ).toMatch(/synchronous and asynchronous/u);
   });
   test.each([-1, 9, 1.5, '1'])('rejects variant %p', (variant) => {
     expect(() => parseFeedbackRequest({ ...ok, variant })).toThrow(
@@ -853,5 +889,183 @@ describe('second live regression findings', () => {
         'gửi message đồng bộ',
       ),
     ).toBe(true);
+  });
+});
+
+describe('PR14 catalog integrity', () => {
+  test('every catalog ID is published, none retired, and no published ID silently vanished', () => {
+    const ids = INTERVIEW_QUESTIONS.map((x) => x.id);
+    expect(new Set(PUBLISHED_QUESTION_IDS).size).toBe(
+      PUBLISHED_QUESTION_IDS.length,
+    );
+    for (const id of ids) expect(PUBLISHED_QUESTION_IDS).toContain(id);
+    for (const id of ids) expect(RETIRED_QUESTION_IDS).not.toContain(id);
+    for (const id of PUBLISHED_QUESTION_IDS)
+      expect(ids.includes(id) || RETIRED_QUESTION_IDS.includes(id)).toBe(true);
+    for (const x of INTERVIEW_QUESTIONS)
+      expect(x.variants.length).toBeGreaterThanOrEqual(1);
+  });
+  test('split IDs keep their original meaning and the new IDs carry the moved questions', () => {
+    const text = (id: string) => findQuestion(id)!.variants.join(' | ');
+    expect(text('hr-achievement-01')).toMatch(/proud of/u);
+    expect(text('hr-achievement-01')).not.toMatch(/learned/u);
+    expect(findQuestion('hr-learning-01')!.variants).toEqual([
+      'Tell me about something you learned recently at work.',
+      'What have you learned recently in your work?',
+    ]);
+    expect(text('tech-api-01')).toMatch(/easy for other developers/u);
+    expect(text('tech-api-01')).not.toMatch(/REST/u);
+    expect(text('tech-api-02')).toMatch(/REST API/u);
+    expect(text('tech-tradeoff-01')).toMatch(/monolith and microservices/u);
+    expect(text('tech-tradeoff-01')).not.toMatch(/synchronous/u);
+    expect(text('tech-tradeoff-02')).toMatch(/synchronous and asynchronous/u);
+    expect(findQuestion('tech-api-02')).toMatchObject({
+      kind: 'general',
+      checkClaims: false,
+    });
+    expect(findQuestion('tech-tradeoff-02')).toMatchObject({
+      kind: 'hypothetical',
+      checkClaims: false,
+    });
+    expect(findQuestion('hr-learning-01')).toMatchObject({
+      kind: 'personal',
+      checkClaims: true,
+    });
+  });
+});
+
+describe('reference answer validation', () => {
+  const body = (answer: unknown, expectedVersion: unknown = null) => ({
+    answer,
+    expectedVersion,
+  });
+  test('trims, normalizes newlines and counts Unicode code points', () => {
+    expect(parseSaveBody(body('  Hello\r\nworld\t ')).answer).toBe(
+      'Hello\nworld',
+    );
+    expect(
+      parseSaveBody(body('a'.repeat(MAX_REFERENCE_ANSWER))).answer,
+    ).toHaveLength(2000);
+    // 2000 emoji = 2000 code points but 4000 UTF-16 units: allowed, like Postgres char_length.
+    expect([...parseSaveBody(body('😀'.repeat(2000))).answer]).toHaveLength(
+      2000,
+    );
+    expect(parseSaveBody(body('Tôi là kỹ sư backend.')).answer).toBe(
+      'Tôi là kỹ sư backend.',
+    );
+  });
+  test.each([
+    ['empty', body('   ')],
+    ['2001 code points', body('a'.repeat(2001))],
+    ['2001 emoji', body('😀'.repeat(2001))],
+    ['NUL-like control', body('hi\u0007there')],
+    ['DEL', body('hi\u007f')],
+    ['non-string', body(42)],
+    ['extra key', { ...body('ok'), ownerId: 'x' }],
+    ['missing expectedVersion', { answer: 'ok' }],
+    ['version 0', body('ok', 0)],
+    ['version float', body('ok', 1.5)],
+    ['version string', body('ok', '2')],
+  ])('rejects %s', (_n, value) => {
+    expect(() => parseSaveBody(value)).toThrow(
+      expect.objectContaining({ errorCode: 'INTERVIEW_INVALID_REQUEST' }),
+    );
+  });
+  test('tab and newline are allowed', () => {
+    expect(parseSaveBody(body('a\tb\nc')).answer).toBe('a\tb\nc');
+  });
+  test('query versions are strict positive integers', () => {
+    expect(parseVersion('3')).toBe(3);
+    for (const v of ['0', '-1', '1.5', 'x', '', undefined, '01'])
+      expect(() => parseVersion(v)).toThrow(
+        expect.objectContaining({ errorCode: 'INTERVIEW_INVALID_REQUEST' }),
+      );
+  });
+});
+
+describe('answer routes', () => {
+  const saved = {
+    questionId: 'hr-intro-01',
+    answer: 'I am a backend developer.',
+    version: 2,
+    updatedAt: '2026-11-11T00:00:00.000Z',
+  };
+  beforeEach(() => {
+    answersService.list.mockReset();
+    answersService.save.mockReset();
+    answersService.remove.mockReset();
+  });
+  test('list is a guarded POST read returning the contract shape', async () => {
+    answersService.list.mockResolvedValue([saved]);
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/interview-prep/answers/list')
+      .set(origin)
+      .send({ contractVersion: '1' })
+      .expect(200);
+    expect(res.body).toEqual({ contractVersion: '1', answers: [saved] });
+    expect(answersService.list).toHaveBeenCalledWith(LOCAL_OWNER_ID);
+    expect(res.headers['cache-control']).toBe('no-store');
+    await request(app.getHttpServer())
+      .post('/api/v1/interview-prep/answers/list')
+      .set(origin)
+      .send({ other: 1 })
+      .expect(400);
+  });
+  test('save and delete pass the local owner; 409 carries the current answer', async () => {
+    answersService.save.mockRejectedValue(
+      new InterviewPrepError('INTERVIEW_ANSWER_CONFLICT', undefined, saved),
+    );
+    const res = await request(app.getHttpServer())
+      .put('/api/v1/interview-prep/answers/hr-intro-01')
+      .set(origin)
+      .send({ answer: 'x', expectedVersion: 1 })
+      .expect(409);
+    expect(res.body).toEqual({
+      statusCode: 409,
+      errorCode: 'INTERVIEW_ANSWER_CONFLICT',
+      message: expect.any(String),
+      current: saved,
+    });
+    expect(answersService.save).toHaveBeenCalledWith(
+      LOCAL_OWNER_ID,
+      'hr-intro-01',
+      { answer: 'x', expectedVersion: 1 },
+    );
+    answersService.remove.mockRejectedValue(
+      new InterviewPrepError('INTERVIEW_ANSWER_CONFLICT', undefined, null),
+    );
+    const del = await request(app.getHttpServer())
+      .delete('/api/v1/interview-prep/answers/hr-intro-01?expectedVersion=2')
+      .set(origin)
+      .expect(409);
+    expect(del.body.current).toBeNull();
+    answersService.remove.mockResolvedValue(undefined);
+    await request(app.getHttpServer())
+      .delete('/api/v1/interview-prep/answers/hr-intro-01?expectedVersion=2')
+      .set(origin)
+      .expect(204);
+    expect(answersService.remove).toHaveBeenLastCalledWith(
+      LOCAL_OWNER_ID,
+      'hr-intro-01',
+      '2',
+    );
+  });
+  test('every answer route refuses non-local origins', async () => {
+    const evil = { Host: '127.0.0.1:3000', Origin: 'https://evil.example' };
+    await request(app.getHttpServer())
+      .post('/api/v1/interview-prep/answers/list')
+      .set(evil)
+      .send({ contractVersion: '1' })
+      .expect(403);
+    await request(app.getHttpServer())
+      .put('/api/v1/interview-prep/answers/hr-intro-01')
+      .set(evil)
+      .send({ answer: 'x', expectedVersion: null })
+      .expect(403);
+    await request(app.getHttpServer())
+      .delete('/api/v1/interview-prep/answers/hr-intro-01?expectedVersion=1')
+      .set(evil)
+      .expect(403);
+    expect(answersService.save).not.toHaveBeenCalled();
   });
 });

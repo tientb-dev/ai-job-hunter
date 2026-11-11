@@ -145,3 +145,105 @@ export async function requestFeedback(
   }
   return decodeFeedback(payload);
 }
+
+// ------------------------------------------------- PR14 saved reference answers
+export const MAX_REFERENCE_ANSWER = 2000;
+export interface SavedAnswer {
+  questionId: string;
+  answer: string;
+  version: number;
+  updatedAt: string;
+}
+/** 409: the saved answer changed elsewhere; `current` is null if it was deleted. */
+export class AnswerConflictError extends PracticeError {
+  constructor(
+    message: string,
+    readonly current: SavedAnswer | null,
+  ) {
+    super('INTERVIEW_ANSWER_CONFLICT', message);
+  }
+}
+const savedAnswer = (v: unknown): v is SavedAnswer =>
+  record(v) &&
+  str(v.questionId) &&
+  str(v.answer) &&
+  Number.isSafeInteger(v.version) &&
+  Number(v.version) >= 1 &&
+  str(v.updatedAt);
+/** Same rule as the API and database: trimmed, 1–2000 Unicode code points. */
+export const answerLength = (text: string) => [...text.trim()].length;
+
+async function answerRequest(url: string, init: RequestInit): Promise<unknown> {
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+      ...init,
+    });
+  } catch (error) {
+    if (init.signal?.aborted) throw error;
+    throw new PracticeError(
+      'NETWORK',
+      'The app could not reach the API. Your text is kept — try again.',
+    );
+  }
+  if (response.status === 204) return null;
+  const payload: unknown = await response.json().catch(() => null);
+  if (response.ok) return payload;
+  if (
+    response.status === 409 &&
+    record(payload) &&
+    payload.errorCode === 'INTERVIEW_ANSWER_CONFLICT' &&
+    (payload.current === null || savedAnswer(payload.current))
+  )
+    throw new AnswerConflictError(
+      str(payload.message)
+        ? payload.message
+        : 'This answer was changed in another tab.',
+      payload.current as SavedAnswer | null,
+    );
+  if (record(payload) && str(payload.errorCode) && str(payload.message))
+    throw new PracticeError(payload.errorCode, payload.message);
+  throw new PracticeError(
+    'UNAVAILABLE',
+    'Saved answers are unavailable right now. Try again.',
+  );
+}
+export async function listAnswers(signal: AbortSignal): Promise<SavedAnswer[]> {
+  // A POST read: the local-only guard needs an Origin header, which browsers omit on GET.
+  const payload = await answerRequest('/api/v1/interview-prep/answers/list', {
+    method: 'POST',
+    body: JSON.stringify({ contractVersion: '1' }),
+    signal,
+  });
+  if (
+    !record(payload) ||
+    !Array.isArray(payload.answers) ||
+    !payload.answers.every(savedAnswer)
+  )
+    throw invalid();
+  return payload.answers;
+}
+export async function saveAnswer(
+  questionId: string,
+  answer: string,
+  expectedVersion: number | null,
+): Promise<SavedAnswer> {
+  const payload = await answerRequest(
+    `/api/v1/interview-prep/answers/${encodeURIComponent(questionId)}`,
+    { method: 'PUT', body: JSON.stringify({ answer, expectedVersion }) },
+  );
+  if (!savedAnswer(payload) || payload.questionId !== questionId)
+    throw invalid();
+  return payload;
+}
+export async function removeAnswer(
+  questionId: string,
+  expectedVersion: number,
+): Promise<void> {
+  await answerRequest(
+    `/api/v1/interview-prep/answers/${encodeURIComponent(questionId)}?expectedVersion=${expectedVersion}`,
+    { method: 'DELETE' },
+  );
+}

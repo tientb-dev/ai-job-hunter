@@ -1,7 +1,22 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { render, screen, waitFor, within } from './render';
+import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { InterviewPrep } from '../src/features/interview-prep/InterviewPrep';
+
+// The page uses useBlocker (unsaved answers), which needs a data router like main.tsx.
+const renderPage = () =>
+  render(
+    <RouterProvider
+      router={createMemoryRouter(
+        [
+          { path: '/interview-prep', element: <InterviewPrep /> },
+          { path: '/cv', element: <h1>My CV page</h1> },
+        ],
+        { initialEntries: ['/interview-prep'] },
+      )}
+    />,
+  );
 
 const questions = [
   {
@@ -52,14 +67,22 @@ const feedback = (overrides: Record<string, unknown> = {}) => ({
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status });
 let feedbackResponder: (body: Record<string, unknown>) => Promise<Response>;
+// PR14 saved answers: tests override these to simulate the API.
+let answersResponder: () => Promise<Response>;
+let answerWriter: (url: string, init: RequestInit) => Promise<Response>;
 const fetchMock = vi.fn((url: string, init?: RequestInit) => {
   if (url === '/api/v1/interview-prep/questions')
     return Promise.resolve(json({ contractVersion: '1', questions }));
+  if (url === '/api/v1/interview-prep/answers/list') return answersResponder();
+  if (url.startsWith('/api/v1/interview-prep/answers/'))
+    return answerWriter(url, init ?? {});
   return feedbackResponder(JSON.parse(String(init?.body)));
 });
 beforeEach(() => {
   vi.spyOn(Math, 'random').mockReturnValue(0);
   feedbackResponder = async () => json(feedback());
+  answersResponder = async () => json({ contractVersion: '1', answers: [] });
+  answerWriter = async () => new Response(null, { status: 500 });
   fetchMock.mockClear();
   vi.stubGlobal('fetch', fetchMock);
 });
@@ -68,12 +91,12 @@ afterEach(() => {
 });
 const feedbackCalls = () =>
   fetchMock.mock.calls.filter(
-    ([url]) => url !== '/api/v1/interview-prep/questions',
+    ([url]) => url === '/api/v1/interview-prep/feedback',
   );
 
 async function startHr() {
   const user = userEvent.setup();
-  render(<InterviewPrep />);
+  renderPage();
   await user.click(
     await screen.findByRole('button', { name: 'Practise HR communication' }),
   );
@@ -105,12 +128,14 @@ test('choose a topic, see one question with optional ideas, change topic', async
 test('next question moves through the topic and picks a wording variant', async () => {
   const random = vi.spyOn(Math, 'random');
   const user = await startHr();
-  const first = screen.getByRole('heading', { level: 2 }).textContent;
+  const first = document.getElementById('practice-question')!.textContent;
   expect(screen.getByText(/Question 1 of 2/u)).toBeInTheDocument();
   random.mockReturnValue(0.99);
   await user.click(screen.getByRole('button', { name: 'Next question' }));
   expect(screen.getByText(/Question 2 of 2/u)).toBeInTheDocument();
-  expect(screen.getByRole('heading', { level: 2 }).textContent).not.toBe(first);
+  expect(document.getElementById('practice-question')!.textContent).not.toBe(
+    first,
+  );
 });
 
 test('express mode: Vietnamese notes get a suggestion that can be hidden; sends the right request', async () => {
@@ -348,6 +373,9 @@ test('record, stop releases the microphone, playback appears, next question clea
   const track = { stop: vi.fn() };
   const revoke = mockMedia(async () => ({ getTracks: () => [track] }));
   const user = await startHr();
+  await user.click(
+    screen.getByRole('button', { name: 'Want to try speaking first?' }),
+  );
   await user.click(screen.getByRole('button', { name: 'Record' }));
   expect(
     screen.queryByText(/Audio is not analysed by AI/u),
@@ -383,6 +411,9 @@ test('permission denial (any error name) keeps text practice working', async () 
     throw new DOMException('denied', 'NotSupportedError');
   });
   const user = await startHr();
+  await user.click(
+    screen.getByRole('button', { name: 'Want to try speaking first?' }),
+  );
   await user.click(screen.getByRole('button', { name: 'Record' }));
   expect(
     await screen.findByText(/Recording isn't available/u),
@@ -398,9 +429,12 @@ test('unmounting while recording releases the microphone', async () => {
   const track = { stop: vi.fn() };
   mockMedia(async () => ({ getTracks: () => [track] }));
   const user = userEvent.setup();
-  const view = render(<InterviewPrep />);
+  const view = renderPage();
   await user.click(
     await screen.findByRole('button', { name: 'Practise HR communication' }),
+  );
+  await user.click(
+    screen.getByRole('button', { name: 'Want to try speaking first?' }),
   );
   await user.click(screen.getByRole('button', { name: 'Record' }));
   await screen.findByText('Recording… speak now.');
