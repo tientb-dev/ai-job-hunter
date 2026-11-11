@@ -24,6 +24,7 @@ import { FoundationLocalGuard } from '../tailored-cv/tailored-cv.http.js';
 import { InterviewPrepError } from './interview-prep.policy.js';
 import { InterviewPrepService } from './interview-prep.service.js';
 import { InterviewAnswersService } from './interview-answers.service.js';
+import { InterviewSessionsService } from './interview-sessions.service.js';
 import { JobQuestionsService } from './job-questions.service.js';
 import { TranscriptionService } from './transcription.service.js';
 
@@ -74,6 +75,7 @@ export class InterviewPrepController {
     private readonly answers: InterviewAnswersService,
     private readonly jobQuestions: JobQuestionsService,
     private readonly stt: TranscriptionService,
+    private readonly sessions: InterviewSessionsService,
   ) {}
   // Static, non-personal content: plain same-origin GET like other public reads.
   @Get('questions')
@@ -165,5 +167,63 @@ export class InterviewPrepController {
       if (!res.writableFinished) abort.abort();
     });
     return this.stt.transcribe(LOCAL_OWNER_ID, req, questionId, abort.signal);
+  }
+  // PR17: mock interview sessions hold answer text and feedback (personal data):
+  // strict local policy on every route, POST reads, owner-scoped in the service.
+  @Post('sessions')
+  @HttpCode(201)
+  @Header('Cache-Control', 'no-store')
+  @UseGuards(FoundationLocalGuard)
+  createSession(@Body() body: unknown) {
+    return this.sessions.create(LOCAL_OWNER_ID, body);
+  }
+  @Post('sessions/active')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @UseGuards(FoundationLocalGuard)
+  async activeSession(@Body() body: unknown) {
+    return {
+      contractVersion: '1' as const,
+      session: await this.sessions.active(LOCAL_OWNER_ID, body),
+    };
+  }
+  @Post('sessions/:sessionId/read')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @UseGuards(FoundationLocalGuard)
+  readSession(@Param('sessionId') sessionId: string, @Body() body: unknown) {
+    return this.sessions.get(LOCAL_OWNER_ID, sessionId, body);
+  }
+  @Put('sessions/:sessionId/items/:index')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @UseGuards(FoundationLocalGuard)
+  saveSessionItem(
+    @Param('sessionId') sessionId: string,
+    @Param('index') index: string,
+    @Body() body: unknown,
+  ) {
+    return this.sessions.saveItem(LOCAL_OWNER_ID, sessionId, index, body);
+  }
+  @Post('sessions/:sessionId/complete')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @UseGuards(FoundationLocalGuard)
+  completeSession(
+    @Param('sessionId') sessionId: string,
+    @Body() body: unknown,
+  ) {
+    return this.sessions.complete(LOCAL_OWNER_ID, sessionId, body);
+  }
+  // Discard (active) and delete (completed) are the same removal.
+  @Delete('sessions/:sessionId')
+  @HttpCode(204)
+  @Header('Cache-Control', 'no-store')
+  @UseGuards(FoundationLocalGuard)
+  async removeSession(
+    @Param('sessionId') sessionId: string,
+    @Query('expectedVersion') expectedVersion: unknown,
+  ) {
+    await this.sessions.remove(LOCAL_OWNER_ID, sessionId, expectedVersion);
   }
 }

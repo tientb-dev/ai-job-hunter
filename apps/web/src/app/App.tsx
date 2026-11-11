@@ -28,6 +28,7 @@ import { MyCv } from '../features/inbox/MyCv';
 import { Home } from '../features/home/Home';
 import { InterviewPrep } from '../features/interview-prep/InterviewPrep';
 import { JobPractice } from '../features/interview-prep/JobPractice';
+import { MockInterview } from '../features/interview-prep/MockInterview';
 import { ApiReadiness } from '../features/health/ApiReadiness';
 
 const UiAcceptancePreview = import.meta.env.DEV
@@ -245,6 +246,7 @@ export function App() {
             />
             <Route path="/cv" element={<MyCv />} />
             <Route path="/interview-prep" element={<InterviewPrep />} />
+            <Route path="/interview-prep/mock" element={<MockInterview />} />
             <Route
               path="/interview-prep/jobs/:jobId/sets/:setId"
               element={<JobPractice />}

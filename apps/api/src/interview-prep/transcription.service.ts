@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { constants } from 'node:fs';
 import { access, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import type { IncomingMessage } from 'node:http';
-import { availableParallelism, tmpdir } from 'node:os';
+import { availableParallelism, homedir, tmpdir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
@@ -86,8 +86,12 @@ export class TranscriptionService {
 
   /** Optional config, checked per request so the app always starts. */
   private async config() {
-    const bin = process.env.STT_BIN?.trim();
-    const model = process.env.STT_MODEL?.trim();
+    // Unset or empty: whisper.cpp's own build layout under ~/whisper.cpp.
+    const root = join(process.env.HOME || homedir(), 'whisper.cpp');
+    const bin =
+      process.env.STT_BIN?.trim() || join(root, 'build', 'bin', 'whisper-cli');
+    const model =
+      process.env.STT_MODEL?.trim() || join(root, 'models', 'ggml-base.en.bin');
     const unavailable = new InterviewPrepError('STT_UNAVAILABLE');
     if (!bin || !model || !isAbsolute(bin) || !isAbsolute(model))
       throw unavailable;

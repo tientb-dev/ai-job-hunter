@@ -528,6 +528,7 @@ function jdJob() {
     context: {},
     questionId: JD,
     onSelect: vi.fn(),
+    setId: '3f1c1a52-6d0e-4a7b-9c1d-2e3f4a5b6c7e',
   };
 }
 test('PR15 job practice: transcript feedback is bound to the JD question id', async () => {

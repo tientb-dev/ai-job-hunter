@@ -135,6 +135,7 @@ export function JobPractice() {
           ]),
         ),
         questionId: q!,
+        setId,
         onSelect: (id) => setParams({ q: id }),
       }}
     />

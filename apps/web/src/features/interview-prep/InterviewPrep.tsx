@@ -194,7 +194,7 @@ function Suggestion({
   );
 }
 
-function Feedback({
+export function Feedback({
   feedback,
   shown,
   onToggle,
@@ -327,7 +327,7 @@ function Feedback({
 const MIC =
   'M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3m5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72z';
 
-function Recorder({
+export function Recorder({
   recorder,
   title,
   prominent = false,
@@ -434,6 +434,16 @@ function Recorder({
  * this component by the current question and owns `?q=`, so every question
  * change is a router navigation guarded by the single blocker below.
  */
+const mockLink = (query: string) => (
+  <Button
+    component={Link}
+    to={`/interview-prep/mock${query}`}
+    variant="outlined"
+  >
+    Mock interview
+  </Button>
+);
+
 export interface JobPracticeMode {
   jobId: string;
   jobTitle: string;
@@ -444,6 +454,8 @@ export interface JobPracticeMode {
   context: Record<string, { why: string; evidence: string }>;
   questionId: string;
   onSelect: (questionId: string) => void;
+  /** PR17: entry to a mock interview over this set. */
+  setId: string;
 }
 
 export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
@@ -811,11 +823,13 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
     <PageHeader
       title="Interview practice"
       description={`${job.jobTitle} · ${job.setLabel}`}
+      actions={mockLink(`?jobId=${job.jobId}&setId=${job.setId}`)}
     />
   ) : (
     <PageHeader
       title="Interview Prep"
       description="Practise saying your own experience in simple English — one question at a time."
+      actions={mockLink('')}
     />
   );
   if (loadError)
@@ -846,7 +860,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
   if (!topic || !question)
     return (
       <Stack spacing={3}>
-        <PageHeader title="Interview Prep" />
+        <PageHeader title="Interview Prep" actions={mockLink('')} />
         <Box>
           <Typography variant="h5" component="h2" sx={{ fontWeight: 600 }}>
             Get comfortable speaking about your experience.

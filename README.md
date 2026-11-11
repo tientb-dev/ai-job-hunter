@@ -85,7 +85,8 @@ Interview practice can transcribe a recording locally with
 [whisper.cpp](https://github.com/ggml-org/whisper.cpp). It is optional; without it,
 type or paste the answer into the transcript field. Build `whisper-cli` (CPU
 build) and download the English `ggml-base.en.bin` model outside this repository,
-then set absolute paths in `.env` and restart the API:
+then restart the API. A checkout at `~/whisper.cpp` (built in place, model in
+`models/`) is found automatically; anywhere else, set absolute paths in `.env`:
 
 ```bash
 STT_BIN=/path/to/whisper.cpp/build/bin/whisper-cli
@@ -96,6 +97,13 @@ The browser converts the recording to 16 kHz mono WAV (0.5 s–3 min) and sends 
 only to this app's local API. Audio, transcripts and transcript feedback are not
 saved. Transcription errs on technical terms; review and edit the text before
 requesting AI feedback.
+
+### Mock interview (PR17)
+
+`/interview-prep/mock` (or **Mock interview** on Interview Prep and job practice)
+asks 5–8 questions in a row. Progress is saved, so a refresh resumes. AI feedback
+is optional. Only the confirmed answer text and optional feedback are stored,
+never audio; finished interviews stay until you delete them.
 
 ## Commands and verification
 

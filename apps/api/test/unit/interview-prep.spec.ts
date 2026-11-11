@@ -14,6 +14,7 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { TranscriptionService } from '../../src/interview-prep/transcription.service.js';
+import { InterviewSessionsService } from '../../src/interview-prep/interview-sessions.service.js';
 import { fakeStt, wav } from '../support/fake-stt.js';
 import { JD_QUESTION_ID } from '../../src/interview-prep/job-questions.js';
 import { JobQuestionsService } from '../../src/interview-prep/job-questions.service.js';
@@ -424,6 +425,7 @@ beforeAll(async () => {
       { provide: DataSource, useValue: { query: dbQuery } },
       { provide: JobQuestionsService, useValue: {} },
       TranscriptionService,
+      { provide: InterviewSessionsService, useValue: {} },
     ],
   }).compile();
   app = module.createNestApplication();
@@ -1189,6 +1191,8 @@ describe('POST /interview-prep/transcribe (PR16)', () => {
   });
   test('safe error contracts without paths or CLI output', async () => {
     delete process.env.STT_BIN;
+    // No ~/whisper.cpp default either, whatever this machine has installed.
+    process.env.HOME = '/nonexistent';
     const res = await post().send(wav()).expect(503);
     expect(res.headers['cache-control']).toBe('no-store');
     expect(res.body).toEqual({
