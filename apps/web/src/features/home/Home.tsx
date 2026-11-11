@@ -16,8 +16,10 @@ import { StatusChip } from '../../components/StatusChip';
 import { useLocalCalendarDate } from '../inbox/follow-ups';
 import { opportunityRequest } from '../inbox/opportunities-api';
 import type { Opportunity } from '../inbox/opportunities-api';
-import { homeSections } from './home-sections';
-import type { HomeSections } from './home-sections';
+import { sourceCvRequest } from '../inbox/source-cv-review.contract';
+import type { NextAction } from '../inbox/next-action';
+import { continueItems, cvStep, homeSections } from './home-sections';
+import type { HomeSections, JobProgress } from './home-sections';
 
 // All visible text in one place so it can move to a locale file later.
 const copy = {
@@ -46,12 +48,19 @@ const copy = {
   openApplicationFor: (title: string) => `Open application for ${title}`,
   showMore: (count: number) => `Show ${count} more`,
   showFewer: 'Show fewer',
-  recent: 'Recently updated',
+  continueTitle: 'Continue where you left off',
+  continueEmpty: 'Nothing to continue right now.',
+  continueError: 'Next steps could not be loaded.',
+  actionFor: (label: string, title: string) => `${label}: ${title}`,
   viewAll: 'View all jobs',
   cvTitle: 'Save your CV',
   cvBody:
     'Add your CV once in My CV. Every job then uses it for matching and tailoring.',
   cvAction: 'Open My CV',
+  cvReviewTitle: 'Review your CV',
+  cvReviewBody:
+    'Review your CV once in My CV. Every job then uses it for tailoring.',
+  cvReviewAction: 'Review in My CV',
 };
 const FOLLOW_UP_PREVIEW = 3;
 
@@ -83,13 +92,14 @@ function Panel({
       sx={{ minWidth: 0 }}
     >
       <Stack
-        direction="row"
-        spacing={1}
+        // Phones stack the heading above its action instead of wrapping both.
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={{ xs: 0.5, sm: 1 }}
         sx={{
           px: 2,
           py: 1.5,
           minHeight: 44,
-          alignItems: 'center',
+          alignItems: { xs: 'flex-start', sm: 'center' },
           justifyContent: 'space-between',
         }}
       >
@@ -355,51 +365,92 @@ function FollowUps({ due }: { due: HomeSections['due'] }) {
   );
 }
 
-function Recent({ jobs }: { jobs: Opportunity[] }) {
+function Continue({
+  items,
+  onRetry,
+}: {
+  items: { job: Opportunity; action: NextAction }[] | 'loading' | 'error';
+  onRetry: () => void;
+}) {
   return (
     <Panel
-      id="recent-heading"
-      title={copy.recent}
+      id="continue-heading"
+      title={copy.continueTitle}
       action={
         <Button component={Link} to="/jobs" size="small">
           {copy.viewAll}
         </Button>
       }
     >
-      <Box component="ul" sx={{ m: 0, p: 0, listStyle: 'none' }}>
-        {jobs.map((job) => (
-          <Stack
-            component="li"
-            key={job.id}
-            direction="row"
-            spacing={1}
-            sx={{
-              px: 2,
-              py: 1,
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              borderTop: 1,
-              borderColor: 'divider',
-            }}
+      {items === 'loading' ? (
+        <Stack spacing={1} sx={{ px: 2, pb: 2 }} aria-busy="true">
+          {[0, 1, 2].map((row) => (
+            <Skeleton key={row} variant="rounded" height={88} />
+          ))}
+        </Stack>
+      ) : items === 'error' ? (
+        <Box sx={{ px: 2, pb: 2 }}>
+          <Alert
+            severity="error"
+            action={
+              <Button color="inherit" size="small" onClick={onRetry}>
+                {copy.retry}
+              </Button>
+            }
           >
-            <JobTitle job={job} />
-            <Box sx={{ flexShrink: 0 }}>
-              <StatusChip status={job.status} />
-            </Box>
-          </Stack>
-        ))}
-      </Box>
+            {copy.continueError}
+          </Alert>
+        </Box>
+      ) : items.length === 0 ? (
+        <Typography color="text.secondary" sx={{ px: 2, pb: 2 }}>
+          {copy.continueEmpty}
+        </Typography>
+      ) : (
+        <Box component="ul" sx={{ m: 0, p: 0, listStyle: 'none' }}>
+          {items.map(({ job, action }) => (
+            <Stack
+              component="li"
+              key={job.id}
+              spacing={0.5}
+              sx={{ px: 2, py: 1.5, borderTop: 1, borderColor: 'divider' }}
+            >
+              <JobTitle job={job} />
+              <Typography variant="body2">{action.text}</Typography>
+              <Button
+                component={Link}
+                // Same destination as the job Overview's next step.
+                to={`/jobs/${job.id}/${action.to}`}
+                size="small"
+                aria-label={copy.actionFor(action.label, job.title)}
+                sx={{ alignSelf: 'flex-start', ml: -1 }}
+              >
+                {action.label}
+              </Button>
+            </Stack>
+          ))}
+        </Box>
+      )}
     </Panel>
   );
 }
+
+const isProgress = (value: unknown): value is JobProgress =>
+  !!value &&
+  typeof value === 'object' &&
+  'jobs' in value &&
+  Array.isArray(value.jobs) &&
+  'cv' in value &&
+  !!value.cv &&
+  typeof value.cv === 'object';
 
 export function Home() {
   const today = useLocalCalendarDate();
   const [rows, setRows] = useState<Opportunity[] | null>(null);
   const [error, setError] = useState(false);
   const [attempt, setAttempt] = useState(0);
-  // undefined while loading or on error: guidance shows only for a confirmed missing CV.
-  const [cvSaved, setCvSaved] = useState<boolean>();
+  // Scoped to Continue and the CV banner; undefined while loading.
+  const [progress, setProgress] = useState<JobProgress | 'error'>();
+  const [progressAttempt, setProgressAttempt] = useState(0);
   useEffect(() => {
     let active = true;
     opportunityRequest<Opportunity[]>().then(
@@ -412,15 +463,19 @@ export function Home() {
   }, [attempt]);
   useEffect(() => {
     let active = true;
-    opportunityRequest<unknown>('/cv/current').then(
-      (cv) => active && setCvSaved(cv !== null),
-      () => undefined,
+    sourceCvRequest('/job-progress').then(
+      (value) => {
+        if (active) setProgress(isProgress(value) ? value : 'error');
+      },
+      () => active && setProgress('error'),
     );
     return () => {
       active = false;
     };
-  }, []);
+  }, [progressAttempt]);
   const sections = rows && homeSections(rows, today);
+  const known = progress && progress !== 'error' ? progress : null;
+  const cvGuide = known && cvStep(known);
   return (
     <Stack spacing={3} sx={{ minWidth: 0 }}>
       <PageHeader
@@ -432,16 +487,17 @@ export function Home() {
           </Button>
         }
       />
-      {cvSaved === false && (
+      {cvGuide && (
         <Alert
           severity="info"
           action={
             <Button component={Link} to="/cv" color="inherit" size="small">
-              {copy.cvAction}
+              {known.cv.saved ? copy.cvReviewAction : copy.cvAction}
             </Button>
           }
         >
-          <strong>{copy.cvTitle}.</strong> {copy.cvBody}
+          <strong>{known.cv.saved ? copy.cvReviewTitle : copy.cvTitle}.</strong>{' '}
+          {known.cv.saved ? copy.cvReviewBody : copy.cvBody}
         </Alert>
       )}
       {error ? (
@@ -487,7 +543,19 @@ export function Home() {
           <Summary sections={sections} total={rows.length} />
           <Box sx={layout}>
             <FollowUps due={sections.due} />
-            {sections.recent.length > 0 && <Recent jobs={sections.recent} />}
+            <Continue
+              items={
+                progress === undefined
+                  ? 'loading'
+                  : progress === 'error'
+                    ? 'error'
+                    : continueItems(rows, progress, today)
+              }
+              onRetry={() => {
+                setProgress(undefined);
+                setProgressAttempt((value) => value + 1);
+              }}
+            />
           </Box>
         </>
       )}

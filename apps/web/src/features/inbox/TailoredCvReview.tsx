@@ -304,6 +304,9 @@ export function TailoredCvReview({
     server,
     blockedReason,
   });
+  // Depend on wizard presence, not the step: a step change must not recreate
+  // accept() and re-run the initial draft load, which would wipe local edits.
+  const isWizard = wizardStep !== undefined;
   const accept = useCallback(
     (value: unknown) => {
       const draft = decodeDraft(value, jobId);
@@ -319,7 +322,7 @@ export function TailoredCvReview({
         old.some((item) => item.id === meta.id)
           ? old.map((item) => (item.id === meta.id ? meta : item))
           : // Outside the wizard the list may be unloaded; never fake a count.
-            wizardStep !== undefined || old.length
+            isWizard || old.length
             ? [meta, ...old]
             : old,
       );
@@ -328,7 +331,7 @@ export function TailoredCvReview({
       setRecoverable(null);
       setEditing(null);
     },
-    [jobId, wizardStep],
+    [jobId, isWizard],
   );
   async function list(token: number, before?: string) {
     const value = (await draftRequest(`/jobs/${jobId}/drafts/list`, {
@@ -361,7 +364,6 @@ export function TailoredCvReview({
       );
     }
   }
-  const isWizard = wizardStep !== undefined;
   useEffect(() => {
     if (!isWizard) return;
     let cancelled = false;

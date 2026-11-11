@@ -145,6 +145,9 @@ export function TailoredCvWorkflow({
     // Open Source CV until the source review is complete; otherwise Tailor &
     // Review, whose match gate explains a missing or stale match. Earlier
     // drafts stay resumable with their own approval state unchanged.
+    // An approved draft has nothing left to review: open Approve & Export,
+    // which also shows the older-job-snapshot warning before download.
+    const resume = draftLoaded && approved ? 2 : 1;
     const readinessKnown =
       checkedReadiness &&
       checkedReadiness.matchId ===
@@ -162,7 +165,7 @@ export function TailoredCvWorkflow({
       ) {
         // Without a current CV or readiness answer, a saved draft can still be
         // resumed; otherwise start at Source CV.
-        goToStep(draftLoaded ? 1 : 0);
+        goToStep(draftLoaded ? resume : 0);
       } else if (readinessKnown) {
         const value = checkedReadiness.value;
         goToStep(
@@ -170,7 +173,7 @@ export function TailoredCvWorkflow({
             ['CV_DRAFT_MATCH_REQUIRED', 'CV_DRAFT_STALE_MATCH'].includes(
               value.reason ?? '',
             )
-            ? 1
+            ? resume
             : 0,
         );
       }

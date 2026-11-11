@@ -1,12 +1,28 @@
 import { dueFollowUp } from '../inbox/follow-ups';
 import { statuses } from '../inbox/opportunities-api';
 import type { Opportunity } from '../inbox/opportunities-api';
+import { nextJobAction } from '../inbox/next-action';
+import type { NextAction } from '../inbox/next-action';
 
-const RECENT_LIMIT = 5;
+const CONTINUE_LIMIT = 3;
+
+/** POST /tailored-cv/job-progress: workflow facts only, never decisions. */
+export interface JobProgress {
+  cv: { saved: boolean; sourceReason: string | null };
+  jobs: {
+    id: string;
+    matchStatus: string;
+    draft: {
+      pending: number | null;
+      approved: boolean;
+      jobUpdatedAt: string;
+      updatedAt: string;
+    } | null;
+  }[];
+}
 
 export interface HomeSections {
   due: { job: Opportunity; label: string }[];
-  recent: Opportunity[];
   counts: { status: string; count: number }[];
   metrics: {
     active: number;
@@ -25,11 +41,6 @@ export function homeSections(rows: Opportunity[], today: string): HomeSections {
     })
     // Oldest follow-up first; dueFollowUp guarantees a date here.
     .sort((a, b) => a.job.followUpDate!.localeCompare(b.job.followUpDate!));
-  const dueIds = new Set(due.map(({ job }) => job.id));
-  const recent = [...rows]
-    .filter((job) => !dueIds.has(job.id))
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-    .slice(0, RECENT_LIMIT);
   const counts = statuses
     .map((status) => ({
       status,
@@ -47,5 +58,63 @@ export function homeSections(rows: Opportunity[], today: string): HomeSections {
     interview: count('INTERVIEW'),
     overdue: due.filter(({ label }) => label === 'Overdue').length,
   };
-  return { due, recent, counts, metrics };
+  return { due, counts, metrics };
 }
+
+/**
+ * Up to three jobs with a next step from nextJobAction(), the same rules as
+ * the job Overview. Due follow-ups have their own panel, and CV-level steps
+ * are shown once in the CV banner, so neither appears here.
+ */
+export function continueItems(
+  rows: Opportunity[],
+  progress: JobProgress,
+  today: string,
+): { job: Opportunity; action: NextAction }[] {
+  const facts = new Map(progress.jobs.map((fact) => [fact.id, fact]));
+  return rows
+    .flatMap((job) => {
+      const fact = facts.get(job.id);
+      if (!fact || dueFollowUp(job.followUpDate, job.status, today)) return [];
+      const { draft } = fact;
+      const action = nextJobAction({
+        followUp: null,
+        status: job.status,
+        cvSaved: progress.cv.saved,
+        sourceReason: progress.cv.sourceReason,
+        matchStatus: fact.matchStatus,
+        // A malformed saved review has no pending count: infer nothing from it.
+        draft:
+          draft &&
+          (draft.pending === null
+            ? undefined
+            : {
+                pending: draft.pending,
+                approved: draft.approved,
+                outdated: draft.jobUpdatedAt !== job.updatedAt,
+              }),
+      });
+      if (!action || action.to === '/cv') return [];
+      const activity =
+        draft && draft.updatedAt > job.updatedAt
+          ? draft.updatedAt
+          : job.updatedAt;
+      return [{ job, action, activity }];
+    })
+    .sort((a, b) => b.activity.localeCompare(a.activity))
+    .slice(0, CONTINUE_LIMIT)
+    .map(({ job, action }) => ({ job, action }));
+}
+
+/** The CV-level step every job without a draft would show, or null. */
+export const cvStep = (progress: JobProgress) => {
+  const action = nextJobAction({
+    followUp: null,
+    status: 'SAVED',
+    cvSaved: progress.cv.saved,
+    sourceReason: progress.cv.sourceReason,
+    matchStatus: 'MISSING',
+    draft: null,
+  });
+  return action?.to === '/cv' ? action : null;
+};

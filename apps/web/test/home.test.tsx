@@ -3,7 +3,12 @@ import { render, screen, within } from './render';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { Home } from '../src/features/home/Home';
-import { homeSections } from '../src/features/home/home-sections';
+import {
+  continueItems,
+  homeSections,
+} from '../src/features/home/home-sections';
+import type { JobProgress } from '../src/features/home/home-sections';
+import { nextJobAction } from '../src/features/inbox/next-action';
 import { emptyOpportunity } from '../src/features/inbox/opportunities-api';
 import type { Opportunity } from '../src/features/inbox/opportunities-api';
 
@@ -24,7 +29,7 @@ const today = '2026-11-10';
 
 afterEach(() => vi.unstubAllGlobals());
 
-test('due follow-ups come oldest first and never repeat in Recently updated', () => {
+test('due follow-ups come oldest first; metrics count current statuses', () => {
   const rows = [
     job(1, { followUpDate: '2026-11-10', status: 'APPLIED' }),
     job(2, { followUpDate: '2026-11-03', status: 'APPLIED' }),
@@ -32,15 +37,10 @@ test('due follow-ups come oldest first and never repeat in Recently updated', ()
     job(4, { followUpDate: '2026-11-01', status: 'CLOSED' }), // inactive
     job(5),
   ];
-  const { due, recent, counts } = homeSections(rows, today);
+  const { due, counts } = homeSections(rows, today);
   expect(due.map(({ job, label }) => [job.title, label])).toEqual([
     ['Synthetic job 2', 'Overdue'],
     ['Synthetic job 1', 'Due today'],
-  ]);
-  expect(recent.map((row) => row.title)).toEqual([
-    'Synthetic job 5',
-    'Synthetic job 4',
-    'Synthetic job 3',
   ]);
   // Every job counted exactly once, under its current status, in pipeline order.
   expect(homeSections(rows, today).metrics).toEqual({
@@ -72,11 +72,24 @@ test('due follow-ups come oldest first and never repeat in Recently updated', ()
   ]);
 });
 
-function stub(jobs: () => Promise<Response>, cv: unknown = null) {
+const reviewedCv: JobProgress['cv'] = {
+  saved: true,
+  sourceReason: 'CV_DRAFT_MATCH_REQUIRED',
+};
+const facts = (
+  jobs: JobProgress['jobs'] = [],
+  cv = reviewedCv,
+): JobProgress => ({ cv, jobs });
+
+function stub(
+  jobs: () => Promise<Response>,
+  progress: () => Promise<Response> = () =>
+    Promise.resolve(Response.json({ contractVersion: '1', ...facts() })),
+) {
   vi.stubGlobal(
     'fetch',
     vi.fn((url: string) =>
-      url.endsWith('/cv/current') ? Promise.resolve(Response.json(cv)) : jobs(),
+      url.endsWith('/tailored-cv/job-progress') ? progress() : jobs(),
     ),
   );
   render(
@@ -87,13 +100,18 @@ function stub(jobs: () => Promise<Response>, cv: unknown = null) {
 }
 
 test('shows sections, CV guidance only without a CV, and links to the application', async () => {
-  stub(() =>
-    Promise.resolve(
-      Response.json([
-        job(1, { followUpDate: '2026-01-01', status: 'APPLIED' }),
-        job(2),
-      ]),
-    ),
+  stub(
+    () =>
+      Promise.resolve(
+        Response.json([
+          job(1, { followUpDate: '2026-01-01', status: 'APPLIED' }),
+          job(2),
+        ]),
+      ),
+    () =>
+      Promise.resolve(
+        Response.json(facts([], { saved: false, sourceReason: null })),
+      ),
   );
   const followUps = await screen.findByRole('region', { name: 'Follow-ups' });
   expect(
@@ -104,25 +122,25 @@ test('shows sections, CV guidance only without a CV, and links to the applicatio
     'href',
     '/jobs/00000000-0000-4000-8000-000000000001/application',
   );
-  expect(
-    within(
-      screen.getByRole('region', { name: 'Recently updated' }),
-    ).getAllByRole('listitem'),
-  ).toHaveLength(1);
   const summary = screen.getByRole('region', { name: 'Job search summary' });
   expect(within(summary).getByText('Follow-ups due')).toBeVisible();
   expect(within(summary).getByText('1 overdue')).toBeVisible();
   expect(await screen.findByRole('link', { name: 'Open My CV' })).toBeVisible();
 });
 
-test('hides CV guidance when a CV exists and shows the empty state', async () => {
-  stub(() => Promise.resolve(Response.json([])), { id: 'cv' });
+test('hides CV guidance when a reviewed CV exists and shows the empty state', async () => {
+  stub(() => Promise.resolve(Response.json([])));
   expect(
     await screen.findByRole('heading', { name: 'No jobs yet' }),
   ).toBeVisible();
-  expect(
-    screen.queryByRole('link', { name: 'Open My CV' }),
-  ).not.toBeInTheDocument();
+  await vi.waitFor(() =>
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      '/api/v1/tailored-cv/job-progress',
+      expect.anything(),
+    ),
+  );
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: /My CV/ })).not.toBeInTheDocument();
 });
 
 test('load failure offers retry', async () => {
@@ -136,7 +154,7 @@ test('load failure offers retry', async () => {
     .setup()
     .click(await screen.findByRole('button', { name: 'Retry' }));
   expect(
-    await screen.findByRole('link', { name: 'Synthetic job 1' }),
+    await screen.findByRole('region', { name: 'Job search summary' }),
   ).toBeVisible();
 });
 
@@ -160,4 +178,136 @@ test('every due follow-up is reachable through Show more', async () => {
   expect(links()).toHaveLength(5);
   expect(toggle).toHaveAttribute('aria-expanded', 'true');
   expect(toggle).toHaveTextContent('Show fewer');
+});
+
+const draft = (
+  patch: Partial<NonNullable<JobProgress['jobs'][0]['draft']>>,
+) => ({
+  pending: 0,
+  approved: false,
+  jobUpdatedAt: '2026-11-01T00:00:00Z',
+  updatedAt: '2026-11-01T00:00:00Z',
+  ...patch,
+});
+
+test('Continue rows equal nextJobAction for the same facts, newest activity first', () => {
+  const rows = [
+    job(1), // valid match, no draft
+    job(2), // pending suggestions; draft edited after the job
+    job(3), // approved, current
+    job(4), // approved, job changed since the draft
+    job(5, { status: 'APPLIED' }), // applied, approved: nothing to do
+    job(6, { followUpDate: '2026-11-01', status: 'APPLIED' }), // due follow-up
+    job(7), // malformed saved review
+  ];
+  const progress = facts([
+    { id: rows[0]!.id, matchStatus: 'VALID', draft: null },
+    {
+      id: rows[1]!.id,
+      matchStatus: 'VALID',
+      draft: draft({
+        pending: 2,
+        jobUpdatedAt: rows[1]!.updatedAt,
+        updatedAt: '2026-11-09T00:00:00Z',
+      }),
+    },
+    {
+      id: rows[2]!.id,
+      matchStatus: 'STALE_CV',
+      draft: draft({ approved: true, jobUpdatedAt: rows[2]!.updatedAt }),
+    },
+    {
+      id: rows[3]!.id,
+      matchStatus: 'VALID',
+      draft: draft({ approved: true, jobUpdatedAt: '2026-10-01T00:00:00Z' }),
+    },
+    { id: rows[4]!.id, matchStatus: 'VALID', draft: draft({ approved: true }) },
+    { id: rows[5]!.id, matchStatus: 'MISSING', draft: null },
+    { id: rows[6]!.id, matchStatus: 'VALID', draft: draft({ pending: null }) },
+  ]);
+  const items = continueItems(rows, progress, today);
+  // Job 2's draft activity (Nov 9) outranks job 4's update (Nov 4).
+  expect(items.map(({ job }) => job.title)).toEqual([
+    'Synthetic job 2',
+    'Synthetic job 4',
+    'Synthetic job 3',
+  ]);
+  for (const { job: row, action } of items) {
+    const fact = progress.jobs.find((f) => f.id === row.id)!;
+    expect(action).toEqual(
+      nextJobAction({
+        followUp: null,
+        status: row.status,
+        cvSaved: true,
+        sourceReason: reviewedCv.sourceReason,
+        matchStatus: fact.matchStatus,
+        draft: fact.draft && {
+          pending: fact.draft.pending!,
+          approved: fact.draft.approved,
+          outdated: fact.draft.jobUpdatedAt !== row.updatedAt,
+        },
+      }),
+    );
+  }
+  expect(items[0]!.action.label).toBe('Continue tailoring');
+  expect(items[1]!.action.text).toMatch(/earlier version of this job/);
+  expect(items[2]!.action.label).toBe('Open Approve & Export');
+});
+
+test('CV-level steps appear once in the banner, never as Continue rows', async () => {
+  stub(
+    () => Promise.resolve(Response.json([job(1), job(2)])),
+    () =>
+      Promise.resolve(
+        Response.json(
+          facts(
+            [1, 2].map((n) => ({
+              id: job(n).id,
+              matchStatus: 'MISSING',
+              draft: null,
+            })),
+            { saved: true, sourceReason: 'CV_DRAFT_PROFILE_INCOMPLETE' },
+          ),
+        ),
+      ),
+  );
+  expect(
+    await screen.findByRole('link', { name: 'Review in My CV' }),
+  ).toHaveAttribute('href', '/cv');
+  const panel = screen.getByRole('region', {
+    name: 'Continue where you left off',
+  });
+  expect(
+    within(panel).getByText('Nothing to continue right now.'),
+  ).toBeVisible();
+});
+
+test('Continue links to the job tab and recovers from a failed progress read', async () => {
+  let calls = 0;
+  stub(
+    () => Promise.resolve(Response.json([job(1)])),
+    () =>
+      Promise.resolve(
+        ++calls === 1
+          ? new Response(null, { status: 503 })
+          : Response.json(
+              facts([{ id: job(1).id, matchStatus: 'STALE_JOB', draft: null }]),
+            ),
+      ),
+  );
+  const panel = await screen.findByRole('region', {
+    name: 'Continue where you left off',
+  });
+  // The rest of the Dashboard stays usable while Continue reports its error.
+  expect(
+    screen.getByRole('region', { name: 'Job search summary' }),
+  ).toBeVisible();
+  await userEvent
+    .setup()
+    .click(await within(panel).findByRole('button', { name: 'Retry' }));
+  expect(
+    await within(panel).findByRole('link', {
+      name: 'Go to Match: Synthetic job 1',
+    }),
+  ).toHaveAttribute('href', `/jobs/${job(1).id}/match`);
 });

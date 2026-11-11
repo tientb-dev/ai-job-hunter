@@ -40,6 +40,21 @@ import {
   type MatchRequirement,
 } from './cv-match.js';
 
+/** Pure, read-only validity of a saved match; resolve() adds the CV re-bind write. */
+export function savedMatchStatus(
+  row: Pick<CvMatchRecord, 'policyVersion' | 'cvTextHash' | 'jobUpdatedAt'>,
+  cvHash: string,
+  jobUpdatedAt: Date,
+) {
+  if (row.policyVersion !== MATCHING_POLICY_VERSION) return 'EXPIRED' as const;
+  if (row.cvTextHash !== cvHash) return 'STALE_CV' as const;
+  if (row.jobUpdatedAt.getTime() !== jobUpdatedAt.getTime())
+    return 'STALE_JOB' as const;
+  return 'VALID' as const;
+}
+export const cvTextHash = (text: string) =>
+  createHash('sha256').update(text, 'utf8').digest('hex');
+
 @Injectable()
 export class JobMatchService {
   private active = false;
@@ -56,7 +71,7 @@ export class JobMatchService {
     if (!cv || typeof cv.text !== 'string') return null;
     return {
       updatedAt: cv.updatedAt,
-      hash: createHash('sha256').update(cv.text, 'utf8').digest('hex'),
+      hash: cvTextHash(cv.text),
     };
   }
   /**
@@ -69,11 +84,8 @@ export class JobMatchService {
     cv: { updatedAt: Date; hash: string },
     jobUpdatedAt: Date,
   ) {
-    if (row.policyVersion !== MATCHING_POLICY_VERSION)
-      return { status: 'EXPIRED' as const };
-    if (row.cvTextHash !== cv.hash) return { status: 'STALE_CV' as const };
-    if (row.jobUpdatedAt.getTime() !== jobUpdatedAt.getTime())
-      return { status: 'STALE_JOB' as const };
+    const status = savedMatchStatus(row, cv.hash, jobUpdatedAt);
+    if (status !== 'VALID') return { status };
     if (row.cvUpdatedAt.getTime() !== cv.updatedAt.getTime()) {
       row.cvUpdatedAt = cv.updatedAt;
       await this.matchRows.update(
