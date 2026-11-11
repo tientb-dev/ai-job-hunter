@@ -1979,3 +1979,49 @@ once in the CV banner), orders by the later of job and latest-draft update, and
 shows at most three rows. An approved draft now opens Tailored CV at Approve &
 Export; for a draft pinned to an older job snapshot that step shows the warning
 before download.
+
+## PR13 English Interview Prep
+
+`apps/api/src/interview-prep/` is a small module with no entities. It has a
+static question bank with stable IDs, topic/category/kind metadata and wording
+variants, plus `POST /api/v1/interview-prep/feedback` with two modes: `express`
+(Vietnamese, English or mixed notes → simple spoken English) and `review`
+(corrections for an English answer). Both modes use the shared, pinned
+`qwen3:4b` through `AiService.generateStructured`, each with its own prompt and
+schema. Only one request runs at a time (`INTERVIEW_BUSY`). Nothing is
+persisted, and audio never leaves the browser.
+
+Grounding decisions:
+
+- Reviewed CV facts come from `TailoredDraftService.reviewedFacts()`. It is
+  read-only, owner-scoped and uses the same review gate as drafts; contact and
+  link facts are excluded. They are **never sent to the model**. Earlier
+  evaluation showed the model copies CV facts into rewrites. Code uses them only
+  for neutral notices ("isn't in your reviewed CV… make sure you can explain
+  it") about metrics and tools, and only for questions where numbers are
+  professional claims (not salary, start date or plans).
+- Deterministic guards hide the rewritten answer instead of showing changed
+  facts: added numbers (digits plus English/Vietnamese number words), added
+  technologies, a personal experience claim on a concept question, garbled or
+  over-long output, or added sentences in review mode. Corrections must quote
+  the user's text. Phrases with numbers, tools or experience claims are
+  dropped. Qualitative claims and meaning changes are not detectable by code;
+  the UI calls this a quick check, not verification.
+- Language help never fixes technical content. Both prompts keep the user's
+  technical claims even when wrong, and a small deterministic guard withholds a
+  rewrite (and drops a correction) that swaps, adds, drops or reorders a side
+  of a high-risk contrast: sync/async, blocking/non-blocking, database/broker,
+  cache/persistent, producer/consumer, publish/subscribe, delivery guarantees.
+  English, Vietnamese and common paraphrases are covered, as are added or
+  dropped negations and dropped tools. It is conservative: a legitimate
+  reordering is also withheld. The English "main issue" may not grade
+  technical content.
+- Technical learning hints are optional and labelled "AI, not verified". A
+  hint is shown only when it explicitly negates a contrast side the user
+  stated ("…a message broker, not a database"), or addresses a possible role
+  swap. Generic definitions are dropped; a missed hint is preferred to a
+  confident wrong one.
+- The request carries the displayed wording `variant`, so feedback is judged
+  against the question the user actually saw.
+- Cancelling in the browser stops waiting; an Ollama generation that has
+  already started may still finish on the server.

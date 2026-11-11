@@ -20,5 +20,7 @@ import { FoundationLocalGuard } from './tailored-cv.http.js';
     FoundationLocalGuard,
     SourceProfileProposalService,
   ],
+  // Interview Prep reads reviewed facts only through reviewedFacts().
+  exports: [TailoredDraftService],
 })
 export class TailoredCvModule {}

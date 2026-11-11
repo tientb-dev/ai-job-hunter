@@ -26,6 +26,7 @@ import {
 import { Dashboard } from '../features/dashboard/Dashboard';
 import { MyCv } from '../features/inbox/MyCv';
 import { Home } from '../features/home/Home';
+import { InterviewPrep } from '../features/interview-prep/InterviewPrep';
 import { ApiReadiness } from '../features/health/ApiReadiness';
 
 const UiAcceptancePreview = import.meta.env.DEV
@@ -37,6 +38,7 @@ const navigation = [
   { label: 'Jobs', path: '/jobs' },
   { label: 'Discover', path: '/discover' },
   { label: 'My CV', path: '/cv' },
+  { label: 'Interview Prep', path: '/interview-prep' },
 ];
 export function App() {
   const [navigationOpen, setNavigationOpen] = useState(false);
@@ -237,6 +239,7 @@ export function App() {
               }
             />
             <Route path="/cv" element={<MyCv />} />
+            <Route path="/interview-prep" element={<InterviewPrep />} />
             <Route path="/cv/analyze" element={<Dashboard />} />
             <Route path="/jobs" element={<JobInbox />} />
             <Route path="/jobs/new" element={<JobEditor key="new" />} />

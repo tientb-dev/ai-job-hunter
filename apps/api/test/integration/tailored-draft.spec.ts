@@ -1064,3 +1064,11 @@ test('P8 readiness reuses authoritative pins, rejects replaced/mismatched contex
       .countBy({ ownerId: owner, jobId: state.job.id }),
   ).toBe(before);
 });
+test('reviewedFacts is read-only, owner-scoped and excludes contact details', async () => {
+  await ready();
+  const facts = await drafts.reviewedFacts(owner);
+  expect(facts).not.toBeNull();
+  expect(facts!.join('\n')).toMatch(/Java/u);
+  expect(facts!.join('\n')).not.toMatch(/example\.invalid|Synthetic Quinn/u);
+  expect(await drafts.reviewedFacts(randomUUID())).toBeNull();
+});

@@ -105,7 +105,7 @@ test.each(['/candidates', '/matches', '/settings'])(
       within(navigation)
         .getAllByRole('link')
         .map((link) => link.textContent),
-    ).toEqual(['Dashboard', 'Jobs', 'Discover', 'My CV']);
+    ).toEqual(['Dashboard', 'Jobs', 'Discover', 'My CV', 'Interview Prep']);
   },
 );
 test('unknown routes show not found and allow navigation home', async () => {
