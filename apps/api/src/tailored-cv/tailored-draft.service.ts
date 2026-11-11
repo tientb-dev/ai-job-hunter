@@ -194,6 +194,36 @@ export class TailoredDraftService {
       }
     });
   }
+  /**
+   * Read-only reviewed CV facts for other modules (Interview Prep). Same gate as
+   * drafts: current CV, its latest profile revision, and a complete review.
+   * Contact details and links are excluded. Returns null when unavailable.
+   */
+  async reviewedFacts(ownerId: string): Promise<string[] | null> {
+    const manager = this.db.manager;
+    const cv = await manager.getRepository(SavedCv).findOne({
+      where: { ownerId },
+      select: { ownerId: true, text: true, fileName: true, updatedAt: true },
+    });
+    if (!cv?.text.trim()) return null;
+    const found = await this.reviewedProfile(manager, ownerId, cv);
+    if (!found) return null;
+    const full = await manager.getRepository(CvProfileRevision).findOne({
+      where: { ownerId, id: found.profile.id },
+      select: { document: true },
+    });
+    if (!full) return null;
+    try {
+      return reviewedPlan(
+        profileDocument(full.document, found.source.id, cv.text),
+      )
+        .facts.filter((f) => !['contact', 'links'].includes(f.sectionKind))
+        .map((f) => f.value.trim())
+        .filter(Boolean);
+    } catch {
+      return null; // Incomplete or unresolved review: no fact check, never guess.
+    }
+  }
   // Current CV's source and latest review profile. Read-only; shared with progress().
   private async reviewedProfile(
     manager: EntityManager,
