@@ -1,4 +1,11 @@
-import { mkdtempSync, readdirSync, readFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+} from 'node:fs';
 import type { IncomingMessage } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -157,7 +164,32 @@ describe('TranscriptionService with a fake whisper-cli', () => {
     );
   });
 
+  test('unset configuration uses ~/whisper.cpp; explicit paths win', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'stt-home-'));
+    process.env.HOME = home;
+    delete process.env.STT_BIN;
+    process.env.STT_MODEL = '';
+    // Not installed at the default location: unavailable, typing still works.
+    expect(await fails(go())).toBe('STT_UNAVAILABLE');
+    mkdirSync(join(home, 'whisper.cpp', 'build', 'bin'), { recursive: true });
+    mkdirSync(join(home, 'whisper.cpp', 'models'));
+    symlinkSync(
+      stt.bin,
+      join(home, 'whisper.cpp', 'build', 'bin', 'whisper-cli'),
+    );
+    symlinkSync(
+      stt.model,
+      join(home, 'whisper.cpp', 'models', 'ggml-base.en.bin'),
+    );
+    await expect(go(wav())).resolves.toMatchObject({ contractVersion: '1' });
+    // An explicit override is used as-is, even when the default exists.
+    process.env.STT_BIN = join(stt.dir, 'missing');
+    expect(await fails(go())).toBe('STT_UNAVAILABLE');
+    rmSync(home, { recursive: true, force: true });
+  });
+
   test('missing or relative configuration is unavailable', async () => {
+    process.env.HOME = temp; // no ~/whisper.cpp here
     delete process.env.STT_BIN;
     expect(await fails(go())).toBe('STT_UNAVAILABLE');
     process.env.STT_BIN = 'whisper-cli';

@@ -1191,6 +1191,8 @@ describe('POST /interview-prep/transcribe (PR16)', () => {
   });
   test('safe error contracts without paths or CLI output', async () => {
     delete process.env.STT_BIN;
+    // No ~/whisper.cpp default either, whatever this machine has installed.
+    process.env.HOME = '/nonexistent';
     const res = await post().send(wav()).expect(503);
     expect(res.headers['cache-control']).toBe('no-store');
     expect(res.body).toEqual({

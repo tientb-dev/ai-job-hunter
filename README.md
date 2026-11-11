@@ -85,7 +85,8 @@ Interview practice can transcribe a recording locally with
 [whisper.cpp](https://github.com/ggml-org/whisper.cpp). It is optional; without it,
 type or paste the answer into the transcript field. Build `whisper-cli` (CPU
 build) and download the English `ggml-base.en.bin` model outside this repository,
-then set absolute paths in `.env` and restart the API:
+then restart the API. A checkout at `~/whisper.cpp` (built in place, model in
+`models/`) is found automatically; anywhere else, set absolute paths in `.env`:
 
 ```bash
 STT_BIN=/path/to/whisper.cpp/build/bin/whisper-cli
