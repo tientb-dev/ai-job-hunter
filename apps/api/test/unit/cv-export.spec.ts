@@ -5,6 +5,7 @@ import mammoth from 'mammoth';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import {
   canonicalExport,
+  stackedLabel,
   cvRows,
   reflow,
   titles,
@@ -176,8 +177,9 @@ test('multi-role hierarchy, skill categories and nonbreaking communication phras
     const paragraph = paragraphs.find((p) => firstRun(p) === text)!;
     expect(paragraph).toBeDefined();
     expect(paragraph.getElementsByTagName('w:b').length).toBeGreaterThan(0);
-    // Category and values share one row, separated by the column tab stop.
-    expect(paragraph.getElementsByTagName('w:tab').length).toBeGreaterThan(0);
+    // These long categories stack above their values instead of a column.
+    expect(paragraph.getElementsByTagName('w:tab').length).toBe(0);
+    expect(paragraph.getElementsByTagName('w:br').length).toBeGreaterThan(0);
   }
   expect(xml).toContain('Stakeholder\u00a0Communication');
   const wordText = (await mammoth.extractRawText({ buffer: docx })).value;
@@ -346,3 +348,98 @@ test('shared CV rows: reflow joins PDF wraps only; titles carry their dates', ()
     ]).map(({ label, text }) => [label, text]),
   ).toEqual([['Backend', 'Java, Spring Boot']]);
 });
+
+async function polishExport(copies: number, shortLabel = false) {
+  const { cvPolishFixture } = await import('../support/cv-polish-fixture.js');
+  const { initialReview } =
+    await import('../../src/tailored-cv/tailored-draft-review.policy.js');
+  const document = cvPolishFixture();
+  const experience = document.sections.find((s) => s.kind === 'experience')!;
+  experience.entries = Array.from({ length: copies }, (_, copy) =>
+    experience.entries.map((entry) => ({
+      ...entry,
+      id: `${entry.id}-${copy}`,
+      facts: entry.facts.map((fact) => ({ ...fact, id: `${fact.id}-${copy}` })),
+    })),
+  ).flat();
+  if (shortLabel)
+    document.sections
+      .find((s) => s.kind === 'skills')!
+      .entries[0]!.facts.find(
+        (f) => f.field === 'skill_category',
+      )!.acceptedText = 'Languages';
+  document.review = initialReview(document);
+  document.review.approval = {
+    revision: 3,
+    approvedAt: '2026-01-01T00:00:00.000Z',
+  };
+  return canonicalExport(document, 3);
+}
+
+test('skill labels stack only when long and project names are titles', async () => {
+  expect(stackedLabel('Languages')).toBe(false);
+  expect(
+    stackedLabel('Collaboration, documentation and communication practices'),
+  ).toBe(true);
+  const canonical = await polishExport(1, true);
+  const project = canonical.blocks.find(
+    (b) => b.section === 'projects' && b.text === 'University database project',
+  );
+  expect(project?.style).toBe('anchor');
+  const { inspectDocxZip } = await import('../../src/extraction/docx-zip.js');
+  const xml = (await inspectDocxZip(await renderDocx(canonical))).xml
+    .get('word/document.xml')!
+    .toString();
+  // The short skills row (not the "Languages" section heading) keeps its column.
+  expect(xml).toMatch(
+    /<w:tab w:val="left" w:pos="2560"\/>(?:(?!<\/w:p>).)*?>Languages<\/w:t>/u,
+  );
+});
+
+// Before PR12, one copy left "Senior Engineer" alone at the foot of page 1.
+test.each([1, 2, 3])(
+  'PDF never ends a page on a heading and breaks pages without large gaps (%i role copies)',
+  async (copies) => {
+    const canonical = await polishExport(copies);
+    const headings = new Set(
+      canonical.blocks
+        .filter((b) => b.style === 'heading' || b.style === 'anchor')
+        .map((b) => b.text),
+    );
+    const task = getDocument({
+      data: new Uint8Array(await renderPdf(canonical)),
+      useSystemFonts: false,
+      verbosity: 0,
+    });
+    try {
+      const loaded = await task.promise;
+      expect(loaded.numPages).toBeGreaterThan(1);
+      for (let n = 1; n <= loaded.numPages; n++) {
+        const page = await loaded.getPage(n);
+        const items = (await page.getTextContent()).items.filter(
+          (
+            item,
+          ): item is import('pdfjs-dist/types/src/display/api.js').TextItem =>
+            'str' in item && item.str.trim() !== '',
+        );
+        // Lowest line on the page (PDF y grows upwards); dates sit beside titles.
+        const bottom = Math.min(...items.map((item) => item.transform[5]!));
+        const lastLine = items
+          .filter((item) => item.transform[5] === bottom)
+          .map((item) => item.str)
+          .find((text) => !/^\d{4}/u.test(text))!;
+        expect([n, lastLine, headings.has(lastLine)]).toEqual([
+          n,
+          lastLine,
+          false,
+        ]);
+        // No early breaks: every page but the last is filled near the margin.
+        if (n < loaded.numPages)
+          expect([n, bottom < 45 + 90]).toEqual([n, true]);
+      }
+    } finally {
+      await task.destroy();
+    }
+  },
+  15000,
+);

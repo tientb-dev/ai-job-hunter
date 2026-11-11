@@ -269,7 +269,12 @@ export function cvRows(kind: CvSectionKind, facts: ExportFact[]) {
   for (let i = 0; i < facts.length; i++) {
     const fact = facts[i]!;
     const next = facts[i + 1];
-    if (structured && TITLE_FIELDS.has(fact.field)) {
+    if (
+      structured &&
+      (TITLE_FIELDS.has(fact.field) ||
+        // A project's name heads its entry like a role title.
+        (kind === 'projects' && fact.field === 'project'))
+    ) {
       const dates =
         next?.field === 'dates' && DATE_RANGE.test(next.acceptedText)
           ? next
@@ -322,7 +327,9 @@ export async function renderDocx(content: ExportDocument): Promise<Buffer> {
   const LABEL = 2560; // skills category column (twips)
   const paragraphs = content.blocks.map((block) => {
     const lines = layoutText(block).split('\n');
-    const runs = lines.map((text, i) => run(block, text, i));
+    const stacked = !!block.label && stackedLabel(block.label);
+    // A stacked label is its own line, so the first value line breaks after it.
+    const runs = lines.map((text, i) => run(block, text, stacked ? i + 1 : i));
     const children = [
       ...(block.label
         ? [
@@ -332,7 +339,9 @@ export async function renderDocx(content: ExportDocument): Promise<Buffer> {
               font: 'DejaVu Sans',
               size: 21,
             }),
-            new TextRun({ text: '\t', font: 'DejaVu Sans', size: 21 }),
+            ...(stacked
+              ? []
+              : [new TextRun({ text: '\t', font: 'DejaVu Sans', size: 21 })]),
           ]
         : []),
       ...runs,
@@ -361,7 +370,7 @@ export async function renderDocx(content: ExportDocument): Promise<Buffer> {
             },
           }
         : {}),
-      ...(block.label
+      ...(block.label && !stacked
         ? {
             tabStops: [{ type: TabStopType.LEFT, position: LABEL }],
             indent: { left: LABEL, hanging: LABEL },
@@ -461,6 +470,29 @@ function validateGlyphs(content: ExportDocument) {
     if (block.aside) check(block.aside, regular!);
   }
 }
+// Skills category column, PDF points (DOCX uses the same width in twips).
+const LABEL_PT = 128;
+/**
+ * A skills category that would wrap past two lines in the label column is
+ * stacked above its values in both PDF and DOCX. Measured with the bundled
+ * bold font so both formats make the same choice.
+ */
+export function stackedLabel(label: string) {
+  bold ??= openSync(font('DejaVuSans-Bold')) as Font;
+  const face = bold;
+  const width = (text: string) =>
+    (face.layout(text).advanceWidth / face.unitsPerEm) * 10.5;
+  let lines = 1,
+    line = '';
+  for (const word of label.split(/\s+/u)) {
+    const next = line ? `${line} ${word}` : word;
+    if (line && width(next) > LABEL_PT - 12) {
+      lines++;
+      line = word;
+    } else line = next;
+  }
+  return lines > 2;
+}
 export async function renderPdf(content: ExportDocument): Promise<Buffer> {
   validateGlyphs(content);
   const doc = new PDFDocument({
@@ -487,7 +519,6 @@ export async function renderPdf(content: ExportDocument): Promise<Buffer> {
     const width = doc.page.width - 100;
     const ink = '#172B2A',
       muted = '#4A5A55';
-    const LABEL = 128; // skills category column
     const opts = { lineGap: 2, paragraphGap: 0 };
     const set = (style: ExportDocument['blocks'][number]['style']) => {
       const size =
@@ -503,11 +534,14 @@ export async function renderPdf(content: ExportDocument): Promise<Buffer> {
         .fontSize(size)
         .fillColor(style === 'detail' ? muted : ink);
     };
-    for (const [index, block] of content.blocks.entries()) {
+    const gap = (block: ExportDocument['blocks'][number]) =>
+      block.style === 'heading' ? 12 : block.entryStart ? 6 : 1;
+    // Measure each row exactly as it will be drawn.
+    const measured = content.blocks.map((block) => {
       const text = layoutText(block);
-      const before = block.style === 'heading' ? 12 : block.entryStart ? 6 : 1;
-      // Measure the row as it will be drawn.
+      const stacked = !!block.label && stackedLabel(block.label);
       set(block.style);
+      const line = doc.heightOfString('X', { width, ...opts });
       let asideWidth = 0;
       if (block.aside) {
         doc.font('regular').fontSize(9.5);
@@ -517,52 +551,89 @@ export async function renderPdf(content: ExportDocument): Promise<Buffer> {
         );
         set(block.style);
       }
-      const mainX = left + (block.label ? LABEL : 0);
-      const mainWidth = width - (block.label ? LABEL : 0) - asideWidth;
+      const column = block.label && !stacked ? LABEL_PT : 0;
+      const mainWidth = width - column - asideWidth;
       let height = doc.heightOfString(text, { width: mainWidth, ...opts });
+      let labelHeight = 0;
       if (block.label) {
-        doc.font('bold');
-        height = Math.max(
-          height,
-          doc.heightOfString(block.label, { width: LABEL - 12, ...opts }),
-        );
+        doc.font('bold').fontSize(10.5);
+        labelHeight = doc.heightOfString(block.label, {
+          width: stacked ? width : LABEL_PT - 12,
+          ...opts,
+        });
+        height = stacked ? labelHeight + height : Math.max(height, labelHeight);
         set(block.style);
       }
-      const keepWithNext =
-        block.style === 'heading' || block.style === 'anchor' ? 28 : 0;
+      return {
+        text,
+        stacked,
+        line,
+        asideWidth,
+        column,
+        mainWidth,
+        height,
+        labelHeight,
+      };
+    });
+    const pageMax = doc.page.height - 100;
+    const keeps = (block: ExportDocument['blocks'][number]) =>
+      block.style === 'heading' || block.style === 'anchor';
+    // Plain paragraphs may continue on the next page; other rows never split.
+    const splittable = (i: number) =>
+      content.blocks[i]!.style === 'body' && !content.blocks[i]!.label;
+    const start = (i: number) =>
+      splittable(i)
+        ? Math.min(measured[i]!.height, measured[i]!.line * 2)
+        : Math.min(measured[i]!.height, pageMax);
+    for (const [index, block] of content.blocks.entries()) {
+      const m = measured[index]!;
+      // A heading stays with the headings after it and the first two lines
+      // of the content they introduce, so no heading ends a page alone.
+      let need = gap(block) + start(index);
+      if (keeps(block))
+        for (let j = index + 1; j < content.blocks.length; j++) {
+          const next = content.blocks[j]!;
+          need += gap(next) + start(j);
+          if (!keeps(next)) break;
+        }
       if (
-        doc.y +
-          before +
-          Math.min(height, doc.page.height - 100) +
-          keepWithNext >
+        doc.y + Math.min(need, pageMax) >
           doc.page.height - doc.page.margins.bottom &&
         doc.y > doc.page.margins.top + 1
       )
         doc.addPage();
-      doc.y += before;
+      doc.y += gap(block);
+      set(block.style);
       const top = doc.y;
+      const page = pages;
+      let textTop = top;
       if (block.label) {
         doc.font('bold').fontSize(10.5).fillColor(ink);
-        doc.text(block.label, left, top, { width: LABEL - 12, ...opts });
+        doc.text(block.label, left, top, {
+          width: m.stacked ? width : LABEL_PT - 12,
+          ...opts,
+        });
+        if (m.stacked) textTop = top + m.labelHeight;
         set(block.style);
       }
-      doc.text(text, mainX, top, {
-        width: mainWidth,
+      doc.text(m.text, left + m.column, textTop, {
+        width: m.mainWidth,
         ...opts,
         ...(block.href ? { link: block.href, underline: true } : {}),
       });
       const afterMain = doc.y;
       if (block.aside) {
         doc.font('regular').fontSize(9.5).fillColor(muted);
-        doc.text(block.aside, left + width - asideWidth, top + 1, {
-          width: asideWidth,
+        doc.text(block.aside, left + width - m.asideWidth, top + 1, {
+          width: m.asideWidth,
           align: 'right',
           ...opts,
         });
         set(block.style);
         doc.y = afterMain;
       }
-      doc.y = Math.max(doc.y, top + height);
+      // A paragraph that continued on a new page already ends at doc.y.
+      if (pages === page) doc.y = Math.max(doc.y, top + m.height);
       if (block.style === 'heading') {
         doc
           .moveTo(left, doc.y + 2)
