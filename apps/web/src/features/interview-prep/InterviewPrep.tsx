@@ -42,6 +42,8 @@ import {
   type Withheld,
 } from './interview-prep-api';
 import { useRecorder } from './useRecorder';
+import { TranscriptPanel } from './Transcript';
+import { useTranscript } from './useTranscript';
 
 /** Dirty = changed since the editor opened (an AI pre-fill alone is not an edit). */
 const isDirty = (editor: AnswerEditor | null) =>
@@ -329,9 +331,12 @@ function Recorder({
   recorder,
   title,
   prominent = false,
+  transcript,
 }: {
   recorder: ReturnType<typeof useRecorder>;
   title: string;
+  /** PR16: optional local transcription, shown in step 3 only. */
+  transcript?: ReactNode;
   /** Step 3: the main action, so a filled button. */
   prominent?: boolean;
 }) {
@@ -341,18 +346,26 @@ function Recorder({
       <Typography variant="subtitle2" component="h3">
         {title}
       </Typography>
-      {url && state === 'ready' && (
+      {transcript && state !== 'unavailable' && (
+        <Typography variant="body2" color="text.secondary">
+          Record your answer, transcribe it locally, or type it yourself. Review
+          the text before requesting AI feedback.
+        </Typography>
+      )}
+      {!transcript && url && state === 'ready' && (
         <Typography variant="body2" role="status">
           Listen to your recording, then record again to practise. For AI
           feedback, type your answer in the text field below.
         </Typography>
       )}
-      {state !== 'unavailable' && !(url && state === 'ready') && (
-        <Typography variant="body2" color="text.secondary">
-          Record yourself speaking, then listen back. Audio is not analysed by
-          AI.
-        </Typography>
-      )}
+      {!transcript &&
+        state !== 'unavailable' &&
+        !(url && state === 'ready') && (
+          <Typography variant="body2" color="text.secondary">
+            Record yourself speaking, then listen back. Audio is not analysed by
+            AI.
+          </Typography>
+        )}
       {state === 'unavailable' ? (
         <Stack spacing={1} sx={{ alignItems: 'flex-start' }}>
           <Typography variant="body2" color="text.secondary" role="status">
@@ -406,10 +419,12 @@ function Recorder({
           )}
         </Stack>
       )}
-      <Typography variant="caption" color="text.secondary">
-        Recordings stay in this browser only and are never uploaded or saved. AI
-        feedback uses only the text you type.
-      </Typography>
+      {transcript ?? (
+        <Typography variant="caption" color="text.secondary">
+          Recordings stay in this browser only and are never uploaded or saved.
+          AI feedback uses only the text you type.
+        </Typography>
+      )}
     </Stack>
   );
 }
@@ -477,6 +492,11 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
   const [tryOpen, setTryOpen] = useState(false);
   const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
   const recorder = useRecorder();
+  const transcript = useTranscript();
+  const [transcriptShown, setTranscriptShown] = useState(true);
+  const cancelTranscript = transcript.cancel;
+  // A new take (or a cleared one) must never receive the old take's transcript.
+  useEffect(() => cancelTranscript(), [recorder.blob, cancelTranscript]);
   const request = useRef<AbortController | null>(null);
   // Only the latest request may update the screen.
   const sequence = useRef(0);
@@ -514,7 +534,9 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
     setAnswersStatus('loading');
     setAnswersAttempt((n) => n + 1);
   };
-  const dirty = isDirty(editor);
+  // PR16: a non-empty practice transcript is unsaved work too.
+  const transcriptDirty = !!transcript.text.trim();
+  const dirty = isDirty(editor) || transcriptDirty;
   // Route changes inside the app.
   const blocker = useBlocker(dirty);
   // Refresh or tab close: the browser's own native warning, no custom dialog.
@@ -532,6 +554,11 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
     if (isDirty(editor)) setPendingLeave(() => action);
     else action();
   };
+  /** Leaving the question also loses a practice transcript (PR16). */
+  const leave = (action: () => void) => {
+    if (isDirty(editor) || transcriptDirty) setPendingLeave(() => action);
+    else action();
+  };
 
   const abandon = () => {
     sequence.current++;
@@ -541,6 +568,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
   const freshQuestion = () => {
     abandon();
     recorder.reset();
+    transcript.reset();
     setText('');
     setStatus({ kind: 'idle' });
     setPrevious(null);
@@ -580,11 +608,11 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
   const nextQuestion = () =>
     job
       ? job.onSelect(order[(index + 1) % order.length]!.id)
-      : guard(() => goTo((index + 1) % order.length));
+      : leave(() => goTo((index + 1) % order.length));
   const selectQuestion = (id: string) =>
     job
       ? job.onSelect(id)
-      : guard(() =>
+      : leave(() =>
           goTo(
             Math.max(
               0,
@@ -593,7 +621,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
           ),
         );
   const changeTopic = () =>
-    guard(() => {
+    leave(() => {
       freshQuestion();
       setTopic(null);
     });
@@ -1522,7 +1550,26 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
         view={view}
         revealed={revealed}
         recorder={
-          <Recorder recorder={recorder} title="Say it out loud" prominent />
+          <Recorder
+            recorder={recorder}
+            title="Say it out loud"
+            prominent
+            transcript={
+              <TranscriptPanel
+                transcript={transcript}
+                recording={recorder.blob}
+                questionId={question.id}
+                variant={question.variants[variant] ? variant : 0}
+                renderFeedback={(f) => (
+                  <Feedback
+                    feedback={f}
+                    shown={transcriptShown}
+                    onToggle={() => setTranscriptShown((v) => !v)}
+                  />
+                )}
+              />
+            }
+          />
         }
         notice={notice}
         onRetryLoad={retryAnswers}
@@ -1547,6 +1594,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
 
       <UnsavedAnswerDialog
         open={!!pendingLeave || blocker.state === 'blocked'}
+        transcript={!isDirty(editor)}
         onStay={() => {
           setPendingLeave(null);
           if (blocker.state === 'blocked') blocker.reset();
@@ -1555,6 +1603,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
           const action = pendingLeave;
           setPendingLeave(null);
           setEditor(null);
+          transcript.reset();
           if (blocker.state === 'blocked') blocker.proceed();
           action?.();
         }}

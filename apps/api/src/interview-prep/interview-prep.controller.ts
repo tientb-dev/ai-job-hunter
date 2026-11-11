@@ -8,6 +8,8 @@ import {
   ParseUUIDPipe,
   Put,
   Query,
+  Req,
+  Res,
   Header,
   HttpCode,
   HttpException,
@@ -16,13 +18,14 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { ArgumentsHost, ExceptionFilter } from '@nestjs/common';
-import type { ServerResponse } from 'node:http';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import { LOCAL_OWNER_ID } from '../opportunities/opportunities.service.js';
 import { FoundationLocalGuard } from '../tailored-cv/tailored-cv.http.js';
 import { InterviewPrepError } from './interview-prep.policy.js';
 import { InterviewPrepService } from './interview-prep.service.js';
 import { InterviewAnswersService } from './interview-answers.service.js';
 import { JobQuestionsService } from './job-questions.service.js';
+import { TranscriptionService } from './transcription.service.js';
 
 export function interviewPrepError(error: unknown) {
   if (error instanceof InterviewPrepError)
@@ -70,6 +73,7 @@ export class InterviewPrepController {
     private readonly service: InterviewPrepService,
     private readonly answers: InterviewAnswersService,
     private readonly jobQuestions: JobQuestionsService,
+    private readonly stt: TranscriptionService,
   ) {}
   // Static, non-personal content: plain same-origin GET like other public reads.
   @Get('questions')
@@ -143,5 +147,23 @@ export class InterviewPrepController {
     @Body() body: unknown,
   ) {
     return this.jobQuestions.generate(LOCAL_OWNER_ID, jobId, body);
+  }
+  // PR16: raw 16 kHz mono PCM WAV body, never stored. Optional ?questionId=
+  // only selects an owner-scoped vocabulary hint; no client prompt text.
+  @Post('transcribe')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @UseGuards(FoundationLocalGuard)
+  transcribe(
+    @Req() req: IncomingMessage,
+    @Res({ passthrough: true }) res: ServerResponse,
+    @Query('questionId') questionId: unknown,
+  ) {
+    const abort = new AbortController();
+    // Client gone before we answered: kill the CLI process.
+    res.on('close', () => {
+      if (!res.writableFinished) abort.abort();
+    });
+    return this.stt.transcribe(LOCAL_OWNER_ID, req, questionId, abort.signal);
   }
 }

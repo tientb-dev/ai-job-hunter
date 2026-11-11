@@ -13,6 +13,10 @@ import type { TailoredDraftService } from '../../src/tailored-cv/tailored-draft.
 import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js';
 import { databaseOptions } from '../../src/database/database.config.js';
 import { revertThrough } from '../support/migration-revert.js';
+import type { IncomingMessage } from 'node:http';
+import { Readable } from 'node:stream';
+import { TranscriptionService } from '../../src/interview-prep/transcription.service.js';
+import { fakeStt, wav } from '../support/fake-stt.js';
 
 let db: DataSource;
 let app: INestApplication;
@@ -399,4 +403,37 @@ test('HTTP: guarded PUT, list and DELETE work for the local owner generated ques
     .delete(`/api/v1/interview-prep/answers/${qid}?expectedVersion=1`)
     .set(origin)
     .expect(204);
+});
+
+test('PR16 transcription resolves only the owner’s JD question for a short vocabulary hint', async () => {
+  const stt = fakeStt();
+  const env = { ...process.env };
+  process.env.STT_BIN = stt.bin;
+  process.env.STT_MODEL = stt.model;
+  try {
+    const jobId = await job(ownerA);
+    const [row] = await question(ownerA, await set(ownerA, jobId));
+    const id = `jd-${row.id}`;
+    const service = new TranscriptionService(db);
+    const go = (owner: string) =>
+      service.transcribe(
+        owner,
+        Object.assign(Readable.from([wav()]), {
+          headers: { 'content-type': 'audio/wav' },
+        }) as unknown as IncomingMessage,
+        id,
+        new AbortController().signal,
+      );
+    const own = await go(ownerA);
+    expect(own.transcript).toContain(
+      'PROMPT=Technical terms: PostgreSQL, MVCC.',
+    );
+    // JD evidence/why text never reaches the prompt.
+    expect(own.transcript).not.toMatch(/JD requires|Strong/u);
+    await expect(go(ownerB)).rejects.toMatchObject({
+      errorCode: 'INTERVIEW_INVALID_REQUEST',
+    });
+  } finally {
+    process.env = env;
+  }
 });

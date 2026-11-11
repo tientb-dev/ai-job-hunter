@@ -10,8 +10,8 @@ export const recordingSupported = () =>
   typeof MediaRecorder !== 'undefined';
 
 /**
- * Browser-only self-review recording. Audio stays in memory as one object URL;
- * nothing is uploaded or stored. Any failure (permission, no device, unsupported,
+ * Browser self-review recording. Audio stays in memory as one object URL and
+ * is uploaded only when the user chooses local transcription; never stored. Any failure (permission, no device, unsupported,
  * recorder error) becomes "unavailable" — browsers disagree on error names.
  */
 export function useRecorder() {
@@ -19,6 +19,8 @@ export function useRecorder() {
     recordingSupported() ? 'idle' : 'unavailable',
   );
   const [url, setUrl] = useState<string | null>(null);
+  // The take itself, for optional local transcription (PR16).
+  const [blob, setBlob] = useState<Blob | null>(null);
   const stream = useRef<MediaStream | null>(null);
   const recorder = useRef<MediaRecorder | null>(null);
   const urlRef = useRef<string | null>(null);
@@ -35,6 +37,7 @@ export function useRecorder() {
     if (urlRef.current) URL.revokeObjectURL(urlRef.current);
     urlRef.current = null;
     setUrl(null);
+    setBlob(null);
   }, []);
 
   const stop = useCallback(() => {
@@ -75,6 +78,7 @@ export function useRecorder() {
         if (!blob.size) return setState('idle');
         urlRef.current = URL.createObjectURL(blob);
         setUrl(urlRef.current);
+        setBlob(blob);
         setState('ready');
       };
       next.onerror = () => {
@@ -119,5 +123,5 @@ export function useRecorder() {
     [release],
   );
 
-  return { state, url, start, stop, reset };
+  return { state, url, blob, start, stop, reset };
 }

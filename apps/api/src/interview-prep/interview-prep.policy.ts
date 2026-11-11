@@ -55,6 +55,31 @@ const errors = {
     422,
     "The local AI couldn't produce enough questions grounded in this job description. Nothing was saved — try again.",
   ],
+  // PR16: local speech-to-text. Every fallback keeps the recording and typing.
+  STT_UNAVAILABLE: [
+    503,
+    'Local transcription is not set up. Type your answer instead.',
+  ],
+  STT_INVALID_AUDIO: [
+    400,
+    'This recording could not be read. Record 0.5 seconds to 3 minutes and try again, or type your answer.',
+  ],
+  STT_TOO_LARGE: [
+    413,
+    'This recording is longer than 3 minutes. Record a shorter answer or type it instead.',
+  ],
+  STT_BUSY: [
+    409,
+    'Another recording is being transcribed. Wait for it to finish, then try again.',
+  ],
+  STT_TIMEOUT: [
+    504,
+    'Transcription took too long. Try again, or type your answer instead.',
+  ],
+  STT_FAILED: [
+    502,
+    'Transcription failed. Try again, or type your answer instead.',
+  ],
 } as const;
 export type InterviewErrorCode = keyof typeof errors;
 export interface SavedAnswerDto {

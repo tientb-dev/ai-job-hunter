@@ -193,21 +193,27 @@ export function UnsavedAnswerDialog({
   open,
   onStay,
   onDiscard,
+  transcript = false,
 }: {
   open: boolean;
   onStay: () => void;
   onDiscard: () => void;
+  /** PR16: only an unsaved practice transcript is at stake. */
+  transcript?: boolean;
 }) {
   return (
     <Dialog open={open} onClose={onStay} aria-labelledby="unsaved-answer-title">
       <DialogTitle id="unsaved-answer-title" sx={{ pr: 7 }}>
-        Discard your unsaved answer?
+        {transcript
+          ? 'Discard your transcript?'
+          : 'Discard your unsaved answer?'}
         <DialogCloseButton onClick={onStay} />
       </DialogTitle>
       <DialogContent>
         <DialogContentText>
-          You changed your reference answer but didn't save it. Your saved
-          answer, if any, stays as it was.
+          {transcript
+            ? "Your practice transcript isn't saved anywhere. Leaving this question clears it."
+            : "You changed your reference answer but didn't save it. Your saved answer, if any, stays as it was."}
         </DialogContentText>
       </DialogContent>
       <DialogActions>
