@@ -79,6 +79,24 @@ the pinned server/model profile in `apps/api/src/ai/ollama.context.ts`.
 Manual tracking does not require inference. No model installation or cloud
 fallback occurs automatically.
 
+### Optional local speech-to-text (PR16)
+
+Interview practice can transcribe a recording locally with
+[whisper.cpp](https://github.com/ggml-org/whisper.cpp). It is optional; without it,
+type or paste the answer into the transcript field. Build `whisper-cli` (CPU
+build) and download the English `ggml-base.en.bin` model outside this repository,
+then set absolute paths in `.env` and restart the API:
+
+```bash
+STT_BIN=/path/to/whisper.cpp/build/bin/whisper-cli
+STT_MODEL=/path/to/whisper.cpp/models/ggml-base.en.bin
+```
+
+The browser converts the recording to 16 kHz mono WAV (0.5 s–3 min) and sends it
+only to this app's local API. Audio, transcripts and transcript feedback are not
+saved. Transcription errs on technical terms; review and edit the text before
+requesting AI feedback.
+
 ## Commands and verification
 
 | Command                                                                | Purpose                                      |

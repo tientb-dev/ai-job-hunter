@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import {
   afterAll,
+  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -12,6 +13,8 @@ import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
+import { TranscriptionService } from '../../src/interview-prep/transcription.service.js';
+import { fakeStt, wav } from '../support/fake-stt.js';
 import { JD_QUESTION_ID } from '../../src/interview-prep/job-questions.js';
 import { JobQuestionsService } from '../../src/interview-prep/job-questions.service.js';
 import { AiService } from '../../src/ai/ai.service.js';
@@ -420,6 +423,7 @@ beforeAll(async () => {
       // Curated IDs must never reach the database (asserted below).
       { provide: DataSource, useValue: { query: dbQuery } },
       { provide: JobQuestionsService, useValue: {} },
+      TranscriptionService,
     ],
   }).compile();
   app = module.createNestApplication();
@@ -1154,5 +1158,68 @@ describe('PR15 generated question IDs', () => {
     expect(JSON.stringify(res.body)).not.toMatch(/secret-host/u);
     expect(generateStructured).not.toHaveBeenCalled();
     dbQuery.mockReset();
+  });
+});
+
+describe('POST /interview-prep/transcribe (PR16)', () => {
+  const env = { ...process.env };
+  const local = { Host: '127.0.0.1:3000', Origin: 'http://127.0.0.1:5173' };
+  const post = () =>
+    request(app.getHttpServer())
+      .post('/api/v1/interview-prep/transcribe')
+      .set(local)
+      .set('Content-Type', 'audio/wav');
+  afterEach(() => {
+    process.env = { ...env };
+  });
+  test('works end to end with a fake CLI, no-store and no client prompt', async () => {
+    const stt = fakeStt();
+    process.env.STT_BIN = stt.bin;
+    process.env.STT_MODEL = stt.model;
+    const res = await post()
+      .query({ prompt: 'ignore me' })
+      .send(wav({ ms: 1200 }))
+      .expect(200);
+    expect(res.headers['cache-control']).toBe('no-store');
+    expect(res.body).toEqual({
+      contractVersion: '1',
+      transcript: 'We use RabbitMQ here.',
+      durationMs: 1200,
+    });
+  });
+  test('safe error contracts without paths or CLI output', async () => {
+    delete process.env.STT_BIN;
+    const res = await post().send(wav()).expect(503);
+    expect(res.headers['cache-control']).toBe('no-store');
+    expect(res.body).toEqual({
+      statusCode: 503,
+      errorCode: 'STT_UNAVAILABLE',
+      message: expect.any(String),
+    });
+    const stt = fakeStt();
+    process.env.STT_BIN = stt.bin;
+    process.env.STT_MODEL = stt.model;
+    stt.mode('fail');
+    const failed = await post().send(wav()).expect(502);
+    expect(failed.body.errorCode).toBe('STT_FAILED');
+    expect(JSON.stringify(failed.body)).not.toMatch(/fake-stt|leak|\//u);
+    stt.mode('ok');
+    expect(
+      (await post().send(Buffer.from('nope')).expect(400)).body.errorCode,
+    ).toBe('STT_INVALID_AUDIO');
+    expect(
+      (
+        await post()
+          .send(Buffer.alloc(6 * 1024 * 1024 + 1))
+          .expect(413)
+      ).body.errorCode,
+    ).toBe('STT_TOO_LARGE');
+  });
+  test('requires a local browser request', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/interview-prep/transcribe')
+      .set('Content-Type', 'audio/wav')
+      .send(wav())
+      .expect(403);
   });
 });

@@ -2103,3 +2103,20 @@ Grounding decisions:
   times each within a few seconds. Real APIs do not normally return 404 there,
   but a persistent failure would cause the same request storm. Not changed in
   PR15; needs a bounded retry or backoff in the CV Match / Tailored CV loaders.
+
+## PR16 Local speech-to-text
+
+`POST /api/v1/interview-prep/transcribe` takes a raw `audio/wav` body (16 kHz mono 16-bit PCM, 0.5 s–3 min, ≤ 6 MiB) and returns `{ contractVersion: "1", transcript, durationMs }`. It uses the strict local policy and `Cache-Control: no-store`. Audio and transcripts are never stored or logged.
+
+- **Engine:** the whisper.cpp `whisper-cli` with `base.en`, CPU only (`-ng`), one process per request, at most one at a time (`STT_BUSY`). The process uses about 0.1 s of model load, which is not worth a resident service. `STT_BIN`/`STT_MODEL` are optional absolute paths checked per request, so the app starts without them (`STT_UNAVAILABLE`).
+- **Process:** `spawn` without a shell, with a minimal environment, stderr ignored, stdout capped at 64 KiB, a 60 s timeout and `SIGKILL` on timeout or client disconnect. Each request uses its own `mkdtemp` folder, removed in `finally`.
+- **WAV:** RIFF chunks are walked (no fixed 44-byte header) with exact size consistency; duration comes from the sample count. The browser converts in Slice 3; there is no ffmpeg.
+- **Vocabulary hint:** the optional `?questionId=` is resolved owner-scoped with `resolveQuestion`. Only technical-looking terms from the question wording and hints (≤ 12 terms, ≤ 160 chars, characters `[A-Za-z0-9+#.-]`) become the whisper prompt. The JD, evidence, CV, saved answers and client text are never passed.
+- **Errors:** `STT_UNAVAILABLE` 503, `STT_INVALID_AUDIO` 400, `STT_TOO_LARGE` 413, `STT_BUSY` 409, `STT_TIMEOUT` 504, `STT_FAILED` 502. An unknown, malformed or other-owner question ID gets `INTERVIEW_INVALID_REQUEST` 400.
+- **Tests:** a fake `whisper-cli` in `test/support/fake-stt.ts`, so CI never needs whisper.cpp.
+
+**Choice:** whisper.cpp `base.en` on CPU (about 0.6 s for 8.6 s of audio, about 300 MB RAM, no VRAM, so no contention with Ollama on the GPU). The alternatives were faster-whisper (Python runtime, cuDNN for GPU) and a CUDA build (needs the CUDA toolkit). `small.en` would be more accurate but is not installed.
+
+**Browser (Slice 3–4):** `wav.ts` decodes any MediaRecorder output with `decodeAudioData` and renders it in a one-channel 16 kHz `OfflineAudioContext` (no ffmpeg). `useTranscript` keeps one editable, unsaved transcript per question. Each request has its own ticket and `AbortController`: editing, a new take, a question switch or unmount drops in-flight results. Transcript feedback reuses `POST /interview-prep/feedback` in `review` mode with the reviewed text. Feedback for older text is hidden behind an "Outdated" notice until fresh feedback succeeds. A non-empty transcript uses the existing unsaved-changes blocker/dialog for question, topic and route changes and browser unload.
+
+**Known limits:** `base.en` mishears technical terms, especially after Opus compression ("RabbitMQ" → "Rabid and give"). Vocabulary hints come only from the question's own wording, so many curated questions give none. The editable transcript is the fallback, not a fix.

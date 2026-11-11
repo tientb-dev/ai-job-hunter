@@ -146,6 +146,63 @@ export async function requestFeedback(
   return decodeFeedback(payload);
 }
 
+// ------------------------------------------------- PR16 local speech-to-text
+const STT_MESSAGES: Record<string, string> = {
+  STT_UNAVAILABLE:
+    "Local transcription isn't set up on this computer. You can type your answer instead.",
+  STT_INVALID_AUDIO:
+    "This recording couldn't be transcribed. Record again (at least half a second), or type your answer.",
+  STT_TOO_LARGE:
+    'This recording is longer than 3 minutes. Record a shorter answer, or type it.',
+  STT_BUSY:
+    'Another recording is being transcribed. Wait a moment, then try again.',
+  STT_TIMEOUT: 'Transcription took too long. Try again, or type your answer.',
+  STT_FAILED: 'Transcription failed. Try again, or type your answer.',
+};
+/** Sends the WAV to this app's local API; audio and transcript are not stored. */
+export async function transcribe(
+  wav: Blob,
+  questionId: string,
+  signal: AbortSignal,
+): Promise<{ transcript: string; durationMs: number }> {
+  let response: Response;
+  try {
+    response = await fetch(
+      `/api/v1/interview-prep/transcribe?questionId=${encodeURIComponent(questionId)}`,
+      {
+        method: 'POST',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'audio/wav' },
+        body: wav,
+        signal,
+      },
+    );
+  } catch (error) {
+    if (signal.aborted) throw error;
+    throw new PracticeError(
+      'NETWORK',
+      'The app could not reach the API. Try again, or type your answer.',
+    );
+  }
+  const payload: unknown = await response.json().catch(() => null);
+  if (!response.ok) {
+    const code =
+      record(payload) && str(payload.errorCode) ? payload.errorCode : '';
+    throw new PracticeError(
+      code || 'STT_FAILED',
+      STT_MESSAGES[code] ?? STT_MESSAGES.STT_FAILED!,
+    );
+  }
+  if (
+    !record(payload) ||
+    payload.contractVersion !== '1' ||
+    !str(payload.transcript) ||
+    typeof payload.durationMs !== 'number'
+  )
+    throw invalid();
+  return { transcript: payload.transcript, durationMs: payload.durationMs };
+}
+
 // ------------------------------------------------- PR14 saved reference answers
 export const MAX_REFERENCE_ANSWER = 2000;
 export interface SavedAnswer {
