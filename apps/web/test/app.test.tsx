@@ -33,6 +33,11 @@ test.each(['/dashboard', '/jobs'])(
         if (url.endsWith('/health/ready'))
           return Response.json({ status: 'ok' });
         if (url.endsWith('/cv/current')) return Response.json(null);
+        if (url.endsWith('/job-progress'))
+          return Response.json({
+            cv: { saved: true, sourceReason: 'CV_DRAFT_MATCH_REQUIRED' },
+            jobs: [{ id: job.id, matchStatus: 'MISSING', draft: null }],
+          });
         return Response.json(url.endsWith('/opportunities') ? [job] : job);
       }),
     );

@@ -185,6 +185,15 @@ export class TailoredCvController {
   ) {
     return this.drafts.generate(LOCAL_OWNER_ID, id, body);
   }
+  // Read-only facts for the Dashboard; next steps are decided client-side.
+  // POST like other private reads: browsers omit Origin on same-origin GETs.
+  @Post('job-progress')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  jobProgress(@Body() body: unknown) {
+    version(body, []);
+    return this.drafts.progress(LOCAL_OWNER_ID);
+  }
   @Post('jobs/:id/drafts/readiness')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')

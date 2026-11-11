@@ -297,9 +297,12 @@ test.each([false, true])(
   'saved draft resumes with unavailable match (approved=%s) and preserves edits',
   async (approved) => {
     const state = setup({ status: 'MISSING', draft: true, approved });
-    // A saved draft never implies CV Match is complete.
+    // A saved draft never implies CV Match is complete; an approved one opens
+    // Approve & Export, an unapproved one Tailor & Review.
     await screen.findByRole('heading', {
-      name: 'Step 2 of 3 · Tailor & Review',
+      name: approved
+        ? 'Step 3 of 3 · Approve & Export'
+        : 'Step 2 of 3 · Tailor & Review',
     });
     // The merged step's match gate shows the match is not current.
     expect(screen.queryByText(/No new analysis is needed/)).toBeNull();
@@ -480,34 +483,51 @@ test('manual step selection during automatic draft loading is not overridden by 
   ).toBeVisible();
 });
 
-test('approved draft enters review from Job Detail; export is explicit and return remains in review', async () => {
+test('approved current draft opens Approve & Export from Job Detail; review stays one step back', async () => {
   setup({ draft: true, approved: true, start: `/jobs/${draftJobId}` });
   fireEvent.click(screen.getByRole('button', { name: 'Improve CV tab' }));
   fireEvent.click(screen.getByRole('link', { name: /tailored CV$/ }));
-  await screen.findByText('Approved — Ready to export');
-  expect(
-    screen.getByRole('heading', { name: 'Step 2 of 3 · Tailor & Review' }),
-  ).toBeVisible();
-  expect(
-    screen.getAllByText('Assisted a team prototype only.')[0],
-  ).toBeVisible();
-  const preview = await screen.findByRole('button', {
-    name: 'Continue to Approve & Export',
-  });
-  expect(preview).toHaveClass('MuiButton-contained');
-  fireEvent.click(preview);
   await screen.findByRole('heading', {
     name: 'Step 3 of 3 · Approve & Export',
   });
-  expect(screen.getByRole('button', { name: 'Download PDF' })).toBeEnabled();
+  expect(
+    await screen.findByRole('button', { name: 'Download PDF' }),
+  ).toBeEnabled();
+  // A current draft shows no older-job-snapshot warning.
+  expect(screen.queryByText(/older saved job snapshot/)).toBeNull();
   fireEvent.click(screen.getByRole('tab', { name: /Tailor & Review/ }));
   fireEvent.focus(window);
   await screen.findByRole('heading', { name: 'Step 2 of 3 · Tailor & Review' });
   expect(screen.getByText('Approved — Ready to export')).toBeVisible();
+  expect(
+    screen.getAllByText('Assisted a team prototype only.')[0],
+  ).toBeVisible();
+});
+
+test('approved draft for an older job snapshot opens Approve & Export with its warning', async () => {
+  const draft = tailoredDraftFixture();
+  draft.document.review.approval = {
+    revision: draft.revision,
+    approvedAt: draft.updatedAt,
+  };
+  draft.document.pins.jobUpdatedAt = '2020-01-01T00:00:00.000Z';
+  setup({ drafts: [draft] });
+  await screen.findByRole('heading', {
+    name: 'Step 3 of 3 · Approve & Export',
+  });
+  // The warning is visible before any download.
+  expect(
+    await screen.findByText(/This draft uses an older saved job snapshot/),
+  ).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Download PDF' })).toBeVisible();
 });
 
 test('editing approved content retains saved approval, exposes save/discard and blocks export', async () => {
   const state = setup({ draft: true, approved: true });
+  await screen.findByRole('heading', {
+    name: 'Step 3 of 3 · Approve & Export',
+  });
+  fireEvent.click(screen.getByRole('tab', { name: /Tailor & Review/ }));
   await screen.findByText('Approved — Ready to export');
   fireEvent.click(screen.getByRole('button', { name: 'Edit experience' }));
   fireEvent.change(

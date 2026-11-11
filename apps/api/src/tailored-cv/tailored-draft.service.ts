@@ -9,7 +9,11 @@ import { DataSource, type EntityManager } from 'typeorm';
 import { randomUUID } from 'node:crypto';
 import { AI_CONFIG, type AiConfig } from '../ai/ai.config.js';
 import { OLLAMA_CONTEXT_PROFILE } from '../ai/ollama.context.js';
-import { JobMatchService } from '../matching/job-match.service.js';
+import {
+  JobMatchService,
+  cvTextHash,
+  savedMatchStatus,
+} from '../matching/job-match.service.js';
 import { SavedCv } from '../matching/saved-cv.entity.js';
 import { SavedCvSourceService } from '../matching/saved-cv-source.service.js';
 import { canonicalRequirements } from '../matching/cv-match.js';
@@ -38,6 +42,60 @@ interface GenerateRequest {
   expectedJobUpdatedAt: string;
   matchId: string;
 }
+interface ProgressRow {
+  id: string;
+  jobUpdatedAt: Date;
+  policyVersion: string | null;
+  cvTextHash: string | null;
+  matchJobUpdatedAt: Date | null;
+  draftUpdatedAt: Date | null;
+  draftJobUpdatedAt: Date | null;
+  pending: number | null;
+  approved: boolean;
+}
+const array = (value: string) =>
+  `jsonb_array_elements(CASE WHEN jsonb_typeof(${value}) = 'array' THEN ${value} ELSE '[]'::jsonb END)`;
+// Latest tailored draft per job (same order as list()), summarized in SQL with
+// the review policy's semantics so documents never leave the database:
+// - pending: factReviews with proposal 'pending'; without a saved review,
+//   initialReview() marks every fact with a truthy proposedWording as pending.
+// - approved: approval.revision equals the draft revision.
+const JOB_PROGRESS_SQL = `
+SELECT o.id, o."updatedAt" AS "jobUpdatedAt",
+  m."policyVersion", m."cvTextHash", m."jobUpdatedAt" AS "matchJobUpdatedAt",
+  d."updatedAt" AS "draftUpdatedAt", d."jobUpdatedAt" AS "draftJobUpdatedAt",
+  d.pending, coalesce(d.approved, false) AS approved
+FROM ai_job_hunter.opportunities o
+LEFT JOIN ai_job_hunter.cv_matches m
+  ON m."ownerId" = o."ownerId" AND m."jobId" = o.id
+LEFT JOIN LATERAL (
+  SELECT x."updatedAt", x."jobUpdatedAt",
+    CASE
+      WHEN coalesce(x.document->'review', 'null') = 'null' THEN
+        CASE WHEN jsonb_typeof(x.document->'sections') = 'array' THEN (
+          SELECT count(*)::int FROM ${array("x.document->'sections'")} s,
+            ${array("s->'entries'")} e, ${array("e->'facts'")} f
+          WHERE coalesce(f->'proposedWording', 'null')
+            NOT IN ('null', 'false', '0', '""')
+        ) END
+      WHEN jsonb_typeof(x.document->'review'->'factReviews') = 'object' THEN (
+        SELECT count(*)::int
+        FROM jsonb_each(x.document->'review'->'factReviews') r
+        WHERE r.value->>'proposal' = 'pending'
+      )
+    END AS pending,
+    coalesce(
+      x.document->'review'->'approval'->'revision' = to_jsonb(x.revision),
+      false
+    ) AS approved
+  FROM ai_job_hunter.tailored_cv_drafts x
+  WHERE x."ownerId" = o."ownerId" AND x."jobId" = o.id
+    AND x.document->>'kind' = 'tailored_cv'
+  ORDER BY x."createdAt" DESC, x.id DESC
+  LIMIT 1
+) d ON true
+WHERE o."ownerId" = $1`;
+
 @Injectable()
 export class TailoredDraftService {
   private active = false;
@@ -94,43 +152,19 @@ export class TailoredDraftService {
           ownerId,
           expectedCv,
         );
-        const source = await manager.getRepository(CvSourceRevision).findOne({
-          where: {
-            ownerId,
-            savedCvUpdatedAt: new Date(expectedCv),
-            textHash: draftHash(current.text),
-            fileName: current.fileName,
-          },
+        const found = await this.reviewedProfile(manager, ownerId, {
+          ...current,
+          updatedAt: new Date(expectedCv),
         });
-        if (!source) return blocked('CV_DRAFT_PROFILE_NOT_FOUND');
-        const profile = await manager.getRepository(CvProfileRevision).findOne({
-          where: { ownerId, sourceRevisionId: source.id },
-          order: { createdAt: 'DESC', revision: 'DESC', id: 'DESC' },
-          select: { id: true, revision: true },
-        });
-        if (!profile) return blocked('CV_DRAFT_PROFILE_NOT_FOUND');
+        if (!found) return blocked('CV_DRAFT_PROFILE_NOT_FOUND');
+        const { source, profile } = found;
         currentProfileRevisionId = profile.id;
         // Profile completion errors should be visible even before the first match.
-        if (!matchId) {
-          const full = await manager
-            .getRepository(CvProfileRevision)
-            .findOneOrFail({
-              where: { ownerId, id: profile.id },
-              select: { document: true },
-            });
-          try {
-            reviewedPlan(
-              profileDocument(full.document, source.id, current.text),
-            );
-          } catch (error) {
-            return blocked(
-              error instanceof TailoredDraftError
-                ? error.errorCode
-                : 'CV_DRAFT_PROFILE_INCOMPLETE',
-            );
-          }
-          return blocked('CV_DRAFT_MATCH_REQUIRED');
-        }
+        if (!matchId)
+          return blocked(
+            (await this.profileIssue(manager, ownerId, found, current.text)) ??
+              'CV_DRAFT_MATCH_REQUIRED',
+          );
         const request = {
           profileRevisionId: profile.id,
           expectedProfileRevision: profile.revision,
@@ -159,6 +193,98 @@ export class TailoredDraftService {
         throw error;
       }
     });
+  }
+  // Current CV's source and latest review profile. Read-only; shared with progress().
+  private async reviewedProfile(
+    manager: EntityManager,
+    ownerId: string,
+    cv: { updatedAt: Date; text: string; fileName: string },
+  ) {
+    const source = await manager.getRepository(CvSourceRevision).findOne({
+      where: {
+        ownerId,
+        savedCvUpdatedAt: cv.updatedAt,
+        textHash: draftHash(cv.text),
+        fileName: cv.fileName,
+      },
+    });
+    if (!source) return null;
+    const profile = await manager.getRepository(CvProfileRevision).findOne({
+      where: { ownerId, sourceRevisionId: source.id },
+      order: { createdAt: 'DESC', revision: 'DESC', id: 'DESC' },
+      select: { id: true, revision: true },
+    });
+    return profile ? { source, profile } : null;
+  }
+  private async profileIssue(
+    manager: EntityManager,
+    ownerId: string,
+    found: { source: CvSourceRevision; profile: CvProfileRevision },
+    text: string,
+  ) {
+    const full = await manager.getRepository(CvProfileRevision).findOneOrFail({
+      where: { ownerId, id: found.profile.id },
+      select: { document: true },
+    });
+    try {
+      reviewedPlan(profileDocument(full.document, found.source.id, text));
+      return null;
+    } catch (error) {
+      return error instanceof TailoredDraftError
+        ? error.errorCode
+        : 'CV_DRAFT_PROFILE_INCOMPLETE';
+    }
+  }
+  /**
+   * Read-only workflow facts for every job of the owner, for the Dashboard.
+   * Returns facts only; the client's nextJobAction() decides the next step.
+   * Never calls AI, never writes (no match re-bind), never loads draft documents.
+   */
+  async progress(ownerId: string) {
+    const manager = this.db.manager;
+    const cv = await manager.getRepository(SavedCv).findOne({
+      where: { ownerId },
+      select: { ownerId: true, text: true, fileName: true, updatedAt: true },
+    });
+    let sourceReason: string | null = null;
+    if (cv) {
+      const found = await this.reviewedProfile(manager, ownerId, cv);
+      sourceReason = found
+        ? ((await this.profileIssue(manager, ownerId, found, cv.text)) ??
+          'CV_DRAFT_MATCH_REQUIRED')
+        : 'CV_DRAFT_PROFILE_NOT_FOUND';
+    }
+    const hash = cv ? cvTextHash(cv.text) : null;
+    const rows: ProgressRow[] = await manager.query(JOB_PROGRESS_SQL, [
+      ownerId,
+    ]);
+    return {
+      contractVersion: '1' as const,
+      cv: { saved: Boolean(cv), sourceReason },
+      jobs: rows.map((row) => ({
+        id: row.id,
+        matchStatus: !hash
+          ? ('CV_UNAVAILABLE' as const)
+          : !row.policyVersion
+            ? ('MISSING' as const)
+            : savedMatchStatus(
+                {
+                  policyVersion: row.policyVersion,
+                  cvTextHash: row.cvTextHash!,
+                  jobUpdatedAt: row.matchJobUpdatedAt!,
+                },
+                hash,
+                row.jobUpdatedAt,
+              ),
+        draft: row.draftUpdatedAt && {
+          // null: the saved review is malformed, so no step is inferred from it.
+          pending: row.pending,
+          approved: row.approved,
+          jobUpdatedAt: row.draftJobUpdatedAt!.toISOString(),
+          updatedAt: row.draftUpdatedAt.toISOString(),
+        },
+      })),
+    };
   }
   private request(body: unknown): GenerateRequest {
     try {

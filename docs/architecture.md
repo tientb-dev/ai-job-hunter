@@ -1956,3 +1956,26 @@ flattened two-column tables it is usually that row's wrapped value. It is
 proposed as uncertain for the user to confirm. Saved profiles and drafts keep
 their confirmed structure; correcting one means re-reviewing the source CV and
 generating a new draft.
+
+### Dashboard Continue (job progress facts)
+
+`POST /api/v1/tailored-cv/job-progress` (version 1 body; POST like other private
+reads, because browsers omit `Origin` on same-origin GETs) returns owner-scoped
+facts for every job: the saved CV state, the CV-level source review reason, each
+job's match status and a summary of its latest tailored draft. It returns facts,
+never decisions: the Dashboard feeds them into the same `nextJobAction()` as the
+job Overview, so the rules live in one place. The read runs a fixed number of
+queries regardless of job count, never calls AI and never writes. Match status
+uses the pure `savedMatchStatus()` check, not `currentMatch()`, which re-binds
+the CV timestamp. Draft `pending`/`approved` are computed in SQL with the review
+policy's semantics (`initialReview()` when no review is saved), so draft
+documents never leave the database; a malformed saved review yields `pending:
+null` and no inferred step. There is no candidate cap: the response is about
+170 bytes per job. If job counts reach thousands, add pagination or a stored
+summary column rather than a cap that could hide actionable jobs.
+
+Continue excludes due follow-ups (shown in Follow-ups) and CV-level steps (shown
+once in the CV banner), orders by the later of job and latest-draft update, and
+shows at most three rows. An approved draft now opens Tailored CV at Approve &
+Export; for a draft pinned to an older job snapshot that step shows the warning
+before download.
