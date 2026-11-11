@@ -11,6 +11,9 @@ import {
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { DataSource } from 'typeorm';
+import { JD_QUESTION_ID } from '../../src/interview-prep/job-questions.js';
+import { JobQuestionsService } from '../../src/interview-prep/job-questions.service.js';
 import { AiService } from '../../src/ai/ai.service.js';
 import { AiError } from '../../src/ai/ai.errors.js';
 import { TailoredDraftService } from '../../src/tailored-cv/tailored-draft.service.js';
@@ -395,6 +398,7 @@ describe('response assembly', () => {
 const generateStructured =
   jest.fn<(r: { prompt: string }) => Promise<unknown>>();
 const reviewedFacts = jest.fn<(owner: string) => Promise<string[] | null>>();
+const dbQuery = jest.fn<(sql: string, params: unknown[]) => Promise<unknown>>();
 const origin = { Host: '127.0.0.1:3000', Origin: 'http://127.0.0.1:5173' };
 const answersService = {
   list: jest.fn<(owner: string) => Promise<unknown[]>>(),
@@ -413,6 +417,9 @@ beforeAll(async () => {
       { provide: AiService, useValue: { generateStructured } },
       { provide: TailoredDraftService, useValue: { reviewedFacts } },
       { provide: InterviewAnswersService, useValue: answersService },
+      // Curated IDs must never reach the database (asserted below).
+      { provide: DataSource, useValue: { query: dbQuery } },
+      { provide: JobQuestionsService, useValue: {} },
     ],
   }).compile();
   app = module.createNestApplication();
@@ -1067,5 +1074,85 @@ describe('answer routes', () => {
       .set(evil)
       .expect(403);
     expect(answersService.save).not.toHaveBeenCalled();
+  });
+});
+
+// ------------------------------------------------- PR15 generated question IDs
+describe('PR15 generated question IDs', () => {
+  const uuid = '3f2b8c1e-7a4d-4e2b-9c1a-5d6e7f8a9b0c';
+  const generated = {
+    id: `jd-${uuid}`,
+    topic: 'technical' as const,
+    category: 'Technical skill',
+    kind: 'general' as const,
+    variants: ['How does PostgreSQL handle concurrent writes?'],
+    hints: [],
+    checkClaims: false,
+  };
+  test('accepts only "jd-" plus a lowercase, well-formed UUID', () => {
+    expect(JD_QUESTION_ID.test(`jd-${uuid}`)).toBe(true);
+    for (const bad of [
+      uuid,
+      `jd-${uuid.toUpperCase()}`,
+      `jd-${uuid}x`,
+      ` jd-${uuid}`,
+      'jd-3f2b8c1e-7a4d-0e2b-9c1a-5d6e7f8a9b0c', // version 0
+      'jd-3f2b8c1e-7a4d-4e2b-7c1a-5d6e7f8a9b0c', // bad variant
+      'jd-3f2b8c1e7a4d4e2b9c1a5d6e7f8a9b0c',
+      'jd-',
+    ])
+      expect(JD_QUESTION_ID.test(bad)).toBe(false);
+  });
+  test('no curated question ID can collide with a generated ID', () => {
+    expect(
+      [
+        ...INTERVIEW_QUESTIONS.map((q) => q.id),
+        ...PUBLISHED_QUESTION_IDS,
+      ].filter((id) => id.startsWith('jd-')),
+    ).toEqual([]);
+  });
+  test('parseFeedbackRequest uses a resolved question only for its own ID', () => {
+    const ok = { questionId: generated.id, mode: 'express', answer: 'Notes.' };
+    expect(parseFeedbackRequest(ok, generated)).toMatchObject({
+      question: generated,
+      questionText: generated.variants[0],
+    });
+    expect(() => parseFeedbackRequest(ok)).toThrow(InterviewPrepError);
+    expect(() =>
+      parseFeedbackRequest(
+        { ...ok, questionId: `jd-${uuid.replace('3f', '4f')}` },
+        generated,
+      ),
+    ).toThrow(InterviewPrepError);
+    // A curated ID ignores any resolved value.
+    expect(
+      parseFeedbackRequest({ ...ok, questionId: 'hr-strengths-01' }, generated)
+        .question.id,
+    ).toBe('hr-strengths-01');
+  });
+  test('HTTP: curated feedback never queries the database; malformed jd- IDs are 400 without a query', async () => {
+    dbQuery.mockReset();
+    generateStructured.mockResolvedValue({
+      suggestion: '',
+      followUpQuestions: [],
+      phrases: [],
+    });
+    await post(body).expect(200);
+    for (const questionId of [`jd-${uuid.toUpperCase()}`, 'jd-123', 'jd-'])
+      expect((await post({ ...body, questionId }).expect(400)).body).toEqual({
+        statusCode: 400,
+        errorCode: 'INTERVIEW_INVALID_REQUEST',
+        message: 'Choose a question and enter 1–1500 characters.',
+      });
+    expect(dbQuery).not.toHaveBeenCalled();
+  });
+  test('HTTP: a storage failure while resolving is a safe 503, not an AI error', async () => {
+    dbQuery.mockReset();
+    dbQuery.mockRejectedValue(new Error('connection refused: secret-host'));
+    const res = await post({ ...body, questionId: generated.id }).expect(503);
+    expect(res.body.errorCode).toBe('INTERVIEW_STORAGE_UNAVAILABLE');
+    expect(JSON.stringify(res.body)).not.toMatch(/secret-host/u);
+    expect(generateStructured).not.toHaveBeenCalled();
+    dbQuery.mockReset();
   });
 });

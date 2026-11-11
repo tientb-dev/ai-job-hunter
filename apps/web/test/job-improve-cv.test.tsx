@@ -75,6 +75,7 @@ test('real Job Details shares one match across workspace tabs, compact cards and
     'Match',
     'Tailored CV',
     'Application',
+    'Interview',
   ]);
   tab('Improve CV');
   expect(

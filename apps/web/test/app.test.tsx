@@ -280,3 +280,40 @@ test('mobile drawer restores focus on Escape and closes after route selection', 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
   );
 });
+
+test.each([
+  [
+    '/interview-prep/jobs/00000000-0000-4000-8000-0000000000aa/sets/00000000-0000-4000-8000-000000000001',
+    'Jobs',
+  ],
+  ['/interview-prep', 'Interview Prep'],
+])('sidebar context for %s highlights %s only', async (path, highlighted) => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string) =>
+      url.endsWith('/health/ready')
+        ? Response.json({ status: 'ok' })
+        : Response.json(
+            { statusCode: 503, errorCode: 'X', message: 'x' },
+            { status: 503 },
+          ),
+    ),
+  );
+  render(
+    <ThemeProvider theme={theme}>
+      <RouterProvider
+        router={createMemoryRouter([{ path: '*', element: <App /> }], {
+          initialEntries: [path],
+        })}
+      />
+    </ThemeProvider>,
+  );
+  const navigation = screen.getByRole('navigation', {
+    name: 'Main navigation',
+  });
+  const active = within(navigation)
+    .getAllByRole('link')
+    .filter((link) => link.classList.contains('active'))
+    .map((link) => link.textContent);
+  expect(active).toEqual([highlighted]);
+});

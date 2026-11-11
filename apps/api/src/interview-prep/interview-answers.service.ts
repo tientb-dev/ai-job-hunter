@@ -5,6 +5,7 @@ import {
   type SavedAnswerDto,
 } from './interview-prep.policy.js';
 import { findQuestion } from './interview-prep.questions.js';
+import { resolveQuestion } from './job-questions.js';
 
 export const MAX_REFERENCE_ANSWER = 2000;
 // Same set as the database CHECK: C0 controls except tab/newline, plus DEL.
@@ -19,10 +20,6 @@ const invalid = () =>
     `Enter an answer of 1–${MAX_REFERENCE_ANSWER} characters.`,
   );
 
-export function parseQuestionId(id: unknown): string {
-  if (!findQuestion(id)) throw invalid();
-  return id as string;
-}
 export function parseVersion(value: unknown): number {
   const n =
     typeof value === 'string' && /^[1-9]\d{0,9}$/u.test(value)
@@ -62,6 +59,8 @@ interface Row {
   answer: string;
   version: number;
   updatedAt: Date;
+  /** list only: a persisted generated question with this ID exists. */
+  generated?: boolean;
 }
 const dto = (row: Row): SavedAnswerDto => ({
   questionId: row.questionId,
@@ -88,18 +87,29 @@ export class InterviewAnswersService {
   async list(ownerId: string): Promise<SavedAnswerDto[]> {
     const result = await this.run(() =>
       this.db.query(
-        `SELECT ${COLS} FROM ${T} WHERE "ownerId" = $1 ORDER BY "questionId"`,
+        `SELECT a."questionId", a.answer, a.version, a."updatedAt", q.id IS NOT NULL AS generated
+         FROM ${T} a LEFT JOIN ai_job_hunter.interview_job_questions q
+           ON q."ownerId" = a."ownerId" AND a."questionId" = 'jd-' || q.id::text
+         WHERE a."ownerId" = $1 ORDER BY a."questionId"`,
         [ownerId],
       ),
     );
-    // Retired or unknown IDs stay stored but are hidden from the active catalog.
+    // Retired or unknown IDs (incl. generated questions that no longer exist)
+    // stay stored but are hidden.
     return rows(result)
-      .filter((row) => findQuestion(row.questionId))
+      .filter((row) => findQuestion(row.questionId) || row.generated)
       .map(dto);
   }
 
+  /** Curated or owner's generated question; anything else is an invalid request. */
+  private async questionId(ownerId: string, id: unknown): Promise<string> {
+    if (!(await this.run(() => resolveQuestion(this.db, ownerId, id))))
+      throw invalid();
+    return id as string;
+  }
+
   async save(ownerId: string, questionIdRaw: unknown, body: unknown) {
-    const questionId = parseQuestionId(questionIdRaw);
+    const questionId = await this.questionId(ownerId, questionIdRaw);
     const { answer, expectedVersion } = parseSaveBody(body);
     const result = await this.run(() =>
       expectedVersion === null
@@ -120,7 +130,7 @@ export class InterviewAnswersService {
   }
 
   async remove(ownerId: string, questionIdRaw: unknown, versionRaw: unknown) {
-    const questionId = parseQuestionId(questionIdRaw);
+    const questionId = await this.questionId(ownerId, questionIdRaw);
     const expectedVersion = parseVersion(versionRaw);
     const result = await this.run(() =>
       this.db.query(

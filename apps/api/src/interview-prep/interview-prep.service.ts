@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { DataSource } from 'typeorm';
+import { JD_QUESTION_ID, resolveQuestion } from './job-questions.js';
 import { AiService } from '../ai/ai.service.js';
 import { AiError } from '../ai/ai.errors.js';
 import { TailoredDraftService } from '../tailored-cv/tailored-draft.service.js';
@@ -28,7 +30,30 @@ export class InterviewPrepService {
   constructor(
     private readonly ai: AiService,
     private readonly cv: TailoredDraftService,
+    private readonly db: DataSource,
   ) {}
+
+  /** Runs other local-AI work under the same one-at-a-time rule as feedback. */
+  async exclusive<T>(work: () => Promise<T>): Promise<T> {
+    if (this.active) throw new InterviewPrepError('INTERVIEW_BUSY');
+    this.active = true;
+    try {
+      return await work();
+    } finally {
+      this.active = false;
+    }
+  }
+
+  // Database access only for an exact "jd-<uuid>"; curated IDs never reach it.
+  private async generated(ownerId: string, body: unknown) {
+    const id = (body as { questionId?: unknown } | null)?.questionId;
+    if (typeof id !== 'string' || !JD_QUESTION_ID.test(id)) return undefined;
+    try {
+      return await resolveQuestion(this.db, ownerId, id);
+    } catch {
+      throw new InterviewPrepError('INTERVIEW_STORAGE_UNAVAILABLE');
+    }
+  }
 
   questions() {
     return {
@@ -47,7 +72,10 @@ export class InterviewPrepService {
   }
 
   async feedback(ownerId: string, body: unknown) {
-    const { question, mode, answer, questionText } = parseFeedbackRequest(body);
+    const { question, mode, answer, questionText } = parseFeedbackRequest(
+      body,
+      await this.generated(ownerId, body),
+    );
     if (this.active) throw new InterviewPrepError('INTERVIEW_BUSY');
     this.active = true;
     try {

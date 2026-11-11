@@ -1,6 +1,7 @@
 import { DuplicateJobNotice } from './DuplicateJobNotice';
 import { StatusChip } from '../../components/StatusChip';
 import { useNotify } from '../../components/useNotify';
+import { JobInterviewTab } from './JobInterviewTab';
 import { SourceJdPreview } from './SourceJdPreview';
 import { ImportMethodCards, type ImportMethod } from './ImportMethodCards';
 import { JobActionLayout } from './JobActionLayout';
@@ -126,6 +127,8 @@ function workspaceTabs({
             )
           : null,
     },
+    // Last, so existing tab and panel indices stay stable.
+    { label: 'Interview', value: 'interview', badge: null },
   ] as const;
 }
 const latestContactDate = (dates: string[]) =>
@@ -136,6 +139,7 @@ const workspaceViews = [
   'match',
   'tailored-cv',
   'application',
+  'interview',
   'edit',
 ] as const;
 type WorkspaceView = (typeof workspaceViews)[number];
@@ -1492,6 +1496,13 @@ export function JobEditor() {
                 />
               )}
             </Box>
+          )}
+          {id && !loading && !loadFailed && view === 'interview' && (
+            <JobInterviewTab
+              key={`interview-${id}`}
+              jobId={id}
+              jobDirty={dirty}
+            />
           )}
           <Box
             component="form"

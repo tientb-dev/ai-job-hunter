@@ -31,7 +31,29 @@ const errors = {
   INTERVIEW_ANSWER_CONFLICT: [409, 'This answer was changed in another tab.'],
   INTERVIEW_STORAGE_UNAVAILABLE: [
     503,
-    'Saved answers are unavailable right now. Try again.',
+    'Saved interview data is unavailable right now. Try again.',
+  ],
+  // PR15: JD-generated question sets.
+  INTERVIEW_JOB_NOT_FOUND: [404, 'This job is no longer available.'],
+  INTERVIEW_JD_EMPTY: [
+    422,
+    'Add the job description first, then generate questions.',
+  ],
+  INTERVIEW_SET_OUTDATED: [
+    409,
+    'New questions were generated in another tab. Reload to see the latest set.',
+  ],
+  INTERVIEW_JD_CHANGED: [
+    409,
+    'The job description changed while questions were being generated. Nothing was saved — try again.',
+  ],
+  INTERVIEW_NO_NEW_QUESTIONS: [
+    422,
+    "This job description didn't give enough new questions beyond the current set. Nothing was saved and your current questions are unchanged. Adding more technical detail to the JD can help.",
+  ],
+  INTERVIEW_TOO_FEW_QUESTIONS: [
+    422,
+    "The local AI couldn't produce enough questions grounded in this job description. Nothing was saved — try again.",
   ],
 } as const;
 export type InterviewErrorCode = keyof typeof errors;
@@ -54,7 +76,11 @@ export class InterviewPrepError extends Error {
   }
 }
 
-export function parseFeedbackRequest(body: unknown): {
+/** `resolved`: the owner's generated question for `body.questionId`, if any. */
+export function parseFeedbackRequest(
+  body: unknown,
+  resolved?: InterviewQuestion,
+): {
   question: InterviewQuestion;
   mode: PracticeMode;
   answer: string;
@@ -70,7 +96,9 @@ export function parseFeedbackRequest(body: unknown): {
     keys !== 'answer,mode,questionId,variant'
   )
     throw invalid();
-  const question = findQuestion(value.questionId);
+  const question =
+    findQuestion(value.questionId) ??
+    (resolved?.id === value.questionId ? resolved : undefined);
   if (!question) throw invalid();
   if (value.mode !== 'express' && value.mode !== 'review') throw invalid();
   if (typeof value.answer !== 'string') throw invalid();
@@ -381,7 +409,7 @@ const TECH: [string, RegExp][] = [
 ];
 export const techTerms = (text: string) =>
   TECH.filter(([, pattern]) => pattern.test(text)).map(([label]) => label);
-const newTech = (text: string, source: string) => {
+export const newTech = (text: string, source: string) => {
   const known = new Set(techTerms(source));
   return techTerms(text).filter((t) => !known.has(t));
 };
