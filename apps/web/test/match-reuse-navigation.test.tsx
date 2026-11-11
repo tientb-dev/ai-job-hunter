@@ -737,6 +737,17 @@ test('focus revalidation keeps saved workspace and completion labels stable whil
   expect(state.analyses()).toBe(0);
 });
 
+test('resolving the entry step does not reload the draft over early edits', async () => {
+  const state = setup({ draft: true });
+  await screen.findByRole('heading', { name: 'Step 2 of 3 · Tailor & Review' });
+  await screen.findAllByText('Assisted a team prototype only.');
+  // A reload here would reset local edits made right after the step opens.
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  const loads = (suffix: string) =>
+    state.fetch.mock.calls.filter(([url]) => url.endsWith(suffix)).length;
+  expect(loads('/drafts/list')).toBe(1);
+});
+
 test('repeated focus revalidation preserves unsaved draft edits and proposal decisions', async () => {
   const state = setup({ draft: true });
   await screen.findByRole('tab', { name: /Source CV.*Complete/ });
