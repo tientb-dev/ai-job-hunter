@@ -197,6 +197,29 @@ export class OpportunitiesService {
     );
     return { opportunityId: row.id, outcome: 'created' as const };
   }
+  // JD fields only for interview questions: no notes, contacts, links or documents.
+  async forInterview(
+    manager: EntityManager,
+    ownerId: string,
+    id: string,
+    lock = false,
+  ) {
+    return manager.getRepository(Opportunity).findOne({
+      where: { ownerId, id },
+      select: {
+        id: true,
+        title: true,
+        company: true,
+        description: true,
+        skills: true,
+        preferredSkills: true,
+        experience: true,
+        domain: true,
+        seniority: true,
+      },
+      ...(lock ? { lock: { mode: 'pessimistic_read' as const } } : {}),
+    });
+  }
   async requireOwnedLink(manager: EntityManager, ownerId: string, id: string) {
     if (!(await manager.getRepository(Opportunity).existsBy({ id, ownerId })))
       throw new ConflictException(

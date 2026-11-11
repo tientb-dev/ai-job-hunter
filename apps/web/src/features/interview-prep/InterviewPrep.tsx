@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { useBlocker } from 'react-router-dom';
+import { Link, useBlocker } from 'react-router-dom';
 import {
   Accordion,
   AccordionDetails,
@@ -414,14 +414,43 @@ function Recorder({
   );
 }
 
-export function InterviewPrep() {
-  const [questions, setQuestions] = useState<PracticeQuestion[] | null>(null);
+/**
+ * PR15 job mode: one generated question set, in stored order. The parent keys
+ * this component by the current question and owns `?q=`, so every question
+ * change is a router navigation guarded by the single blocker below.
+ */
+export interface JobPracticeMode {
+  jobId: string;
+  jobTitle: string;
+  /** e.g. "Current set" or "Previous set · Nov 9, 2026". */
+  setLabel: string;
+  questions: PracticeQuestion[];
+  /** Why each generated question was asked, with its JD excerpt. */
+  context: Record<string, { why: string; evidence: string }>;
+  questionId: string;
+  onSelect: (questionId: string) => void;
+}
+
+export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
+  const [questions, setQuestions] = useState<PracticeQuestion[] | null>(
+    job?.questions ?? null,
+  );
   const [loadError, setLoadError] = useState(false);
-  const [topic, setTopic] = useState<PracticeTopic | null>(null);
-  const [order, setOrder] = useState<PracticeQuestion[]>([]);
-  const [index, setIndex] = useState(0);
+  const [topic, setTopic] = useState<PracticeTopic | null>(
+    job ? 'technical' : null,
+  );
+  const [order, setOrder] = useState<PracticeQuestion[]>(job?.questions ?? []);
+  const [index, setIndex] = useState(() =>
+    job
+      ? Math.max(
+          0,
+          job.questions.findIndex((q) => q.id === job.questionId),
+        )
+      : 0,
+  );
   const [variant, setVariant] = useState(0);
   const [hintsOpen, setHintsOpen] = useState(false);
+  const [whyOpen, setWhyOpen] = useState(false);
   const [mode, setMode] = useState<PracticeMode>('express');
   const [text, setText] = useState('');
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
@@ -455,12 +484,13 @@ export function InterviewPrep() {
 
   const [loadAttempt, setLoadAttempt] = useState(0);
   useEffect(() => {
+    if (job) return; // job mode: questions come from the generated set
     const controller = new AbortController();
     fetchQuestions(controller.signal).then(setQuestions, () => {
       if (!controller.signal.aborted) setLoadError(true);
     });
     return () => controller.abort();
-  }, [loadAttempt]);
+  }, [loadAttempt, job]);
   const reload = () => {
     setLoadError(false);
     setQuestions(null);
@@ -546,16 +576,22 @@ export function InterviewPrep() {
     setVariant(pick(order[nextIndex]?.variants.length ?? 1));
   };
   // Next question ignores the list filter: it walks the whole topic.
-  const nextQuestion = () => guard(() => goTo((index + 1) % order.length));
+  // Job mode navigates (?q=); the router blocker guards unsaved answers.
+  const nextQuestion = () =>
+    job
+      ? job.onSelect(order[(index + 1) % order.length]!.id)
+      : guard(() => goTo((index + 1) % order.length));
   const selectQuestion = (id: string) =>
-    guard(() =>
-      goTo(
-        Math.max(
-          0,
-          order.findIndex((q) => q.id === id),
-        ),
-      ),
-    );
+    job
+      ? job.onSelect(id)
+      : guard(() =>
+          goTo(
+            Math.max(
+              0,
+              order.findIndex((q) => q.id === id),
+            ),
+          ),
+        );
   const changeTopic = () =>
     guard(() => {
       freshQuestion();
@@ -743,7 +779,12 @@ export function InterviewPrep() {
     }
   };
 
-  const header = (
+  const header = job ? (
+    <PageHeader
+      title="Interview practice"
+      description={`${job.jobTitle} · ${job.setLabel}`}
+    />
+  ) : (
     <PageHeader
       title="Interview Prep"
       description="Practise saying your own experience in simple English — one question at a time."
@@ -931,10 +972,23 @@ export function InterviewPrep() {
         useFlexGap
         sx={{ alignItems: 'center', flexWrap: 'wrap' }}
       >
-        <Chip label={TOPICS[topic].label} variant="outlined" />
-        <Button variant="text" onClick={changeTopic}>
-          Change topic
-        </Button>
+        {job ? (
+          <Button
+            component={Link}
+            to={`/jobs/${job.jobId}/interview`}
+            variant="text"
+            sx={{ overflowWrap: 'anywhere', textAlign: 'left' }}
+          >
+            Back to {job.jobTitle} interview
+          </Button>
+        ) : (
+          <>
+            <Chip label={TOPICS[topic].label} variant="outlined" />
+            <Button variant="text" onClick={changeTopic}>
+              Change topic
+            </Button>
+          </>
+        )}
       </Stack>
 
       <Paper
@@ -973,6 +1027,49 @@ export function InterviewPrep() {
               This is a "what would you do" question — you don't need past
               experience with it.
             </Typography>
+          )}
+          {job?.context[question.id] && (
+            <Box>
+              <Button
+                variant="text"
+                onClick={() => setWhyOpen((v) => !v)}
+                aria-expanded={whyOpen}
+                aria-controls="practice-why"
+              >
+                Why was this asked?
+              </Button>
+              <Collapse in={whyOpen}>
+                <Stack id="practice-why" spacing={1.5} sx={{ mt: 1 }}>
+                  <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
+                    {job.context[question.id]!.why}
+                  </Typography>
+                  <Box
+                    component="figure"
+                    sx={{
+                      m: 0,
+                      pl: 1.5,
+                      borderLeft: 3,
+                      borderColor: 'divider',
+                    }}
+                  >
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      component="figcaption"
+                    >
+                      From the job description
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      component="blockquote"
+                      sx={{ m: 0, overflowWrap: 'anywhere' }}
+                    >
+                      “{job.context[question.id]!.evidence}”
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Collapse>
+            </Box>
           )}
           {question.hints.length > 0 && (
             <Box>
@@ -1103,9 +1200,12 @@ export function InterviewPrep() {
                 </ToggleButton>
               </ToggleButtonGroup>
               {(() => {
-                const rows = [...order]
-                  .sort((a, b) => a.id.localeCompare(b.id))
-                  .filter((q) => listFilter === 'all' || answers[q.id]);
+                // Job sets keep their stored position order.
+                const rows = (
+                  job
+                    ? order
+                    : [...order].sort((a, b) => a.id.localeCompare(b.id))
+                ).filter((q) => listFilter === 'all' || answers[q.id]);
                 if (!rows.length)
                   return (
                     <Typography variant="body2" color="text.secondary">

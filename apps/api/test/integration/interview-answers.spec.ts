@@ -9,6 +9,7 @@ import { AppModule } from '../../src/app.module.js';
 import { databaseOptions } from '../../src/database/database.config.js';
 import { InterviewAnswersService } from '../../src/interview-prep/interview-answers.service.js';
 import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js';
+import { revertThrough } from '../support/migration-revert.js';
 
 let db: DataSource;
 let service: InterviewAnswersService;
@@ -62,11 +63,10 @@ test('the InterviewAnswers migration reverts, reapplies and repeat-runs cleanly'
   const exists = async () =>
     (await db.query(`SELECT to_regclass('${T}') AS t`))[0].t !== null;
   expect(await exists()).toBe(true);
-  await db.undoLastMigration();
+  const reverted = await revertThrough(db, 'InterviewAnswers1794200000000');
+  expect(reverted[0]).toBe('InterviewAnswers1794200000000');
   expect(await exists()).toBe(false);
-  expect((await db.runMigrations()).map((m) => m.name)).toEqual([
-    'InterviewAnswers1794200000000',
-  ]);
+  expect((await db.runMigrations()).map((m) => m.name)).toEqual(reverted);
   expect(await exists()).toBe(true);
   expect(await db.runMigrations()).toEqual([]);
 });

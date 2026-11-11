@@ -27,6 +27,7 @@ import { Dashboard } from '../features/dashboard/Dashboard';
 import { MyCv } from '../features/inbox/MyCv';
 import { Home } from '../features/home/Home';
 import { InterviewPrep } from '../features/interview-prep/InterviewPrep';
+import { JobPractice } from '../features/interview-prep/JobPractice';
 import { ApiReadiness } from '../features/health/ApiReadiness';
 
 const UiAcceptancePreview = import.meta.env.DEV
@@ -45,6 +46,7 @@ export function App() {
   const desktop = useMediaQuery(theme.breakpoints.up('md'), {
     defaultMatches: true,
   });
+  const jobPractice = Boolean(useMatch('/interview-prep/jobs/*'));
   const navigationContent = (
     <>
       <Stack
@@ -80,6 +82,9 @@ export function App() {
             key={path}
             component={NavLink}
             to={path}
+            // Job-specific practice belongs to a saved job: Jobs, not the curated catalog.
+            end={path === '/interview-prep'}
+            className={path === '/jobs' && jobPractice ? 'active' : undefined}
             onClick={() => setNavigationOpen(false)}
             sx={{
               justifyContent: 'flex-start',
@@ -240,6 +245,10 @@ export function App() {
             />
             <Route path="/cv" element={<MyCv />} />
             <Route path="/interview-prep" element={<InterviewPrep />} />
+            <Route
+              path="/interview-prep/jobs/:jobId/sets/:setId"
+              element={<JobPractice />}
+            />
             <Route path="/cv/analyze" element={<Dashboard />} />
             <Route path="/jobs" element={<JobInbox />} />
             <Route path="/jobs/new" element={<JobEditor key="new" />} />

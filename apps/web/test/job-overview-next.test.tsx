@@ -139,6 +139,7 @@ test('on phones all four job tabs are visible in a grid with keyboard selection'
     'Match',
     'Tailored CV',
     'Application',
+    'Interview',
   ]);
   expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
   const user = userEvent.setup();

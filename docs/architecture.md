@@ -2057,3 +2057,49 @@ Grounding decisions:
   draft and offers Show saved / Use saved / Save mine instead; the retry still
   uses the latest known version. The single recorder survives Read Along ↔ Speak
   Freely and is cleared on question or topic change.
+
+## PR15 JD-focused technical interview questions
+
+- **Append-only question sets per saved job.**
+  `ai_job_hunter.interview_question_sets` (id, ownerId, jobId, jdHash,
+  createdAt) and `interview_job_questions` (position 1–8, category, kind,
+  question, why, evidence). Composite foreign keys on `ownerId` tie questions
+  to their set and sets to an owned job (`ON DELETE CASCADE`). The newest set is
+  active; regeneration never deletes sets or answers. There is no set cap.
+- **Answers reuse PR14.** Generated questions are exposed as `jd-<uuid>` and
+  saved in the unchanged `interview_answers` table with the same versioning and
+  409 handling. `resolveQuestion` checks the curated catalog first and touches
+  the database only for an exact `jd-<lowercase uuid>`, owner-scoped. Answers
+  whose generated question no longer exists stay stored but are hidden. There
+  is no job-delete endpoint; one added later must also delete that job's `jd-`
+  answers (text IDs have no foreign key).
+- **Generation** (`POST /interview-prep/jobs/:jobId/sets`, body
+  `{contractVersion, basedOnSetId}`; `…/sets/list` reads). Only title,
+  description, skills, preferred skills, experience, domain and seniority are
+  sent, as fenced untrusted data; never the CV, notes or contacts. Deterministic
+  validation drops items with bad shape, non-verbatim evidence, technologies
+  not in the JD, presumptive experience wording, HR topics, near-duplicates, or
+  personal questions about a technology whose cited evidence does not name it.
+  One retry (with an avoid list, since the model runs at temperature 0) only
+  when a successful response yields fewer than 5 valid items; provider
+  failures are never retried. 5–8 valid = success, 3–4 = `partial`, fewer =
+  nothing saved. Persistence runs in one transaction under a per-job advisory
+  lock, re-checks the JD hash (`INTERVIEW_JD_CHANGED`) and the active set
+  (`INTERVIEW_SET_OUTDATED`). Generation shares PR14's one-at-a-time AI flag.
+- **Frontend.** The job workspace gains an Interview tab (`/jobs/:id/interview`,
+  last tab so existing indices stay stable). Practice uses
+  `/interview-prep/jobs/:jobId/sets/:setId?q=jd-…`: `JobPractice` validates
+  job, set and question, then renders PR14 `InterviewPrep` in an explicit job
+  mode keyed by `q`. Question changes are router navigations, so the single
+  PR14 `useBlocker` guards question changes, the back link and browser
+  Back/Forward. The sidebar highlights Jobs on this route.
+
+### Known technical debt (observed during PR15)
+
+- **CV panels re-request failing endpoints.** In the PR15 Slice 4 browser
+  smoke test, a Playwright stub answered every unhandled `/api/**` call with 404.
+  With the Job workspace open, the existing CV panels requested
+  `tailored-cv/jobs/:id/drafts/list` and `opportunities/cv/current` about 1,200
+  times each within a few seconds. Real APIs do not normally return 404 there,
+  but a persistent failure would cause the same request storm. Not changed in
+  PR15; needs a bounded retry or backoff in the CV Match / Tailored CV loaders.

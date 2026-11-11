@@ -36,6 +36,13 @@ vi.mock('../src/features/inbox/CvMatchPanel', () => ({
     </>
   ),
 }));
+vi.mock('../src/features/inbox/JobInterviewTab', () => ({
+  JobInterviewTab: ({ jobDirty }: { jobDirty: boolean }) => (
+    <div role="tabpanel" id="job-panel-4" aria-labelledby="job-tab-4">
+      Interview questions workflow{jobDirty ? ' (unsaved job edits)' : ''}
+    </div>
+  ),
+}));
 const id = '00000000-0000-4000-8000-123456789012';
 const row = () => ({
   ...emptyOpportunity(),
@@ -467,7 +474,7 @@ test('missing work-mode evidence clears obsolete automatic values but preserves 
   );
 });
 
-test('narrow tab strip supports all four tabs and keyboard selection without losing edits', async () => {
+test('narrow tab strip supports all workspace tabs and keyboard selection without losing edits', async () => {
   vi.stubGlobal('innerWidth', 360);
   mockApi();
   mount(`/jobs/${id}`);
@@ -479,6 +486,7 @@ test('narrow tab strip supports all four tabs and keyboard selection without los
     'Match',
     'Tailored CV',
     'Application',
+    'Interview',
   ]);
   const strip = screen
     .getByRole('tablist', { name: 'Job sections' })
@@ -649,4 +657,28 @@ test('Edit JD contains its heading, fields and save guidance in one outlined sur
   const save = screen.getByRole('button', { name: 'Save changes' });
   expect(save).toHaveAttribute('form', 'job-editor-form');
   expect(panel).toContainElement(save);
+});
+
+test('the Interview tab has its own URL and keeps the shared job editor mounted', async () => {
+  mockApi();
+  const { router } = mount(`/jobs/${id}/interview`);
+  await screen.findByRole('heading', { name: 'Synthetic engineer' });
+  expect(screen.getByRole('tab', { name: 'Interview' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  expect(screen.getByRole('tabpanel', { name: 'Interview' })).toHaveTextContent(
+    'Interview questions workflow',
+  );
+  tab('Overview');
+  await waitFor(() =>
+    expect(
+      screen.queryByText('Interview questions workflow'),
+    ).not.toBeInTheDocument(),
+  );
+  tab('Interview');
+  expect(
+    await screen.findByText('Interview questions workflow'),
+  ).toBeInTheDocument();
+  expect(router.state.location.pathname).toBe(`/jobs/${id}/interview`);
 });

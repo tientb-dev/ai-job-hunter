@@ -5,6 +5,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Put,
   Query,
   Header,
@@ -21,6 +22,7 @@ import { FoundationLocalGuard } from '../tailored-cv/tailored-cv.http.js';
 import { InterviewPrepError } from './interview-prep.policy.js';
 import { InterviewPrepService } from './interview-prep.service.js';
 import { InterviewAnswersService } from './interview-answers.service.js';
+import { JobQuestionsService } from './job-questions.service.js';
 
 export function interviewPrepError(error: unknown) {
   if (error instanceof InterviewPrepError)
@@ -67,6 +69,7 @@ export class InterviewPrepController {
   constructor(
     private readonly service: InterviewPrepService,
     private readonly answers: InterviewAnswersService,
+    private readonly jobQuestions: JobQuestionsService,
   ) {}
   // Static, non-personal content: plain same-origin GET like other public reads.
   @Get('questions')
@@ -119,5 +122,26 @@ export class InterviewPrepController {
     @Query('expectedVersion') expectedVersion: unknown,
   ) {
     await this.answers.remove(LOCAL_OWNER_ID, questionId, expectedVersion);
+  }
+  // PR15: JD-generated question sets read job data: strict local policy, POST reads.
+  @Post('jobs/:jobId/sets/list')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @UseGuards(FoundationLocalGuard)
+  listJobSets(
+    @Param('jobId', new ParseUUIDPipe()) jobId: string,
+    @Body() body: unknown,
+  ) {
+    return this.jobQuestions.list(LOCAL_OWNER_ID, jobId, body);
+  }
+  @Post('jobs/:jobId/sets')
+  @HttpCode(201)
+  @Header('Cache-Control', 'no-store')
+  @UseGuards(FoundationLocalGuard)
+  generateJobSet(
+    @Param('jobId', new ParseUUIDPipe()) jobId: string,
+    @Body() body: unknown,
+  ) {
+    return this.jobQuestions.generate(LOCAL_OWNER_ID, jobId, body);
   }
 }

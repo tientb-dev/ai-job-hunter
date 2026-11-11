@@ -13,6 +13,9 @@ import { CvMatchRecord } from '../matching/cv-match.entity.js';
 import { CvMatches1794100000000 } from './migrations/1794100000000-CvMatches.js';
 import { InterviewAnswers1794200000000 } from './migrations/1794200000000-InterviewAnswers.js';
 import { InterviewAnswer } from '../interview-prep/interview-answer.entity.js';
+import { InterviewJobQuestions1794300000000 } from './migrations/1794300000000-InterviewJobQuestions.js';
+import { InterviewQuestionSet } from '../interview-prep/interview-question-set.entity.js';
+import { InterviewJobQuestion } from '../interview-prep/interview-job-question.entity.js';
 import { SavedCv1793500000000 } from './migrations/1793500000000-SavedCv.js';
 import { CompleteJobImportFields1793490000000 } from './migrations/1793490000000-CompleteJobImportFields.js';
 import { SmartJobImport1793400000000 } from './migrations/1793400000000-SmartJobImport.js';
@@ -73,6 +76,8 @@ export function databaseOptions(
       TailoredCvDraft,
       CvMatchRecord,
       InterviewAnswer,
+      InterviewQuestionSet,
+      InterviewJobQuestion,
     ],
     migrations: [
       CreateApplicationSchema1792598400000,
@@ -86,6 +91,7 @@ export function databaseOptions(
       TailoredCvFoundation1794000000000,
       CvMatches1794100000000,
       InterviewAnswers1794200000000,
+      InterviewJobQuestions1794300000000,
     ],
     synchronize: false,
     migrationsRun: false,
