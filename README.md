@@ -97,6 +97,13 @@ only to this app's local API. Audio, transcripts and transcript feedback are not
 saved. Transcription errs on technical terms; review and edit the text before
 requesting AI feedback.
 
+### Mock interview (PR17)
+
+`/interview-prep/mock` (or **Mock interview** on Interview Prep and job practice)
+asks 5–8 questions in a row. Progress is saved, so a refresh resumes. AI feedback
+is optional. Only the confirmed answer text and optional feedback are stored,
+never audio; finished interviews stay until you delete them.
+
 ## Commands and verification
 
 | Command                                                                | Purpose                                      |

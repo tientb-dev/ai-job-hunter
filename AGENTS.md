@@ -75,6 +75,12 @@ Preserve existing work and Git state. Do not commit or push without approval.
 - Report exact commands and PASS / FAIL / BLOCKED results, identifying reused results and unverified CI-only steps. Stop before commit/push if a required local check fails or cannot be verified; fix causes without weakening assertions or suppressing lint rules. Database isolation and browser smoke rules still apply; a blocked database check is not an optional skip.
 - Do not introduce scripts, Git hooks, dependencies or CI infrastructure for this gate. Commit and push still require explicit approval.
 
+### Test environment cleanup
+
+- Never stop, restart or modify the user's running dev environment (servers, processes, databases, `.env`) without permission. Run anything you need as a separate instance on another port.
+- After testing, stop every service and process you started and delete the test data you created (synthetic DB rows, sessions, temporary files), then confirm the user's environment still responds and is ready for manual testing.
+- Report what you started, cleaned up, and anything you could not remove.
+
 ### Browser Smoke Testing
 
 For user-visible frontend changes:

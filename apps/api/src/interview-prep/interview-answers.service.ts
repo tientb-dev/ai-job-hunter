@@ -34,6 +34,13 @@ export function parseVersion(value: unknown): number {
     throw invalid();
   return n;
 }
+/** NFC, LF, trimmed text of 1–max code points without disallowed controls; else null. */
+export function normalizeAnswer(value: unknown, max: number): string | null {
+  if (typeof value !== 'string') return null;
+  const answer = value.normalize('NFC').replace(/\r\n?/gu, '\n').trim();
+  const length = [...answer].length;
+  return !length || length > max || disallowed(answer) ? null : answer;
+}
 /** Strict body: exactly { answer, expectedVersion }; answer limits in code points. */
 export function parseSaveBody(body: unknown): {
   answer: string;
@@ -43,11 +50,8 @@ export function parseSaveBody(body: unknown): {
   const value = body as Record<string, unknown>;
   if (Object.keys(value).sort().join(',') !== 'answer,expectedVersion')
     throw invalid();
-  if (typeof value.answer !== 'string') throw invalid();
-  const answer = value.answer.normalize('NFC').replace(/\r\n?/gu, '\n').trim();
-  const length = [...answer].length;
-  if (!length || length > MAX_REFERENCE_ANSWER || disallowed(answer))
-    throw invalid();
+  const answer = normalizeAnswer(value.answer, MAX_REFERENCE_ANSWER);
+  if (answer === null) throw invalid();
   if (value.expectedVersion === null) return { answer, expectedVersion: null };
   // JSON body: a real number only (query strings are parsed by parseVersion).
   if (typeof value.expectedVersion !== 'number') throw invalid();

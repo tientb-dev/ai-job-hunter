@@ -39,6 +39,16 @@ const errors = {
     422,
     'Add the job description first, then generate questions.',
   ],
+  // PR17: mock interview sessions.
+  INTERVIEW_SESSION_NOT_FOUND: [404, 'This mock interview no longer exists.'],
+  INTERVIEW_SESSION_ACTIVE: [
+    409,
+    'A mock interview is already in progress. Resume or discard it first.',
+  ],
+  INTERVIEW_SESSION_CONFLICT: [
+    409,
+    'This mock interview was changed in another tab. Reload to continue.',
+  ],
   INTERVIEW_SET_OUTDATED: [
     409,
     'New questions were generated in another tab. Reload to see the latest set.',
