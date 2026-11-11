@@ -125,7 +125,11 @@ export function structuredRows(
   for (let i = 0; i < facts.length; i++) {
     const fact = facts[i]!;
     const next = facts[i + 1];
-    if (TITLE_FIELDS.has(fact.field)) {
+    if (
+      TITLE_FIELDS.has(fact.field) ||
+      // A project's name heads its entry like a role title.
+      (kind === 'projects' && fact.field === 'project')
+    ) {
       const dates =
         next?.field === 'dates' && DATE_RANGE.test(next.acceptedText)
           ? next

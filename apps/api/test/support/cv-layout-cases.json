@@ -100,6 +100,20 @@
         ["Intern", "anchor", null],
         ["Summer 2019", "detail", null]
       ]
+    },
+    {
+      "kind": "projects",
+      "facts": [
+        ["project", "Synthetic inventory tool"],
+        ["dates", "2023 – 2024"],
+        ["description", "Built a stock tracking prototype for a student club."],
+        ["skill", "React, PostgreSQL"]
+      ],
+      "rows": [
+        ["Synthetic inventory tool", "anchor", "2023 – 2024"],
+        ["Built a stock tracking prototype for a student club.", "body", null],
+        ["React, PostgreSQL", "detail", null]
+      ]
     }
   ]
 }
