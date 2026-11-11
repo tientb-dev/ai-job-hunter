@@ -37,6 +37,7 @@ const ok = (transcript: string) =>
 const sttError = (errorCode: string, status: number) =>
   json({ statusCode: status, errorCode, message: 'server text' }, status);
 let stt: (init: RequestInit) => Promise<Response>;
+let listFails = false;
 let fb: (init: RequestInit) => Promise<Response>;
 const feedback = {
   contractVersion: '1',
@@ -55,6 +56,10 @@ const feedback = {
 const fetchMock = vi.fn((url: string, init?: RequestInit) => {
   if (url === '/api/v1/interview-prep/questions')
     return Promise.resolve(json({ contractVersion: '1', questions }));
+  if (url === '/api/v1/interview-prep/answers/list' && listFails)
+    return Promise.resolve(
+      json({ errorCode: 'INTERVIEW_STORAGE_UNAVAILABLE', message: 'x' }, 503),
+    );
   if (url === '/api/v1/interview-prep/answers/list')
     return Promise.resolve(
       json({
@@ -102,6 +107,7 @@ beforeEach(() => {
   toWavMock.mockReset();
   toWavMock.mockResolvedValue(new Blob(['wav'], { type: 'audio/wav' }));
   stt = async () => ok('I solve problems calmly.');
+  listFails = false;
   fb = async () => json(feedback);
   fetchMock.mockClear();
   vi.stubGlobal('fetch', fetchMock);
@@ -539,4 +545,57 @@ test('PR15 job practice: transcript feedback is bound to the JD question id', as
     questionId: JD,
     answer: 'Snapshots per transaction.',
   });
+});
+
+test('saved answers fail to load: step 3 still records, transcribes and gets feedback; writes stay disabled', async () => {
+  listFails = true;
+  const router = createMemoryRouter(
+    [{ path: '/interview-prep', element: <InterviewPrep /> }],
+    { initialEntries: ['/interview-prep'] },
+  );
+  render(<RouterProvider router={router} />);
+  const user = userEvent.setup();
+  await user.click(
+    await screen.findByRole('button', { name: 'Practise HR communication' }),
+  );
+  expect(
+    await screen.findByText(
+      /saved answers couldn't be loaded, so saving is paused/u,
+    ),
+  ).toBeInTheDocument();
+  // No mutations, no possibly stale saved text, no Read Along.
+  for (const name of [
+    'Finalize answer',
+    'Edit answer',
+    'Remove prepared answer',
+    'Read Along',
+  ])
+    expect(screen.queryByRole('button', { name })).toBeNull();
+  expect(screen.queryByText('Saved answer.')).toBeNull();
+  // Exactly one recorder on the page: the step 3 one.
+  expect(
+    screen.queryByRole('button', { name: 'Want to try speaking first?' }),
+  ).toBeNull();
+  expect(screen.getAllByRole('button', { name: 'Record' })).toHaveLength(1);
+  await record(user);
+  await user.click(
+    within(step3()).getByRole('button', { name: 'Transcribe locally' }),
+  );
+  await waitFor(() => expect(field()).toHaveValue('I solve problems calmly.'));
+  await user.type(field(), ' Edited.');
+  await user.click(getFeedback());
+  expect(
+    await within(step3()).findByText('Add one concrete example.'),
+  ).toBeInTheDocument();
+  expect(fbBody()).toMatchObject({
+    questionId: 'hr-strengths-01',
+    answer: 'I solve problems calmly. Edited.',
+  });
+  expect(answerWrites()).toHaveLength(0);
+  // Recovery: Retry loads saved answers and restores Read Along.
+  listFails = false;
+  await user.click(screen.getByRole('button', { name: 'Retry' }));
+  expect(
+    await screen.findByRole('button', { name: 'Read Along' }),
+  ).toBeInTheDocument();
 });

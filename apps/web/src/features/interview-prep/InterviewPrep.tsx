@@ -1400,24 +1400,28 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
           )}
         </Stack>
 
-        {/* One recorder: in step 3 when the answer is prepared, otherwise here (collapsed). */}
-        {!(answersStatus === 'ready' && answers[question.id] && !editor) && (
-          <Box>
-            <Button
-              variant="text"
-              onClick={() => setTryOpen((v) => !v)}
-              aria-expanded={tryOpen}
-              aria-controls="try-speaking"
-            >
-              Want to try speaking first?
-            </Button>
-            <Collapse in={tryOpen} id="try-speaking">
-              <Box sx={{ mt: 1 }}>
-                <Recorder recorder={recorder} title="Try speaking (optional)" />
-              </Box>
-            </Collapse>
-          </Box>
-        )}
+        {/* One recorder: in step 3 when the answer is prepared or saved answers failed to load, otherwise here (collapsed). */}
+        {answersStatus !== 'error' &&
+          !(answersStatus === 'ready' && answers[question.id] && !editor) && (
+            <Box>
+              <Button
+                variant="text"
+                onClick={() => setTryOpen((v) => !v)}
+                aria-expanded={tryOpen}
+                aria-controls="try-speaking"
+              >
+                Want to try speaking first?
+              </Button>
+              <Collapse in={tryOpen} id="try-speaking">
+                <Box sx={{ mt: 1 }}>
+                  <Recorder
+                    recorder={recorder}
+                    title="Try speaking (optional)"
+                  />
+                </Box>
+              </Collapse>
+            </Box>
+          )}
       </Step>
 
       {feedback && (

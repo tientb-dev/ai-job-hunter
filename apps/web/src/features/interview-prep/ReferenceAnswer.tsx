@@ -357,8 +357,8 @@ export function ReferenceAnswer(props: {
           </Button>
         }
       >
-        Your saved answers couldn't be loaded, so saving and speaking practice
-        are paused. AI help above still works.
+        Your saved answers couldn't be loaded, so saving is paused. AI help
+        above and speaking practice below still work.
       </Alert>
     );
   else if (editor?.origin === 'feedback')
@@ -491,11 +491,20 @@ export function ReferenceAnswer(props: {
             )}
             {props.recorder}
           </Stack>
+        ) : status === 'error' ? (
+          // PR16: speaking needs only the question, never the saved-answer list.
+          // No saved text is shown, so nothing stale can appear.
+          <Stack spacing={2}>
+            <Typography color="text.secondary">
+              Read Along is unavailable until your saved answers load. You can
+              still record, transcribe or type your answer, and get AI feedback.
+            </Typography>
+            {props.recorder}
+          </Stack>
         ) : (
           <Typography color="text.secondary">
-            {status === 'error'
-              ? 'Paused until your saved answers load.'
-              : 'Saving a reference answer unlocks Read Along and Speak Freely. You can already try speaking in step 1.'}
+            Saving a reference answer unlocks Read Along and Speak Freely. You
+            can already try speaking in step 1.
           </Typography>
         )}
       </Step>
