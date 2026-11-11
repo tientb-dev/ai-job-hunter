@@ -11,6 +11,8 @@ import { JobDiscovery1793510000000 } from './migrations/1793510000000-JobDiscove
 import { SavedCv } from '../matching/saved-cv.entity.js';
 import { CvMatchRecord } from '../matching/cv-match.entity.js';
 import { CvMatches1794100000000 } from './migrations/1794100000000-CvMatches.js';
+import { InterviewAnswers1794200000000 } from './migrations/1794200000000-InterviewAnswers.js';
+import { InterviewAnswer } from '../interview-prep/interview-answer.entity.js';
 import { SavedCv1793500000000 } from './migrations/1793500000000-SavedCv.js';
 import { CompleteJobImportFields1793490000000 } from './migrations/1793490000000-CompleteJobImportFields.js';
 import { SmartJobImport1793400000000 } from './migrations/1793400000000-SmartJobImport.js';
@@ -70,6 +72,7 @@ export function databaseOptions(
       CvProfileRevision,
       TailoredCvDraft,
       CvMatchRecord,
+      InterviewAnswer,
     ],
     migrations: [
       CreateApplicationSchema1792598400000,
@@ -82,6 +85,7 @@ export function databaseOptions(
       DiscoveryCandidates1793700000000,
       TailoredCvFoundation1794000000000,
       CvMatches1794100000000,
+      InterviewAnswers1794200000000,
     ],
     synchronize: false,
     migrationsRun: false,

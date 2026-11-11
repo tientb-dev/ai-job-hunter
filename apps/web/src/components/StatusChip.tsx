@@ -12,6 +12,8 @@ const tones: Record<string, Tone> = {
   // Discovery candidates
   NEW: 'primary',
   DISMISSED: 'error',
+  // Interview Prep reference answers (NOT_PREPARED / UNKNOWN stay neutral)
+  PREPARED: 'success',
 };
 
 const sentence = (value: string) => {

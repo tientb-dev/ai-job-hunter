@@ -2,7 +2,11 @@ import {
   Body,
   Catch,
   Controller,
+  Delete,
   Get,
+  Param,
+  Put,
+  Query,
   Header,
   HttpCode,
   HttpException,
@@ -16,6 +20,7 @@ import { LOCAL_OWNER_ID } from '../opportunities/opportunities.service.js';
 import { FoundationLocalGuard } from '../tailored-cv/tailored-cv.http.js';
 import { InterviewPrepError } from './interview-prep.policy.js';
 import { InterviewPrepService } from './interview-prep.service.js';
+import { InterviewAnswersService } from './interview-answers.service.js';
 
 export function interviewPrepError(error: unknown) {
   if (error instanceof InterviewPrepError)
@@ -23,6 +28,7 @@ export function interviewPrepError(error: unknown) {
       statusCode: error.status,
       errorCode: error.errorCode,
       message: error.message,
+      ...(error.current !== undefined ? { current: error.current } : {}),
     };
   if (error instanceof HttpException && error.getStatus() === 403)
     return {
@@ -58,7 +64,10 @@ export class InterviewPrepErrors implements ExceptionFilter {
 @Controller('interview-prep')
 @UseFilters(InterviewPrepErrors)
 export class InterviewPrepController {
-  constructor(private readonly service: InterviewPrepService) {}
+  constructor(
+    private readonly service: InterviewPrepService,
+    private readonly answers: InterviewAnswersService,
+  ) {}
   // Static, non-personal content: plain same-origin GET like other public reads.
   @Get('questions')
   questions() {
@@ -71,5 +80,44 @@ export class InterviewPrepController {
   @UseGuards(FoundationLocalGuard)
   feedback(@Body() body: unknown) {
     return this.service.feedback(LOCAL_OWNER_ID, body);
+  }
+  // Saved reference answers are personal data: strict local policy on every route.
+  // Browsers omit Origin on same-origin GETs, so the read is a POST (tailored-cv convention).
+  @Post('answers/list')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @UseGuards(FoundationLocalGuard)
+  async listAnswers(@Body() body: unknown) {
+    if (
+      !body ||
+      typeof body !== 'object' ||
+      Object.keys(body).join(',') !== 'contractVersion' ||
+      (body as { contractVersion?: unknown }).contractVersion !== '1'
+    )
+      throw new InterviewPrepError(
+        'INTERVIEW_INVALID_REQUEST',
+        'Unsupported saved-answers request.',
+      );
+    return {
+      contractVersion: '1' as const,
+      answers: await this.answers.list(LOCAL_OWNER_ID),
+    };
+  }
+  @Put('answers/:questionId')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @UseGuards(FoundationLocalGuard)
+  saveAnswer(@Param('questionId') questionId: string, @Body() body: unknown) {
+    return this.answers.save(LOCAL_OWNER_ID, questionId, body);
+  }
+  @Delete('answers/:questionId')
+  @HttpCode(204)
+  @Header('Cache-Control', 'no-store')
+  @UseGuards(FoundationLocalGuard)
+  async removeAnswer(
+    @Param('questionId') questionId: string,
+    @Query('expectedVersion') expectedVersion: unknown,
+  ) {
+    await this.answers.remove(LOCAL_OWNER_ID, questionId, expectedVersion);
   }
 }

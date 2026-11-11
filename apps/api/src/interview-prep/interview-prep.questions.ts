@@ -167,17 +167,32 @@ export const INTERVIEW_QUESTIONS: readonly InterviewQuestion[] = Object.freeze([
   {
     id: 'hr-achievement-01',
     topic: 'hr',
-    category: 'Achievements and learning',
+    category: 'Achievements',
     kind: 'personal',
     variants: [
       'What is an achievement you are proud of?',
-      'Tell me about something you learned recently at work.',
       'What is a result from your work that you are proud of?',
     ],
     hints: [
       'What was the problem?',
       'What did you do yourself?',
       'What was the result, if you know it?',
+    ],
+    checkClaims: true,
+  },
+  {
+    id: 'hr-learning-01',
+    topic: 'hr',
+    category: 'Learning',
+    kind: 'personal',
+    variants: [
+      'Tell me about something you learned recently at work.',
+      'What have you learned recently in your work?',
+    ],
+    hints: [
+      'What did you learn?',
+      'Why did you need to learn it?',
+      'How did it help your work?',
     ],
     checkClaims: true,
   },
@@ -219,11 +234,17 @@ export const INTERVIEW_QUESTIONS: readonly InterviewQuestion[] = Object.freeze([
     topic: 'technical',
     category: 'Explaining a concept',
     kind: 'general',
-    variants: [
-      'What makes an API easy for other developers to use?',
-      'How would you explain what a REST API is?',
-    ],
+    variants: ['What makes an API easy for other developers to use?'],
     hints: ['Who uses it?', 'One or two qualities of a good API.'],
+    checkClaims: false,
+  },
+  {
+    id: 'tech-api-02',
+    topic: 'technical',
+    category: 'Explaining a concept',
+    kind: 'general',
+    variants: ['How would you explain what a REST API is?'],
+    hints: ['What is a resource?', 'How do clients ask for or change data?'],
     checkClaims: false,
   },
   {
@@ -266,12 +287,26 @@ export const INTERVIEW_QUESTIONS: readonly InterviewQuestion[] = Object.freeze([
     kind: 'hypothetical',
     variants: [
       'How would you decide between a monolith and microservices for a new product?',
-      'What are the trade-offs between synchronous and asynchronous communication between services?',
     ],
     hints: [
       'One advantage of each option.',
       'One cost or risk of each option.',
       'What would make you choose one?',
+    ],
+    checkClaims: false,
+  },
+  {
+    id: 'tech-tradeoff-02',
+    topic: 'technical',
+    category: 'Trade-offs',
+    kind: 'hypothetical',
+    variants: [
+      'What are the trade-offs between synchronous and asynchronous communication between services?',
+    ],
+    hints: [
+      'One advantage of each option.',
+      'One cost or risk of each option.',
+      'When would you choose each one?',
     ],
     checkClaims: false,
   },
@@ -293,6 +328,36 @@ export const INTERVIEW_QUESTIONS: readonly InterviewQuestion[] = Object.freeze([
     checkClaims: true,
   },
 ]);
+/**
+ * Every ID ever published. Saved answers are keyed by question ID, so an ID must
+ * keep ONE meaning forever: never remove it from this list and never reuse it.
+ * All variants of a question must ask the same question (reviewed by humans).
+ */
+export const PUBLISHED_QUESTION_IDS: readonly string[] = Object.freeze([
+  'hr-intro-01',
+  'hr-strengths-01',
+  'hr-weakness-01',
+  'hr-change-01',
+  'hr-why-company-01',
+  'hr-goals-01',
+  'hr-availability-01',
+  'hr-salary-01',
+  'hr-teamwork-01',
+  'hr-achievement-01',
+  'hr-learning-01',
+  'tech-async-01',
+  'tech-caching-01',
+  'tech-api-01',
+  'tech-api-02',
+  'tech-project-01',
+  'tech-choice-01',
+  'tech-tradeoff-01',
+  'tech-tradeoff-02',
+  'tech-debug-01',
+]);
+/** Withdrawn IDs. Their saved answers stay in the database but are hidden. */
+export const RETIRED_QUESTION_IDS: readonly string[] = Object.freeze([]);
+
 export function findQuestion(id: unknown): InterviewQuestion | undefined {
   return typeof id === 'string'
     ? INTERVIEW_QUESTIONS.find((q) => q.id === id)

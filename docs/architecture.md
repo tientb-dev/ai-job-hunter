@@ -2025,3 +2025,35 @@ Grounding decisions:
   against the question the user actually saw.
 - Cancelling in the browser stops waiting; an Ollama generation that has
   already started may still finish on the server.
+
+## PR14 Interview Prep: Finalize Answer and Speaking Practice
+
+- **One reference answer per question.** `ai_job_hunter.interview_answers` has
+  primary key `("ownerId","questionId")` and holds exactly one current English
+  answer per owner and question: no history, no autosave, no audio. Database
+  CHECKs mirror the API: 1–2000 code points, trimmed, no C0 controls except
+  tab and newline (the API normalizes CRLF). Owner is `LOCAL_OWNER_ID`.
+- **Atomic concurrency.** An integer `version` and one SQL statement per write:
+  create = `INSERT … ON CONFLICT DO NOTHING RETURNING`, update/delete =
+  `… WHERE version = $expected RETURNING`. No returned row means 409
+  `INTERVIEW_ANSWER_CONFLICT`. The response includes `current` (or `null` if
+  deleted), read after the decision for recovery only. Two tabs can never both
+  pass the same stale version; integration tests run concurrent writes.
+- **Endpoints** (all `FoundationLocalGuard`, `no-store`):
+  `POST /interview-prep/answers/list` (a POST read: the guard requires an
+  Origin header, which browsers omit on same-origin GETs, as in tailored-cv),
+  `PUT /interview-prep/answers/:questionId {answer, expectedVersion|null}`, and
+  `DELETE /interview-prep/answers/:questionId?expectedVersion=n`. Unknown or
+  retired question IDs are refused on write, hidden on read, and kept stored.
+- **Stable question IDs.** Saved answers are keyed by question ID, so
+  `PUBLISHED_QUESTION_IDS` / `RETIRED_QUESTION_IDS` guard against removal or
+  reuse. Questions whose wordings asked different things were split
+  (`hr-learning-01`, `tech-api-02`, `tech-tradeoff-02`).
+- **Frontend.** Prepared status is derived only from loaded answers. A load
+  failure shows "Unknown" and pauses all writes and saved-answer practice, but
+  PR13 AI help keeps working. The editor is dirty only when changed since it
+  opened (an AI pre-fill is not an edit). In-page navigation, route changes
+  (`useBlocker`) and native `beforeunload` protect dirty edits. A 409 keeps the
+  draft and offers Show saved / Use saved / Save mine instead; the retry still
+  uses the latest known version. The single recorder survives Read Along ↔ Speak
+  Freely and is cleared on question or topic change.

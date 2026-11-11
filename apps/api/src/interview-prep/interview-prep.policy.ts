@@ -28,12 +28,28 @@ const errors = {
     503,
     'The local AI is unavailable. Check that Ollama is running, then try again.',
   ],
+  INTERVIEW_ANSWER_CONFLICT: [409, 'This answer was changed in another tab.'],
+  INTERVIEW_STORAGE_UNAVAILABLE: [
+    503,
+    'Saved answers are unavailable right now. Try again.',
+  ],
 } as const;
 export type InterviewErrorCode = keyof typeof errors;
+export interface SavedAnswerDto {
+  questionId: string;
+  answer: string;
+  version: number;
+  updatedAt: string;
+}
 export class InterviewPrepError extends Error {
   readonly status: number;
-  constructor(readonly errorCode: InterviewErrorCode) {
-    super(errors[errorCode][1]);
+  constructor(
+    readonly errorCode: InterviewErrorCode,
+    message?: string,
+    /** 409 only: the current saved answer, or null if it was deleted. */
+    readonly current?: SavedAnswerDto | null,
+  ) {
+    super(message ?? errors[errorCode][1]);
     this.status = errors[errorCode][0];
   }
 }
