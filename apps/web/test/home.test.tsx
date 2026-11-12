@@ -348,3 +348,111 @@ test('every follow-up row shows title, company if set, due date and its action',
   // No placeholder or empty line for a missing company.
   expect(withoutCompany.querySelectorAll('p')).toHaveLength(1);
 });
+
+function stubFollowUp(
+  put: (body: unknown) => Promise<Response>,
+  latest = job(1, { followUpDate: '2026-01-01', status: 'APPLIED' }),
+) {
+  const calls: { url: string; method: string }[] = [];
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string, init?: RequestInit) => {
+      const method = init?.method ?? 'GET';
+      calls.push({ url, method });
+      if (url.endsWith('/tailored-cv/job-progress'))
+        return Promise.resolve(
+          Response.json({ contractVersion: '1', ...facts() }),
+        );
+      if (method === 'PUT') return put(JSON.parse(init!.body as string));
+      if (url.endsWith(job(1).id))
+        return Promise.resolve(Response.json(latest));
+      return Promise.resolve(
+        Response.json([
+          job(1, { followUpDate: '2026-01-01', status: 'APPLIED' }),
+        ]),
+      );
+    }),
+  );
+  render(
+    <MemoryRouter>
+      <Home />
+    </MemoryRouter>,
+  );
+  return calls;
+}
+
+test('Done re-reads the job, writes only the follow-up status and clears the item', async () => {
+  let sent: Record<string, unknown> = {};
+  stubFollowUp((body) => {
+    sent = body as Record<string, unknown>;
+    return Promise.resolve(
+      Response.json({
+        ...job(1, { followUpDate: '2026-01-01', status: 'APPLIED' }),
+        followUpStatus: 'DONE',
+      }),
+    );
+  });
+  const followUps = await screen.findByRole('region', { name: 'Follow-ups' });
+  await userEvent.setup().click(
+    within(followUps).getByRole('button', {
+      name: 'Mark follow-up done for Synthetic job 1',
+    }),
+  );
+  expect(
+    await screen.findByText('Follow-up marked done: Synthetic job 1'),
+  ).toBeVisible();
+  expect(
+    within(followUps).getByText('No follow-ups are due today or overdue.'),
+  ).toBeVisible();
+  expect(sent).toMatchObject({
+    followUpStatus: 'DONE',
+    followUpDate: '2026-01-01',
+    status: 'APPLIED',
+  });
+  // Only editable fields; server-owned ones are never echoed back.
+  expect(sent).not.toHaveProperty('id');
+  expect(sent).not.toHaveProperty('updatedAt');
+  expect(Object.keys(sent).sort()).toEqual(
+    Object.keys(emptyOpportunity()).sort(),
+  );
+});
+
+test('a failed Dismiss keeps the item and reports the error', async () => {
+  stubFollowUp(() =>
+    Promise.resolve(
+      Response.json({ message: 'Opportunity is invalid.' }, { status: 400 }),
+    ),
+  );
+  const followUps = await screen.findByRole('region', { name: 'Follow-ups' });
+  const dismiss = within(followUps).getByRole('button', {
+    name: 'Dismiss follow-up for Synthetic job 1',
+  });
+  await userEvent.setup().click(dismiss);
+  expect(await screen.findByText('Opportunity is invalid.')).toBeVisible();
+  expect(
+    within(followUps).getByRole('link', { name: 'Synthetic job 1' }),
+  ).toBeVisible();
+  expect(dismiss).toBeEnabled();
+});
+
+test('a follow-up already resolved elsewhere is not overwritten', async () => {
+  const calls = stubFollowUp(
+    () => Promise.reject(new Error('must not write')),
+    job(1, {
+      followUpDate: '2026-01-01',
+      status: 'APPLIED',
+      followUpStatus: 'DONE',
+    }),
+  );
+  const followUps = await screen.findByRole('region', { name: 'Follow-ups' });
+  await userEvent.setup().click(
+    within(followUps).getByRole('button', {
+      name: 'Dismiss follow-up for Synthetic job 1',
+    }),
+  );
+  expect(await screen.findByText(/changed elsewhere/)).toBeVisible();
+  expect(calls.some(({ method }) => method === 'PUT')).toBe(false);
+  expect(
+    within(followUps).getByText('No follow-ups are due today or overdue.'),
+  ).toBeVisible();
+});

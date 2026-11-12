@@ -14,9 +14,14 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { PageHeader } from '../../components/PageHeader';
 import { StatusChip } from '../../components/StatusChip';
+import { useNotify } from '../../components/useNotify';
 import { useLocalCalendarDate } from '../inbox/follow-ups';
-import { opportunityRequest } from '../inbox/opportunities-api';
-import type { Opportunity } from '../inbox/opportunities-api';
+import {
+  emptyOpportunity,
+  importUpload,
+  opportunityRequest,
+} from '../inbox/opportunities-api';
+import type { Opportunity, OpportunityInput } from '../inbox/opportunities-api';
 import { sourceCvRequest } from '../inbox/source-cv-review.contract';
 import type { NextAction } from '../inbox/next-action';
 import { continueItems, cvStep, homeSections } from './home-sections';
@@ -47,6 +52,14 @@ const copy = {
   followUpsEmpty: 'No follow-ups are due today or overdue.',
   openApplication: 'Open application',
   openApplicationFor: (title: string) => `Open application for ${title}`,
+  done: 'Done',
+  dismiss: 'Dismiss',
+  doneFor: (title: string) => `Mark follow-up done for ${title}`,
+  dismissFor: (title: string) => `Dismiss follow-up for ${title}`,
+  resolved: (title: string, status: Resolution) =>
+    `Follow-up ${status === 'DONE' ? 'marked done' : 'dismissed'}: ${title}`,
+  changedElsewhere: (title: string) =>
+    `Follow-up for ${title} changed elsewhere; showing the latest.`,
   showMore: (count: number) => `Show ${count} more`,
   showFewer: 'Show fewer',
   continueTitle: 'Continue where you left off',
@@ -260,22 +273,106 @@ function FollowUpDate({ label, date }: { label: string; date: string }) {
   );
 }
 
-function FollowUps({ due }: { due: HomeSections['due'] }) {
+type Resolution = Exclude<OpportunityInput['followUpStatus'], 'PENDING'>;
+
+/**
+ * PUT needs the full record, so re-read the job first and write only if its
+ * follow-up is still the one shown; this keeps the stale-write window small.
+ * shortcut: no version check, so an edit saved between GET and PUT is lost;
+ * add expectedVersion to PUT if multi-tab editing becomes common.
+ */
+async function resolveFollowUp(
+  shown: Opportunity,
+  status: Resolution,
+): Promise<{ row: Opportunity; written: boolean }> {
+  const fresh = await opportunityRequest<Opportunity>(`/${shown.id}`);
+  if (
+    fresh.followUpStatus !== 'PENDING' ||
+    fresh.followUpDate !== shown.followUpDate
+  )
+    return { row: fresh, written: false };
+  const payload = Object.fromEntries(
+    Object.keys(emptyOpportunity()).map((key) => [
+      key,
+      fresh[key as keyof OpportunityInput],
+    ]),
+  ) as unknown as OpportunityInput;
+  payload.followUpStatus = status;
+  // Same size switch as JobEditor's save.
+  const record = JSON.stringify(payload);
+  const row = await opportunityRequest<Opportunity>(`/${shown.id}`, {
+    method: 'PUT',
+    body: record.length > 20000 ? importUpload(payload) : record,
+  });
+  return { row, written: true };
+}
+
+function FollowUps({
+  due,
+  onResolved,
+}: {
+  due: HomeSections['due'];
+  onResolved: (row: Opportunity) => void;
+}) {
+  const notify = useNotify();
+  const [busy, setBusy] = useState<string | null>(null);
+  const resolve = async (job: Opportunity, status: Resolution) => {
+    setBusy(job.id);
+    try {
+      const { row, written } = await resolveFollowUp(job, status);
+      onResolved(row);
+      notify(
+        written
+          ? { severity: 'success', text: copy.resolved(job.title, status) }
+          : { severity: 'info', text: copy.changedElsewhere(job.title) },
+      );
+    } catch (error) {
+      notify({
+        severity: 'error',
+        text: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setBusy(null);
+    }
+  };
+  const actions = (job: Opportunity, variant: 'outlined' | 'text') => (
+    <Stack
+      direction="row"
+      spacing={1}
+      sx={{ flexShrink: 0, width: { xs: '100%', sm: 'auto' } }}
+    >
+      <Button
+        size="small"
+        variant={variant}
+        disabled={busy !== null}
+        aria-label={copy.doneFor(job.title)}
+        onClick={() => void resolve(job, 'DONE')}
+      >
+        {copy.done}
+      </Button>
+      <Button
+        size="small"
+        color="inherit"
+        disabled={busy !== null}
+        aria-label={copy.dismissFor(job.title)}
+        onClick={() => void resolve(job, 'DISMISSED')}
+      >
+        {copy.dismiss}
+      </Button>
+      {applicationLink(job)}
+    </Stack>
+  );
   const [expanded, setExpanded] = useState(false);
   const [first, ...rest] = due;
   const shown = expanded ? rest : rest.slice(0, FOLLOW_UP_PREVIEW - 1);
   const hidden = rest.length - shown.length;
-  const applicationLink = (job: Opportunity, variant: 'outlined' | 'text') => (
+  const applicationLink = (job: Opportunity) => (
     <Button
       component={Link}
       to={`/jobs/${job.id}/application`}
       size="small"
-      variant={variant}
       aria-label={copy.openApplicationFor(job.title)}
-      sx={{
-        flexShrink: 0,
-        width: { xs: variant === 'outlined' ? '100%' : 'auto', sm: 'auto' },
-      }}
+      sx={{ flexShrink: 0, ml: 'auto' }}
     >
       {copy.openApplication}
     </Button>
@@ -312,7 +409,7 @@ function FollowUps({ due }: { due: HomeSections['due'] }) {
                 label={first.label}
                 date={first.job.followUpDate!}
               />
-              {applicationLink(first.job, 'outlined')}
+              {actions(first.job, 'outlined')}
             </Stack>
           </Stack>
           {shown.length > 0 && (
@@ -341,7 +438,7 @@ function FollowUps({ due }: { due: HomeSections['due'] }) {
                     }}
                   >
                     <FollowUpDate label={label} date={job.followUpDate!} />
-                    {applicationLink(job, 'text')}
+                    {actions(job, 'text')}
                   </Stack>
                 </Stack>
               ))}
@@ -558,7 +655,16 @@ export function Home() {
         <>
           <Summary sections={sections} total={rows.length} />
           <Box sx={layout}>
-            <FollowUps due={sections.due} />
+            <FollowUps
+              due={sections.due}
+              onResolved={(row) =>
+                setRows(
+                  (current) =>
+                    current?.map((item) => (item.id === row.id ? row : item)) ??
+                    current,
+                )
+              }
+            />
             <Continue
               items={
                 progress === undefined
