@@ -12,6 +12,7 @@
     "test": "pnpm test:compile && node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js --runInBand",
     "test:integration": "pnpm test:compile && node --env-file-if-exists=../../.env.test --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.integration.config.js --runInBand",
     "smoke:ollama": "pnpm test:compile && node .test-dist/test/manual/ollama.smoke.js",
+    "eval:feedback": "pnpm test:compile && node .test-dist/test/manual/interview-feedback.eval.js",
     "smoke:extraction": "pnpm test:compile && node .test-dist/test/manual/extraction.smoke.js",
     "eval": "pnpm test:compile && node .test-dist/test/evaluation/live.js",
     "investigate": "pnpm test:compile && node .test-dist/test/evaluation/investigation.js",
