@@ -346,6 +346,8 @@ test('feedback resolves the owner generated question and maps it to the PR14 con
   });
   expect(res).toMatchObject({ contractVersion: '1', mode: 'express' });
   expect(prompts[0]).toContain('How does PostgreSQL MVCC work?');
+  // PR21: the stored why is fenced context for the feedback prompt.
+  expect(prompts[0]).toContain('"""The JD requires PostgreSQL."""');
   for (const questionId of [
     await generatedQuestion(ownerB),
     `jd-${randomUUID()}`,

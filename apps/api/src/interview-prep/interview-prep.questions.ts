@@ -16,6 +16,8 @@ export interface InterviewQuestion {
   hints: string[];
   /** CV claim notices only where numbers/tools are professional claims. */
   checkClaims: boolean;
+  /** Generated questions: what the interviewer is checking (stored, JD-derived). */
+  why?: string;
 }
 
 // Static, curated and user-agnostic. English source strings with stable IDs so
