@@ -238,6 +238,7 @@ test('HTTP: every session route is local-only, strict and owner-scoped', async (
     () => request(server).post(base).send(curated),
     () => request(server).post(`${base}/active`).send(C),
     () => request(server).post(`${base}/${id}/read`).send(C),
+    () => request(server).post(`${base}/list`).send(C),
     () =>
       request(server)
         .put(`${base}/${id}/items/0`)
@@ -340,4 +341,70 @@ test('HTTP: every session route is local-only, strict and owner-scoped', async (
   } finally {
     await db.query(`DELETE FROM ${T} WHERE id = $1`, [sid]);
   }
+});
+
+test('history lists completed sessions only, newest first, owner-scoped, with job title', async () => {
+  const items = JSON.stringify([
+    {
+      questionId: 'q1',
+      questionText: 'Q?',
+      answer: 'A.',
+      feedback: null,
+      skipped: false,
+    },
+    {
+      questionId: 'q2',
+      questionText: 'Q2?',
+      answer: null,
+      feedback: null,
+      skipped: true,
+    },
+  ]);
+  const jobId = await job(ownerA);
+  const insert = async (
+    owner: string,
+    status: string,
+    at: string,
+    jid: string | null = null,
+  ) =>
+    (
+      await db.query(
+        `INSERT INTO ${T} ("ownerId",source,"jobId",status,items,"updatedAt")
+         VALUES ($1,$2,$3,$4,$5::jsonb,$6) RETURNING id`,
+        [owner, jid ? 'job' : 'curated', jid, status, items, at],
+      )
+    )[0].id as string;
+  await db.query(`DELETE FROM ${T} WHERE "ownerId" = ANY($1)`, [
+    [ownerA, ownerB],
+  ]);
+  const older = await insert(ownerA, 'completed', '2026-01-01T00:00:00Z');
+  const newer = await insert(
+    ownerA,
+    'completed',
+    '2026-02-01T00:00:00Z',
+    jobId,
+  );
+  await insert(ownerA, 'active', '2026-03-01T00:00:00Z');
+  await insert(ownerB, 'completed', '2026-03-01T00:00:00Z');
+
+  const list = await service.list(ownerA, C);
+  expect(list.items.map((i) => i.id)).toEqual([newer, older]);
+  expect(list.items[0]).toMatchObject({
+    source: 'job',
+    jobId,
+    jobTitle: 'Synthetic PR17 job',
+    summary: { total: 2, answered: 1, skipped: 1, unanswered: 0 },
+  });
+  expect(list.items[1]).toMatchObject({ jobTitle: null, jobId: null });
+  expect(list.items[0]).not.toHaveProperty('items');
+  expect(await errorOf(service.list(ownerA, {}))).toBe(
+    'INTERVIEW_INVALID_REQUEST',
+  );
+
+  for (let n = 0; n < 51; n += 1)
+    await insert(ownerA, 'completed', '2025-01-01T00:00:00Z');
+  expect((await service.list(ownerA, C)).items).toHaveLength(50);
+  await db.query(`DELETE FROM ${T} WHERE "ownerId" = ANY($1)`, [
+    [ownerA, ownerB],
+  ]);
 });

@@ -187,6 +187,13 @@ export class InterviewPrepController {
       session: await this.sessions.active(LOCAL_OWNER_ID, body),
     };
   }
+  @Post('sessions/list')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  @UseGuards(FoundationLocalGuard)
+  listSessions(@Body() body: unknown) {
+    return this.sessions.list(LOCAL_OWNER_ID, body);
+  }
   @Post('sessions/:sessionId/read')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')

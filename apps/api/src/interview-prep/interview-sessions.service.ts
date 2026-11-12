@@ -85,6 +85,39 @@ export class InterviewSessionsService {
     return row ? sessionDto(row) : null;
   }
 
+  /** Completed sessions, newest first, without items (history list). */
+  async list(ownerId: string, body: unknown) {
+    parseContract(body);
+    const found = await this.run(() =>
+      this.db.query(
+        `SELECT s.id, s.source, s."jobId", o.title AS "jobTitle", s.items, s."createdAt", s."updatedAt"
+         FROM ${T} s
+         LEFT JOIN ai_job_hunter.opportunities o ON o."ownerId" = s."ownerId" AND o.id = s."jobId"
+         WHERE s."ownerId" = $1 AND s.status = 'completed'
+         ORDER BY s."updatedAt" DESC, s.id DESC
+         LIMIT 50`,
+        [ownerId],
+      ),
+    );
+    // shortcut: fixed 50 newest, no pagination; add a cursor if history grows past that.
+    return {
+      contractVersion: '1' as const,
+      items: rows(found).map((row) => {
+        const { summary, id, source, jobId, createdAt, updatedAt } = sessionDto(
+          {
+            ...row,
+            status: 'completed',
+            currentIndex: 0,
+            version: 1,
+          },
+        );
+        const jobTitle = (row as unknown as { jobTitle: string | null })
+          .jobTitle;
+        return { id, source, jobId, jobTitle, createdAt, updatedAt, summary };
+      }),
+    };
+  }
+
   async get(ownerId: string, id: unknown, body: unknown) {
     parseContract(body);
     const [row] = await this.find(ownerId, this.id(id));

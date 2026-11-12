@@ -24,6 +24,7 @@ import { PageHeader } from '../../components/PageHeader';
 import { useNotify } from '../../components/useNotify';
 import { Feedback, Recorder } from './InterviewPrep';
 import { SessionSummary } from './SessionSummary';
+import { SessionHistory } from './SessionHistory';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { TranscriptPanel } from './Transcript';
 import { MAX_ANSWER_CHARS, PracticeError } from './interview-prep-api';
@@ -287,6 +288,7 @@ export function MockInterview() {
             </Stack>
           </Stack>
         </Paper>
+        <SessionHistory />
       </Stack>
     );
   }
