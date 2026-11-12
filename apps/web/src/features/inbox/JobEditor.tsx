@@ -73,6 +73,7 @@ import {
   opportunityRequest,
   sources,
   statuses,
+  followUpStatuses,
 } from './opportunities-api';
 import type {
   ImportFieldName,
@@ -635,7 +636,12 @@ export function JobEditor() {
   const nextAction =
     id && summary
       ? nextJobAction({
-          followUp: dueFollowUp(saved.followUpDate, saved.status, today),
+          followUp: dueFollowUp(
+            saved.followUpDate,
+            saved.status,
+            today,
+            saved.followUpStatus,
+          ),
           status: saved.status,
           cvSaved: summary.cvSaved,
           sourceReason: summary.sourceReason,
@@ -1243,6 +1249,7 @@ export function JobEditor() {
                     saved.followUpDate,
                     saved.status,
                     today,
+                    saved.followUpStatus,
                   ),
                   followUpDate: saved.followUpDate,
                   jobUpdatedAt: savedJobUpdatedAt,
@@ -1994,11 +2001,36 @@ export function JobEditor() {
                           helperText="When you plan to contact HR; independent of actual contact."
                           type="date"
                           value={form.followUpDate ?? ''}
-                          onChange={(e) =>
-                            change('followUpDate', e.target.value || null)
-                          }
+                          onChange={(e) => {
+                            change('followUpDate', e.target.value || null);
+                            // Mirrors the server: a new date is a new, pending follow-up.
+                            if (e.target.value)
+                              change('followUpStatus', 'PENDING');
+                          }}
                           slotProps={{ inputLabel: { shrink: true } }}
                         />
+                        {form.followUpDate && (
+                          <TextField
+                            select
+                            size="small"
+                            label="Follow-up status"
+                            helperText="Done or Dismissed hides it from due follow-ups. Application status is unchanged."
+                            value={form.followUpStatus}
+                            onChange={(e) =>
+                              change(
+                                'followUpStatus',
+                                e.target
+                                  .value as OpportunityInput['followUpStatus'],
+                              )
+                            }
+                          >
+                            {followUpStatuses.map((value) => (
+                              <MenuItem key={value} value={value}>
+                                {value[0] + value.slice(1).toLowerCase()}
+                              </MenuItem>
+                            ))}
+                          </TextField>
+                        )}
                       </Box>
                     </Stack>
                     <Stack spacing={2}>

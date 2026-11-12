@@ -17,6 +17,7 @@ import { InterviewJobQuestions1794300000000 } from './migrations/1794300000000-I
 import { InterviewQuestionSet } from '../interview-prep/interview-question-set.entity.js';
 import { InterviewJobQuestion } from '../interview-prep/interview-job-question.entity.js';
 import { InterviewSessions1794400000000 } from './migrations/1794400000000-InterviewSessions.js';
+import { FollowUpStatus1794500000000 } from './migrations/1794500000000-FollowUpStatus.js';
 import { InterviewSession } from '../interview-prep/interview-session.entity.js';
 import { SavedCv1793500000000 } from './migrations/1793500000000-SavedCv.js';
 import { CompleteJobImportFields1793490000000 } from './migrations/1793490000000-CompleteJobImportFields.js';
@@ -96,6 +97,7 @@ export function databaseOptions(
       InterviewAnswers1794200000000,
       InterviewJobQuestions1794300000000,
       InterviewSessions1794400000000,
+      FollowUpStatus1794500000000,
     ],
     synchronize: false,
     migrationsRun: false,

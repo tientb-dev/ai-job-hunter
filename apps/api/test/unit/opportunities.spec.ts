@@ -37,8 +37,18 @@ test('rejects unsafe links, invalid dates, owner injection and oversized content
     { title: ' ' },
     { source: 'Crawler' },
     { status: 'UNKNOWN' },
+    { followUpStatus: 'SNOOZED' },
   ])
     expect(() => validateOpportunity({ ...input, ...change })).toThrow();
+});
+
+test('follow-up status defaults to PENDING and accepts DONE and DISMISSED', () => {
+  expect(validateOpportunity(input).followUpStatus).toBe('PENDING');
+  for (const followUpStatus of ['DONE', 'DISMISSED'])
+    expect(validateOpportunity({ ...input, followUpStatus })).toMatchObject({
+      followUpStatus,
+      status: 'SAVED',
+    });
 });
 
 test('application details are optional, independent, nullable and bounded', () => {

@@ -104,6 +104,51 @@ test('creates, edits, skips statuses, clears dates and survives a new connection
   expect(reloaded.body.followUpDate).toBeNull();
   expect(reloaded.body.contactDates).toEqual([]);
 });
+test('follow-up status persists, resets on a new date and never changes application status', async () => {
+  const created = await request(app.getHttpServer())
+    .post('/api/v1/opportunities')
+    .set(origin)
+    .send({
+      ...input,
+      originalLink: 'https://example.com/follow-up-job',
+      status: 'APPLIED',
+      followUpDate: '2026-11-02',
+    })
+    .expect(201);
+  const id = created.body.id as string;
+  syntheticIds.push(id);
+  expect(created.body.followUpStatus).toBe('PENDING');
+  const put = (body: object) =>
+    request(app.getHttpServer())
+      .put(`/api/v1/opportunities/${id}`)
+      .set(origin)
+      .send({
+        ...input,
+        originalLink: 'https://example.com/follow-up-job',
+        status: 'APPLIED',
+        ...body,
+      })
+      .expect(200);
+  let saved = await put({ followUpDate: '2026-11-02', followUpStatus: 'DONE' });
+  expect(saved.body).toMatchObject({
+    followUpStatus: 'DONE',
+    status: 'APPLIED',
+  });
+  // Older clients omit the field: the saved status is kept.
+  saved = await put({ followUpDate: '2026-11-02' });
+  expect(saved.body.followUpStatus).toBe('DONE');
+  saved = await put({
+    followUpDate: '2026-11-09',
+    followUpStatus: 'DISMISSED',
+  });
+  expect(saved.body).toMatchObject({
+    followUpStatus: 'PENDING',
+    status: 'APPLIED',
+  });
+  await put({ followUpDate: '2026-11-09', followUpStatus: 'DISMISSED' });
+  saved = await put({ followUpDate: null });
+  expect(saved.body.followUpStatus).toBe('DISMISSED');
+});
 test('rejects invalid data and non-local writes', async () => {
   await request(app.getHttpServer())
     .post('/api/v1/opportunities')

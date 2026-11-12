@@ -63,7 +63,9 @@ export function JobInbox() {
     };
   }, [attempt]);
   const visibleRows = dueOnly
-    ? rows.filter((row) => dueFollowUp(row.followUpDate, row.status, today))
+    ? rows.filter((row) =>
+        dueFollowUp(row.followUpDate, row.status, today, row.followUpStatus),
+      )
     : rows;
   const currentPage = Math.min(
     page,
@@ -207,6 +209,7 @@ export function JobInbox() {
                       row.followUpDate,
                       row.status,
                       today,
+                      row.followUpStatus,
                     );
                     const source =
                       row.discovery?.sourceName ??
