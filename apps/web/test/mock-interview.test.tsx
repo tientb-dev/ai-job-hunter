@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { render, screen, waitFor, within } from './render';
@@ -511,4 +511,74 @@ test('an active interview still resumes and hides the history', async () => {
   show();
   expect(await screen.findByText('Question 3 of 5')).toBeInTheDocument();
   expect(screen.queryByText('Past interviews')).not.toBeInTheDocument();
+});
+
+describe('active session from another context', () => {
+  const OTHER = '3f1c1a52-6d0e-4a7b-9c1d-2e3f4a5b6c70';
+  const jobUrl = `/interview-prep/mock?jobId=${JOB}&setId=${SET}`;
+  const mount = (entry: string) => {
+    const router = createMemoryRouter(
+      [{ path: '/interview-prep/mock', element: <MockInterview /> }],
+      { initialEntries: [entry] },
+    );
+    render(<RouterProvider router={router} />);
+    return router;
+  };
+
+  test('job entry with a curated session asks instead of resuming', async () => {
+    session = make(5, 2);
+    mount(jobUrl);
+    expect(
+      await screen.findByText(
+        /unfinished mock interview from Interview Prep questions \(2 of 5 answered\)/u,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Question 3 of 5')).not.toBeInTheDocument();
+  });
+
+  test('curated entry with a job session asks', async () => {
+    session = { ...make(5, 1), source: 'job', jobId: JOB };
+    mount('/interview-prep/mock');
+    expect(
+      await screen.findByText(/unfinished mock interview from another job/u),
+    ).toBeInTheDocument();
+  });
+
+  test('another job asks; Continue resumes on a neutral URL', async () => {
+    const user = userEvent.setup();
+    session = { ...make(5, 1), source: 'job', jobId: OTHER };
+    const router = mount(jobUrl);
+    await user.click(
+      await screen.findByRole('button', { name: 'Continue that interview' }),
+    );
+    expect(await screen.findByText('Question 2 of 5')).toBeInTheDocument();
+    expect(router.state.location.search).toBe('');
+  });
+
+  test('Finish it and start here keeps answers and starts the requested job', async () => {
+    const user = userEvent.setup();
+    session = make(5, 2);
+    mount(jobUrl);
+    await user.click(
+      await screen.findByRole('button', { name: 'Finish it and start here' }),
+    );
+    expect(
+      await screen.findByRole('button', { name: 'Start interview' }),
+    ).toBeInTheDocument();
+    expect(calls.some((c) => c.url.endsWith(`/${SID}/complete`))).toBe(true);
+    expect(session!.items.filter((i) => i.answer).length).toBe(2);
+    expect(
+      screen.getByRole('link', { name: 'Back to job questions' }),
+    ).toHaveAttribute('href', `/jobs/${JOB}/interview`);
+    await user.click(screen.getByRole('button', { name: 'Start interview' }));
+    expect(
+      calls.filter((c) => c.url.endsWith('/sessions')).at(-1)?.body,
+    ).toMatchObject({ source: 'job', jobId: JOB, setId: SET });
+  });
+
+  test('same job resumes directly', async () => {
+    session = { ...make(5, 1), source: 'job', jobId: JOB };
+    mount(jobUrl);
+    expect(await screen.findByText('Question 2 of 5')).toBeInTheDocument();
+  });
 });
