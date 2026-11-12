@@ -383,6 +383,7 @@ export function MockInterview() {
         safeLabel="Keep practising"
         confirmLabel={confirm === 'discard' ? 'Discard' : 'End interview'}
         destructive={confirm === 'discard'}
+        confirmIcon={confirm === 'discard' ? <DeleteIcon /> : <StopIcon />}
         onSafe={() => setConfirm(null)}
         onConfirm={() => {
           const action = confirm;

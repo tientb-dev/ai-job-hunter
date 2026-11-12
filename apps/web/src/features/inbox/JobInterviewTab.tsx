@@ -558,7 +558,11 @@ export function JobInterviewTab({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="contained" onClick={() => void generate()}>
+          <Button
+            variant="contained"
+            startIcon={<AutoAwesomeIcon />}
+            onClick={() => void generate()}
+          >
             Generate new set
           </Button>
         </DialogActions>

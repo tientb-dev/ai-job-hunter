@@ -1,3 +1,4 @@
+import { DeleteIcon } from './icons';
 import { useId, useRef, type FocusEvent, type ReactNode } from 'react';
 import {
   Button,
@@ -21,6 +22,7 @@ export function ConfirmDialog({
   safeLabel,
   confirmLabel,
   destructive = false,
+  confirmIcon = destructive ? <DeleteIcon /> : undefined,
   onSafe,
   onConfirm,
   onExited,
@@ -32,6 +34,8 @@ export function ConfirmDialog({
   safeLabel: string;
   confirmLabel: string;
   destructive?: boolean;
+  /** Leading icon for the confirm action; destructive confirms default to Delete. */
+  confirmIcon?: ReactNode;
   onSafe: () => void;
   onConfirm: () => void;
   /** Runs after the close transition, e.g. to restore focus elsewhere. */
@@ -87,6 +91,7 @@ export function ConfirmDialog({
         <Button
           variant="outlined"
           color={destructive ? 'error' : 'primary'}
+          startIcon={confirmIcon}
           onClick={onConfirm}
         >
           {confirmLabel}

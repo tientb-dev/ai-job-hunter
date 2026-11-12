@@ -1,6 +1,7 @@
 import {
   ArrowForwardIcon,
   AutoAwesomeIcon,
+  CheckIcon,
   DownloadIcon,
   RefreshIcon,
   SaveIcon,
@@ -1480,6 +1481,7 @@ export function TailoredCvReview({
               </Button>
               <Button
                 variant="contained"
+                startIcon={<CheckIcon />}
                 disabled={blocked || pending === 0}
                 onClick={() => {
                   for (const fact of facts)

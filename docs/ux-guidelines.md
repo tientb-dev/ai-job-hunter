@@ -45,7 +45,9 @@ screen: Add, Edit (incl. edit preferences, view/edit review), Save, Delete/Remov
 AI actions (analyze, extract, suggest, generate, feedback), Record, Start, Stop/End,
 Fetch/Download, Back (leading arrow), Continue/Go to/Next (trailing arrow) and
 Complete/Finish (check). Dialogs, Cancel, tabs, filters, steppers, show/hide
-toggles and repeated per-row actions stay text-only.
+toggles and repeated per-row actions stay text-only. In dialogs the same map
+applies to the meaningful action (destructive `ConfirmDialog` confirms show Delete
+by default; Dismiss uses the X glyph); Close, Cancel, Stay and Keep stay text-only.
 
 ## Buttons and forms
 
