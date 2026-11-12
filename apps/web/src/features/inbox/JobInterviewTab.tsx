@@ -3,6 +3,7 @@ import {
   AutoAwesomeIcon,
   EditIcon,
   ExpandMoreIcon,
+  PlayIcon,
   RefreshIcon,
 } from '../../components/icons';
 import { Link } from 'react-router-dom';
@@ -433,16 +434,33 @@ export function JobInterviewTab({
               different angles.
             </Typography>
           </Box>
-          <Button
-            startIcon={<AutoAwesomeIcon />}
-            variant="outlined"
-            onClick={() => setConfirmOpen(true)}
-            disabled={blocked || generating}
-            aria-describedby="regenerate-note"
-            sx={{ flexShrink: 0, width: { xs: '100%', sm: 'auto' } }}
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1}
+            sx={{ flexShrink: 0 }}
           >
-            Generate new set
-          </Button>
+            {/* Reads the saved set only, so unsaved JD edits don't block it. An
+                interview already in progress is resumed instead (existing mock behavior). */}
+            <Button
+              startIcon={<PlayIcon />}
+              component={Link}
+              to={`/interview-prep/mock?jobId=${jobId}&setId=${active.id}`}
+              variant="outlined"
+              sx={{ width: { xs: '100%', sm: 'auto' } }}
+            >
+              Mock interview
+            </Button>
+            <Button
+              startIcon={<AutoAwesomeIcon />}
+              variant="outlined"
+              onClick={() => setConfirmOpen(true)}
+              disabled={blocked || generating}
+              aria-describedby="regenerate-note"
+              sx={{ width: { xs: '100%', sm: 'auto' } }}
+            >
+              Generate new set
+            </Button>
+          </Stack>
         </Stack>
       )}
 

@@ -360,3 +360,22 @@ function renderTab() {
     </ThemeProvider>,
   );
 }
+
+test('Mock interview links to the current set only when one exists', async () => {
+  mount();
+  await screen.findByRole('button', { name: 'Generate interview questions' });
+  expect(screen.queryByRole('link', { name: 'Mock interview' })).toBeNull();
+});
+
+test('Mock interview opens the mock route for this job and its current set', async () => {
+  const current = set(2, 5, true, '2026-11-11T09:00:00.000Z');
+  const older = set(1, 5, false, '2026-11-10T09:00:00.000Z');
+  lists = [{ body: listing({ sets: [current, older] }) }];
+  mount(true); // unsaved edits don't block: it uses the saved set
+  expect(
+    await screen.findByRole('link', { name: 'Mock interview' }),
+  ).toHaveAttribute(
+    'href',
+    `/interview-prep/mock?jobId=${jobId}&setId=${current.id}`,
+  );
+});
