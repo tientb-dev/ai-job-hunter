@@ -103,7 +103,9 @@ requesting AI feedback.
 `/interview-prep/mock` (or **Mock interview** on Interview Prep, job practice and
 a job's Interview tab, which uses that job's current set) asks 5–8 questions in a
 row. Progress is saved, so a refresh resumes; an interview already in progress is
-resumed before a new one can start. AI feedback
+resumed before a new one can start. Opening a mock interview for a different
+job or for Interview Prep asks first: continue the unfinished one, or finish it
+(answers stay in Past interviews) and start the requested one. AI feedback
 is optional. Only the confirmed answer text and optional feedback are stored,
 never audio; finished interviews stay until you delete them.
 

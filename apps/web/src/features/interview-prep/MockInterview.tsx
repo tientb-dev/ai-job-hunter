@@ -72,6 +72,9 @@ export function MockInterview() {
   const [notice, setNotice] = useState<string | null>(null);
   const [count, setCount] = useState<number>(5);
   const [confirm, setConfirm] = useState<'discard' | 'end' | null>(null);
+  // Requested context; an active session from another one asks before resuming.
+  const context = job?.jobId ?? 'curated';
+  const [continued, setContinued] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -147,6 +150,11 @@ export function MockInterview() {
     />
   );
   const back = job ? `/jobs/${job.jobId}/interview` : '/interview-prep';
+  const otherContext =
+    !viewId &&
+    session?.status === 'active' &&
+    (session.source === 'job' ? session.jobId : 'curated') !== context &&
+    continued !== `${session.id}:${context}`;
 
   if (loadError)
     return (
@@ -224,6 +232,57 @@ export function MockInterview() {
         />
       </Stack>
     );
+
+  // ------------------------------------------------------------ other context
+  if (session && otherContext) {
+    const answered = session.items.filter((i) => i.answer !== null).length;
+    return (
+      <Stack spacing={3}>
+        {header}
+        {alerts}
+        <Alert severity="info">
+          You have an unfinished mock interview from{' '}
+          {session.source === 'job'
+            ? 'another job'
+            : 'Interview Prep questions'}{' '}
+          ({answered} of {session.items.length} answered). Only one interview
+          can be in progress at a time.
+        </Alert>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+          <Button
+            variant="contained"
+            startIcon={<PlayIcon />}
+            disabled={pending}
+            onClick={() => {
+              // Neutral URL: the old session's set can't be rebuilt, and the
+              // requested job's links would mislead.
+              setContinued(`${session.id}:curated`);
+              setParams({}, { replace: true });
+            }}
+          >
+            Continue that interview
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<StopIcon />}
+            disabled={pending}
+            onClick={() =>
+              void run(async () => {
+                await completeSession(session);
+                notify({
+                  severity: 'success',
+                  text: 'Earlier interview finished. Its answers are in Past interviews.',
+                });
+                return null;
+              })
+            }
+          >
+            Finish it and start here
+          </Button>
+        </Stack>
+      </Stack>
+    );
+  }
 
   // ------------------------------------------------------------ start
   if (!session) {
