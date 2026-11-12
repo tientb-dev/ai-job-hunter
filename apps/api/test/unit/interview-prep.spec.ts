@@ -853,6 +853,35 @@ describe('English main issue stays about language', () => {
     ).toBe('Say "a message queue", not "message queue", the first time.');
     expect(languageIssue('')).toBeNull();
   });
+  // PR22: live qwen3:8b outputs that coached content instead of English.
+  test.each([
+    'You need to explain how you diagnose and fix consumer lag, not just describe an action.',
+    'You need to explain how you use JWT token, not just state you use it.',
+    'You could be more specific about the concurrency handling techniques you used.',
+    "You didn't answer the question. Please talk about how to secure a REST API.",
+    'Add more details about the result.',
+    'You should say what the feature was and what you did to handle concurrency.',
+    'You could phrase this more clearly to show you understand the problem and the solution.',
+  ])('drops content advice: %s', (issue) => {
+    expect(languageIssue(issue)).toBeNull();
+  });
+  test.each([
+    'Use "an" before "idempotency": "an idempotency key".',
+    'Say "It worked", not "It work", for the past.',
+    'Use "explain" instead of "explain about".',
+    'Say "describe the flow" rather than "describe about the flow".',
+    'Your English is already clear and natural.',
+  ])('keeps grammar and wording advice: %s', (issue) => {
+    expect(languageIssue(issue)).toBe(issue);
+  });
+  test('review prompt: on-subject answers are never "no"; mainIssue is English-only', () => {
+    const p = reviewPrompt(q(INTERVIEW_QUESTIONS[0]!.id), 'Q?', 'short');
+    expect(p).toContain('"partly", never "no"');
+    expect(p).toContain(
+      'Never ask for more content, detail, explanation or examples',
+    );
+    expect(p).toContain('in first person ("I"/"we")');
+  });
 });
 
 describe('second live regression findings', () => {
