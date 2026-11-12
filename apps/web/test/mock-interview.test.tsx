@@ -42,6 +42,7 @@ let session: {
   items: Item[];
 } | null;
 let conflictNext = false;
+let listFails = false;
 let answerExists = false;
 const calls: { url: string; method: string; body: unknown }[] = [];
 const dto = () => {
@@ -88,6 +89,19 @@ const fetchMock = vi.fn((url: string, init: RequestInit = {}) => {
         session: session?.status === 'active' ? dto() : null,
       }),
     );
+  if (url === `${base}/list`) {
+    if (listFails)
+      return Promise.resolve(
+        json({ errorCode: 'X', message: 'History unavailable.' }, 503),
+      );
+    const d = session?.status === 'completed' ? dto() : null;
+    return Promise.resolve(
+      json({
+        contractVersion: '1',
+        items: d ? [{ ...d, jobTitle: d.jobId ? 'Synthetic job' : null }] : [],
+      }),
+    );
+  }
   if (url === base && method === 'POST') {
     session = {
       ...make(body.count),
@@ -173,6 +187,7 @@ const fetchMock = vi.fn((url: string, init: RequestInit = {}) => {
 beforeEach(() => {
   session = null;
   conflictNext = false;
+  listFails = false;
   answerExists = false;
   calls.length = 0;
   vi.stubGlobal('fetch', fetchMock);
@@ -455,4 +470,45 @@ test('a deleted or unknown summary link shows a safe error', async () => {
   expect(
     await screen.findByRole('button', { name: 'Start interview' }),
   ).toBeInTheDocument();
+});
+
+test('past interviews: a completed one opens its summary; delete returns to an empty history', async () => {
+  const user = userEvent.setup();
+  session = { ...make(5, 5), status: 'completed' };
+  show();
+  const row = await screen.findByRole('link', {
+    name: /Interview Prep questions.*5 of 5 answered · 0 with AI feedback/,
+  });
+  await user.click(row);
+  expect(
+    await screen.findByRole('heading', { name: 'Interview summary' }),
+  ).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Delete interview' }));
+  await user.click(
+    within(await screen.findByRole('dialog')).getByRole('button', {
+      name: 'Delete',
+    }),
+  );
+  expect(
+    await screen.findByText('No finished interviews yet.'),
+  ).toBeInTheDocument();
+});
+
+test('past interviews: load error offers Retry; start still works', async () => {
+  listFails = true;
+  show();
+  expect(await screen.findByText('History unavailable.')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Start interview' })).toBeEnabled();
+  listFails = false;
+  await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
+  expect(
+    await screen.findByText('No finished interviews yet.'),
+  ).toBeInTheDocument();
+});
+
+test('an active interview still resumes and hides the history', async () => {
+  session = make(5, 2);
+  show();
+  expect(await screen.findByText('Question 3 of 5')).toBeInTheDocument();
+  expect(screen.queryByText('Past interviews')).not.toBeInTheDocument();
 });

@@ -166,3 +166,36 @@ export async function removeSession(session: MockSession): Promise<void> {
     'DELETE',
   );
 }
+
+export interface PastSession {
+  id: string;
+  source: 'curated' | 'job';
+  jobTitle: string | null;
+  updatedAt: string;
+  summary: MockSession['summary'];
+}
+/** Completed interviews, newest first (server caps at 50). */
+export async function listSessions(
+  signal: AbortSignal,
+): Promise<PastSession[]> {
+  const payload = await call(`${BASE}/list`, 'POST', C, signal);
+  if (
+    !record(payload) ||
+    payload.contractVersion !== '1' ||
+    !Array.isArray(payload.items) ||
+    !payload.items.every(
+      (v) =>
+        record(v) &&
+        str(v.id) &&
+        ['curated', 'job'].includes(v.source as string) &&
+        (v.jobTitle === null || str(v.jobTitle)) &&
+        str(v.updatedAt) &&
+        record(v.summary) &&
+        int(v.summary.total) &&
+        int(v.summary.answered) &&
+        int(v.summary.withFeedback),
+    )
+  )
+    throw invalid();
+  return payload.items as PastSession[];
+}
