@@ -31,13 +31,14 @@ export async function resolveQuestion(
   const uuid = typeof id === 'string' ? JD_QUESTION_ID.exec(id)?.[1] : null;
   if (!uuid) return undefined;
   const [row] = (await db.query(
-    `SELECT category, kind, question FROM ai_job_hunter.interview_job_questions
+    `SELECT category, kind, question, why FROM ai_job_hunter.interview_job_questions
      WHERE "ownerId" = $1 AND id = $2`,
     [ownerId, uuid],
   )) as {
     category: string;
     kind: InterviewQuestion['kind'];
     question: string;
+    why: string;
   }[];
   if (!row) return undefined;
   return {
@@ -49,5 +50,6 @@ export async function resolveQuestion(
     hints: [],
     // Claim notices only where the user describes their own work.
     checkClaims: row.kind === 'personal',
+    why: row.why,
   };
 }
