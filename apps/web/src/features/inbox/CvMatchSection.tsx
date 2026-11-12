@@ -1,4 +1,8 @@
-import { AutoAwesomeIcon, RefreshIcon } from '../../components/icons';
+import {
+  AutoAwesomeIcon,
+  RefreshIcon,
+  UploadIcon,
+} from '../../components/icons';
 import { Link, useInRouterContext } from 'react-router-dom';
 import { validSourceDate } from './cv-suggestions.contract';
 import { type MatchResult, statusLabel } from './cv-match.types';
@@ -93,6 +97,7 @@ export function CvMatchSection({
               </Typography>
             </Box>
             <Button
+              startIcon={<AutoAwesomeIcon />}
               variant={result || preferSecondary ? 'outlined' : 'contained'}
               disableElevation
               disabled={
@@ -126,6 +131,7 @@ export function CvMatchSection({
                 {cv ? `Saved CV: ${cv.fileName}` : 'No saved CV yet.'}
               </Typography>
               <Button
+                startIcon={<UploadIcon />}
                 component="label"
                 size="small"
                 disabled={busy || uploadBlocked}

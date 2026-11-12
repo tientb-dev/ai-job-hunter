@@ -1,4 +1,10 @@
-import { CheckIcon, SaveIcon } from '../../components/icons';
+import {
+  ArrowForwardIcon,
+  CheckIcon,
+  EditIcon,
+  RefreshIcon,
+  SaveIcon,
+} from '../../components/icons';
 import { DialogCloseButton } from '../../components/DialogCloseButton';
 import { useNotify } from '../../components/useNotify';
 import { useEffect, useRef, useState } from 'react';
@@ -485,6 +491,7 @@ export function SourceCvReview({
             </Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
               <Button
+                endIcon={<ArrowForwardIcon />}
                 variant="contained"
                 disabled={blocked}
                 onClick={() => startReview(reuseOffer.profileRevisionId)}
@@ -513,6 +520,7 @@ export function SourceCvReview({
       )}
       {!profile && !reuseOffer && entryState === 'unknown' && (
         <Button
+          startIcon={<EditIcon />}
           variant="outlined"
           sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
           disabled={blocked || !cv}
@@ -523,6 +531,7 @@ export function SourceCvReview({
       )}
       {!profile && !reuseOffer && !entryState && (
         <Button
+          startIcon={<EditIcon />}
           variant={wizardEntry ? 'contained' : 'outlined'}
           sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
           disabled={blocked || !cv}
@@ -684,7 +693,11 @@ export function SourceCvReview({
             </Box>
           )}
           {legacy && (error || cv?.updatedAt !== source.savedCvUpdatedAt) && (
-            <Button disabled={blocked} onClick={() => void run(openReview)}>
+            <Button
+              startIcon={<RefreshIcon />}
+              disabled={blocked}
+              onClick={() => void run(openReview)}
+            >
               Reload saved review
             </Button>
           )}
@@ -1700,6 +1713,7 @@ export function SourceCvReview({
                     Discard unsaved changes
                   </Button>
                   <Button
+                    startIcon={<RefreshIcon />}
                     disabled={blocked || dirty}
                     onClick={() => void run(openReview)}
                   >

@@ -1,4 +1,4 @@
-import { AutoAwesomeIcon } from '../../components/icons';
+import { AutoAwesomeIcon, RefreshIcon } from '../../components/icons';
 import {
   Alert,
   Box,
@@ -130,6 +130,7 @@ export function TranscriptPanel({
           severity="error"
           action={
             <Button
+              startIcon={<RefreshIcon />}
               color="inherit"
               onClick={() => void t.askFeedback(questionId, variant)}
               disabled={!t.text.trim() || over}

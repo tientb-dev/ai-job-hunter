@@ -1,4 +1,4 @@
-import { ArrowForwardIcon } from '../../components/icons';
+import { ArrowForwardIcon, AutoAwesomeIcon } from '../../components/icons';
 import { useEffect, useId, useRef, useState } from 'react';
 import { alpha } from '@mui/material/styles';
 import {
@@ -249,6 +249,7 @@ export function CvSuggestionsSection({
             sx={{ flexWrap: 'wrap' }}
           >
             <Button
+              startIcon={<AutoAwesomeIcon />}
               variant={visible ? 'outlined' : 'contained'}
               disabled={!ready || disabled || loading || copying}
               onClick={() => void request()}

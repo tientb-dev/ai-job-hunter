@@ -93,3 +93,8 @@ export const DownloadIcon = createSvgIcon(
   <path d="M5 20h14v-2H5zM19 9h-4V3H9v6H5l7 7z" />,
   'Download',
 );
+// Same glyph as the Upload JD import card.
+export const UploadIcon = createSvgIcon(
+  <path d="M11 16V7.8l-3.6 3.6L6 10l6-6 6 6-1.4 1.4L13 7.8V16h-2zM4 18h16v3H4v-3z" />,
+  'Upload',
+);

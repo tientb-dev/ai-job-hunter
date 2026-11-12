@@ -1,4 +1,4 @@
-import { AddIcon, SearchIcon } from '../../components/icons';
+import { AddIcon, EditIcon, SearchIcon } from '../../components/icons';
 import { useNotify } from '../../components/useNotify';
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -99,6 +99,7 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
             </Typography>
           </Box>
           <Button
+            startIcon={<EditIcon />}
             variant="outlined"
             aria-expanded={expanded}
             aria-controls="discovery-preferences"

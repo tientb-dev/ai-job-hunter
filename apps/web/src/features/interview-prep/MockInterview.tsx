@@ -1,4 +1,12 @@
-import { ArrowBackIcon, PlayIcon, RefreshIcon } from '../../components/icons';
+import {
+  ArrowBackIcon,
+  ArrowForwardIcon,
+  CheckIcon,
+  DeleteIcon,
+  PlayIcon,
+  RefreshIcon,
+  StopIcon,
+} from '../../components/icons';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
@@ -307,6 +315,7 @@ export function MockInterview() {
           </Typography>
           <Stack direction="row" spacing={1}>
             <Button
+              startIcon={<DeleteIcon />}
               variant="text"
               disabled={pending}
               onClick={() => setConfirm('discard')}
@@ -314,6 +323,7 @@ export function MockInterview() {
               Discard
             </Button>
             <Button
+              startIcon={<StopIcon />}
               variant="outlined"
               disabled={pending}
               onClick={() => setConfirm('end')}
@@ -334,6 +344,7 @@ export function MockInterview() {
           severity="info"
           action={
             <Button
+              startIcon={<CheckIcon />}
               color="inherit"
               disabled={pending}
               onClick={() => void finish(session)}
@@ -455,6 +466,7 @@ function QuestionStep({
           </Typography>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
             <Button
+              endIcon={last ? <CheckIcon /> : <ArrowForwardIcon />}
               variant="contained"
               disabled={!ready || pending}
               onClick={() => onNext(text, feedback)}

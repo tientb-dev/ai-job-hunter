@@ -1,4 +1,8 @@
-import { ArrowForwardIcon, RefreshIcon } from '../../components/icons';
+import {
+  ArrowForwardIcon,
+  RefreshIcon,
+  UploadIcon,
+} from '../../components/icons';
 import type React from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -385,6 +389,7 @@ export function TailoredCvWorkflow({
                 action={
                   hasDrafts && !draftLoaded ? (
                     <Button
+                      endIcon={<ArrowForwardIcon />}
                       variant="contained"
                       disabled={
                         reviewDirty ||
@@ -412,6 +417,7 @@ export function TailoredCvWorkflow({
                   </MuiLink>
                 </Typography>
                 <Button
+                  startIcon={<UploadIcon />}
                   component="label"
                   variant={cv || hasDrafts ? 'outlined' : 'contained'}
                   disabled={

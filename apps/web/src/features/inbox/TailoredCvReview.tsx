@@ -1226,10 +1226,13 @@ export function TailoredCvReview({
         </Button>
       )}
       {readiness.action === 'review' && onReviewSource && (
-        <Button onClick={onReviewSource}>Go to Source CV Review</Button>
+        <Button endIcon={<ArrowForwardIcon />} onClick={onReviewSource}>
+          Go to Source CV Review
+        </Button>
       )}
       {readiness.action === 'check' && (
         <Button
+          startIcon={<RefreshIcon />}
           disabled={blocked || dirty}
           onClick={() => setRefresh((n) => n + 1)}
         >
@@ -1238,6 +1241,7 @@ export function TailoredCvReview({
       )}
       {readiness.action === 'reload' && (
         <Button
+          startIcon={<RefreshIcon />}
           disabled={blocked || dirty}
           onClick={() => window.location.reload()}
         >
@@ -1250,6 +1254,7 @@ export function TailoredCvReview({
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
         {(!isWizard || listFailed) && (
           <Button
+            startIcon={<RefreshIcon />}
             variant="outlined"
             disabled={blocked || dirty}
             onClick={() =>
@@ -1263,6 +1268,7 @@ export function TailoredCvReview({
           </Button>
         )}
         <Button
+          startIcon={<AutoAwesomeIcon />}
           variant={
             saved || items.length > 0 || !readiness.ready
               ? 'outlined'
@@ -2388,6 +2394,7 @@ export function TailoredCvReview({
                   {/* Drafts load automatically; reload is a recovery step after an error. */}
                   {(!isWizard || !!error) && (
                     <Button
+                      startIcon={<RefreshIcon />}
                       disabled={blocked || dirty}
                       onClick={() =>
                         void run(async (token) => {

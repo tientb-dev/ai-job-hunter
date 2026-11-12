@@ -1,4 +1,4 @@
-import { RefreshIcon } from '../../components/icons';
+import { RefreshIcon, UploadIcon } from '../../components/icons';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -195,6 +195,7 @@ export function MyCv() {
           )}
           {loaded && (
             <Button
+              startIcon={<UploadIcon />}
               component="label"
               variant={cv ? 'outlined' : 'contained'}
               disabled={locked}

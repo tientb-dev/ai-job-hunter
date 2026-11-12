@@ -39,7 +39,13 @@ need an accessible name. A small icon does not imply a small interaction target.
 Shared glyphs live in `components/icons.tsx` (Material filled style, no icon
 package); reuse or add there rather than inlining SVG paths. Main navigation and
 key actions (add, discover, start, record/stop, back) carry a leading icon; do
-not add icons where the label alone is clear.
+not add icons where the label alone is clear. Icons follow the action, not the
+screen: Add, Edit (incl. edit preferences, view/edit review), Save, Delete/Remove
+(incl. discarding a saved session), Upload (save/replace CV), Retry/Refresh/Reload,
+AI actions (analyze, extract, suggest, generate, feedback), Record, Start, Stop/End,
+Fetch/Download, Back (leading arrow), Continue/Go to/Next (trailing arrow) and
+Complete/Finish (check). Dialogs, Cancel, tabs, filters, steppers, show/hide
+toggles and repeated per-row actions stay text-only.
 
 ## Buttons and forms
 

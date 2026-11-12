@@ -960,6 +960,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
                 sx={{ flexWrap: 'wrap' }}
               >
                 <Button
+                  startIcon={<PlayIcon />}
                   variant="contained"
                   onClick={() => chooseTopic(key)}
                   aria-label={`Practise ${TOPICS[key].label}`}

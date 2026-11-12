@@ -3,6 +3,7 @@ import {
   ArrowBackIcon,
   ArrowForwardIcon,
   AutoAwesomeIcon,
+  DeleteIcon,
   DownloadIcon,
   EditIcon,
   SaveIcon,
@@ -832,6 +833,7 @@ export function JobEditor() {
                     <Stack direction="row" spacing={1}>
                       <Typography>{file.name}</Typography>
                       <Button
+                        startIcon={<DeleteIcon />}
                         variant="outlined"
                         type="button"
                         onClick={() => {
@@ -1882,6 +1884,7 @@ export function JobEditor() {
                         </Alert>
                       )}
                       <Button
+                        startIcon={<SaveIcon />}
                         type="submit"
                         variant="contained"
                         disabled={disabled || conflicts.length > 0}
