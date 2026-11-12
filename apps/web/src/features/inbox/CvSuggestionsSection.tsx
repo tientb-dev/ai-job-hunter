@@ -1,3 +1,4 @@
+import { ArrowForwardIcon } from '../../components/icons';
 import { useEffect, useId, useRef, useState } from 'react';
 import { alpha } from '@mui/material/styles';
 import {
@@ -262,7 +263,11 @@ export function CvSuggestionsSection({
                     : 'Suggest improvements'}
             </Button>
             {(!ready || stale) && (
-              <Button onClick={onGoToMatch} sx={{ minHeight: 44 }}>
+              <Button
+                endIcon={<ArrowForwardIcon />}
+                onClick={onGoToMatch}
+                sx={{ minHeight: 44 }}
+              >
                 Go to CV Match
               </Button>
             )}

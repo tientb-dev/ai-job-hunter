@@ -1,3 +1,4 @@
+import { SearchIcon } from '../../components/icons';
 import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -133,6 +134,7 @@ export function JobsPanel({ analysis }: { analysis: AnalysisResponse | null }) {
           />
           <Box>
             <Button
+              startIcon={<SearchIcon />}
               type="submit"
               variant="contained"
               disabled={cv.status === 'loading'}

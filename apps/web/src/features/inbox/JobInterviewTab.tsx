@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ExpandMoreIcon } from '../../components/icons';
+import {
+  AutoAwesomeIcon,
+  EditIcon,
+  ExpandMoreIcon,
+  RefreshIcon,
+} from '../../components/icons';
 import { Link } from 'react-router-dom';
 import {
   Accordion,
@@ -292,7 +297,11 @@ export function JobInterviewTab({
         <Alert
           severity="error"
           action={
-            <Button color="inherit" onClick={reload}>
+            <Button
+              startIcon={<RefreshIcon />}
+              color="inherit"
+              onClick={reload}
+            >
               Retry
             </Button>
           }
@@ -315,7 +324,12 @@ export function JobInterviewTab({
     ? prepared(active, answers, answersStatus)
     : null;
   const editJd = (
-    <Button component={Link} to={`/jobs/${jobId}/edit`} color="inherit">
+    <Button
+      startIcon={<EditIcon />}
+      component={Link}
+      to={`/jobs/${jobId}/edit`}
+      color="inherit"
+    >
       Edit JD
     </Button>
   );
@@ -326,7 +340,11 @@ export function JobInterviewTab({
         <Alert
           severity="error"
           action={
-            <Button color="inherit" onClick={reload}>
+            <Button
+              startIcon={<RefreshIcon />}
+              color="inherit"
+              onClick={reload}
+            >
               Retry
             </Button>
           }
@@ -351,6 +369,7 @@ export function JobInterviewTab({
             severity="info"
             action={
               <Button
+                startIcon={<AutoAwesomeIcon />}
                 color="inherit"
                 disabled={generating}
                 onClick={() => setConfirmOpen(true)}
@@ -377,6 +396,7 @@ export function JobInterviewTab({
             The local AI usually takes under 30 seconds.
           </Typography>
           <Button
+            startIcon={<AutoAwesomeIcon />}
             variant="contained"
             onClick={() => void generate()}
             disabled={blocked || generating}
@@ -414,6 +434,7 @@ export function JobInterviewTab({
             </Typography>
           </Box>
           <Button
+            startIcon={<AutoAwesomeIcon />}
             variant="outlined"
             onClick={() => setConfirmOpen(true)}
             disabled={blocked || generating}

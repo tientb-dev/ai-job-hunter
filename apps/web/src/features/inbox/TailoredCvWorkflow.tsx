@@ -1,3 +1,4 @@
+import { ArrowForwardIcon, RefreshIcon } from '../../components/icons';
 import type React from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -332,6 +333,7 @@ export function TailoredCvWorkflow({
           <Alert severity="warning">
             {readinessError}
             <Button
+              startIcon={<RefreshIcon />}
               disabled={reviewDirty || draftDirty || busy}
               onClick={() => setReviewEpoch((n) => n + 1)}
             >
@@ -342,7 +344,11 @@ export function TailoredCvWorkflow({
         {matchReadError && step !== 1 && (
           <Alert severity="warning">
             {matchReadError}
-            <Button disabled={busy} onClick={() => reload()}>
+            <Button
+              startIcon={<RefreshIcon />}
+              disabled={busy}
+              onClick={() => reload()}
+            >
               Retry loading match
             </Button>
           </Alert>
@@ -443,6 +449,7 @@ export function TailoredCvWorkflow({
             )}
             {step === 0 && sourceReady && (
               <Button
+                endIcon={<ArrowForwardIcon />}
                 variant={hasDrafts && !draftLoaded ? 'outlined' : 'contained'}
                 sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
                 disabled={

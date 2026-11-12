@@ -1,5 +1,6 @@
 import { theme } from './theme';
 import {
+  ArrowBackIcon,
   CloseIcon,
   DashboardIcon,
   DescriptionIcon,
@@ -292,7 +293,12 @@ export function App() {
                   <Typography color="text.secondary">
                     This page does not exist in your workspace.
                   </Typography>
-                  <Button component={Link} to="/jobs" variant="contained">
+                  <Button
+                    startIcon={<ArrowBackIcon />}
+                    component={Link}
+                    to="/jobs"
+                    variant="contained"
+                  >
                     Back to Jobs
                   </Button>
                 </Stack>

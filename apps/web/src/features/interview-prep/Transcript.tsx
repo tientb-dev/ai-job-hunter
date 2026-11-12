@@ -1,3 +1,4 @@
+import { AutoAwesomeIcon } from '../../components/icons';
 import {
   Alert,
   Box,
@@ -106,6 +107,7 @@ export function TranscriptPanel({
       />
       <Box>
         <Button
+          startIcon={<AutoAwesomeIcon />}
           variant="contained"
           onClick={() => void t.askFeedback(questionId, variant)}
           disabled={

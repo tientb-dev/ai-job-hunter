@@ -1,3 +1,4 @@
+import { ArrowBackIcon, RefreshIcon } from '../../components/icons';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import {
@@ -70,7 +71,11 @@ export function JobPractice() {
         severity={retry ? 'error' : 'info'}
         action={
           retry ? (
-            <Button color="inherit" onClick={() => setAttempt((n) => n + 1)}>
+            <Button
+              startIcon={<RefreshIcon />}
+              color="inherit"
+              onClick={() => setAttempt((n) => n + 1)}
+            >
               Retry
             </Button>
           ) : undefined
@@ -79,6 +84,7 @@ export function JobPractice() {
         {text}
       </Alert>
       <Button
+        startIcon={<ArrowBackIcon />}
         component={Link}
         to={back}
         variant="outlined"

@@ -1,5 +1,10 @@
 import { PageHeader } from '../../components/PageHeader';
-import { AddIcon, OpenInNewIcon } from '../../components/icons';
+import {
+  AddIcon,
+  ExploreIcon,
+  OpenInNewIcon,
+  RefreshIcon,
+} from '../../components/icons';
 import { StatusChip } from '../../components/StatusChip';
 import { dueFollowUp, useLocalCalendarDate } from './follow-ups';
 import { useEffect, useState } from 'react';
@@ -151,6 +156,7 @@ export function JobInbox() {
             severity="error"
             action={
               <Button
+                startIcon={<RefreshIcon />}
                 onClick={() => {
                   setLoading(true);
                   setAttempt((value) => value + 1);
@@ -377,6 +383,7 @@ export function JobInbox() {
                             sx={{ flexWrap: 'wrap' }}
                           >
                             <Button
+                              startIcon={<ExploreIcon />}
                               component={Link}
                               to="/discover"
                               variant="outlined"
@@ -384,6 +391,7 @@ export function JobInbox() {
                               Discover jobs
                             </Button>
                             <Button
+                              startIcon={<AddIcon />}
                               component={Link}
                               to="/jobs/new"
                               variant="outlined"

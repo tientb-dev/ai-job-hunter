@@ -1,4 +1,4 @@
-import { SearchIcon } from '../../components/icons';
+import { AddIcon, SearchIcon } from '../../components/icons';
 import { useNotify } from '../../components/useNotify';
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -363,7 +363,12 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
                   View Jobs
                 </Button>
                 {summary.eligible === 0 && (
-                  <Button component={Link} to="/jobs/new" variant="outlined">
+                  <Button
+                    startIcon={<AddIcon />}
+                    component={Link}
+                    to="/jobs/new"
+                    variant="outlined"
+                  >
                     Add job
                   </Button>
                 )}

@@ -1,3 +1,10 @@
+import {
+  ArrowForwardIcon,
+  AutoAwesomeIcon,
+  DownloadIcon,
+  RefreshIcon,
+  SaveIcon,
+} from '../../components/icons';
 import { DialogCloseButton } from '../../components/DialogCloseButton';
 import { ProposalComparison } from './ProposalComparison';
 import type { Theme } from '@mui/material/styles';
@@ -1210,6 +1217,7 @@ export function TailoredCvReview({
       )}
       {readiness.action === 'match' && !matchOwnedAbove && (
         <Button
+          startIcon={<RefreshIcon />}
           variant={saved ? 'outlined' : 'contained'}
           disabled={blocked || dirty || !onRefreshMatch}
           onClick={onRefreshMatch}
@@ -1510,6 +1518,7 @@ export function TailoredCvReview({
                 action={
                   isWizard ? (
                     <Button
+                      startIcon={<AutoAwesomeIcon />}
                       disabled={blocked || dirty}
                       onClick={() => {
                         if (wizardStep === 3) onContinueDraft?.();
@@ -1587,6 +1596,7 @@ export function TailoredCvReview({
               >
                 {(['docx', 'pdf'] as const).map((format) => (
                   <Button
+                    startIcon={<DownloadIcon />}
                     key={format}
                     variant={
                       isWizard && format === 'docx' ? 'contained' : 'outlined'
@@ -1812,6 +1822,7 @@ export function TailoredCvReview({
                           )}
                           {dirty && (
                             <Button
+                              startIcon={<SaveIcon />}
                               ref={saveButton}
                               size="small"
                               variant="contained"
@@ -1827,6 +1838,7 @@ export function TailoredCvReview({
                             (approvalReady || approvedUnchanged) &&
                             onContinueToApproval && (
                               <Button
+                                endIcon={<ArrowForwardIcon />}
                                 ref={(el: HTMLButtonElement | null) => {
                                   if (el && focusContinue.current) {
                                     focusContinue.current = false;
@@ -1909,6 +1921,7 @@ export function TailoredCvReview({
                         )}
                         {dirty && (
                           <Button
+                            startIcon={<SaveIcon />}
                             ref={saveButton}
                             size="small"
                             variant="contained"
@@ -1924,6 +1937,7 @@ export function TailoredCvReview({
                           (approvalReady || approvedUnchanged) &&
                           onContinueToApproval && (
                             <Button
+                              endIcon={<ArrowForwardIcon />}
                               ref={(el: HTMLButtonElement | null) => {
                                 if (el && focusContinue.current) {
                                   focusContinue.current = false;
@@ -2041,6 +2055,7 @@ export function TailoredCvReview({
                     )}
                     {dirty && (
                       <Button
+                        startIcon={<SaveIcon />}
                         ref={saveButton}
                         size="small"
                         variant="contained"
@@ -2054,6 +2069,7 @@ export function TailoredCvReview({
                       (approvalReady || approvedUnchanged) &&
                       onContinueToApproval && (
                         <Button
+                          endIcon={<ArrowForwardIcon />}
                           ref={(el: HTMLButtonElement | null) => {
                             if (el && focusContinue.current) {
                               focusContinue.current = false;
@@ -2342,6 +2358,7 @@ export function TailoredCvReview({
                     <>
                       {!isWizard && (
                         <Button
+                          startIcon={<SaveIcon />}
                           ref={saveButton}
                           variant={dirty ? 'contained' : 'outlined'}
                           disabled={

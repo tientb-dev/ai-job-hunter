@@ -1,3 +1,4 @@
+import { AutoAwesomeIcon } from '../../components/icons';
 import { useId, useRef, useState } from 'react';
 import { Button, Paper, Stack, TextField, Typography } from '@mui/material';
 import {
@@ -137,7 +138,12 @@ export function AnalysisForm({
           >
             Parse without AI
           </Button>
-          <Button type="submit" variant="contained" disabled={busy}>
+          <Button
+            startIcon={<AutoAwesomeIcon />}
+            type="submit"
+            variant="contained"
+            disabled={busy}
+          >
             Analyze
           </Button>
           <Button type="button" disabled={!busy} onClick={onCancel}>

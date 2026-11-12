@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ExpandMoreIcon, MicIcon, StopIcon } from '../../components/icons';
+import {
+  ArrowBackIcon,
+  ArrowForwardIcon,
+  AutoAwesomeIcon,
+  ExpandMoreIcon,
+  MicIcon,
+  PlayIcon,
+  RefreshIcon,
+  StopIcon,
+} from '../../components/icons';
 import { Link, useBlocker } from 'react-router-dom';
 import {
   Accordion,
@@ -370,7 +379,11 @@ export function Recorder({
             Recording isn't available (no microphone, permission denied, or
             browser support). You can keep practising by typing.
           </Typography>
-          <Button variant="text" onClick={() => void start()}>
+          <Button
+            startIcon={<MicIcon />}
+            variant="text"
+            onClick={() => void start()}
+          >
             Try recording again
           </Button>
         </Stack>
@@ -430,6 +443,7 @@ export function Recorder({
  */
 const mockLink = (query: string) => (
   <Button
+    startIcon={<PlayIcon />}
     component={Link}
     to={`/interview-prep/mock${query}`}
     variant="outlined"
@@ -833,7 +847,11 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
         <Alert
           severity="error"
           action={
-            <Button color="inherit" onClick={reload}>
+            <Button
+              startIcon={<RefreshIcon />}
+              color="inherit"
+              onClick={reload}
+            >
               Retry
             </Button>
           }
@@ -868,7 +886,11 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
           <Alert
             severity="error"
             action={
-              <Button color="inherit" onClick={retryAnswers}>
+              <Button
+                startIcon={<RefreshIcon />}
+                color="inherit"
+                onClick={retryAnswers}
+              >
                 Retry
               </Button>
             }
@@ -1010,6 +1032,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
       >
         {job ? (
           <Button
+            startIcon={<ArrowBackIcon />}
             component={Link}
             to={`/jobs/${job.jobId}/interview`}
             variant="text"
@@ -1134,6 +1157,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
             </Box>
           )}
           <Button
+            endIcon={<ArrowForwardIcon />}
             variant="outlined"
             onClick={nextQuestion}
             sx={{
@@ -1365,6 +1389,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
             sx={{ alignItems: { sm: 'center' } }}
           >
             <Button
+              startIcon={<AutoAwesomeIcon />}
               type="submit"
               variant="contained"
               disabled={loading || !text.trim()}
@@ -1395,7 +1420,11 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
             <Alert
               severity="error"
               action={
-                <Button color="inherit" onClick={() => void submit()}>
+                <Button
+                  startIcon={<RefreshIcon />}
+                  color="inherit"
+                  onClick={() => void submit()}
+                >
                   Retry
                 </Button>
               }
@@ -1457,7 +1486,11 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
                   : 'Now say your answer out loud again, using the feedback above.'}
               </Typography>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                <Button variant="contained" onClick={tryAgain}>
+                <Button
+                  startIcon={<RefreshIcon />}
+                  variant="contained"
+                  onClick={tryAgain}
+                >
                   Try again
                 </Button>
               </Stack>

@@ -1,4 +1,4 @@
-import { PlayIcon } from '../../components/icons';
+import { ArrowBackIcon, PlayIcon, RefreshIcon } from '../../components/icons';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
@@ -147,7 +147,11 @@ export function MockInterview() {
           severity="error"
           action={
             <Stack direction="row" spacing={1}>
-              <Button color="inherit" onClick={() => setAttempt((n) => n + 1)}>
+              <Button
+                startIcon={<RefreshIcon />}
+                color="inherit"
+                onClick={() => setAttempt((n) => n + 1)}
+              >
                 Retry
               </Button>
               {viewId && (
@@ -264,7 +268,12 @@ export function MockInterview() {
               >
                 Start interview
               </Button>
-              <Button component={Link} to={back} variant="outlined">
+              <Button
+                startIcon={<ArrowBackIcon />}
+                component={Link}
+                to={back}
+                variant="outlined"
+              >
                 {job ? 'Back to job questions' : 'Back to Interview Prep'}
               </Button>
             </Stack>

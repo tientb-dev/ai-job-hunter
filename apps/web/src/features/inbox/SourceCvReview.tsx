@@ -1,3 +1,4 @@
+import { CheckIcon, SaveIcon } from '../../components/icons';
 import { DialogCloseButton } from '../../components/DialogCloseButton';
 import { useNotify } from '../../components/useNotify';
 import { useEffect, useRef, useState } from 'react';
@@ -1604,6 +1605,7 @@ export function SourceCvReview({
               )}
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
                 <Button
+                  startIcon={<CheckIcon />}
                   variant="contained"
                   disabled={blocked}
                   onClick={() => {
@@ -1644,6 +1646,7 @@ export function SourceCvReview({
                   </Alert>
                 )}
                 <Button
+                  startIcon={<SaveIcon />}
                   variant="outlined"
                   disabled={
                     blocked ||

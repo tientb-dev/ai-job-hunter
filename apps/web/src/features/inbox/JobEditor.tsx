@@ -1,5 +1,12 @@
 import { DuplicateJobNotice } from './DuplicateJobNotice';
-import { ArrowBackIcon } from '../../components/icons';
+import {
+  ArrowBackIcon,
+  ArrowForwardIcon,
+  AutoAwesomeIcon,
+  DownloadIcon,
+  EditIcon,
+  SaveIcon,
+} from '../../components/icons';
 import { StatusChip } from '../../components/StatusChip';
 import { useNotify } from '../../components/useNotify';
 import { JobInterviewTab } from './JobInterviewTab';
@@ -766,6 +773,7 @@ export function JobEditor() {
                   }
                 />
                 <Button
+                  startIcon={<DownloadIcon />}
                   variant="outlined"
                   sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
                   disabled={disabled || !canFetchJobUrl(form.originalLink)}
@@ -896,6 +904,7 @@ export function JobEditor() {
             </Typography>
           )}
           <Button
+            startIcon={<AutoAwesomeIcon />}
             type="button"
             variant="outlined"
             sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
@@ -918,7 +927,12 @@ export function JobEditor() {
         </Stack>
       </Paper>
       {!id && (
-        <Button sx={{ mt: 2 }} variant="contained" onClick={() => setStep(1)}>
+        <Button
+          endIcon={<ArrowForwardIcon />}
+          sx={{ mt: 2 }}
+          variant="contained"
+          onClick={() => setStep(1)}
+        >
           Continue to Review &amp; Save
         </Button>
       )}
@@ -947,6 +961,7 @@ export function JobEditor() {
     >
       {!id && (
         <Button
+          startIcon={<ArrowBackIcon />}
           variant="outlined"
           disabled={disabled}
           onClick={() => setStep(0)}
@@ -955,6 +970,7 @@ export function JobEditor() {
         </Button>
       )}
       <Button
+        startIcon={<SaveIcon />}
         type="submit"
         form="job-editor-form"
         variant="contained"
@@ -1261,6 +1277,7 @@ export function JobEditor() {
                 ))}
               </Tabs>
               <Button
+                startIcon={<EditIcon />}
                 component={Link}
                 to={`${base}/edit`}
                 size="small"

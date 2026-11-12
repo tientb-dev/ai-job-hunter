@@ -1,3 +1,11 @@
+import {
+  CheckIcon,
+  DeleteIcon,
+  EditIcon,
+  MicIcon,
+  RefreshIcon,
+  SaveIcon,
+} from '../../components/icons';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Alert,
@@ -122,7 +130,11 @@ export function Editor({
         <Alert
           severity="error"
           action={
-            <Button color="inherit" onClick={onSave}>
+            <Button
+              startIcon={<RefreshIcon />}
+              color="inherit"
+              onClick={onSave}
+            >
               Retry
             </Button>
           }
@@ -132,6 +144,7 @@ export function Editor({
       )}
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
         <Button
+          startIcon={<SaveIcon />}
           variant="contained"
           onClick={onSave}
           disabled={editor.saving || !!conflict || !length || tooLong}
@@ -309,7 +322,11 @@ export function ReferenceAnswer(props: {
       <Alert
         severity="error"
         action={
-          <Button color="inherit" onClick={props.onRetryLoad}>
+          <Button
+            startIcon={<RefreshIcon />}
+            color="inherit"
+            onClick={props.onRetryLoad}
+          >
             Retry
           </Button>
         }
@@ -343,7 +360,11 @@ export function ReferenceAnswer(props: {
           Start from your own words or the AI suggestion. Nothing is saved until
           you choose Save.
         </Typography>
-        <Button variant="contained" onClick={props.onFinalize}>
+        <Button
+          startIcon={<CheckIcon />}
+          variant="contained"
+          onClick={props.onFinalize}
+        >
           Finalize answer
         </Button>
       </Stack>
@@ -359,10 +380,15 @@ export function ReferenceAnswer(props: {
           </Typography>
         )}
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-          <Button variant="outlined" onClick={props.onFinalize}>
+          <Button
+            startIcon={<EditIcon />}
+            variant="outlined"
+            onClick={props.onFinalize}
+          >
             Edit answer
           </Button>
           <Button
+            startIcon={<DeleteIcon />}
             variant="text"
             color="inherit"
             onClick={() => setConfirming(true)}
@@ -478,7 +504,12 @@ export function SavedPrompt({ onStart }: { onStart: () => void }) {
       <Typography role="status" sx={{ fontWeight: 600 }}>
         Answer saved. Ready to practise?
       </Typography>
-      <Button ref={button} variant="contained" onClick={onStart}>
+      <Button
+        startIcon={<MicIcon />}
+        ref={button}
+        variant="contained"
+        onClick={onStart}
+      >
         Start speaking practice
       </Button>
     </Stack>

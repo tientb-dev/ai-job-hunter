@@ -1,3 +1,4 @@
+import { DeleteIcon, PlayIcon } from '../../components/icons';
 import { useState } from 'react';
 import { Alert, Button, Paper, Stack, Typography } from '@mui/material';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
@@ -42,10 +43,16 @@ export function SessionSummary({
             spacing={1}
             sx={{ alignItems: { sm: 'center' } }}
           >
-            <Button variant="contained" onClick={onNew} disabled={pending}>
+            <Button
+              startIcon={<PlayIcon />}
+              variant="contained"
+              onClick={onNew}
+              disabled={pending}
+            >
               Start another interview
             </Button>
             <Button
+              startIcon={<DeleteIcon />}
               variant="outlined"
               color="error"
               onClick={() => setConfirm(true)}

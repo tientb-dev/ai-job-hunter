@@ -1,3 +1,4 @@
+import { RefreshIcon, SaveIcon } from '../../components/icons';
 import { DialogCloseButton } from '../../components/DialogCloseButton';
 import { StatusChip } from '../../components/StatusChip';
 import { useNotify } from '../../components/useNotify';
@@ -174,6 +175,7 @@ export function DiscoveryCandidateReview({
             {error && <Alert severity="error">{error}</Alert>}
             {!loading && !candidate && (
               <Button
+                startIcon={<RefreshIcon />}
                 variant="outlined"
                 onClick={() => {
                   setLoading(true);
@@ -292,6 +294,7 @@ export function DiscoveryCandidateReview({
                 </Button>
               ) : (
                 <Button
+                  startIcon={<SaveIcon />}
                   disabled={busy}
                   variant="contained"
                   onClick={() => void act('SAVE')}
