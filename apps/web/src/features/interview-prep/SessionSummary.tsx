@@ -1,5 +1,6 @@
-import { DeleteIcon, PlayIcon } from '../../components/icons';
+import { ArrowBackIcon, DeleteIcon, PlayIcon } from '../../components/icons';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Alert, Button, Paper, Stack, Typography } from '@mui/material';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useNotify } from '../../components/useNotify';
@@ -43,14 +44,27 @@ export function SessionSummary({
             spacing={1}
             sx={{ alignItems: { sm: 'center' } }}
           >
-            <Button
-              startIcon={<PlayIcon />}
-              variant="contained"
-              onClick={onNew}
-              disabled={pending}
-            >
-              Start another interview
-            </Button>
+            {session.source === 'job' && session.jobId ? (
+              // From the session itself, not the URL: history links carry no job.
+              <Button
+                startIcon={<ArrowBackIcon />}
+                variant="contained"
+                component={Link}
+                to={`/jobs/${session.jobId}/interview`}
+                disabled={pending}
+              >
+                Back to job questions
+              </Button>
+            ) : (
+              <Button
+                startIcon={<PlayIcon />}
+                variant="contained"
+                onClick={onNew}
+                disabled={pending}
+              >
+                Start another interview
+              </Button>
+            )}
             <Button
               startIcon={<DeleteIcon />}
               variant="outlined"

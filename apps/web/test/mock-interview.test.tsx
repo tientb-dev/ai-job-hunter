@@ -582,3 +582,45 @@ describe('active session from another context', () => {
     expect(await screen.findByText('Question 2 of 5')).toBeInTheDocument();
   });
 });
+
+describe('job interview summary', () => {
+  const OTHER = '3f1c1a52-6d0e-4a7b-9c1d-2e3f4a5b6c71';
+  const jobLink = (id: string) =>
+    expect(
+      screen.getByRole('link', { name: 'Back to job questions' }),
+    ).toHaveAttribute('href', `/jobs/${id}/interview`);
+
+  test('opened from history links to the session’s own job, not the URL’s', async () => {
+    session = {
+      ...make(5, 2),
+      status: 'completed',
+      source: 'job',
+      jobId: OTHER,
+    };
+    show(`/interview-prep/mock?session=${SID}&jobId=${JOB}&setId=${SET}`);
+    await screen.findByRole('heading', { name: 'Interview summary' });
+    jobLink(OTHER);
+    expect(
+      screen.queryByRole('button', { name: 'Start another interview' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Delete interview' }),
+    ).toBeInTheDocument();
+  });
+
+  test('completed in place links back to its job', async () => {
+    const user = userEvent.setup();
+    session = { ...make(5, 1), source: 'job', jobId: JOB };
+    show(`/interview-prep/mock?jobId=${JOB}&setId=${SET}`);
+    await user.click(
+      await screen.findByRole('button', { name: 'End interview' }),
+    );
+    await user.click(
+      within(await screen.findByRole('dialog')).getByRole('button', {
+        name: 'End interview',
+      }),
+    );
+    await screen.findByRole('heading', { name: 'Interview summary' });
+    jobLink(JOB);
+  });
+});
