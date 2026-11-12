@@ -43,6 +43,7 @@ import {
   changesMeaning,
   keepTechnicalNote,
   languageIssue,
+  repeatsPhrase,
   newNumbers,
   numberValues,
   parseFeedbackRequest,
@@ -1289,5 +1290,99 @@ describe('PR21 interviewer focus context', () => {
       expect(prompt).toContain('What the interviewer wants to learn');
       expect(prompt).toMatch(/followUpQuestions:.*interviewer wants to learn/u);
     }
+  });
+});
+
+describe('PR24 qwen3:4b guard leaks', () => {
+  test.each([
+    'You need to specify what the feature was and how the thread pool handled concurrency',
+    "You said RabbitMQ is a database, but it's a message broker, not a database.",
+    "The answer is not about securing a REST API; it's about playing football.",
+    'The answer is about salary expectation, not the difference between process and thread',
+  ])('drops recorded non-English main issue: %s', (issue) => {
+    expect(languageIssue(issue)).toBeNull();
+  });
+  test.each([
+    "Use 'an' before 'idempotency key' (article error)",
+    "You should say 'It worked fast and stable' instead of 'It work fast and stable'.",
+    'You have a good answer but the phrasing is a bit awkward. Try to say it more naturally.',
+    'You could phrase this more clearly.',
+    'Use the past tense for finished actions.',
+    'Your English is already clear and natural.',
+    'Try shorter sentences so it is easier to follow.',
+  ])('keeps English feedback: %s', (issue) => {
+    expect(languageIssue(issue)).toBe(issue);
+  });
+  test('a restart that repeats a 3-word run is withheld as UNCLEAR', () => {
+    const answer = 'I use a idempotency key in header.';
+    const restart = 'I use an idemp: I use an idempotency key in the header.';
+    expect(repeatsPhrase(restart, answer)).toBe(true);
+    expect(guardSuggestion(restart, answer, 'Q?')).toBe('UNCLEAR');
+  });
+  test('repetition the user wrote, and repeated 2-word openers, are allowed', () => {
+    expect(
+      repeatsPhrase(
+        'I test it again and again. I test it again before release.',
+        'i test it again and again, i test it again before release',
+      ),
+    ).toBe(false);
+    expect(
+      repeatsPhrase(
+        'I would use HTTPS. I would check permissions. I would add rate limiting.',
+        'https, permissions, rate limiting',
+      ),
+    ).toBe(false);
+  });
+  test('review word growth is withheld as neutral TOO_LONG, after specific reasons', () => {
+    const answer = 'I use JWT token.';
+    expect(
+      guardSuggestion(
+        'I use JWT tokens to secure my REST API. I make sure they are properly signed and validated.',
+        answer,
+        'How would you secure a REST API?',
+        { mode: 'review', kind: 'hypothetical' },
+      ),
+    ).toBe('TOO_LONG');
+    // A specific signal (dropped negation) still wins over the length heuristic.
+    expect(
+      guardSuggestion(
+        'I use JWT tokens for authentication. They verify identity without storing passwords on every request in the system.',
+        answer,
+        'How would you secure a REST API?',
+        { mode: 'review', kind: 'hypothetical' },
+      ),
+    ).toBe('CHANGED_MEANING');
+  });
+  test('splitting a run-on into sentences without adding words is kept', () => {
+    const answer =
+      'first i check the logs and the response time then i look at the database queries because often the problem is a slow query and after that i add an index or cache if it is needed';
+    expect(
+      guardSuggestion(
+        'I check the logs and response time first. Then I look at the database queries because they often cause slow performance. If needed, I add an index or cache.',
+        answer,
+        'How would you debug a slow API endpoint?',
+        { mode: 'review', kind: 'hypothetical' },
+      ),
+    ).toBeNull();
+  });
+  test('faithful rewrites of the same length stay; express mode has no word-growth limit', () => {
+    const answer =
+      'I would use HTTPS for every request and require a JWT access token. I would check permissions on the server for each endpoint, and I would add rate limiting to stop abuse.';
+    const same =
+      'I would use HTTPS for every request and require a JWT access token. I would check permissions on the server for each endpoint. I would add rate limiting to stop abuse.';
+    expect(
+      guardSuggestion(same, answer, 'Q?', {
+        mode: 'review',
+        kind: 'hypothetical',
+      }),
+    ).toBeNull();
+    expect(
+      guardSuggestion(
+        'My biggest strength is learning quickly. I taught myself React in 2 weeks.',
+        'học nhanh, React 2 tuần',
+        'What is your biggest strength?',
+        { mode: 'express', kind: 'personal' },
+      ),
+    ).toBeNull();
   });
 });

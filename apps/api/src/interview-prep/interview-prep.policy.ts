@@ -507,6 +507,22 @@ const fold = (s: string) =>
 // Dangling function word before punctuation: "a team of ." / "wait for a." (small-model truncation).
 const GARBLED =
   /\b(?:a|an|the|of|for|to|with|by|and|in|on|at)\s*[.,;:!?](?:\s|$)|\s[.,]\s*[.,]|\p{L}:\p{L}|\b(\p{L}+) \1\b/iu;
+// A restart ("I use an idemp: I use an idempotency key") repeats a 3-word run
+// the user did not repeat: a common small-model decoding failure.
+export function repeatsPhrase(suggestion: string, userText: string): boolean {
+  const runs = (s: string) => {
+    const w = fold(s).match(/[\p{L}\p{N}'-]+/gu) ?? [];
+    const seen = new Set<string>();
+    const repeated = new Set<string>();
+    for (let i = 0; i + 3 <= w.length; i++) {
+      const run = w.slice(i, i + 3).join(' ');
+      (seen.has(run) ? repeated : seen).add(run);
+    }
+    return repeated;
+  };
+  const user = runs(userText);
+  return [...runs(suggestion)].some((run) => !user.has(run));
+}
 // JS \b is ASCII-only even with /u: in "gửi" the final "i" would look like "I". Use letter lookarounds.
 const FIRST_PERSON_SOURCE =
   /(?<![\p{L}\p{N}])(?:i|we|my|our|me|us|mình|tôi|em|chúng tôi|bọn mình)(?![\p{L}\p{N}])/iu;
@@ -521,7 +537,8 @@ export function guardSuggestion(
 ): Withheld | null {
   if (!suggestion) return 'NOT_ENOUGH_DETAIL';
   if (sentences(suggestion) > 6 || words(suggestion) > 110) return 'TOO_LONG';
-  if (GARBLED.test(suggestion)) return 'UNCLEAR';
+  if (GARBLED.test(suggestion) || repeatsPhrase(suggestion, userText))
+    return 'UNCLEAR';
   // The question may name a concept (RabbitMQ); the user's own text supplies the rest.
   const source = `${userText}\n${question}`;
   if (
@@ -538,15 +555,26 @@ export function guardSuggestion(
   )
     return 'CHANGED_FACTS';
   // Review keeps the user's answer: allow light restructuring, not added content.
+  // Splitting a run-on into sentences is fine; extra sentences AND more words
+  // means added content.
   if (
     options.mode === 'review' &&
-    sentences(suggestion) > sentences(userText) + 1
+    sentences(suggestion) > sentences(userText) + 1 &&
+    words(suggestion) > words(userText)
   )
     return 'CHANGED_FACTS';
   if (changesMeaning(suggestion, userText, question)) return 'CHANGED_MEANING';
   // Every tool the user named must still be there (no silent omissions).
   const kept = new Set(techTerms(suggestion));
   if (techTerms(userText).some((t) => !kept.has(t))) return 'CHANGED_MEANING';
+  // Last, so specific reasons win. shortcut: word growth is a length heuristic,
+  // so it reports the neutral TOO_LONG, not CHANGED_FACTS; a semantic claim
+  // check would be the upgrade.
+  if (
+    options.mode === 'review' &&
+    words(suggestion) > words(userText) * 1.5 + 6
+  )
+    return 'TOO_LONG';
   return null;
 }
 
@@ -638,8 +666,14 @@ const TECH_JUDGEMENT =
 // Contextual phrases only, so "Use 'explain' instead of…" still passes.
 const CONTENT_ADVICE =
   /\b(?:you (?:need to|have to|should|could|can|must) (?:explain|describe|mention|talk about|give|add|show|say (?:more|how|why|what))|(?:explain|describe) (?:how|why|what|more)|not just (?:say|mention|state|describe|list|name)|(?:be )?more specific about|(?:add|give|include|provide) (?:more |an? |some )?(?:details?|examples?|context|explanation)|to show (?:that )?you understand|did ?n[o']t answer the question)\b/iu;
+// Positive criterion: an English note quotes the answer or names a language
+// aspect. Anything else (content, technical grading, "the answer is not
+// about…") is dropped without listing every phrasing.
+const LANGUAGE_SIGNAL =
+  /["“”]|(?<![\p{L}])'|'(?![\p{L}])|\b(?:english|grammar\w*|tenses?|articles?|words?|wording|phras\w*|sentences?|spell\w*|plural|singular|prepositions?|verbs?|nouns?|pronoun\w*|pronunciation|natural\w*|fluen\w*|concise\w*|filler)\b/iu;
 export function languageIssue(issue: string): string | null {
-  if (!issue || CONTENT_ADVICE.test(issue)) return null;
+  if (!issue || CONTENT_ADVICE.test(issue) || !LANGUAGE_SIGNAL.test(issue))
+    return null;
   const technical =
     techTerms(issue).length > 0 ||
     CONTRASTS.some((group) => group.some((side) => side.test(issue)));
