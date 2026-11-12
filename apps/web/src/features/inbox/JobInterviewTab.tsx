@@ -1,4 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  AutoAwesomeIcon,
+  EditIcon,
+  ExpandMoreIcon,
+  RefreshIcon,
+} from '../../components/icons';
 import { Link } from 'react-router-dom';
 import {
   Accordion,
@@ -15,7 +21,6 @@ import {
   LinearProgress,
   Paper,
   Stack,
-  SvgIcon,
   Typography,
 } from '@mui/material';
 import { DialogCloseButton } from '../../components/DialogCloseButton';
@@ -41,7 +46,6 @@ const REFRESH_CODES = new Set([
   'INTERVIEW_SET_OUTDATED',
   'INTERVIEW_JD_CHANGED',
 ]);
-const EXPAND = 'M16.59 8.59 12 13.17 7.41 8.59 6 10l6 6 6-6z';
 
 const when = (iso: string) =>
   new Date(iso).toLocaleString(undefined, {
@@ -293,7 +297,11 @@ export function JobInterviewTab({
         <Alert
           severity="error"
           action={
-            <Button color="inherit" onClick={reload}>
+            <Button
+              startIcon={<RefreshIcon />}
+              color="inherit"
+              onClick={reload}
+            >
               Retry
             </Button>
           }
@@ -316,7 +324,12 @@ export function JobInterviewTab({
     ? prepared(active, answers, answersStatus)
     : null;
   const editJd = (
-    <Button component={Link} to={`/jobs/${jobId}/edit`} color="inherit">
+    <Button
+      startIcon={<EditIcon />}
+      component={Link}
+      to={`/jobs/${jobId}/edit`}
+      color="inherit"
+    >
       Edit JD
     </Button>
   );
@@ -327,7 +340,11 @@ export function JobInterviewTab({
         <Alert
           severity="error"
           action={
-            <Button color="inherit" onClick={reload}>
+            <Button
+              startIcon={<RefreshIcon />}
+              color="inherit"
+              onClick={reload}
+            >
               Retry
             </Button>
           }
@@ -352,6 +369,7 @@ export function JobInterviewTab({
             severity="info"
             action={
               <Button
+                startIcon={<AutoAwesomeIcon />}
                 color="inherit"
                 disabled={generating}
                 onClick={() => setConfirmOpen(true)}
@@ -378,6 +396,7 @@ export function JobInterviewTab({
             The local AI usually takes under 30 seconds.
           </Typography>
           <Button
+            startIcon={<AutoAwesomeIcon />}
             variant="contained"
             onClick={() => void generate()}
             disabled={blocked || generating}
@@ -415,6 +434,7 @@ export function JobInterviewTab({
             </Typography>
           </Box>
           <Button
+            startIcon={<AutoAwesomeIcon />}
             variant="outlined"
             onClick={() => setConfirmOpen(true)}
             disabled={blocked || generating}
@@ -460,11 +480,7 @@ export function JobInterviewTab({
       {previous.length > 0 && (
         <Accordion disableGutters variant="outlined">
           <AccordionSummary
-            expandIcon={
-              <SvgIcon aria-hidden="true">
-                <path d={EXPAND} />
-              </SvgIcon>
-            }
+            expandIcon={<ExpandMoreIcon />}
             aria-controls="previous-sets"
             id="previous-sets-header"
           >
@@ -484,11 +500,7 @@ export function JobInterviewTab({
               {previous.map((set) => (
                 <Accordion key={set.id} disableGutters variant="outlined">
                   <AccordionSummary
-                    expandIcon={
-                      <SvgIcon aria-hidden="true">
-                        <path d={EXPAND} />
-                      </SvgIcon>
-                    }
+                    expandIcon={<ExpandMoreIcon />}
                     aria-controls={`set-${set.id}`}
                     id={`set-${set.id}-header`}
                   >
@@ -546,7 +558,11 @@ export function JobInterviewTab({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="contained" onClick={() => void generate()}>
+          <Button
+            variant="contained"
+            startIcon={<AutoAwesomeIcon />}
+            onClick={() => void generate()}
+          >
             Generate new set
           </Button>
         </DialogActions>

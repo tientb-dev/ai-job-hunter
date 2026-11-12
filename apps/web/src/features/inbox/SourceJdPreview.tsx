@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ExpandMoreIcon } from '../../components/icons';
 import {
   Accordion,
   AccordionDetails,
@@ -6,7 +7,6 @@ import {
   Alert,
   Chip,
   Stack,
-  SvgIcon,
   TextField,
   Typography,
 } from '@mui/material';
@@ -34,13 +34,7 @@ export function SourceJdPreview({
       expanded={expanded}
       onChange={(_, open) => setExpanded(open)}
     >
-      <AccordionSummary
-        expandIcon={
-          <SvgIcon>
-            <path d="m7 10 5 5 5-5z" />
-          </SvgIcon>
-        }
-      >
+      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
         <Stack
           direction="row"
           spacing={1}

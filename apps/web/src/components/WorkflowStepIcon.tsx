@@ -1,5 +1,6 @@
-import { Box, SvgIcon } from '@mui/material';
+import { Box } from '@mui/material';
 
+import { CheckIcon } from './icons';
 import type { WorkflowStepState } from './workflow-step';
 
 /**
@@ -45,13 +46,7 @@ export function WorkflowStepIcon({
         }),
       })}
     >
-      {state === 'completed' ? (
-        <SvgIcon sx={{ fontSize: 18 }}>
-          <path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-        </SvgIcon>
-      ) : (
-        number
-      )}
+      {state === 'completed' ? <CheckIcon sx={{ fontSize: 18 }} /> : number}
     </Box>
   );
 }

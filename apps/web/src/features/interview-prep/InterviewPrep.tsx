@@ -1,4 +1,14 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  ArrowBackIcon,
+  ArrowForwardIcon,
+  AutoAwesomeIcon,
+  ExpandMoreIcon,
+  MicIcon,
+  PlayIcon,
+  RefreshIcon,
+  StopIcon,
+} from '../../components/icons';
 import { Link, useBlocker } from 'react-router-dom';
 import {
   Accordion,
@@ -324,9 +334,6 @@ export function Feedback({
   );
 }
 
-const MIC =
-  'M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3m5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72z';
-
 export function Recorder({
   recorder,
   title,
@@ -372,7 +379,11 @@ export function Recorder({
             Recording isn't available (no microphone, permission denied, or
             browser support). You can keep practising by typing.
           </Typography>
-          <Button variant="text" onClick={() => void start()}>
+          <Button
+            startIcon={<MicIcon />}
+            variant="text"
+            onClick={() => void start()}
+          >
             Try recording again
           </Button>
         </Stack>
@@ -384,7 +395,7 @@ export function Recorder({
           sx={{ alignItems: { sm: 'center' }, flexWrap: 'wrap' }}
         >
           {state === 'recording' ? (
-            <Button variant="outlined" color="error" onClick={stop}>
+            <Button variant="outlined" onClick={stop} startIcon={<StopIcon />}>
               Stop recording
             </Button>
           ) : (
@@ -392,11 +403,7 @@ export function Recorder({
               variant={prominent ? 'contained' : 'outlined'}
               onClick={() => void start()}
               disabled={state === 'requesting'}
-              startIcon={
-                <SvgIcon aria-hidden="true">
-                  <path d={MIC} />
-                </SvgIcon>
-              }
+              startIcon={<MicIcon />}
             >
               {url ? 'Record again' : 'Record'}
             </Button>
@@ -436,6 +443,7 @@ export function Recorder({
  */
 const mockLink = (query: string) => (
   <Button
+    startIcon={<PlayIcon />}
     component={Link}
     to={`/interview-prep/mock${query}`}
     variant="outlined"
@@ -839,7 +847,11 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
         <Alert
           severity="error"
           action={
-            <Button color="inherit" onClick={reload}>
+            <Button
+              startIcon={<RefreshIcon />}
+              color="inherit"
+              onClick={reload}
+            >
               Retry
             </Button>
           }
@@ -874,7 +886,11 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
           <Alert
             severity="error"
             action={
-              <Button color="inherit" onClick={retryAnswers}>
+              <Button
+                startIcon={<RefreshIcon />}
+                color="inherit"
+                onClick={retryAnswers}
+              >
                 Retry
               </Button>
             }
@@ -944,6 +960,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
                 sx={{ flexWrap: 'wrap' }}
               >
                 <Button
+                  startIcon={<PlayIcon />}
                   variant="contained"
                   onClick={() => chooseTopic(key)}
                   aria-label={`Practise ${TOPICS[key].label}`}
@@ -1016,6 +1033,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
       >
         {job ? (
           <Button
+            startIcon={<ArrowBackIcon />}
             component={Link}
             to={`/jobs/${job.jobId}/interview`}
             variant="text"
@@ -1140,6 +1158,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
             </Box>
           )}
           <Button
+            endIcon={<ArrowForwardIcon />}
             variant="outlined"
             onClick={nextQuestion}
             sx={{
@@ -1204,16 +1223,13 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
               `${order.length} questions`
             )}
           </Typography>
-          <SvgIcon
-            aria-hidden="true"
+          <ExpandMoreIcon
             sx={{
               color: 'text.secondary',
               transition: 'transform 150ms',
               transform: listOpen ? 'rotate(180deg)' : 'none',
             }}
-          >
-            <path d="M16.59 8.59 12 13.17 7.41 8.59 6 10l6 6 6-6z" />
-          </SvgIcon>
+          />
         </ButtonBase>
         <Collapse in={listOpen} id="question-list">
           <Paper variant="outlined" sx={{ mt: 1, p: { xs: 1.5, sm: 2 } }}>
@@ -1374,6 +1390,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
             sx={{ alignItems: { sm: 'center' } }}
           >
             <Button
+              startIcon={<AutoAwesomeIcon />}
               type="submit"
               variant="contained"
               disabled={loading || !text.trim()}
@@ -1404,7 +1421,11 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
             <Alert
               severity="error"
               action={
-                <Button color="inherit" onClick={() => void submit()}>
+                <Button
+                  startIcon={<RefreshIcon />}
+                  color="inherit"
+                  onClick={() => void submit()}
+                >
                   Retry
                 </Button>
               }
@@ -1466,7 +1487,11 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
                   : 'Now say your answer out loud again, using the feedback above.'}
               </Typography>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                <Button variant="contained" onClick={tryAgain}>
+                <Button
+                  startIcon={<RefreshIcon />}
+                  variant="contained"
+                  onClick={tryAgain}
+                >
                   Try again
                 </Button>
               </Stack>

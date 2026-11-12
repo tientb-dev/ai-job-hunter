@@ -1,3 +1,8 @@
+import {
+  AutoAwesomeIcon,
+  RefreshIcon,
+  UploadIcon,
+} from '../../components/icons';
 import { Link, useInRouterContext } from 'react-router-dom';
 import { validSourceDate } from './cv-suggestions.contract';
 import { type MatchResult, statusLabel } from './cv-match.types';
@@ -92,6 +97,7 @@ export function CvMatchSection({
               </Typography>
             </Box>
             <Button
+              startIcon={<AutoAwesomeIcon />}
               variant={result || preferSecondary ? 'outlined' : 'contained'}
               disableElevation
               disabled={
@@ -125,6 +131,7 @@ export function CvMatchSection({
                 {cv ? `Saved CV: ${cv.fileName}` : 'No saved CV yet.'}
               </Typography>
               <Button
+                startIcon={<UploadIcon />}
                 component="label"
                 size="small"
                 disabled={busy || uploadBlocked}
@@ -163,7 +170,11 @@ export function CvMatchSection({
           {matchReadError && (
             <Alert severity="warning">
               {matchReadError}
-              <Button disabled={busy} onClick={() => reload()}>
+              <Button
+                startIcon={<RefreshIcon />}
+                disabled={busy}
+                onClick={() => reload()}
+              >
                 Retry loading match
               </Button>
             </Alert>
@@ -1130,6 +1141,7 @@ export function MatchGate({
             >
               <Button {...assessmentLink}>View full assessment</Button>
               <Button
+                startIcon={<AutoAwesomeIcon />}
                 variant="outlined"
                 disabled={analyzeBlocked || !cv}
                 onClick={() => void match.analyze()}
@@ -1211,7 +1223,11 @@ export function MatchGate({
             <Alert
               severity="warning"
               action={
-                <Button disabled={busy} onClick={() => match.reload()}>
+                <Button
+                  startIcon={<RefreshIcon />}
+                  disabled={busy}
+                  onClick={() => match.reload()}
+                >
                   Retry loading match
                 </Button>
               }
@@ -1226,6 +1242,7 @@ export function MatchGate({
             sx={{ alignItems: { sm: 'center' } }}
           >
             <Button
+              startIcon={<AutoAwesomeIcon />}
               variant={current || preferSecondary ? 'outlined' : 'contained'}
               disableElevation
               disabled={

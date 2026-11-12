@@ -1,19 +1,6 @@
-import { DialogCloseButton } from '../../components/DialogCloseButton';
-import {
-  useContext,
-  useEffect,
-  useRef,
-  type FocusEvent,
-  type RefObject,
-} from 'react';
-import {
-  Alert,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-} from '@mui/material';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { useContext, useEffect, useRef, type RefObject } from 'react';
+import { Alert } from '@mui/material';
 import {
   UNSAFE_DataRouterContext,
   useBeforeUnload,
@@ -65,7 +52,6 @@ function RouteGuard({
       !allowPath?.(nextLocation.pathname) &&
       (sourceCvDirty || (dirty && !savedNavigation.current)),
   );
-  const stay = useRef<HTMLButtonElement>(null);
   // Last edited control outside dialogs; Stay returns focus there instead of the nav link.
   const lastField = useRef<HTMLElement | null>(null);
   const stayed = useRef(false);
@@ -99,68 +85,24 @@ function RouteGuard({
       field.focus();
     stayed.current = false;
   };
-  function handleDialogFocus(event: FocusEvent<HTMLElement>) {
-    const button = stay.current;
-    // Let Modal/FocusTrap establish and record initial surface focus first.
-    // Then hand that focus to Stay. Descendant actions never trigger this handoff.
-    if (
-      blocker.state === 'blocked' &&
-      button &&
-      event.target !== button &&
-      event.target.contains(button)
-    ) {
-      button.focus({ preventScroll: true });
-    }
-  }
   return (
-    <Dialog
+    <ConfirmDialog
       open={blocker.state === 'blocked'}
-      aria-labelledby="unsaved-job-title"
-      onFocus={handleDialogFocus}
-      // Escape and X behave like Stay and edit: navigation stays blocked, nothing is discarded.
-      onClose={stayHere}
-      slotProps={{ transition: { onExited: restoreField } }}
-    >
-      <DialogCloseButton onClick={stayHere} />
-      <DialogTitle id="unsaved-job-title" sx={{ pr: 7 }}>
-        Leave unsaved changes?
-      </DialogTitle>
-      <DialogContent>
+      title="Leave unsaved changes?"
+      text={
         <Alert severity="warning">
           {sourceCvDirty
             ? 'Your CV review changes have not been saved. Stay to review and save them, or discard them and leave.'
             : 'Your job changes have not been saved. Stay to review and save them, or discard them and leave.'}
         </Alert>
-      </DialogContent>
-      <DialogActions>
-        <Button
-          ref={stay}
-          variant="contained"
-          // Programmatic focus lands here, so :focus (not only focus-visible) shows the ring.
-          sx={(theme) => ({
-            '&:focus': {
-              outline: `2px solid ${theme.palette.primary.main}`,
-              outlineOffset: 2,
-            },
-          })}
-          onClick={stayHere}
-        >
-          Stay and edit
-        </Button>
-        <Button
-          variant="outlined"
-          sx={{
-            '&:hover': {
-              color: 'error.main',
-              borderColor: 'error.main',
-              bgcolor: 'transparent',
-            },
-          }}
-          onClick={() => blocker.state === 'blocked' && blocker.proceed()}
-        >
-          Discard and leave
-        </Button>
-      </DialogActions>
-    </Dialog>
+      }
+      safeLabel="Stay and edit"
+      confirmLabel="Discard and leave"
+      destructive
+      // Escape and X behave like Stay and edit: navigation stays blocked, nothing is discarded.
+      onSafe={stayHere}
+      onConfirm={() => blocker.state === 'blocked' && blocker.proceed()}
+      onExited={restoreField}
+    />
   );
 }

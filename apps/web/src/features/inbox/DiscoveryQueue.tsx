@@ -1,3 +1,4 @@
+import { RefreshIcon } from '../../components/icons';
 import { StatusChip } from '../../components/StatusChip';
 import { useEffect, useMemo, useState } from 'react';
 import { alpha } from '@mui/material/styles';
@@ -181,6 +182,7 @@ export function DiscoveryQueue({
             severity="error"
             action={
               <Button
+                startIcon={<RefreshIcon />}
                 variant="outlined"
                 onClick={() => setRefresh((value) => value + 1)}
               >

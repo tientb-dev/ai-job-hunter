@@ -545,11 +545,9 @@ test.each(['NEW', 'SEEN', 'SAVED', 'DISMISSED'] as const)(
     else expect(seen).toBeNull();
     const dismiss = within(dialog).queryByRole('button', { name: 'Dismiss' });
     if (status === 'NEW' || status === 'SEEN') {
-      expect(dismiss).toHaveClass(
-        'MuiButton-outlined',
-        'MuiButton-colorPrimary',
-      );
-      expect(dismiss).not.toHaveClass('MuiButton-colorError');
+      expect(dismiss).toHaveClass('MuiButton-outlined', 'MuiButton-colorError');
+      // Neutral at rest; the theme adds red only on hover and focus.
+      expect(dismiss).toHaveStyle({ color: 'rgb(22, 24, 29)' });
     } else expect(dismiss).toBeNull();
     if (status === 'SAVED') {
       expect(

@@ -1,4 +1,13 @@
 import { DuplicateJobNotice } from './DuplicateJobNotice';
+import {
+  ArrowBackIcon,
+  ArrowForwardIcon,
+  AutoAwesomeIcon,
+  DeleteIcon,
+  DownloadIcon,
+  EditIcon,
+  SaveIcon,
+} from '../../components/icons';
 import { StatusChip } from '../../components/StatusChip';
 import { useNotify } from '../../components/useNotify';
 import { JobInterviewTab } from './JobInterviewTab';
@@ -37,7 +46,6 @@ import {
   MenuItem,
   Paper,
   Link as MuiLink,
-  SvgIcon,
   Stack,
   Tabs,
   Tab,
@@ -766,6 +774,7 @@ export function JobEditor() {
                   }
                 />
                 <Button
+                  startIcon={<DownloadIcon />}
                   variant="outlined"
                   sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
                   disabled={disabled || !canFetchJobUrl(form.originalLink)}
@@ -824,6 +833,7 @@ export function JobEditor() {
                     <Stack direction="row" spacing={1}>
                       <Typography>{file.name}</Typography>
                       <Button
+                        startIcon={<DeleteIcon />}
                         variant="outlined"
                         type="button"
                         onClick={() => {
@@ -896,6 +906,7 @@ export function JobEditor() {
             </Typography>
           )}
           <Button
+            startIcon={<AutoAwesomeIcon />}
             type="button"
             variant="outlined"
             sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
@@ -918,7 +929,12 @@ export function JobEditor() {
         </Stack>
       </Paper>
       {!id && (
-        <Button sx={{ mt: 2 }} variant="contained" onClick={() => setStep(1)}>
+        <Button
+          endIcon={<ArrowForwardIcon />}
+          sx={{ mt: 2 }}
+          variant="contained"
+          onClick={() => setStep(1)}
+        >
           Continue to Review &amp; Save
         </Button>
       )}
@@ -947,6 +963,7 @@ export function JobEditor() {
     >
       {!id && (
         <Button
+          startIcon={<ArrowBackIcon />}
           variant="outlined"
           disabled={disabled}
           onClick={() => setStep(0)}
@@ -955,6 +972,7 @@ export function JobEditor() {
         </Button>
       )}
       <Button
+        startIcon={<SaveIcon />}
         type="submit"
         form="job-editor-form"
         variant="contained"
@@ -1022,9 +1040,7 @@ export function JobEditor() {
                   },
                 }}
               >
-                <SvgIcon aria-hidden="true" sx={{ fontSize: 20 }}>
-                  <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
-                </SvgIcon>
+                <ArrowBackIcon sx={{ fontSize: 20 }} />
                 Jobs
               </MuiLink>
               <Typography
@@ -1040,11 +1056,7 @@ export function JobEditor() {
               component={Link}
               to="/jobs"
               variant="outlined"
-              startIcon={
-                <SvgIcon aria-hidden="true" sx={{ fontSize: 20 }}>
-                  <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
-                </SvgIcon>
-              }
+              startIcon={<ArrowBackIcon sx={{ fontSize: 20 }} />}
               sx={{ alignSelf: 'flex-start', minHeight: { xs: 44, sm: 36 } }}
             >
               Back to Jobs
@@ -1267,6 +1279,7 @@ export function JobEditor() {
                 ))}
               </Tabs>
               <Button
+                startIcon={<EditIcon />}
                 component={Link}
                 to={`${base}/edit`}
                 size="small"
@@ -1871,6 +1884,7 @@ export function JobEditor() {
                         </Alert>
                       )}
                       <Button
+                        startIcon={<SaveIcon />}
                         type="submit"
                         variant="contained"
                         disabled={disabled || conflicts.length > 0}

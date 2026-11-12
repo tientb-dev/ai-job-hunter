@@ -1,3 +1,4 @@
+import { AddIcon, ExploreIcon, RefreshIcon } from '../../components/icons';
 import { useEffect, useState } from 'react';
 import {
   Alert,
@@ -392,7 +393,12 @@ function Continue({
           <Alert
             severity="error"
             action={
-              <Button color="inherit" size="small" onClick={onRetry}>
+              <Button
+                startIcon={<RefreshIcon />}
+                color="inherit"
+                size="small"
+                onClick={onRetry}
+              >
                 {copy.retry}
               </Button>
             }
@@ -481,7 +487,12 @@ export function Home() {
         title={copy.title}
         description={copy.description}
         actions={
-          <Button component={Link} to="/jobs/new" variant="contained">
+          <Button
+            startIcon={<AddIcon />}
+            component={Link}
+            to="/jobs/new"
+            variant="contained"
+          >
             {copy.addJob}
           </Button>
         }
@@ -504,6 +515,7 @@ export function Home() {
           severity="error"
           action={
             <Button
+              startIcon={<RefreshIcon />}
               color="inherit"
               size="small"
               onClick={() => {
@@ -533,7 +545,12 @@ export function Home() {
           <Typography color="text.secondary" sx={{ mt: 0.5, mb: 2 }}>
             {copy.emptyBody}
           </Typography>
-          <Button component={Link} to="/discover" variant="outlined">
+          <Button
+            startIcon={<ExploreIcon />}
+            component={Link}
+            to="/discover"
+            variant="outlined"
+          >
             {copy.discover}
           </Button>
         </Paper>

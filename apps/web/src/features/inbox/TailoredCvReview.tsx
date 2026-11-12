@@ -1,3 +1,11 @@
+import {
+  ArrowForwardIcon,
+  AutoAwesomeIcon,
+  CheckIcon,
+  DownloadIcon,
+  RefreshIcon,
+  SaveIcon,
+} from '../../components/icons';
 import { DialogCloseButton } from '../../components/DialogCloseButton';
 import { ProposalComparison } from './ProposalComparison';
 import type { Theme } from '@mui/material/styles';
@@ -1210,6 +1218,7 @@ export function TailoredCvReview({
       )}
       {readiness.action === 'match' && !matchOwnedAbove && (
         <Button
+          startIcon={<RefreshIcon />}
           variant={saved ? 'outlined' : 'contained'}
           disabled={blocked || dirty || !onRefreshMatch}
           onClick={onRefreshMatch}
@@ -1218,10 +1227,13 @@ export function TailoredCvReview({
         </Button>
       )}
       {readiness.action === 'review' && onReviewSource && (
-        <Button onClick={onReviewSource}>Go to Source CV Review</Button>
+        <Button endIcon={<ArrowForwardIcon />} onClick={onReviewSource}>
+          Go to Source CV Review
+        </Button>
       )}
       {readiness.action === 'check' && (
         <Button
+          startIcon={<RefreshIcon />}
           disabled={blocked || dirty}
           onClick={() => setRefresh((n) => n + 1)}
         >
@@ -1230,6 +1242,7 @@ export function TailoredCvReview({
       )}
       {readiness.action === 'reload' && (
         <Button
+          startIcon={<RefreshIcon />}
           disabled={blocked || dirty}
           onClick={() => window.location.reload()}
         >
@@ -1242,6 +1255,7 @@ export function TailoredCvReview({
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
         {(!isWizard || listFailed) && (
           <Button
+            startIcon={<RefreshIcon />}
             variant="outlined"
             disabled={blocked || dirty}
             onClick={() =>
@@ -1255,6 +1269,7 @@ export function TailoredCvReview({
           </Button>
         )}
         <Button
+          startIcon={<AutoAwesomeIcon />}
           variant={
             saved || items.length > 0 || !readiness.ready
               ? 'outlined'
@@ -1466,6 +1481,7 @@ export function TailoredCvReview({
               </Button>
               <Button
                 variant="contained"
+                startIcon={<CheckIcon />}
                 disabled={blocked || pending === 0}
                 onClick={() => {
                   for (const fact of facts)
@@ -1510,6 +1526,7 @@ export function TailoredCvReview({
                 action={
                   isWizard ? (
                     <Button
+                      startIcon={<AutoAwesomeIcon />}
                       disabled={blocked || dirty}
                       onClick={() => {
                         if (wizardStep === 3) onContinueDraft?.();
@@ -1587,6 +1604,7 @@ export function TailoredCvReview({
               >
                 {(['docx', 'pdf'] as const).map((format) => (
                   <Button
+                    startIcon={<DownloadIcon />}
                     key={format}
                     variant={
                       isWizard && format === 'docx' ? 'contained' : 'outlined'
@@ -1812,6 +1830,7 @@ export function TailoredCvReview({
                           )}
                           {dirty && (
                             <Button
+                              startIcon={<SaveIcon />}
                               ref={saveButton}
                               size="small"
                               variant="contained"
@@ -1827,6 +1846,7 @@ export function TailoredCvReview({
                             (approvalReady || approvedUnchanged) &&
                             onContinueToApproval && (
                               <Button
+                                endIcon={<ArrowForwardIcon />}
                                 ref={(el: HTMLButtonElement | null) => {
                                   if (el && focusContinue.current) {
                                     focusContinue.current = false;
@@ -1909,6 +1929,7 @@ export function TailoredCvReview({
                         )}
                         {dirty && (
                           <Button
+                            startIcon={<SaveIcon />}
                             ref={saveButton}
                             size="small"
                             variant="contained"
@@ -1924,6 +1945,7 @@ export function TailoredCvReview({
                           (approvalReady || approvedUnchanged) &&
                           onContinueToApproval && (
                             <Button
+                              endIcon={<ArrowForwardIcon />}
                               ref={(el: HTMLButtonElement | null) => {
                                 if (el && focusContinue.current) {
                                   focusContinue.current = false;
@@ -2041,6 +2063,7 @@ export function TailoredCvReview({
                     )}
                     {dirty && (
                       <Button
+                        startIcon={<SaveIcon />}
                         ref={saveButton}
                         size="small"
                         variant="contained"
@@ -2054,6 +2077,7 @@ export function TailoredCvReview({
                       (approvalReady || approvedUnchanged) &&
                       onContinueToApproval && (
                         <Button
+                          endIcon={<ArrowForwardIcon />}
                           ref={(el: HTMLButtonElement | null) => {
                             if (el && focusContinue.current) {
                               focusContinue.current = false;
@@ -2342,6 +2366,7 @@ export function TailoredCvReview({
                     <>
                       {!isWizard && (
                         <Button
+                          startIcon={<SaveIcon />}
                           ref={saveButton}
                           variant={dirty ? 'contained' : 'outlined'}
                           disabled={
@@ -2371,6 +2396,7 @@ export function TailoredCvReview({
                   {/* Drafts load automatically; reload is a recovery step after an error. */}
                   {(!isWizard || !!error) && (
                     <Button
+                      startIcon={<RefreshIcon />}
                       disabled={blocked || dirty}
                       onClick={() =>
                         void run(async (token) => {

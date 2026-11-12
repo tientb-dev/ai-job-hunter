@@ -1,3 +1,12 @@
+import {
+  ArrowBackIcon,
+  ArrowForwardIcon,
+  CheckIcon,
+  DeleteIcon,
+  PlayIcon,
+  RefreshIcon,
+  StopIcon,
+} from '../../components/icons';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
@@ -15,7 +24,7 @@ import { PageHeader } from '../../components/PageHeader';
 import { useNotify } from '../../components/useNotify';
 import { Feedback, Recorder } from './InterviewPrep';
 import { SessionSummary } from './SessionSummary';
-import { ConfirmDialog } from './ConfirmDialog';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { TranscriptPanel } from './Transcript';
 import { MAX_ANSWER_CHARS, PracticeError } from './interview-prep-api';
 import type { PracticeFeedback } from './interview-prep-api';
@@ -146,7 +155,11 @@ export function MockInterview() {
           severity="error"
           action={
             <Stack direction="row" spacing={1}>
-              <Button color="inherit" onClick={() => setAttempt((n) => n + 1)}>
+              <Button
+                startIcon={<RefreshIcon />}
+                color="inherit"
+                onClick={() => setAttempt((n) => n + 1)}
+              >
                 Retry
               </Button>
               {viewId && (
@@ -250,6 +263,7 @@ export function MockInterview() {
               <Button
                 variant="contained"
                 disabled={pending}
+                startIcon={<PlayIcon />}
                 onClick={() =>
                   void run(() =>
                     createSession(
@@ -262,7 +276,12 @@ export function MockInterview() {
               >
                 Start interview
               </Button>
-              <Button component={Link} to={back} variant="outlined">
+              <Button
+                startIcon={<ArrowBackIcon />}
+                component={Link}
+                to={back}
+                variant="outlined"
+              >
                 {job ? 'Back to job questions' : 'Back to Interview Prep'}
               </Button>
             </Stack>
@@ -296,6 +315,7 @@ export function MockInterview() {
           </Typography>
           <Stack direction="row" spacing={1}>
             <Button
+              startIcon={<DeleteIcon />}
               variant="text"
               disabled={pending}
               onClick={() => setConfirm('discard')}
@@ -303,6 +323,7 @@ export function MockInterview() {
               Discard
             </Button>
             <Button
+              startIcon={<StopIcon />}
               variant="outlined"
               disabled={pending}
               onClick={() => setConfirm('end')}
@@ -323,6 +344,7 @@ export function MockInterview() {
           severity="info"
           action={
             <Button
+              startIcon={<CheckIcon />}
               color="inherit"
               disabled={pending}
               onClick={() => void finish(session)}
@@ -361,6 +383,7 @@ export function MockInterview() {
         safeLabel="Keep practising"
         confirmLabel={confirm === 'discard' ? 'Discard' : 'End interview'}
         destructive={confirm === 'discard'}
+        confirmIcon={confirm === 'discard' ? <DeleteIcon /> : <StopIcon />}
         onSafe={() => setConfirm(null)}
         onConfirm={() => {
           const action = confirm;
@@ -444,6 +467,7 @@ function QuestionStep({
           </Typography>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
             <Button
+              endIcon={last ? <CheckIcon /> : <ArrowForwardIcon />}
               variant="contained"
               disabled={!ready || pending}
               onClick={() => onNext(text, feedback)}

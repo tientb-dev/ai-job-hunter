@@ -1,3 +1,10 @@
+import {
+  ArrowForwardIcon,
+  CheckIcon,
+  CloseIcon,
+  RefreshIcon,
+  SaveIcon,
+} from '../../components/icons';
 import { DialogCloseButton } from '../../components/DialogCloseButton';
 import { StatusChip } from '../../components/StatusChip';
 import { useNotify } from '../../components/useNotify';
@@ -174,6 +181,7 @@ export function DiscoveryCandidateReview({
             {error && <Alert severity="error">{error}</Alert>}
             {!loading && !candidate && (
               <Button
+                startIcon={<RefreshIcon />}
                 variant="outlined"
                 onClick={() => {
                   setLoading(true);
@@ -265,6 +273,7 @@ export function DiscoveryCandidateReview({
               {candidate.status === 'NEW' && (
                 <Button
                   variant="outlined"
+                  startIcon={<CheckIcon />}
                   disabled={busy}
                   onClick={() => void act('SEEN')}
                 >
@@ -275,13 +284,9 @@ export function DiscoveryCandidateReview({
                 <Button
                   disabled={busy}
                   variant="outlined"
-                  // Neutral until hovered: dismissing is a negative, not a primary, action.
-                  sx={{
-                    '&:hover': {
-                      color: 'error.main',
-                      borderColor: 'error.main',
-                    },
-                  }}
+                  // Neutral until hovered or focused: dismissing is a negative action.
+                  color="error"
+                  startIcon={<CloseIcon />}
                   onClick={() => void act('DISMISSED')}
                 >
                   Dismiss
@@ -292,11 +297,13 @@ export function DiscoveryCandidateReview({
                   component={Link}
                   to={`/jobs/${candidate.opportunityId}`}
                   variant="outlined"
+                  endIcon={<ArrowForwardIcon />}
                 >
                   Open in Jobs
                 </Button>
               ) : (
                 <Button
+                  startIcon={<SaveIcon />}
                   disabled={busy}
                   variant="contained"
                   onClick={() => void act('SAVE')}
@@ -361,6 +368,7 @@ export function DiscoveryCandidateReview({
           {conflict?.code === 'POSSIBLE_DUPLICATE' && (
             <Button
               variant="contained"
+              startIcon={<SaveIcon />}
               disabled={busy}
               onClick={() => void act('SAVE', true)}
             >

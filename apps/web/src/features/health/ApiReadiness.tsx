@@ -1,3 +1,4 @@
+import { RefreshIcon } from '../../components/icons';
 import { useEffect, useState } from 'react';
 import { Button, Chip, Stack } from '@mui/material';
 
@@ -77,6 +78,7 @@ export function ApiReadiness() {
         />
       </span>
       <Button
+        startIcon={<RefreshIcon />}
         variant="text"
         size="small"
         sx={{ minHeight: { xs: 44, md: 32 } }}

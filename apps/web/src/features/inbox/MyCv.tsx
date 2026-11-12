@@ -1,3 +1,4 @@
+import { RefreshIcon, UploadIcon } from '../../components/icons';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -167,6 +168,7 @@ export function MyCv() {
                   <>
                     Review status unavailable.
                     <Button
+                      startIcon={<RefreshIcon />}
                       size="small"
                       onClick={() => {
                         setProgress(undefined);
@@ -193,6 +195,7 @@ export function MyCv() {
           )}
           {loaded && (
             <Button
+              startIcon={<UploadIcon />}
               component="label"
               variant={cv ? 'outlined' : 'contained'}
               disabled={locked}
