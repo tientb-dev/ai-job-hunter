@@ -7,7 +7,7 @@ import {
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource, type EntityManager } from 'typeorm';
 import { randomUUID } from 'node:crypto';
-import { AI_CONFIG, type AiConfig } from '../ai/ai.config.js';
+import { AI_CONFIG, GEMINI_MODEL, type AiConfig } from '../ai/ai.config.js';
 import { OLLAMA_CONTEXT_PROFILE } from '../ai/ollama.context.js';
 import {
   JobMatchService,
@@ -95,6 +95,23 @@ LEFT JOIN LATERAL (
   LIMIT 1
 ) d ON true
 WHERE o."ownerId" = $1`;
+
+/** Drafts run only on the model whose prompts and guards were verified. */
+export function draftModelSupported(config: AiConfig): boolean {
+  return (
+    config.model ===
+    (config.provider === 'gemini' ? GEMINI_MODEL : OLLAMA_CONTEXT_PROFILE.model)
+  );
+}
+export function draftModelProvenance(config: AiConfig) {
+  return {
+    provider: config.provider,
+    model: config.model,
+    // Hosted models expose no digest; the pinned model name identifies them.
+    modelDigest:
+      config.provider === 'ollama' ? OLLAMA_CONTEXT_PROFILE.digest : null,
+  };
+}
 
 @Injectable()
 export class TailoredDraftService {
@@ -456,7 +473,7 @@ export class TailoredDraftService {
   }
   async generate(ownerId: string, jobId: string, body: unknown) {
     const request = this.request(body);
-    if (this.config.model !== OLLAMA_CONTEXT_PROFILE.model)
+    if (!draftModelSupported(this.config))
       throw new TailoredDraftError('CV_DRAFT_UNAVAILABLE');
     try {
       jobId = uuid(jobId);
@@ -508,9 +525,7 @@ export class TailoredDraftService {
       generated.document.review = initialReview(generated.document);
       const metadata = {
         pipelineVersion: 'p8.3-v1',
-        provider: 'ollama',
-        model: this.config.model,
-        modelDigest: OLLAMA_CONTEXT_PROFILE.digest,
+        ...draftModelProvenance(this.config),
         generatedAt: new Date().toISOString(),
         latencyMs: Math.round(performance.now() - began),
         batches: generated.measurements,

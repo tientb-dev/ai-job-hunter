@@ -73,11 +73,16 @@ on port 4173 is not the development API integration entry point.
 - `GET /api/v1/health/live` checks process liveness without querying PostgreSQL.
 - `GET /api/v1/health/ready` checks database readiness. It does not verify Ollama.
 
-The AI provider currently supports local Ollama only. Defaults are
+The default AI provider is local Ollama. Defaults are
 `http://127.0.0.1:11434`, `qwen3:4b`, and a 120000 ms timeout. Generation checks
 the pinned server/model profile in `apps/api/src/ai/ollama.context.ts`.
 Manual tracking does not require inference. No model installation or cloud
 fallback occurs automatically.
+
+Optional hosted provider (PR29): set `AI_PROVIDER=gemini` and `GEMINI_API_KEY`
+to use Google Gemini (`gemini-3.5-flash-lite`, the only accepted model). This
+sends prompts, including CV and job text, to Google; use synthetic data unless
+you accept that. Keep the key in an ignored env file, never in `.env.example`.
 
 ### Optional local speech-to-text (PR16)
 

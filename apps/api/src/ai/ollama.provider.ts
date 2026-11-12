@@ -66,7 +66,10 @@ export class OllamaProvider implements AiProvider {
       if (partial && !Number.isFinite(partial.deadline))
         throw new AiError('TIMEOUT');
       ensureLive();
-      if (this.config.model !== profile.model)
+      if (
+        this.config.provider !== 'ollama' ||
+        this.config.model !== profile.model
+      )
         throw new AiError('CONTEXT_UNVERIFIED');
       // Snapshot once: both passes must use the same prompt/schema/template behavior.
       const common = JSON.stringify({
