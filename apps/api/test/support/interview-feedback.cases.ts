@@ -28,6 +28,8 @@ export interface FeedbackCase {
     offTopic?: boolean;
     /** Lowercase text that must appear in some correction's "better". */
     correction?: string;
+    /** Over-filtering protection: a faithful answer's suggestion must be kept. */
+    suggestionKept?: boolean;
   };
   /**
    * Documented limitations per model (observed in a real run): any failure in
@@ -68,10 +70,6 @@ export const FEEDBACK_CASES: FeedbackCase[] = [
     questionText: 'How do you make an API idempotent?',
     answer: 'I use a idempotency key in header.',
     expect: { verdict: ['partly', 'yes'], correction: 'an idempotency' },
-    known: {
-      'qwen3:4b':
-        'Garbled suggestion ("I use an idemp: I use an…") passes the GARBLED guard (PR23 baseline).',
-    },
   },
   {
     id: 'jwt-very-short',
@@ -82,7 +80,7 @@ export const FEEDBACK_CASES: FeedbackCase[] = [
     expect: { verdict: ['partly', 'yes'] },
     known: {
       'qwen3:8b':
-        'Intermittent verdict "no" (PR22 run); "partly" in 3/3 PR23 runs, but the kept suggestion pads the answer with an invented claim ("properly signed and validated").',
+        'Intermittent verdict "no" for this on-topic one-liner (PR22 run; "partly" in PR23/PR24 runs). Its padded suggestion is withheld as TOO_LONG since PR24.',
     },
   },
   {
@@ -94,10 +92,6 @@ export const FEEDBACK_CASES: FeedbackCase[] = [
     answer:
       'Yes, I used Java with a thread pool in a payment service. It work fast and stable.',
     expect: { verdict: ['partly', 'yes'], correction: 'worked' },
-    known: {
-      'qwen3:4b':
-        'Content advice "You need to specify…" passes languageIssue (PR23 baseline).',
-    },
   },
   {
     id: 'offtopic-hobby',
@@ -106,10 +100,6 @@ export const FEEDBACK_CASES: FeedbackCase[] = [
     questionText: 'How would you secure a REST API?',
     answer: 'I like playing football on weekends with my friends.',
     expect: { verdict: ['no'], offTopic: true },
-    known: {
-      'qwen3:4b':
-        'Off-topic mainIssue ("The answer is not about…") is not English advice but passes languageIssue (PR23 baseline).',
-    },
   },
   {
     id: 'offtopic-salary',
@@ -135,10 +125,24 @@ export const FEEDBACK_CASES: FeedbackCase[] = [
     questionText: 'What is RabbitMQ used for?',
     answer: 'RabbitMQ is a database. We store user data in it.',
     expect: { verdict: ['partly', 'yes'] },
-    known: {
-      'qwen3:4b':
-        'Technical grading "You said RabbitMQ is a database, but it\'s a message broker" passes languageIssue (PR23 baseline).',
-    },
+  },
+  {
+    id: 'good-english-short',
+    mode: 'review',
+    question: tech({ kind: 'general' }),
+    questionText: 'What is a database index?',
+    answer:
+      'An index is a separate structure that helps the database find rows faster. It makes reads quicker, but writes become a little slower.',
+    expect: { verdict: ['yes'], suggestionKept: true },
+  },
+  {
+    id: 'run-on-restructure',
+    mode: 'review',
+    question: tech({ kind: 'hypothetical' }),
+    questionText: 'How would you debug a slow API endpoint?',
+    answer:
+      'first i check the logs and the response time then i look at the database queries because often the problem is a slow query and after that i add an index or cache if it is needed',
+    expect: { verdict: ['yes', 'partly'], suggestionKept: true },
   },
   {
     id: 'vi-express-strength',
@@ -220,6 +224,12 @@ export function qualityChecks(c: FeedbackCase, r: Response): CheckResult[] {
     out.push({
       name: 'off-topic withheld',
       ok: r.suggestionWithheld === 'OFF_TOPIC',
+    });
+  if (c.expect.suggestionKept)
+    out.push({
+      name: 'faithful suggestion kept',
+      ok: r.suggestion !== null,
+      detail: r.suggestionWithheld ?? undefined,
     });
   if (c.expect.correction)
     out.push({

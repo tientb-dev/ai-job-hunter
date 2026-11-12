@@ -1,5 +1,5 @@
 {
-  "note": "Genuine raw outputs from pnpm eval:feedback (local Ollama, temperature 0) on synthetic cases. Regenerate with --out after intentional guard changes.",
+  "note": "Genuine raw outputs from pnpm eval:feedback (local Ollama, temperature 0) on synthetic cases. Raw outputs are never edited; after intentional guard changes, re-derive `response` from `raw` and review the diff. PR24 added good-english-short and run-on-restructure (recorded at 1b637ff; prompts unchanged since 502014d).",
   "promptCommit": "502014d",
   "runs": [
     {
@@ -192,8 +192,8 @@
                 "better": "I use JWT tokens."
               }
             ],
-            "suggestion": "I use JWT tokens to secure my REST API. I make sure they are properly signed and validated.",
-            "suggestionWithheld": null,
+            "suggestion": null,
+            "suggestionWithheld": "TOO_LONG",
             "followUpQuestions": [
               "How do you handle token expiration and refresh?",
               "What measures do you take to prevent token theft?"
@@ -517,8 +517,8 @@
                 "better": "We use it to store user data."
               }
             ],
-            "suggestion": "I use RabbitMQ to store user data. It is a database. We store user data in it.",
-            "suggestionWithheld": null,
+            "suggestion": null,
+            "suggestionWithheld": "UNCLEAR",
             "followUpQuestions": [
               "What kind of data do you store in RabbitMQ?",
               "How does RabbitMQ help with data storage?"
@@ -534,6 +534,152 @@
               }
             ],
             "technicalNote": "Usually, RabbitMQ is not a database. It is a message broker that handles message passing between applications.",
+            "cvCheck": {
+              "status": "unavailable",
+              "notices": []
+            }
+          }
+        },
+        {
+          "id": "good-english-short",
+          "raw": {
+            "answersQuestion": "yes",
+            "mainIssue": "You can say 'helps the database find rows faster' more naturally as 'helps the database find rows more quickly'.",
+            "corrections": [
+              {
+                "original": "It makes reads quicker",
+                "better": "It makes reads more efficient"
+              }
+            ],
+            "suggestion": "I explain that an index is a separate structure that helps the database find rows more quickly. It makes reads more efficient, but writes become a little slower.",
+            "followUpQuestions": [
+              "Can you give an example of when an index would be useful?",
+              "What are some common types of database indexes?"
+            ],
+            "phrases": [
+              {
+                "text": "An index is a structure that helps the database find rows more quickly...",
+                "noteVi": "Giải thích ngắn gọn về mục đích của index"
+              },
+              {
+                "text": "It improves read performance but can slow down write operations...",
+                "noteVi": "So sánh hiệu suất đọc và ghi khi có index"
+              },
+              {
+                "text": "Indexes are used to speed up data retrieval...",
+                "noteVi": "Mô tả mục đích chính của index"
+              }
+            ],
+            "technicalNote": ""
+          },
+          "response": {
+            "contractVersion": "1",
+            "mode": "review",
+            "questionId": "jd-00000000-0000-4000-8000-000000000000",
+            "answersQuestion": "yes",
+            "mainIssue": "You can say 'helps the database find rows faster' more naturally as 'helps the database find rows more quickly'.",
+            "corrections": [
+              {
+                "original": "It makes reads quicker",
+                "better": "It makes reads more efficient"
+              }
+            ],
+            "suggestion": "I explain that an index is a separate structure that helps the database find rows more quickly. It makes reads more efficient, but writes become a little slower.",
+            "suggestionWithheld": null,
+            "followUpQuestions": [
+              "Can you give an example of when an index would be useful?",
+              "What are some common types of database indexes?"
+            ],
+            "phrases": [
+              {
+                "text": "An index is a structure that helps the database find rows more quickly...",
+                "noteVi": "Giải thích ngắn gọn về mục đích của index"
+              },
+              {
+                "text": "It improves read performance but can slow down write operations...",
+                "noteVi": "So sánh hiệu suất đọc và ghi khi có index"
+              },
+              {
+                "text": "Indexes are used to speed up data retrieval...",
+                "noteVi": "Mô tả mục đích chính của index"
+              }
+            ],
+            "technicalNote": null,
+            "cvCheck": {
+              "status": "unavailable",
+              "notices": []
+            }
+          }
+        },
+        {
+          "id": "run-on-restructure",
+          "raw": {
+            "answersQuestion": "yes",
+            "mainIssue": "You can make your answer more natural by saying 'I would first check the logs and the response time' instead of 'first I check the logs and the response time'.",
+            "corrections": [
+              {
+                "original": "first i check the logs and the response time",
+                "better": "I would first check the logs and the response time"
+              },
+              {
+                "original": "then i look at the database queries because often the problem is a slow query",
+                "better": "then I look at the database queries because often the problem is a slow query"
+              }
+            ],
+            "suggestion": "I would first check the logs and the response time. Then I look at the database queries because often the problem is a slow query. After that, I add an index or cache if it is needed.",
+            "followUpQuestions": [
+              "What tools do you use to analyze database queries?",
+              "How do you determine if the issue is with the database or the application code?"
+            ],
+            "phrases": [
+              {
+                "text": "I would start by checking the logs and response time...",
+                "noteVi": "Bắt đầu bằng cách kiểm tra log và thời gian phản hồi"
+              },
+              {
+                "text": "Next, I would look at the database queries...",
+                "noteVi": "Tiếp theo, kiểm tra các truy vấn cơ sở dữ liệu"
+              },
+              {
+                "text": "If needed, I would add an index or use caching...",
+                "noteVi": "Nếu cần, thêm chỉ mục hoặc sử dụng cache"
+              }
+            ],
+            "technicalNote": ""
+          },
+          "response": {
+            "contractVersion": "1",
+            "mode": "review",
+            "questionId": "jd-00000000-0000-4000-8000-000000000000",
+            "answersQuestion": "yes",
+            "mainIssue": "You can make your answer more natural by saying 'I would first check the logs and the response time' instead of 'first I check the logs and the response time'.",
+            "corrections": [
+              {
+                "original": "first i check the logs and the response time",
+                "better": "I would first check the logs and the response time"
+              }
+            ],
+            "suggestion": "I would first check the logs and the response time. Then I look at the database queries because often the problem is a slow query. After that, I add an index or cache if it is needed.",
+            "suggestionWithheld": null,
+            "followUpQuestions": [
+              "What tools do you use to analyze database queries?",
+              "How do you determine if the issue is with the database or the application code?"
+            ],
+            "phrases": [
+              {
+                "text": "I would start by checking the logs and response time...",
+                "noteVi": "Bắt đầu bằng cách kiểm tra log và thời gian phản hồi"
+              },
+              {
+                "text": "Next, I would look at the database queries...",
+                "noteVi": "Tiếp theo, kiểm tra các truy vấn cơ sở dữ liệu"
+              },
+              {
+                "text": "If needed, I would add an index or use caching...",
+                "noteVi": "Nếu cần, thêm chỉ mục hoặc sử dụng cache"
+              }
+            ],
+            "technicalNote": null,
             "cvCheck": {
               "status": "unavailable",
               "notices": []
@@ -757,8 +903,8 @@
                 "better": "I use an idempotency key in the header."
               }
             ],
-            "suggestion": "I use an idemp: I use an idempotency key in the header.",
-            "suggestionWithheld": null,
+            "suggestion": null,
+            "suggestionWithheld": "UNCLEAR",
             "followUpQuestions": [
               "How do you generate the idempotency key?",
               "What happens if the same key is used multiple times?"
@@ -872,7 +1018,7 @@
             "mode": "review",
             "questionId": "jd-00000000-0000-4000-8000-000000000000",
             "answersQuestion": "partly",
-            "mainIssue": "You need to specify what the feature was and how the thread pool handled concurrency",
+            "mainIssue": null,
             "corrections": [
               {
                 "original": "It work fast and stable",
@@ -926,7 +1072,7 @@
             "mode": "review",
             "questionId": "jd-00000000-0000-4000-8000-000000000000",
             "answersQuestion": "no",
-            "mainIssue": "The answer is not about securing a REST API; it's about playing football.",
+            "mainIssue": null,
             "corrections": [],
             "suggestion": null,
             "suggestionWithheld": "OFF_TOPIC",
@@ -979,7 +1125,7 @@
             "mode": "review",
             "questionId": "jd-00000000-0000-4000-8000-000000000000",
             "answersQuestion": "no",
-            "mainIssue": "The answer is about salary expectation, not the difference between process and thread",
+            "mainIssue": null,
             "corrections": [],
             "suggestion": null,
             "suggestionWithheld": "OFF_TOPIC",
@@ -1116,7 +1262,7 @@
             "mode": "review",
             "questionId": "jd-00000000-0000-4000-8000-000000000000",
             "answersQuestion": "partly",
-            "mainIssue": "You said RabbitMQ is a database, but it's a message broker, not a database.",
+            "mainIssue": null,
             "corrections": [],
             "suggestion": null,
             "suggestionWithheld": "CHANGED_MEANING",
@@ -1126,6 +1272,114 @@
             ],
             "phrases": [],
             "technicalNote": "Usually, RabbitMQ is a message broker, not a database. It handles messages between applications, not storing user data directly.",
+            "cvCheck": {
+              "status": "unavailable",
+              "notices": []
+            }
+          }
+        },
+        {
+          "id": "good-english-short",
+          "raw": {
+            "answersQuestion": "yes",
+            "mainIssue": "Your English is good",
+            "corrections": [],
+            "suggestion": "I think an index is a separate structure that helps the database find rows faster. It makes reads quicker but writes a bit slower.",
+            "followUpQuestions": [
+              "How does an index work exactly?",
+              "Can you give an example of when an index would be useful?"
+            ],
+            "phrases": [
+              {
+                "text": "What is a database index...",
+                "noteVi": "Câu hỏi về cơ sở dữ liệu"
+              },
+              {
+                "text": "An index helps the database...",
+                "noteVi": "Giúp cơ sở dữ liệu tìm nhanh"
+              }
+            ],
+            "technicalNote": ""
+          },
+          "response": {
+            "contractVersion": "1",
+            "mode": "review",
+            "questionId": "jd-00000000-0000-4000-8000-000000000000",
+            "answersQuestion": "yes",
+            "mainIssue": "Your English is good",
+            "corrections": [],
+            "suggestion": "I think an index is a separate structure that helps the database find rows faster. It makes reads quicker but writes a bit slower.",
+            "suggestionWithheld": null,
+            "followUpQuestions": [
+              "How does an index work exactly?",
+              "Can you give an example of when an index would be useful?"
+            ],
+            "phrases": [
+              {
+                "text": "What is a database index...",
+                "noteVi": "Câu hỏi về cơ sở dữ liệu"
+              },
+              {
+                "text": "An index helps the database...",
+                "noteVi": "Giúp cơ sở dữ liệu tìm nhanh"
+              }
+            ],
+            "technicalNote": null,
+            "cvCheck": {
+              "status": "unavailable",
+              "notices": []
+            }
+          }
+        },
+        {
+          "id": "run-on-restructure",
+          "raw": {
+            "answersQuestion": "partly",
+            "mainIssue": "You should specify what you check first (logs vs response time) and why you look at database queries",
+            "corrections": [
+              {
+                "original": "first i check the logs and the response time",
+                "better": "first, I check the logs and response time"
+              }
+            ],
+            "suggestion": "I check the logs and response time first. Then I look at the database queries because they often cause slow performance. If needed, I add an index or cache.",
+            "followUpQuestions": [
+              "What specific metrics do you check in the logs to identify slow API endpoints?",
+              "How do you determine if a database query is the bottleneck?"
+            ],
+            "phrases": [
+              {
+                "text": "What metrics do you check in the logs to find slow endpoints...",
+                "noteVi": "Điều gì bạn kiểm tra trong logs để tìm endpoint chậm..."
+              }
+            ],
+            "technicalNote": ""
+          },
+          "response": {
+            "contractVersion": "1",
+            "mode": "review",
+            "questionId": "jd-00000000-0000-4000-8000-000000000000",
+            "answersQuestion": "partly",
+            "mainIssue": null,
+            "corrections": [
+              {
+                "original": "first i check the logs and the response time",
+                "better": "first, I check the logs and response time"
+              }
+            ],
+            "suggestion": "I check the logs and response time first. Then I look at the database queries because they often cause slow performance. If needed, I add an index or cache.",
+            "suggestionWithheld": null,
+            "followUpQuestions": [
+              "What specific metrics do you check in the logs to identify slow API endpoints?",
+              "How do you determine if a database query is the bottleneck?"
+            ],
+            "phrases": [
+              {
+                "text": "What metrics do you check in the logs to find slow endpoints...",
+                "noteVi": "Điều gì bạn kiểm tra trong logs để tìm endpoint chậm..."
+              }
+            ],
+            "technicalNote": null,
             "cvCheck": {
               "status": "unavailable",
               "notices": []
