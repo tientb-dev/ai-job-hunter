@@ -220,6 +220,35 @@ test('detail defaults to overview, match stays mounted, application and JD edits
   expect(await screen.findByText('Inbox destination')).toBeVisible();
 });
 
+test('follow-up status resets to Pending on a new date and hides when the date is cleared', async () => {
+  const fetch = mockApi();
+  fetch.mockResolvedValueOnce(
+    Response.json({
+      ...row(),
+      status: 'APPLIED',
+      followUpDate: '2026-11-02',
+      followUpStatus: 'DONE',
+    }),
+  );
+  mount(`/jobs/${id}`);
+  await screen.findByRole('heading', { name: 'Synthetic engineer' });
+  tab('Application');
+  const status = () =>
+    screen.queryByRole('combobox', { name: 'Follow-up status' });
+  expect(status()).toHaveTextContent('Done');
+  fireEvent.change(screen.getByLabelText('Next follow-up date'), {
+    target: { value: '2026-11-09' },
+  });
+  expect(status()).toHaveTextContent('Pending');
+  fireEvent.change(screen.getByLabelText('Next follow-up date'), {
+    target: { value: '' },
+  });
+  expect(status()).toBeNull();
+  expect(screen.getByLabelText('Application status')).toHaveTextContent(
+    'APPLIED',
+  );
+});
+
 test('manual creation validates title and keeps fields after save failure', async () => {
   const fetch = mockApi();
   mount();
