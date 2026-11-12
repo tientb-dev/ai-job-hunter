@@ -105,6 +105,17 @@ asks 5–8 questions in a row. Progress is saved, so a refresh resumes. AI feedb
 is optional. Only the confirmed answer text and optional feedback are stored,
 never audio; finished interviews stay until you delete them.
 
+### Interview feedback regression suite (PR23)
+
+Shared synthetic cases live in `apps/api/test/support/interview-feedback.cases.ts`.
+The unit suite replays genuine recorded model outputs through the real guards
+(offline, in CI). For live model quality, run
+`pnpm --filter @ai-job-hunter/api eval:feedback [--model qwen3:8b] [--out file.json]`
+against local Ollama (refused under `CI`). Results are one indicative run per case;
+invented-fact detection is heuristic. Documented limitations print as `KNOWN`.
+To compare a prompt change, run it on a worktree of `main` and on the branch, then
+diff the `--out` files.
+
 ## Commands and verification
 
 | Command                                                                | Purpose                                      |

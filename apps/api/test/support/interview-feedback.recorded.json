@@ -1,0 +1,1238 @@
+{
+  "note": "Genuine raw outputs from pnpm eval:feedback (local Ollama, temperature 0) on synthetic cases. Regenerate with --out after intentional guard changes.",
+  "promptCommit": "502014d",
+  "runs": [
+    {
+      "model": "qwen3:8b",
+      "recordedAt": "2026-11-12T08:11:59.551Z",
+      "outputs": [
+        {
+          "id": "kafka-short-focus",
+          "raw": {
+            "answersQuestion": "partly",
+            "mainIssue": "You could phrase this more clearly to show you understand the problem and the solution.",
+            "corrections": [
+              {
+                "original": "We add more consumers to the consumer group so it is faster.",
+                "better": "We add more consumers to the consumer group to increase throughput."
+              }
+            ],
+            "suggestion": "We add more consumers to the consumer group to increase throughput. This helps balance the load and reduces the lag. We make sure the new consumers are part of the same group. This way, they can share the workload effectively.",
+            "followUpQuestions": [
+              "How do you ensure the new consumers are properly balanced with the existing ones?",
+              "What steps do you take to monitor the performance after adding more consumers?"
+            ],
+            "phrases": [
+              {
+                "text": "I would check the consumer lag and see if there are any bottlenecks...",
+                "noteVi": "Kiểm tra độ trễ và xác định điểm nghẽn"
+              },
+              {
+                "text": "I would scale the number of consumers to match the production rate...",
+                "noteVi": "Tăng số lượng consumer để phù hợp với tốc độ sản xuất"
+              },
+              {
+                "text": "I would ensure the consumers are evenly distributed across the partitions...",
+                "noteVi": "Đảm bảo consumer phân bổ đều trên các phân vùng"
+              }
+            ],
+            "technicalNote": "Usually, adding more consumers to a consumer group is a way to handle slow consumers, but it's important to ensure the consumers are properly balanced and the topic has enough partitions to support the scaling."
+          },
+          "response": {
+            "contractVersion": "1",
+            "mode": "review",
+            "questionId": "jd-00000000-0000-4000-8000-000000000000",
+            "answersQuestion": "partly",
+            "mainIssue": null,
+            "corrections": [
+              {
+                "original": "We add more consumers to the consumer group so it is faster.",
+                "better": "We add more consumers to the consumer group to increase throughput."
+              }
+            ],
+            "suggestion": null,
+            "suggestionWithheld": "CHANGED_FACTS",
+            "followUpQuestions": [
+              "How do you ensure the new consumers are properly balanced with the existing ones?",
+              "What steps do you take to monitor the performance after adding more consumers?"
+            ],
+            "phrases": [
+              {
+                "text": "I would check the consumer lag and see if there are any bottlenecks...",
+                "noteVi": "Kiểm tra độ trễ và xác định điểm nghẽn"
+              },
+              {
+                "text": "I would scale the number of consumers to match the production rate...",
+                "noteVi": "Tăng số lượng consumer để phù hợp với tốc độ sản xuất"
+              },
+              {
+                "text": "I would ensure the consumers are evenly distributed across the partitions...",
+                "noteVi": "Đảm bảo consumer phân bổ đều trên các phân vùng"
+              }
+            ],
+            "technicalNote": null,
+            "cvCheck": {
+              "status": "unavailable",
+              "notices": []
+            }
+          }
+        },
+        {
+          "id": "idempotency-short-grammar",
+          "raw": {
+            "answersQuestion": "yes",
+            "mainIssue": "You could phrase this more clearly.",
+            "corrections": [
+              {
+                "original": "I use a idempotency key in header.",
+                "better": "I use an idempotency key in the header."
+              }
+            ],
+            "suggestion": "I use an idempotency key in the header. It helps make the API idempotent. The key is sent with the request. The server checks the key to ensure the request is processed only once.",
+            "followUpQuestions": [
+              "How do you generate the idempotency key?",
+              "What happens if the same request is sent multiple times with the same key?"
+            ],
+            "phrases": [
+              {
+                "text": "I use an idempotency key to ensure the request is processed only once...",
+                "noteVi": "Giúp thể hiện rõ mục đích của khóa."
+              },
+              {
+                "text": "The server checks the key to prevent duplicate processing...",
+                "noteVi": "Giúp giải thích cách khóa hoạt động."
+              },
+              {
+                "text": "The key is generated based on the request details...",
+                "noteVi": "Giúp mô tả cách tạo khóa."
+              }
+            ],
+            "technicalNote": ""
+          },
+          "response": {
+            "contractVersion": "1",
+            "mode": "review",
+            "questionId": "jd-00000000-0000-4000-8000-000000000000",
+            "answersQuestion": "yes",
+            "mainIssue": "You could phrase this more clearly.",
+            "corrections": [
+              {
+                "original": "I use a idempotency key in header.",
+                "better": "I use an idempotency key in the header."
+              }
+            ],
+            "suggestion": null,
+            "suggestionWithheld": "CHANGED_FACTS",
+            "followUpQuestions": [
+              "How do you generate the idempotency key?",
+              "What happens if the same request is sent multiple times with the same key?"
+            ],
+            "phrases": [
+              {
+                "text": "I use an idempotency key to ensure the request is processed only once...",
+                "noteVi": "Giúp thể hiện rõ mục đích của khóa."
+              },
+              {
+                "text": "The server checks the key to prevent duplicate processing...",
+                "noteVi": "Giúp giải thích cách khóa hoạt động."
+              },
+              {
+                "text": "The key is generated based on the request details...",
+                "noteVi": "Giúp mô tả cách tạo khóa."
+              }
+            ],
+            "technicalNote": null,
+            "cvCheck": {
+              "status": "unavailable",
+              "notices": []
+            }
+          }
+        },
+        {
+          "id": "jwt-very-short",
+          "raw": {
+            "answersQuestion": "partly",
+            "mainIssue": "You should explain how you use JWT token, not just state you use it.",
+            "corrections": [
+              {
+                "original": "I use JWT token.",
+                "better": "I use JWT tokens."
+              }
+            ],
+            "suggestion": "I use JWT tokens to secure my REST API. I make sure they are properly signed and validated.",
+            "followUpQuestions": [
+              "How do you handle token expiration and refresh?",
+              "What measures do you take to prevent token theft?"
+            ],
+            "phrases": [
+              {
+                "text": "I use JWT tokens to secure the API...",
+                "noteVi": "Giải thích cách sử dụng JWT"
+              },
+              {
+                "text": "I make sure the tokens are properly signed and validated...",
+                "noteVi": "Mô tả quy trình xác thực"
+              },
+              {
+                "text": "I handle token expiration and refresh by...",
+                "noteVi": "Giải thích cách quản lý token"
+              }
+            ],
+            "technicalNote": "In general, JWT tokens are used for stateless authentication, but they should be used with HTTPS and proper validation to ensure security."
+          },
+          "response": {
+            "contractVersion": "1",
+            "mode": "review",
+            "questionId": "jd-00000000-0000-4000-8000-000000000000",
+            "answersQuestion": "partly",
+            "mainIssue": null,
+            "corrections": [
+              {
+                "original": "I use JWT token.",
+                "better": "I use JWT tokens."
+              }
+            ],
+            "suggestion": "I use JWT tokens to secure my REST API. I make sure they are properly signed and validated.",
+            "suggestionWithheld": null,
+            "followUpQuestions": [
+              "How do you handle token expiration and refresh?",
+              "What measures do you take to prevent token theft?"
+            ],
+            "phrases": [
+              {
+                "text": "I use JWT tokens to secure the API...",
+                "noteVi": "Giải thích cách sử dụng JWT"
+              },
+              {
+                "text": "I make sure the tokens are properly signed and validated...",
+                "noteVi": "Mô tả quy trình xác thực"
+              },
+              {
+                "text": "I handle token expiration and refresh by...",
+                "noteVi": "Giải thích cách quản lý token"
+              }
+            ],
+            "technicalNote": null,
+            "cvCheck": {
+              "status": "unavailable",
+              "notices": []
+            }
+          }
+        },
+        {
+          "id": "java-personal-grammar",
+          "raw": {
+            "answersQuestion": "yes",
+            "mainIssue": "You should say 'It worked fast and stable' instead of 'It work fast and stable'.",
+            "corrections": [
+              {
+                "original": "It work fast and stable",
+                "better": "It worked fast and stable"
+              }
+            ],
+            "suggestion": "I used Java with a thread pool in a payment service. It worked fast and stable.",
+            "followUpQuestions": [
+              "Can you explain how you chose the size of the thread pool?",
+              "Did you face any issues with thread contention or race conditions?"
+            ],
+            "phrases": [
+              {
+                "text": "I used Java to handle high concurrency by implementing a thread pool...",
+                "noteVi": "Cách trình bày rõ ràng về việc sử dụng thread pool"
+              },
+              {
+                "text": "The feature worked smoothly under high load because...",
+                "noteVi": "Giải thích lý do tại sao hệ thống hoạt động ổn định"
+              },
+              {
+                "text": "I made sure the system could handle many requests at the same time by...",
+                "noteVi": "Nhấn mạnh việc xử lý đồng thời"
+              }
+            ],
+            "technicalNote": ""
+          },
+          "response": {
+            "contractVersion": "1",
+            "mode": "review",
+            "questionId": "jd-00000000-0000-4000-8000-000000000000",
+            "answersQuestion": "yes",
+            "mainIssue": "You should say 'It worked fast and stable' instead of 'It work fast and stable'.",
+            "corrections": [
+              {
+                "original": "It work fast and stable",
+                "better": "It worked fast and stable"
+              }
+            ],
+            "suggestion": "I used Java with a thread pool in a payment service. It worked fast and stable.",
+            "suggestionWithheld": null,
+            "followUpQuestions": [
+              "Can you explain how you chose the size of the thread pool?",
+              "Did you face any issues with thread contention or race conditions?"
+            ],
+            "phrases": [
+              {
+                "text": "The feature worked smoothly under high load because...",
+                "noteVi": "Giải thích lý do tại sao hệ thống hoạt động ổn định"
+              },
+              {
+                "text": "I made sure the system could handle many requests at the same time by...",
+                "noteVi": "Nhấn mạnh việc xử lý đồng thời"
+              }
+            ],
+            "technicalNote": null,
+            "cvCheck": {
+              "status": "unavailable",
+              "notices": []
+            }
+          }
+        },
+        {
+          "id": "offtopic-hobby",
+          "raw": {
+            "answersQuestion": "no",
+            "mainIssue": "You didn't answer the question about securing a REST API. Let's talk about that.",
+            "corrections": [],
+            "suggestion": "I like playing football on weekends with my friends.",
+            "followUpQuestions": [],
+            "phrases": [
+              {
+                "text": "To secure a REST API, I would use HTTPS... ",
+                "noteVi": "Bắt đầu bằng cách nói về HTTPS"
+              },
+              {
+                "text": "I would also implement authentication and authorization... ",
+                "noteVi": "Nêu rõ về xác thực và ủy quyền"
+              },
+              {
+                "text": "Another thing I would do is validate all inputs... ",
+                "noteVi": "Nhấn mạnh vào việc kiểm tra đầu vào"
+              }
+            ],
+            "technicalNote": ""
+          },
+          "response": {
+            "contractVersion": "1",
+            "mode": "review",
+            "questionId": "jd-00000000-0000-4000-8000-000000000000",
+            "answersQuestion": "no",
+            "mainIssue": null,
+            "corrections": [],
+            "suggestion": null,
+            "suggestionWithheld": "OFF_TOPIC",
+            "followUpQuestions": [],
+            "phrases": [
+              {
+                "text": "To secure a REST API, I would use HTTPS...",
+                "noteVi": "Bắt đầu bằng cách nói về HTTPS"
+              },
+              {
+                "text": "I would also implement authentication and authorization...",
+                "noteVi": "Nêu rõ về xác thực và ủy quyền"
+              },
+              {
+                "text": "Another thing I would do is validate all inputs...",
+                "noteVi": "Nhấn mạnh vào việc kiểm tra đầu vào"
+              }
+            ],
+            "technicalNote": null,
+            "cvCheck": {
+              "status": "unavailable",
+              "notices": []
+            }
+          }
+        },
+        {
+          "id": "offtopic-salary",
+          "raw": {
+            "answersQuestion": "no",
+            "mainIssue": "You didn't answer the question. Please explain the difference between a process and a thread.",
+            "corrections": [],
+            "suggestion": "I didn't answer the question. I should explain the difference between a process and a thread.",
+            "followUpQuestions": [
+              "Can you explain what a process is?",
+              "Can you explain what a thread is?"
+            ],
+            "phrases": [
+              {
+                "text": "A process is a program in execution, and a thread is a lightweight sub-process...",
+                "noteVi": "Giải thích cơ bản về tiến trình và luồng"
+              },
+              {
+                "text": "A process has its own memory space, while a thread shares memory with other threads in the",
+                "noteVi": "So sánh không gian bộ nhớ"
+              },
+              {
+                "text": "A thread is part of a process and can share resources with other threads in the same",
+                "noteVi": "Mối quan hệ giữa tiến trình và luồng"
+              }
+            ],
+            "technicalNote": ""
+          },
+          "response": {
+            "contractVersion": "1",
+            "mode": "review",
+            "questionId": "jd-00000000-0000-4000-8000-000000000000",
+            "answersQuestion": "no",
+            "mainIssue": null,
+            "corrections": [],
+            "suggestion": null,
+            "suggestionWithheld": "OFF_TOPIC",
+            "followUpQuestions": [
+              "Can you explain what a process is?",
+              "Can you explain what a thread is?"
+            ],
+            "phrases": [
+              {
+                "text": "A process is a program in execution, and a thread is a lightweight sub-process...",
+                "noteVi": "Giải thích cơ bản về tiến trình và luồng"
+              }
+            ],
+            "technicalNote": null,
+            "cvCheck": {
+              "status": "unavailable",
+              "notices": []
+            }
+          }
+        },
+        {
+          "id": "good-complete",
+          "raw": {
+            "answersQuestion": "yes",
+            "mainIssue": "You could say this more clearly and naturally.",
+            "corrections": [
+              {
+                "original": "I would use HTTPS for every request and require a JWT access token.",
+                "better": "I would use HTTPS for all requests and require a JWT access token."
+              },
+              {
+                "original": "I would check permissions on the server for each endpoint",
+                "better": "I would check permissions on the server for each endpoint."
+              }
+            ],
+            "suggestion": "I would use HTTPS for all requests and require a JWT access token. I would check permissions on the server for each endpoint. I would add rate limiting to stop abuse.",
+            "followUpQuestions": [
+              "How would you handle invalid or expired tokens?",
+              "What would you do if someone tried to brute force your rate limiting?"
+            ],
+            "phrases": [
+              {
+                "text": "I would use HTTPS to encrypt data in transit...",
+                "noteVi": "Bảo mật dữ liệu khi truyền qua mạng"
+              },
+              {
+                "text": "I would require a token to authenticate requests...",
+                "noteVi": "Kiểm tra xác thực người dùng"
+              },
+              {
+                "text": "I would add rate limiting to prevent abuse...",
+                "noteVi": "Ngăn chặn hành vi xấu"
+              }
+            ],
+            "technicalNote": ""
+          },
+          "response": {
+            "contractVersion": "1",
+            "mode": "review",
+            "questionId": "jd-00000000-0000-4000-8000-000000000000",
+            "answersQuestion": "yes",
+            "mainIssue": "You could say this more clearly and naturally.",
+            "corrections": [
+              {
+                "original": "I would use HTTPS for every request and require a JWT access token.",
+                "better": "I would use HTTPS for all requests and require a JWT access token."
+              },
+              {
+                "original": "I would check permissions on the server for each endpoint",
+                "better": "I would check permissions on the server for each endpoint."
+              }
+            ],
+            "suggestion": "I would use HTTPS for all requests and require a JWT access token. I would check permissions on the server for each endpoint. I would add rate limiting to stop abuse.",
+            "suggestionWithheld": null,
+            "followUpQuestions": [
+              "How would you handle invalid or expired tokens?",
+              "What would you do if someone tried to brute force your rate limiting?"
+            ],
+            "phrases": [
+              {
+                "text": "I would use HTTPS to encrypt data in transit...",
+                "noteVi": "Bảo mật dữ liệu khi truyền qua mạng"
+              },
+              {
+                "text": "I would require a token to authenticate requests...",
+                "noteVi": "Kiểm tra xác thực người dùng"
+              },
+              {
+                "text": "I would add rate limiting to prevent abuse...",
+                "noteVi": "Ngăn chặn hành vi xấu"
+              }
+            ],
+            "technicalNote": null,
+            "cvCheck": {
+              "status": "unavailable",
+              "notices": []
+            }
+          }
+        },
+        {
+          "id": "wrong-tech-claim",
+          "raw": {
+            "answersQuestion": "partly",
+            "mainIssue": "You should explain what RabbitMQ does, not just what it is.",
+            "corrections": [
+              {
+                "original": "We store user data in it.",
+                "better": "We use it to store user data."
+              }
+            ],
+            "suggestion": "I use RabbitMQ to store user data. It is a database. We store user data in it.",
+            "followUpQuestions": [
+              "What kind of data do you store in RabbitMQ?",
+              "How does RabbitMQ help with data storage?"
+            ],
+            "phrases": [
+              {
+                "text": "RabbitMQ is used for... ",
+                "noteVi": "Bắt đầu câu trả lời bằng cách nói rõ mục đích chính của RabbitMQ."
+              },
+              {
+                "text": "It helps with... ",
+                "noteVi": "Giải thích cách RabbitMQ hỗ trợ trong việc xử lý dữ liệu."
+              },
+              {
+                "text": "We use it to... ",
+                "noteVi": "Mô tả cách ứng dụng RabbitMQ trong thực tế."
+              }
+            ],
+            "technicalNote": "Usually, RabbitMQ is not a database. It is a message broker that handles message passing between applications."
+          },
+          "response": {
+            "contractVersion": "1",
+            "mode": "review",
+            "questionId": "jd-00000000-0000-4000-8000-000000000000",
+            "answersQuestion": "partly",
+            "mainIssue": null,
+            "corrections": [
+              {
+                "original": "We store user data in it.",
+                "better": "We use it to store user data."
+              }
+            ],
+            "suggestion": "I use RabbitMQ to store user data. It is a database. We store user data in it.",
+            "suggestionWithheld": null,
+            "followUpQuestions": [
+              "What kind of data do you store in RabbitMQ?",
+              "How does RabbitMQ help with data storage?"
+            ],
+            "phrases": [
+              {
+                "text": "It helps with...",
+                "noteVi": "Giải thích cách RabbitMQ hỗ trợ trong việc xử lý dữ liệu."
+              },
+              {
+                "text": "We use it to...",
+                "noteVi": "Mô tả cách ứng dụng RabbitMQ trong thực tế."
+              }
+            ],
+            "technicalNote": "Usually, RabbitMQ is not a database. It is a message broker that handles message passing between applications.",
+            "cvCheck": {
+              "status": "unavailable",
+              "notices": []
+            }
+          }
+        },
+        {
+          "id": "vi-express-strength",
+          "raw": {
+            "suggestion": "My biggest strength is learning quickly. I taught myself React in 2 weeks.",
+            "followUpQuestions": [
+              "Can you tell me about a time when your quick learning helped your team?",
+              "How do you stay updated with new technologies?"
+            ],
+            "phrases": [
+              {
+                "text": "I'm good at learning new things quickly... ",
+                "noteVi": "nhanh học"
+              },
+              {
+                "text": "I can pick up new skills fast... ",
+                "noteVi": "học nhanh"
+              },
+              {
+                "text": "I learned React on my own in 2 weeks... ",
+                "noteVi": "tự học React"
+              }
+            ],
+            "technicalNote": ""
+          },
+          "response": {
+            "contractVersion": "1",
+            "mode": "express",
+            "questionId": "hr-strengths-01",
+            "answersQuestion": null,
+            "mainIssue": null,
+            "corrections": [],
+            "suggestion": "My biggest strength is learning quickly. I taught myself React in 2 weeks.",
+            "suggestionWithheld": null,
+            "followUpQuestions": [
+              "Can you tell me about a time when your quick learning helped your team?",
+              "How do you stay updated with new technologies?"
+            ],
+            "phrases": [
+              {
+                "text": "I'm good at learning new things quickly...",
+                "noteVi": "nhanh học"
+              },
+              {
+                "text": "I can pick up new skills fast...",
+                "noteVi": "học nhanh"
+              }
+            ],
+            "technicalNote": null,
+            "cvCheck": {
+              "status": "unavailable",
+              "notices": []
+            }
+          }
+        },
+        {
+          "id": "vi-express-kafka",
+          "raw": {
+            "suggestion": "I would check the consumer lag first. Then I would increase the number of partitions and consumers.",
+            "followUpQuestions": [
+              "What tools do you use to monitor consumer lag?",
+              "How do you decide when to increase the number of partitions?"
+            ],
+            "phrases": [
+              {
+                "text": "I would start by checking the consumer lag... ",
+                "noteVi": "kiểm tra consumer lag"
+              },
+              {
+                "text": "Then I would increase the number of partitions and consumers... ",
+                "noteVi": "tăng số partition và consumer"
+              },
+              {
+                "text": "I would make sure the number of consumers matches the number of partitions... ",
+                "noteVi": "số consumer và partition"
+              }
+            ],
+            "technicalNote": ""
+          },
+          "response": {
+            "contractVersion": "1",
+            "mode": "express",
+            "questionId": "jd-00000000-0000-4000-8000-000000000000",
+            "answersQuestion": null,
+            "mainIssue": null,
+            "corrections": [],
+            "suggestion": "I would check the consumer lag first. Then I would increase the number of partitions and consumers.",
+            "suggestionWithheld": null,
+            "followUpQuestions": [
+              "What tools do you use to monitor consumer lag?",
+              "How do you decide when to increase the number of partitions?"
+            ],
+            "phrases": [
+              {
+                "text": "I would start by checking the consumer lag...",
+                "noteVi": "kiểm tra consumer lag"
+              },
+              {
+                "text": "Then I would increase the number of partitions and consumers...",
+                "noteVi": "tăng số partition và consumer"
+              },
+              {
+                "text": "I would make sure the number of consumers matches the number of partitions...",
+                "noteVi": "số consumer và partition"
+              }
+            ],
+            "technicalNote": null,
+            "cvCheck": {
+              "status": "unavailable",
+              "notices": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "model": "qwen3:4b",
+      "recordedAt": "2026-11-12T08:12:35.303Z",
+      "outputs": [
+        {
+          "id": "kafka-short-focus",
+          "raw": {
+            "answersQuestion": "partly",
+            "mainIssue": "You need to explain how you diagnose consumer lag and keep processing reliable, not just add consumers",
+            "corrections": [
+              {
+                "original": "We add more consumers to the consumer group so it is faster.",
+                "better": "We add more consumers to the consumer group to speed up processing"
+              }
+            ],
+            "suggestion": "I would add more consumers to the consumer group to speed up processing.",
+            "followUpQuestions": [
+              "How do you check if the consumers are actually handling the messages faster?",
+              "What happens if adding more consumers doesn't solve the lag?"
+            ],
+            "phrases": [
+              {
+                "text": "How do you check if the consumers are handling messages faster...",
+                "noteVi": "Cách kiểm tra tốc độ xử lý của consumer"
+              },
+              {
+                "text": "What happens if adding more consumers doesn't fix the lag...",
+                "noteVi": "Sự kiện khi thêm consumer không giải quyết được lag"
+              }
+            ],
+            "technicalNote": ""
+          },
+          "response": {
+            "contractVersion": "1",
+            "mode": "review",
+            "questionId": "jd-00000000-0000-4000-8000-000000000000",
+            "answersQuestion": "partly",
+            "mainIssue": null,
+            "corrections": [
+              {
+                "original": "We add more consumers to the consumer group so it is faster.",
+                "better": "We add more consumers to the consumer group to speed up processing"
+              }
+            ],
+            "suggestion": "I would add more consumers to the consumer group to speed up processing.",
+            "suggestionWithheld": null,
+            "followUpQuestions": [
+              "How do you check if the consumers are actually handling the messages faster?",
+              "What happens if adding more consumers doesn't solve the lag?"
+            ],
+            "phrases": [
+              {
+                "text": "How do you check if the consumers are handling messages faster...",
+                "noteVi": "Cách kiểm tra tốc độ xử lý của consumer"
+              },
+              {
+                "text": "What happens if adding more consumers doesn't fix the lag...",
+                "noteVi": "Sự kiện khi thêm consumer không giải quyết được lag"
+              }
+            ],
+            "technicalNote": null,
+            "cvCheck": {
+              "status": "unavailable",
+              "notices": []
+            }
+          }
+        },
+        {
+          "id": "idempotency-short-grammar",
+          "raw": {
+            "answersQuestion": "partly",
+            "mainIssue": "Use 'an' before 'idempotency key' (article error)",
+            "corrections": [
+              {
+                "original": "I use a idempotency key in header.",
+                "better": "I use an idempotency key in the header."
+              }
+            ],
+            "suggestion": "I use an idemp: I use an idempotency key in the header.",
+            "followUpQuestions": [
+              "How do you generate the idempotency key?",
+              "What happens if the same key is used multiple times?"
+            ],
+            "phrases": [
+              {
+                "text": "How do you generate the idempotency key for each request...",
+                "noteVi": "Cách tạo khóa idempotency cho mỗi yêu cầu..."
+              }
+            ],
+            "technicalNote": ""
+          },
+          "response": {
+            "contractVersion": "1",
+            "mode": "review",
+            "questionId": "jd-00000000-0000-4000-8000-000000000000",
+            "answersQuestion": "partly",
+            "mainIssue": "Use 'an' before 'idempotency key' (article error)",
+            "corrections": [
+              {
+                "original": "I use a idempotency key in header.",
+                "better": "I use an idempotency key in the header."
+              }
+            ],
+            "suggestion": "I use an idemp: I use an idempotency key in the header.",
+            "suggestionWithheld": null,
+            "followUpQuestions": [
+              "How do you generate the idempotency key?",
+              "What happens if the same key is used multiple times?"
+            ],
+            "phrases": [
+              {
+                "text": "How do you generate the idempotency key for each request...",
+                "noteVi": "Cách tạo khóa idempotency cho mỗi yêu cầu..."
+              }
+            ],
+            "technicalNote": null,
+            "cvCheck": {
+              "status": "unavailable",
+              "notices": []
+            }
+          }
+        },
+        {
+          "id": "jwt-very-short",
+          "raw": {
+            "answersQuestion": "partly",
+            "mainIssue": "You need to explain what JWT token is and why it's used for security, not just state it.",
+            "corrections": [
+              {
+                "original": "I use JWT token.",
+                "better": "I use JWT tokens."
+              }
+            ],
+            "suggestion": "I use JWT tokens for authentication. They help secure the API by verifying user identity without storing passwords.",
+            "followUpQuestions": [
+              "How do you handle token expiration and refresh tokens?",
+              "What other security measures do you implement besides JWT?"
+            ],
+            "phrases": [
+              {
+                "text": "How do you handle token expiration and refresh tokens...",
+                "noteVi": "Cách xử lý token hết hạn và refresh token..."
+              },
+              {
+                "text": "What other security measures do you implement besides JWT...",
+                "noteVi": "Các biện pháp bảo mật khác ngoài JWT..."
+              }
+            ],
+            "technicalNote": "JWT tokens are commonly used for authentication in REST APIs, but they require additional security measures like token expiration and secure storage to prevent misuse."
+          },
+          "response": {
+            "contractVersion": "1",
+            "mode": "review",
+            "questionId": "jd-00000000-0000-4000-8000-000000000000",
+            "answersQuestion": "partly",
+            "mainIssue": null,
+            "corrections": [
+              {
+                "original": "I use JWT token.",
+                "better": "I use JWT tokens."
+              }
+            ],
+            "suggestion": null,
+            "suggestionWithheld": "CHANGED_MEANING",
+            "followUpQuestions": [
+              "How do you handle token expiration and refresh tokens?",
+              "What other security measures do you implement besides JWT?"
+            ],
+            "phrases": [
+              {
+                "text": "How do you handle token expiration and refresh tokens...",
+                "noteVi": "Cách xử lý token hết hạn và refresh token..."
+              },
+              {
+                "text": "What other security measures do you implement besides JWT...",
+                "noteVi": "Các biện pháp bảo mật khác ngoài JWT..."
+              }
+            ],
+            "technicalNote": null,
+            "cvCheck": {
+              "status": "unavailable",
+              "notices": []
+            }
+          }
+        },
+        {
+          "id": "java-personal-grammar",
+          "raw": {
+            "answersQuestion": "partly",
+            "mainIssue": "You need to specify what the feature was and how the thread pool handled concurrency",
+            "corrections": [
+              {
+                "original": "It work fast and stable",
+                "better": "It worked fast and stable"
+              }
+            ],
+            "suggestion": "I used Java with a thread pool in a payment service. It worked fast and stable.",
+            "followUpQuestions": [
+              "What specific feature did you implement with the thread pool?",
+              "How did you ensure the thread pool handled concurrency without causing issues?"
+            ],
+            "phrases": [
+              {
+                "text": "Can you describe the feature you built with Java thread pools...",
+                "noteVi": "Mô tả tính năng bạn xây dựng với thread pool Java..."
+              },
+              {
+                "text": "How did you handle concurrency in that feature?",
+                "noteVi": "Bạn xử lý đồng thời như thế nào trong tính năng đó?"
+              }
+            ],
+            "technicalNote": ""
+          },
+          "response": {
+            "contractVersion": "1",
+            "mode": "review",
+            "questionId": "jd-00000000-0000-4000-8000-000000000000",
+            "answersQuestion": "partly",
+            "mainIssue": "You need to specify what the feature was and how the thread pool handled concurrency",
+            "corrections": [
+              {
+                "original": "It work fast and stable",
+                "better": "It worked fast and stable"
+              }
+            ],
+            "suggestion": "I used Java with a thread pool in a payment service. It worked fast and stable.",
+            "suggestionWithheld": null,
+            "followUpQuestions": [
+              "What specific feature did you implement with the thread pool?",
+              "How did you ensure the thread pool handled concurrency without causing issues?"
+            ],
+            "phrases": [
+              {
+                "text": "How did you handle concurrency in that feature?",
+                "noteVi": "Bạn xử lý đồng thời như thế nào trong tính năng đó?"
+              }
+            ],
+            "technicalNote": null,
+            "cvCheck": {
+              "status": "unavailable",
+              "notices": []
+            }
+          }
+        },
+        {
+          "id": "offtopic-hobby",
+          "raw": {
+            "answersQuestion": "no",
+            "mainIssue": "The answer is not about securing a REST API; it's about playing football.",
+            "corrections": [],
+            "suggestion": "I like playing football on weekends with my friends.",
+            "followUpQuestions": [
+              "What security measures do you use for REST APIs?",
+              "Can you share one example of how you secure a REST API?"
+            ],
+            "phrases": [
+              {
+                "text": "What security measures do you use for REST APIs...",
+                "noteVi": "Cách bảo mật API REST bạn dùng"
+              },
+              {
+                "text": "Can you share one example of how you secure a REST API...",
+                "noteVi": "Ví dụ cụ thể bạn dùng để bảo mật API REST"
+              }
+            ],
+            "technicalNote": ""
+          },
+          "response": {
+            "contractVersion": "1",
+            "mode": "review",
+            "questionId": "jd-00000000-0000-4000-8000-000000000000",
+            "answersQuestion": "no",
+            "mainIssue": "The answer is not about securing a REST API; it's about playing football.",
+            "corrections": [],
+            "suggestion": null,
+            "suggestionWithheld": "OFF_TOPIC",
+            "followUpQuestions": [
+              "What security measures do you use for REST APIs?",
+              "Can you share one example of how you secure a REST API?"
+            ],
+            "phrases": [
+              {
+                "text": "What security measures do you use for REST APIs...",
+                "noteVi": "Cách bảo mật API REST bạn dùng"
+              },
+              {
+                "text": "Can you share one example of how you secure a REST API...",
+                "noteVi": "Ví dụ cụ thể bạn dùng để bảo mật API REST"
+              }
+            ],
+            "technicalNote": null,
+            "cvCheck": {
+              "status": "unavailable",
+              "notices": []
+            }
+          }
+        },
+        {
+          "id": "offtopic-salary",
+          "raw": {
+            "answersQuestion": "no",
+            "mainIssue": "The answer is about salary expectation, not the difference between process and thread",
+            "corrections": [],
+            "suggestion": "I think my salary expectation is around 2000 USD per month.",
+            "followUpQuestions": [
+              "What do you know about processes and threads?",
+              "Can you explain the difference between a process and a thread?"
+            ],
+            "phrases": [
+              {
+                "text": "What do you know about...",
+                "noteVi": "Bạn biết gì về..."
+              },
+              {
+                "text": "Can you explain...",
+                "noteVi": "Bạn có thể giải thích..."
+              }
+            ],
+            "technicalNote": ""
+          },
+          "response": {
+            "contractVersion": "1",
+            "mode": "review",
+            "questionId": "jd-00000000-0000-4000-8000-000000000000",
+            "answersQuestion": "no",
+            "mainIssue": "The answer is about salary expectation, not the difference between process and thread",
+            "corrections": [],
+            "suggestion": null,
+            "suggestionWithheld": "OFF_TOPIC",
+            "followUpQuestions": [
+              "What do you know about processes and threads?",
+              "Can you explain the difference between a process and a thread?"
+            ],
+            "phrases": [
+              {
+                "text": "What do you know about...",
+                "noteVi": "Bạn biết gì về..."
+              },
+              {
+                "text": "Can you explain...",
+                "noteVi": "Bạn có thể giải thích..."
+              }
+            ],
+            "technicalNote": null,
+            "cvCheck": {
+              "status": "unavailable",
+              "notices": []
+            }
+          }
+        },
+        {
+          "id": "good-complete",
+          "raw": {
+            "answersQuestion": "yes",
+            "mainIssue": "You have a good answer but the phrasing is a bit awkward. Try to say it more naturally.",
+            "corrections": [
+              {
+                "original": "I would use HTTPS for every request",
+                "better": "I would use HTTPS for all requests"
+              },
+              {
+                "original": "I would check permissions on the server for each endpoint",
+                "better": "I would check permissions for each endpoint on the server"
+              },
+              {
+                "original": "I would add rate limiting to stop abuse",
+                "better": "I would add rate limiting to prevent abuse"
+              }
+            ],
+            "suggestion": "I would use HTTPS for all requests. I would check permissions for each endpoint on the server. I would add rate limiting to prevent abuse.",
+            "followUpQuestions": [
+              "What specific rate limiting strategy do you use?",
+              "How do you handle token expiration?"
+            ],
+            "phrases": [
+              {
+                "text": "How do you handle authentication for each endpoint...",
+                "noteVi": "Cách xử lý xác thực cho từng endpoint..."
+              },
+              {
+                "text": "What rate limiting strategy do you use for high traffic...",
+                "noteVi": "Chính sách giới hạn tốc độ cho lưu lượng cao..."
+              }
+            ],
+            "technicalNote": ""
+          },
+          "response": {
+            "contractVersion": "1",
+            "mode": "review",
+            "questionId": "jd-00000000-0000-4000-8000-000000000000",
+            "answersQuestion": "yes",
+            "mainIssue": "You have a good answer but the phrasing is a bit awkward. Try to say it more naturally.",
+            "corrections": [
+              {
+                "original": "I would use HTTPS for every request",
+                "better": "I would use HTTPS for all requests"
+              },
+              {
+                "original": "I would check permissions on the server for each endpoint",
+                "better": "I would check permissions for each endpoint on the server"
+              },
+              {
+                "original": "I would add rate limiting to stop abuse",
+                "better": "I would add rate limiting to prevent abuse"
+              }
+            ],
+            "suggestion": "I would use HTTPS for all requests. I would check permissions for each endpoint on the server. I would add rate limiting to prevent abuse.",
+            "suggestionWithheld": null,
+            "followUpQuestions": [
+              "What specific rate limiting strategy do you use?",
+              "How do you handle token expiration?"
+            ],
+            "phrases": [
+              {
+                "text": "How do you handle authentication for each endpoint...",
+                "noteVi": "Cách xử lý xác thực cho từng endpoint..."
+              },
+              {
+                "text": "What rate limiting strategy do you use for high traffic...",
+                "noteVi": "Chính sách giới hạn tốc độ cho lưu lượng cao..."
+              }
+            ],
+            "technicalNote": null,
+            "cvCheck": {
+              "status": "unavailable",
+              "notices": []
+            }
+          }
+        },
+        {
+          "id": "wrong-tech-claim",
+          "raw": {
+            "answersQuestion": "partly",
+            "mainIssue": "You said RabbitMQ is a database, but it's a message broker, not a database.",
+            "corrections": [
+              {
+                "original": "RabbitMQ is a database",
+                "better": "RabbitMQ is a message broker"
+              }
+            ],
+            "suggestion": "I think RabbitMQ is a message broker, not a database. We store user data in it.",
+            "followUpQuestions": [
+              "What kind of data do you store in RabbitMQ?",
+              "How do you handle messages in RabbitMQ?"
+            ],
+            "phrases": [
+              {
+                "text": "What is RabbitMQ used for...",
+                "noteVi": "Câu hỏi về chức năng của RabbitMQ"
+              },
+              {
+                "text": "How do you use RabbitMQ for...",
+                "noteVi": "Cách dùng RabbitMQ cho..."
+              }
+            ],
+            "technicalNote": "Usually, RabbitMQ is a message broker, not a database. It handles messages between applications, not storing user data directly."
+          },
+          "response": {
+            "contractVersion": "1",
+            "mode": "review",
+            "questionId": "jd-00000000-0000-4000-8000-000000000000",
+            "answersQuestion": "partly",
+            "mainIssue": "You said RabbitMQ is a database, but it's a message broker, not a database.",
+            "corrections": [],
+            "suggestion": null,
+            "suggestionWithheld": "CHANGED_MEANING",
+            "followUpQuestions": [
+              "What kind of data do you store in RabbitMQ?",
+              "How do you handle messages in RabbitMQ?"
+            ],
+            "phrases": [],
+            "technicalNote": "Usually, RabbitMQ is a message broker, not a database. It handles messages between applications, not storing user data directly.",
+            "cvCheck": {
+              "status": "unavailable",
+              "notices": []
+            }
+          }
+        },
+        {
+          "id": "vi-express-strength",
+          "raw": {
+            "suggestion": "My biggest strength is learning fast. I taught myself React in two weeks.",
+            "followUpQuestions": [
+              "Can you tell me more about how you learned React?",
+              "How did learning React help your team?"
+            ],
+            "phrases": [
+              {
+                "text": "I learned something new in...",
+                "noteVi": "Tôi học nhanh"
+              },
+              {
+                "text": "I did X in Y time...",
+                "noteVi": "Tôi tự học React trong 2 tuần"
+              }
+            ],
+            "technicalNote": ""
+          },
+          "response": {
+            "contractVersion": "1",
+            "mode": "express",
+            "questionId": "hr-strengths-01",
+            "answersQuestion": null,
+            "mainIssue": null,
+            "corrections": [],
+            "suggestion": "My biggest strength is learning fast. I taught myself React in two weeks.",
+            "suggestionWithheld": null,
+            "followUpQuestions": [
+              "Can you tell me more about how you learned React?",
+              "How did learning React help your team?"
+            ],
+            "phrases": [
+              {
+                "text": "I learned something new in...",
+                "noteVi": "Tôi học nhanh"
+              },
+              {
+                "text": "I did X in Y time...",
+                "noteVi": "Tôi tự học React trong 2 tuần"
+              }
+            ],
+            "technicalNote": null,
+            "cvCheck": {
+              "status": "unavailable",
+              "notices": []
+            }
+          }
+        },
+        {
+          "id": "vi-express-kafka",
+          "raw": {
+            "suggestion": "I'd check the consumer lag first, then increase the number of partitions and the consumer.",
+            "followUpQuestions": [
+              "How do you know if the consumer lag is too high?",
+              "What happens if you increase the number of partitions?"
+            ],
+            "phrases": [
+              {
+                "text": "I check the lag first, then...",
+                "noteVi": "Tôi kiểm tra lag trước"
+              },
+              {
+                "text": "I increase the partitions and...",
+                "noteVi": "Tôi tăng số partition và..."
+              }
+            ],
+            "technicalNote": ""
+          },
+          "response": {
+            "contractVersion": "1",
+            "mode": "express",
+            "questionId": "jd-00000000-0000-4000-8000-000000000000",
+            "answersQuestion": null,
+            "mainIssue": null,
+            "corrections": [],
+            "suggestion": "I'd check the consumer lag first, then increase the number of partitions and the consumer.",
+            "suggestionWithheld": null,
+            "followUpQuestions": [
+              "How do you know if the consumer lag is too high?",
+              "What happens if you increase the number of partitions?"
+            ],
+            "phrases": [
+              {
+                "text": "I check the lag first, then...",
+                "noteVi": "Tôi kiểm tra lag trước"
+              },
+              {
+                "text": "I increase the partitions and...",
+                "noteVi": "Tôi tăng số partition và..."
+              }
+            ],
+            "technicalNote": null,
+            "cvCheck": {
+              "status": "unavailable",
+              "notices": []
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
