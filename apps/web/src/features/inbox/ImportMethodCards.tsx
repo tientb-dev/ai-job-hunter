@@ -1,3 +1,4 @@
+import { CheckIcon } from '../../components/icons';
 import {
   Box,
   CardActionArea,
@@ -101,11 +102,7 @@ export function ImportMethodCards({
                   {method.subtitle}
                 </Typography>
               </Box>
-              {value === method.value && (
-                <SvgIcon aria-hidden="true" color="primary">
-                  <path d="m9 16.2-4.2-4.2-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z" />
-                </SvgIcon>
-              )}
+              {value === method.value && <CheckIcon color="primary" />}
             </Stack>
           </CardActionArea>
         </Paper>

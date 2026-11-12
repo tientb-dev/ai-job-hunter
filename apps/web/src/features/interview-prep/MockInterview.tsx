@@ -1,3 +1,4 @@
+import { PlayIcon } from '../../components/icons';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
@@ -15,7 +16,7 @@ import { PageHeader } from '../../components/PageHeader';
 import { useNotify } from '../../components/useNotify';
 import { Feedback, Recorder } from './InterviewPrep';
 import { SessionSummary } from './SessionSummary';
-import { ConfirmDialog } from './ConfirmDialog';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { TranscriptPanel } from './Transcript';
 import { MAX_ANSWER_CHARS, PracticeError } from './interview-prep-api';
 import type { PracticeFeedback } from './interview-prep-api';
@@ -250,6 +251,7 @@ export function MockInterview() {
               <Button
                 variant="contained"
                 disabled={pending}
+                startIcon={<PlayIcon />}
                 onClick={() =>
                   void run(() =>
                     createSession(

@@ -275,13 +275,8 @@ export function DiscoveryCandidateReview({
                 <Button
                   disabled={busy}
                   variant="outlined"
-                  // Neutral until hovered: dismissing is a negative, not a primary, action.
-                  sx={{
-                    '&:hover': {
-                      color: 'error.main',
-                      borderColor: 'error.main',
-                    },
-                  }}
+                  // Neutral until hovered or focused: dismissing is a negative action.
+                  color="error"
                   onClick={() => void act('DISMISSED')}
                 >
                   Dismiss

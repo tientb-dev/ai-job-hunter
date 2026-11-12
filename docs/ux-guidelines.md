@@ -36,6 +36,10 @@ Use 20px icons for standard inline controls and 24px for illustrative import
 choices. Size icons at their use sites rather than globally resizing all MUI
 icons. Decorative icons are hidden from assistive technology; icon-only actions
 need an accessible name. A small icon does not imply a small interaction target.
+Shared glyphs live in `components/icons.tsx` (Material filled style, no icon
+package); reuse or add there rather than inlining SVG paths. Main navigation and
+key actions (add, discover, start, record/stop, back) carry a leading icon; do
+not add icons where the label alone is clear.
 
 ## Buttons and forms
 
@@ -48,8 +52,10 @@ have no raised shadow and keep ripple plus a visible keyboard focus outline.
 
 Dialog actions follow intent and risk rather than a fixed order. Keep the safe
 choice as the default focus and Escape behaviour. Destructive or negative choices
-(Discard, Dismiss) are neutral outlined buttons that turn red on hover, never the
-filled primary. Do not show the same action twice in one view (for example one
+(Discard, Dismiss) are neutral outlined buttons that turn red on hover and keyboard
+focus, never the filled primary: use `variant="outlined" color="error"`, which the
+theme renders this way. Use `ConfirmDialog` for two-choice confirmations; it
+emphasizes the safe action (contained) and gives it initial focus. Do not show the same action twice in one view (for example one
 "Open original job" link in the job header). Dismissible confirmation dialogs
 show a top-right X (`DialogCloseButton`, "Close dialog", 44px). X, Escape and the
 existing safe action behave identically, change nothing and return focus to the

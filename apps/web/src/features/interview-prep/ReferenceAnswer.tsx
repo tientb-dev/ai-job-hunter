@@ -3,11 +3,6 @@ import {
   Alert,
   Box,
   Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
   Paper,
   Stack,
   TextField,
@@ -15,7 +10,7 @@ import {
   ToggleButtonGroup,
   Typography,
 } from '@mui/material';
-import { DialogCloseButton } from '../../components/DialogCloseButton';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import {
   MAX_REFERENCE_ANSWER,
   answerLength,
@@ -161,31 +156,16 @@ function RemoveDialog({
   onRemove: () => void;
 }) {
   return (
-    <Dialog open={open} onClose={onKeep} aria-labelledby="remove-answer-title">
-      <DialogTitle id="remove-answer-title" sx={{ pr: 7 }}>
-        Remove prepared answer?
-        <DialogCloseButton onClick={onKeep} />
-      </DialogTitle>
-      <DialogContent>
-        <DialogContentText>
-          Your saved answer for this question will be removed. This can't be
-          undone. The question stays in the list as Not prepared.
-        </DialogContentText>
-      </DialogContent>
-      <DialogActions>
-        <Button variant="outlined" onClick={onKeep} autoFocus>
-          Keep answer
-        </Button>
-        <Button
-          variant="outlined"
-          color="inherit"
-          onClick={onRemove}
-          sx={{ '&:hover': { color: 'error.main', borderColor: 'error.main' } }}
-        >
-          Remove
-        </Button>
-      </DialogActions>
-    </Dialog>
+    <ConfirmDialog
+      open={open}
+      title="Remove prepared answer?"
+      text="Your saved answer for this question will be removed. This can't be undone. The question stays in the list as Not prepared."
+      safeLabel="Keep answer"
+      confirmLabel="Remove"
+      destructive
+      onSafe={onKeep}
+      onConfirm={onRemove}
+    />
   );
 }
 
@@ -202,45 +182,22 @@ export function UnsavedAnswerDialog({
   transcript?: boolean;
 }) {
   return (
-    <Dialog open={open} onClose={onStay} aria-labelledby="unsaved-answer-title">
-      <DialogTitle id="unsaved-answer-title" sx={{ pr: 7 }}>
-        {transcript
-          ? 'Discard your transcript?'
-          : 'Discard your unsaved answer?'}
-        <DialogCloseButton onClick={onStay} />
-      </DialogTitle>
-      <DialogContent>
-        <DialogContentText>
-          {transcript
-            ? "Your practice transcript isn't saved anywhere. Leaving this question clears it."
-            : "You changed your reference answer but didn't save it. Your saved answer, if any, stays as it was."}
-        </DialogContentText>
-      </DialogContent>
-      <DialogActions>
-        <Button
-          variant="contained"
-          onClick={onStay}
-          autoFocus
-          // Programmatic focus lands here, so :focus (not only focus-visible) shows the ring.
-          sx={(theme) => ({
-            '&:focus': {
-              outline: `2px solid ${theme.palette.primary.main}`,
-              outlineOffset: 2,
-            },
-          })}
-        >
-          Stay and edit
-        </Button>
-        <Button
-          variant="text"
-          color="inherit"
-          onClick={onDiscard}
-          sx={{ '&:hover': { color: 'error.main', borderColor: 'error.main' } }}
-        >
-          Discard changes
-        </Button>
-      </DialogActions>
-    </Dialog>
+    <ConfirmDialog
+      open={open}
+      title={
+        transcript ? 'Discard your transcript?' : 'Discard your unsaved answer?'
+      }
+      text={
+        transcript
+          ? "Your practice transcript isn't saved anywhere. Leaving this question clears it."
+          : "You changed your reference answer but didn't save it. Your saved answer, if any, stays as it was."
+      }
+      safeLabel="Stay and edit"
+      confirmLabel="Discard changes"
+      destructive
+      onSafe={onStay}
+      onConfirm={onDiscard}
+    />
   );
 }
 

@@ -1,3 +1,4 @@
+import { SearchIcon } from '../../components/icons';
 import { useNotify } from '../../components/useNotify';
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -110,6 +111,7 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
             variant="contained"
             disabled={busy || !stacks.length}
             onClick={() => void discover()}
+            startIcon={<SearchIcon />}
             sx={{ flexShrink: 0, minHeight: { xs: 44, sm: 36 } }}
           >
             Run discovery

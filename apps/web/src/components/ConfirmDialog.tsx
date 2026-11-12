@@ -1,4 +1,4 @@
-import { useRef, type FocusEvent } from 'react';
+import { useId, useRef, type FocusEvent, type ReactNode } from 'react';
 import {
   Button,
   Dialog,
@@ -7,11 +7,12 @@ import {
   DialogContentText,
   DialogTitle,
 } from '@mui/material';
-import { DialogCloseButton } from '../../components/DialogCloseButton';
+import { DialogCloseButton } from './DialogCloseButton';
 
 /**
- * Mock interview confirmations. The safe choice gets initial focus and is what
- * X and Escape do; the confirm action is outlined red when destructive.
+ * Two-choice confirmation. The safe choice is emphasized (contained), gets
+ * initial focus and is what X and Escape do. The confirm action is outlined;
+ * when destructive it is neutral with a red hover/focus (theme, color="error").
  */
 export function ConfirmDialog({
   open,
@@ -19,24 +20,34 @@ export function ConfirmDialog({
   text,
   safeLabel,
   confirmLabel,
-  destructive,
+  destructive = false,
   onSafe,
   onConfirm,
+  onExited,
 }: {
   open: boolean;
   title: string;
-  text: string;
+  /** A string is set as dialog text; other content renders as given. */
+  text: ReactNode;
   safeLabel: string;
   confirmLabel: string;
-  destructive: boolean;
+  destructive?: boolean;
   onSafe: () => void;
   onConfirm: () => void;
+  /** Runs after the close transition, e.g. to restore focus elsewhere. */
+  onExited?: () => void;
 }) {
+  const titleId = useId();
   const safe = useRef<HTMLButtonElement>(null);
-  // Same handoff as UnsavedJobGuard: after the focus trap focuses the surface.
+  // Let the modal's focus trap focus its surface first, then hand focus to the safe action.
   const handleFocus = (event: FocusEvent<HTMLElement>) => {
     const button = safe.current;
-    if (button && event.target !== button && event.target.contains(button))
+    if (
+      open &&
+      button &&
+      event.target !== button &&
+      event.target.contains(button)
+    )
       button.focus({ preventScroll: true });
   };
   return (
@@ -44,19 +55,24 @@ export function ConfirmDialog({
       open={open}
       onClose={onSafe}
       onFocus={handleFocus}
-      aria-labelledby="mock-confirm-title"
+      aria-labelledby={titleId}
+      slotProps={onExited ? { transition: { onExited } } : undefined}
     >
       <DialogCloseButton onClick={onSafe} />
-      <DialogTitle id="mock-confirm-title" sx={{ pr: 7 }}>
+      <DialogTitle id={titleId} sx={{ pr: 7 }}>
         {title}
       </DialogTitle>
       <DialogContent>
-        <DialogContentText>{text}</DialogContentText>
+        {typeof text === 'string' ? (
+          <DialogContentText>{text}</DialogContentText>
+        ) : (
+          text
+        )}
       </DialogContent>
       <DialogActions>
         <Button
           ref={safe}
-          variant="outlined"
+          variant="contained"
           onClick={onSafe}
           // Programmatic focus lands here, so :focus (not only focus-visible) shows the ring.
           sx={(theme) => ({
@@ -69,7 +85,7 @@ export function ConfirmDialog({
           {safeLabel}
         </Button>
         <Button
-          variant={destructive ? 'outlined' : 'contained'}
+          variant="outlined"
           color={destructive ? 'error' : 'primary'}
           onClick={onConfirm}
         >

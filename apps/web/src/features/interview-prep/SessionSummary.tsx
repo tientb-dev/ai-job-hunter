@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Alert, Button, Paper, Stack, Typography } from '@mui/material';
-import { ConfirmDialog } from './ConfirmDialog';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useNotify } from '../../components/useNotify';
 import {
   AnswerConflictError,

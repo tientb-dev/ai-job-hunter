@@ -274,7 +274,7 @@ test('unsaved link navigation, browser back, and refresh are guarded; stay retai
   await waitFor(() => expect(stay).toHaveFocus());
   // Stay is the primary action; Discard is neutral until hovered.
   expect(stay).toHaveClass('MuiButton-contained', 'MuiButton-colorPrimary');
-  expect(discard).toHaveClass('MuiButton-outlined', 'MuiButton-colorPrimary');
+  expect(discard).toHaveClass('MuiButton-outlined', 'MuiButton-colorError');
   expect(
     stay.compareDocumentPosition(discard) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();

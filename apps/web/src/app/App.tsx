@@ -1,4 +1,13 @@
 import { theme } from './theme';
+import {
+  CloseIcon,
+  DashboardIcon,
+  DescriptionIcon,
+  ExploreIcon,
+  ForumIcon,
+  MenuIcon,
+  WorkIcon,
+} from '../components/icons';
 import { DiscoverJobsPage } from '../features/inbox/DiscoverJobsPage';
 import { JobInbox } from '../features/inbox/JobInbox';
 import { JobEditor } from '../features/inbox/JobEditor';
@@ -10,7 +19,6 @@ import {
   Divider,
   Drawer,
   IconButton,
-  SvgIcon,
   useMediaQuery,
   Stack,
   Typography,
@@ -36,11 +44,11 @@ const UiAcceptancePreview = import.meta.env.DEV
   : null;
 
 const navigation = [
-  { label: 'Dashboard', path: '/dashboard' },
-  { label: 'Jobs', path: '/jobs' },
-  { label: 'Discover', path: '/discover' },
-  { label: 'My CV', path: '/cv' },
-  { label: 'Interview Prep', path: '/interview-prep' },
+  { label: 'Dashboard', path: '/dashboard', Icon: DashboardIcon },
+  { label: 'Jobs', path: '/jobs', Icon: WorkIcon },
+  { label: 'Discover', path: '/discover', Icon: ExploreIcon },
+  { label: 'My CV', path: '/cv', Icon: DescriptionIcon },
+  { label: 'Interview Prep', path: '/interview-prep', Icon: ForumIcon },
 ];
 export function App() {
   const [navigationOpen, setNavigationOpen] = useState(false);
@@ -66,9 +74,7 @@ export function App() {
             onClick={() => setNavigationOpen(false)}
             sx={{ width: 44, height: 44 }}
           >
-            <SvgIcon aria-hidden="true" sx={{ fontSize: 20 }}>
-              <path d="m6.4 5 5.6 5.6L17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4z" />
-            </SvgIcon>
+            <CloseIcon sx={{ fontSize: 20 }} />
           </IconButton>
         )}
       </Stack>
@@ -78,7 +84,7 @@ export function App() {
         aria-label="Main navigation"
         spacing={0.5}
       >
-        {navigation.map(({ label, path }) => (
+        {navigation.map(({ label, path, Icon }) => (
           <Button
             key={path}
             component={NavLink}
@@ -87,6 +93,7 @@ export function App() {
             end={path === '/interview-prep'}
             className={path === '/jobs' && jobPractice ? 'active' : undefined}
             onClick={() => setNavigationOpen(false)}
+            startIcon={<Icon />}
             sx={{
               justifyContent: 'flex-start',
               minHeight: 44,
@@ -207,9 +214,7 @@ export function App() {
                   height: 44,
                 }}
               >
-                <SvgIcon aria-hidden="true" sx={{ fontSize: 20 }}>
-                  <path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z" />
-                </SvgIcon>
+                <MenuIcon sx={{ fontSize: 20 }} />
               </IconButton>
               <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
                 AI Job Hunter

@@ -1,4 +1,5 @@
 import { PageHeader } from '../../components/PageHeader';
+import { AddIcon, OpenInNewIcon } from '../../components/icons';
 import { StatusChip } from '../../components/StatusChip';
 import { dueFollowUp, useLocalCalendarDate } from './follow-ups';
 import { useEffect, useState } from 'react';
@@ -8,7 +9,6 @@ import {
   Button,
   CircularProgress,
   IconButton,
-  SvgIcon,
   Tooltip,
   ToggleButton,
   ToggleButtonGroup,
@@ -74,7 +74,12 @@ export function JobInbox() {
         title="Jobs"
         description="Your opportunities, conversations, and next steps."
         actions={
-          <Button component={Link} to="/jobs/new" variant="contained">
+          <Button
+            component={Link}
+            to="/jobs/new"
+            variant="contained"
+            startIcon={<AddIcon />}
+          >
             Add job
           </Button>
         }
@@ -326,9 +331,7 @@ export function JobInbox() {
                                       gridRow: { xs: '1 / 3', sm: 1 },
                                     }}
                                   >
-                                    <SvgIcon sx={{ fontSize: 20 }}>
-                                      <path d="M14 3h7v7h-2V6.4l-9.3 9.3-1.4-1.4L17.6 5H14V3zM5 5h6v2H5v12h12v-6h2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />
-                                    </SvgIcon>
+                                    <OpenInNewIcon sx={{ fontSize: 20 }} />
                                   </IconButton>
                                 </Tooltip>
                               )}

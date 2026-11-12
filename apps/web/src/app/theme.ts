@@ -42,15 +42,34 @@ export const theme = createTheme({
             outlineOffset: 2,
           },
         }),
-        outlined: ({ theme }) => ({
-          borderColor: theme.palette.divider,
-          color: theme.palette.text.primary,
-          backgroundColor: theme.palette.background.paper,
-          '&:hover': {
-            borderColor: theme.palette.text.secondary,
-            backgroundColor: theme.palette.action.hover,
-          },
-        }),
+        // Neutral outline; color="error" marks a destructive action, which stays
+        // neutral at rest and turns red on hover and keyboard focus (ux-guidelines).
+        outlined: ({ theme, ownerState }) => {
+          const error = ownerState.color === 'error';
+          const danger = {
+            borderColor: theme.palette.error.main,
+            color: theme.palette.error.main,
+            backgroundColor: theme.palette.background.paper,
+          };
+          return {
+            borderColor: theme.palette.divider,
+            color: theme.palette.text.primary,
+            backgroundColor: theme.palette.background.paper,
+            '&:hover': error
+              ? danger
+              : {
+                  borderColor: theme.palette.text.secondary,
+                  backgroundColor: theme.palette.action.hover,
+                },
+            ...(error && {
+              '&.Mui-focusVisible': {
+                ...danger,
+                outline: `2px solid ${theme.palette.error.main}`,
+                outlineOffset: 2,
+              },
+            }),
+          };
+        },
         // Touch targets: at least 44px on phones, compact sizes from sm up.
         sizeSmall: ({ theme }) => ({
           minHeight: 32,

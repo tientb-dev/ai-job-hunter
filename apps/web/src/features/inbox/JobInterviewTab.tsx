@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { ExpandMoreIcon } from '../../components/icons';
 import { Link } from 'react-router-dom';
 import {
   Accordion,
@@ -15,7 +16,6 @@ import {
   LinearProgress,
   Paper,
   Stack,
-  SvgIcon,
   Typography,
 } from '@mui/material';
 import { DialogCloseButton } from '../../components/DialogCloseButton';
@@ -41,7 +41,6 @@ const REFRESH_CODES = new Set([
   'INTERVIEW_SET_OUTDATED',
   'INTERVIEW_JD_CHANGED',
 ]);
-const EXPAND = 'M16.59 8.59 12 13.17 7.41 8.59 6 10l6 6 6-6z';
 
 const when = (iso: string) =>
   new Date(iso).toLocaleString(undefined, {
@@ -460,11 +459,7 @@ export function JobInterviewTab({
       {previous.length > 0 && (
         <Accordion disableGutters variant="outlined">
           <AccordionSummary
-            expandIcon={
-              <SvgIcon aria-hidden="true">
-                <path d={EXPAND} />
-              </SvgIcon>
-            }
+            expandIcon={<ExpandMoreIcon />}
             aria-controls="previous-sets"
             id="previous-sets-header"
           >
@@ -484,11 +479,7 @@ export function JobInterviewTab({
               {previous.map((set) => (
                 <Accordion key={set.id} disableGutters variant="outlined">
                   <AccordionSummary
-                    expandIcon={
-                      <SvgIcon aria-hidden="true">
-                        <path d={EXPAND} />
-                      </SvgIcon>
-                    }
+                    expandIcon={<ExpandMoreIcon />}
                     aria-controls={`set-${set.id}`}
                     id={`set-${set.id}-header`}
                   >
