@@ -5,6 +5,7 @@ export const sources = [
   'Email',
   'Other',
 ] as const;
+export const followUpStatuses = ['PENDING', 'DONE', 'DISMISSED'] as const;
 export const statuses = [
   'SAVED',
   'CONTACTED',
@@ -94,6 +95,7 @@ export interface OpportunityInput {
   appliedDate: string | null;
   applicationChannel: string | null;
   followUpDate: string | null;
+  followUpStatus: (typeof followUpStatuses)[number];
 }
 export interface Opportunity extends OpportunityInput {
   discovery?: {
@@ -136,6 +138,7 @@ export const emptyOpportunity = (): OpportunityInput => ({
   appliedDate: null,
   applicationChannel: null,
   followUpDate: null,
+  followUpStatus: 'PENDING',
 });
 export async function opportunityRequest<T>(
   path = '',

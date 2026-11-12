@@ -24,6 +24,7 @@ export const STATUSES = [
   'REJECTED',
   'CLOSED',
 ] as const;
+export const FOLLOW_UP_STATUSES = ['PENDING', 'DONE', 'DISMISSED'] as const;
 @Entity({ schema: 'ai_job_hunter', name: 'opportunities' })
 export class Opportunity {
   @PrimaryGeneratedColumn('uuid') id!: string;
@@ -41,6 +42,8 @@ export class Opportunity {
   @Column({ type: 'varchar', length: 200, nullable: true })
   applicationChannel!: string | null;
   @Column({ type: 'date', nullable: true }) followUpDate!: string | null;
+  @Column({ type: 'varchar', length: 20, default: 'PENDING' })
+  followUpStatus!: (typeof FOLLOW_UP_STATUSES)[number];
   @Column({ type: 'text', default: '' }) agency!: string;
   @Column({ type: 'text', default: '' }) location!: string;
   @Column({ type: 'text', default: '' }) workMode!: string;

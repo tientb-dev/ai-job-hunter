@@ -36,7 +36,12 @@ export interface HomeSections {
 export function homeSections(rows: Opportunity[], today: string): HomeSections {
   const due = rows
     .flatMap((job) => {
-      const label = dueFollowUp(job.followUpDate, job.status, today);
+      const label = dueFollowUp(
+        job.followUpDate,
+        job.status,
+        today,
+        job.followUpStatus,
+      );
       return label ? [{ job, label }] : [];
     })
     // Oldest follow-up first; dueFollowUp guarantees a date here.
@@ -75,7 +80,11 @@ export function continueItems(
   return rows
     .flatMap((job) => {
       const fact = facts.get(job.id);
-      if (!fact || dueFollowUp(job.followUpDate, job.status, today)) return [];
+      if (
+        !fact ||
+        dueFollowUp(job.followUpDate, job.status, today, job.followUpStatus)
+      )
+        return [];
       const { draft } = fact;
       const action = nextJobAction({
         followUp: null,

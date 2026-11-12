@@ -8,8 +8,15 @@ export function dueFollowUp(
   date: string | null,
   status: string,
   today: string,
+  followUpStatus: string,
 ) {
-  if (!date || status === 'REJECTED' || status === 'CLOSED') return null;
+  if (
+    !date ||
+    followUpStatus !== 'PENDING' ||
+    status === 'REJECTED' ||
+    status === 'CLOSED'
+  )
+    return null;
   // Persisted dates are validated YYYY-MM-DD values. Never parse them as UTC.
   if (date < today) return 'Overdue';
   if (date === today) return 'Due today';

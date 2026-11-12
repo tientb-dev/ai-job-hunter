@@ -1,7 +1,7 @@
 import { validateImportReview } from './job-import.contract.js';
 import type { ImportField } from './job-import.contract.js';
 import { BadRequestException } from '@nestjs/common';
-import { SOURCES, STATUSES } from './opportunity.entity.js';
+import { FOLLOW_UP_STATUSES, SOURCES, STATUSES } from './opportunity.entity.js';
 export interface OpportunityInput {
   agency: string;
   location: string;
@@ -27,6 +27,7 @@ export interface OpportunityInput {
   appliedDate: string | null;
   applicationChannel: string | null;
   followUpDate: string | null;
+  followUpStatus: (typeof FOLLOW_UP_STATUSES)[number];
 }
 export function validDate(value: unknown): value is string {
   return (
@@ -52,6 +53,7 @@ export function validateOpportunity(
   const row = {
     appliedDate: null,
     applicationChannel: null,
+    followUpStatus: 'PENDING',
     company: '',
     agency: '',
     location: '',
@@ -90,6 +92,7 @@ export function validateOpportunity(
     'notes',
     'contactDates',
     'followUpDate',
+    'followUpStatus',
     'appliedDate',
     'applicationChannel',
   ];
@@ -147,7 +150,10 @@ export function validateOpportunity(
     row.contactDates.length > 100 ||
     !row.contactDates.every(validDate) ||
     new Set(row.contactDates).size !== row.contactDates.length ||
-    (row.followUpDate !== null && !validDate(row.followUpDate))
+    (row.followUpDate !== null && !validDate(row.followUpDate)) ||
+    !FOLLOW_UP_STATUSES.includes(
+      row.followUpStatus as (typeof FOLLOW_UP_STATUSES)[number],
+    )
   )
     return fail();
   return {

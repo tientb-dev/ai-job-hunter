@@ -270,6 +270,7 @@ export class OpportunitiesService {
     const inherited = {
       appliedDate: row.appliedDate,
       applicationChannel: row.applicationChannel,
+      followUpStatus: row.followUpStatus,
       company: row.company,
       agency: row.agency,
       location: row.location,
@@ -289,6 +290,10 @@ export class OpportunitiesService {
         ? { ...inherited, ...input }
         : input;
     const fields = validateOpportunity(editable, jdText);
+    // A new follow-up date is a new follow-up, whatever the client sent.
+    // Clearing the date keeps the status.
+    if (fields.followUpDate && fields.followUpDate !== row.followUpDate)
+      fields.followUpStatus = 'PENDING';
     Object.assign(row, fields, { jdText });
     if (document)
       Object.assign(row, {

@@ -58,14 +58,27 @@ test.each([
   ['2024-02-29', '2024-03-01', 'Overdue'],
   ['2024-03-01', '2024-02-29', null],
 ])('classifies %s relative to local day %s', (date, today, expected) => {
-  expect(dueFollowUp(date, 'APPLIED', today)).toBe(expected);
+  expect(dueFollowUp(date, 'APPLIED', today, 'PENDING')).toBe(expected);
 });
 
 test.each(['REJECTED', 'CLOSED'])(
   'excludes %s even with overdue or today dates',
   (status) => {
-    expect(dueFollowUp('2026-12-31', status, '2027-01-01')).toBeNull();
-    expect(dueFollowUp('2027-01-01', status, '2027-01-01')).toBeNull();
+    expect(
+      dueFollowUp('2026-12-31', status, '2027-01-01', 'PENDING'),
+    ).toBeNull();
+    expect(
+      dueFollowUp('2027-01-01', status, '2027-01-01', 'PENDING'),
+    ).toBeNull();
+  },
+);
+
+test.each(['DONE', 'DISMISSED'])(
+  'excludes %s follow-ups even when overdue',
+  (followUpStatus) => {
+    expect(
+      dueFollowUp('2026-12-31', 'APPLIED', '2027-01-01', followUpStatus),
+    ).toBeNull();
   },
 );
 
