@@ -35,6 +35,9 @@ export interface RequirementGroup {
   minimumYears?: number;
   // Named alternatives: one must be shown in work, never a bare skills list.
   demonstratedUse?: true;
+  // "Strong proficiency in at least one programming language such as …":
+  // professional use is PARTIAL; only a stated proficiency level is full credit.
+  languageProficiency?: true;
 }
 export interface ComponentEvidence {
   componentId: string;
@@ -177,6 +180,26 @@ export function requirementGroup(
       ),
       managedLanguage: true,
     };
+  const languageProficiency =
+    /^(?:(?:strong|solid|proven|advanced)\s+)?proficiency in at least one programming language such as (.+?)(?:,?\s+or\s+(?:equivalent|similar)(?:\s+[\p{L}-]+){0,2})?$/iu.exec(
+      text,
+    );
+  if (languageProficiency) {
+    const labels = languageProficiency[1]!
+      .split(/\s*,\s*|\s+or\s+/iu)
+      .map((label) => label.trim())
+      .filter(Boolean);
+    if (
+      labels.length >= 2 &&
+      labels.length <= 10 &&
+      !/\band\b/iu.test(languageProficiency[1]!) &&
+      labels.every((label) => /^[\w+#.-]{1,20}$/u.test(label))
+    )
+      return {
+        ...group('OR', labels, 'experience'),
+        languageProficiency: true,
+      };
+  }
   const named =
     /^(?:(?:strong|solid|proven|hands-on)\s+)?experience (?:working )?(?:with|in|using)\s+[\p{L} /-]{1,60}?\s+such as\s+(.+?)(?:,?\s+or\s+(?:equivalent|similar)(?:\s+[\p{L}-]+){0,2})?$/iu.exec(
       text,
@@ -385,6 +408,8 @@ function supports(
     if (!years || Number(years[1]) < group.minimumYears) return false;
   }
   if (group.managedLanguage) return supportsManagedLanguage(label, text);
+  if (group.languageProficiency)
+    return languageProficiencyDeclared(label, text);
   if (group.demonstratedUse)
     return (
       recoveryWork.test(text) &&
@@ -559,6 +584,45 @@ function databaseProfessionalUse(text: string): boolean {
     )
   );
 }
+
+// Full credit: an explicit prose declaration of the level for this language,
+// never a skills-list line ("Languages: Java").
+function languageProficiencyDeclared(label: string, text: string): boolean {
+  const name = escape(label);
+  return text
+    .split(/[\r\n\u2028\u2029]+/u)
+    .some(
+      (line) =>
+        !languageListLine.test(line.trim()) &&
+        new RegExp(
+          String.raw`\b(?:proficient|expert|advanced|strong proficiency)\s+(?:(?:in|with)\s+)?${name}(?![\w+#])|\b${name}\s+(?:expert|proficiency)\b`,
+          'iu',
+        ).test(line),
+    );
+}
+// PARTIAL: professional use of this language on a work line (not a skills
+// list, aspiration, coursework or AI-tool use). The level stays unverified.
+function languageProfessionalUse(label: string, text: string): boolean {
+  if (
+    negative(text) ||
+    uncertain(text) ||
+    aiToolUse.test(text) ||
+    /\b(?:will|would|want|wish|intend|aim|planning|hoping|goal|tutorial|courses?|academic|student|homework|hobby)\b/iu.test(
+      text,
+    )
+  )
+    return false;
+  return text
+    .split(/[\r\n\u2028\u2029]+/u)
+    .some(
+      (line) =>
+        mentions(label, line) &&
+        recoveryWork.test(line) &&
+        !languageListLine.test(line.trim()),
+    );
+}
+const languageListLine =
+  /^(?:(?:technical |programming )?skills|languages|programming languages|frameworks|backend|tools|tech stack)\s*[:—–-]/iu;
 
 // This policy is used only by the recognized Vietnamese database one-of
 // family. Ordinary use and bare skills lists cannot establish proficiency.
@@ -894,7 +958,16 @@ export function evaluateCoverage(
               quote.length <= 2000 && supports(component.label, quote, group),
           )
         : undefined;
+    // Only an explicit, non-negated proficiency declaration is recovered.
+    const languageRecovery =
+      allowRecovery && group.languageProficiency
+        ? all.find(
+            (quote) =>
+              quote.length <= 2000 && supports(component.label, quote, group),
+          )
+        : undefined;
     const recovered =
+      languageRecovery ??
       demonstratedRecovery ??
       managedRecovery ??
       proficiencyRecovery ??
@@ -1006,11 +1079,20 @@ export function evaluateCoverage(
         kind: active(usedQuote) ? 'experience' : 'mention',
         cvQuote: usedQuote,
       });
+    if (group.languageProficiency && !positive) {
+      const use = [...quotes, ...(allowRecovery ? all : [])].find(
+        (quote) =>
+          quote.length <= 2000 &&
+          languageProfessionalUse(component.label, quote),
+      );
+      if (use) observations.push({ kind: 'experience', cvQuote: use });
+    }
     const work = observations.find((item) => item.kind === 'experience');
     const partial =
-      group.context === 'proficiency' &&
-      !!work &&
-      databaseProfessionalUse(work.cvQuote);
+      (group.context === 'proficiency' &&
+        !!work &&
+        databaseProfessionalUse(work.cvQuote)) ||
+      (!!group.languageProficiency && !!work);
     // Work contradicts a denial of use/development responsibility, but not a
     // disclaimer of proficiency or database-administration responsibility.
     const deniedWork = negatives.some(
@@ -1064,7 +1146,7 @@ export function evaluateCoverage(
       : group.mode === 'OR'
         ? supported > 0
           ? 1
-          : group.context === 'proficiency' &&
+          : (group.context === 'proficiency' || group.languageProficiency) &&
               components.some((item) => item.status === 'PARTIAL')
             ? 0.5
             : 0
@@ -1096,11 +1178,15 @@ export function evaluateCoverage(
         ? 'Compound meaning needs review.'
         : conflict
           ? 'Contradictory CV statements need review.'
-          : group.context === 'proficiency' && credit < 1
-            ? proficiencyReason
-            : group.personalDelivery && !credit
-              ? 'Personal delivery beyond prototype is not evidenced.'
-              : 'Review the selected component evidence.',
+          : group.languageProficiency && credit < 1
+            ? credit > 0
+              ? 'Professional use of a listed language is evidenced; proficiency at the requested level remains unverified.'
+              : 'Proficiency in one listed language is not evidenced; a skills list or name alone does not establish it.'
+            : group.context === 'proficiency' && credit < 1
+              ? proficiencyReason
+              : group.personalDelivery && !credit
+                ? 'Personal delivery beyond prototype is not evidenced.'
+                : 'Review the selected component evidence.',
   };
 }
 

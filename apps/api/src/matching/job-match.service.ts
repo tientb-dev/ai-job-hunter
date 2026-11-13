@@ -11,6 +11,7 @@ import {
   type SavedCvAssessment,
 } from './match-context.js';
 import { CvMatchRecord } from './cv-match.entity.js';
+import { evidenceSummary } from './cv-match.summary.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { AiError } from '../ai/ai.errors.js';
 import { CvMatchError } from './cv-match.error.js';
@@ -50,6 +51,7 @@ import {
 import {
   emitMatchCompletion,
   emitMatchFailure,
+  emitMatchEvidenceSummary,
   type MatchFailureTrace,
 } from './cv-match.diagnostics.js';
 import { AI_CONFIG, type AiConfig } from '../ai/ai.config.js';
@@ -408,13 +410,16 @@ export class JobMatchService {
         }
       }
       trace.stage = 'VALIDATION';
+      // Gemini schemas carry no passage enums; enforce the same passages here.
+      const allowed = gemini
+        ? new Set(matchQuoteChoices(cv.text, canonical))
+        : undefined;
       const verified = validateMatchAssessment(
         proposals,
         cv.text,
         jd,
         canonical,
-        // Gemini schemas carry no passage enums; enforce the same passages here.
-        gemini ? new Set(matchQuoteChoices(cv.text, canonical)) : undefined,
+        allowed,
       );
       trace.stage = 'SOURCE_VERIFICATION';
       const latestCv = await this.cv();
@@ -455,6 +460,16 @@ export class JobMatchService {
           analyzedAt,
         });
       });
+      emitMatchEvidenceSummary(() =>
+        evidenceSummary(
+          proposals,
+          verified,
+          result,
+          cv.text,
+          canonical,
+          allowed,
+        ),
+      );
       return {
         ...result,
         matchId,
