@@ -169,10 +169,17 @@ C/C++ build and is meant for technical testers.
 
 ## 7. Test with synthetic data
 
-The CV upload accepts **PDF or DOCX only**. A ready-made file with the sample CV
-below is in the repository:
-[`docs/beta-samples/synthetic-cv.docx`](beta-samples/synthetic-cv.docx). In WSL,
-you can open its folder from Windows with `explorer.exe docs/beta-samples`.
+The CV upload accepts **PDF or DOCX only**. Ready-made files with the sample CV
+below are in [`docs/beta-samples`](beta-samples). In WSL, you can open that
+folder from Windows with `explorer.exe docs/beta-samples`.
+
+| Scenario                                       | Files (same content in each format)                     |
+| ---------------------------------------------- | ------------------------------------------------------- |
+| A — main sample (the CV below)                 | `synthetic-cv.docx`, `synthetic-cv.pdf`                 |
+| B — states 4 years with Node.js and TypeScript | `synthetic-cv-4-years.docx`, `synthetic-cv-4-years.pdf` |
+
+Scenario B is identical except for its summary line:
+`Backend developer with 4 years of professional experience with Node.js and TypeScript.`
 
 **Sample CV (fictional):**
 
@@ -219,9 +226,20 @@ Steps:
 
 1. **Add job** → paste the sample job description → **Extract with AI** →
    review and **Save**.
-2. Open **My CV** → upload `docs/beta-samples/synthetic-cv.docx` → save it.
-3. Open the saved job → **CV Match** → **Analyze CV Match**. Expect Node.js,
-   TypeScript and PostgreSQL to be matched and Kubernetes to be missing.
+2. Open **My CV** → upload `docs/beta-samples/synthetic-cv.docx` (or the `.pdf`)
+   → save it.
+3. Open the saved job → **CV Match** → **Analyze CV Match**. Expected with
+   Scenario A:
+   - **3+ years of experience with Node.js and TypeScript** shows **Unknown**
+     with no credit. The CV shows Node.js and TypeScript being used, but it
+     does not state 3+ years with them, so each one shows its CV passage with
+     a note that use is evidenced but the 3+ years is not established. This
+     is intended: years are never inferred from job dates or the summary.
+   - PostgreSQL is usually **Matched** and Kubernetes usually **Unknown**.
+     These come from the AI's judgement, so results can vary between runs.
+   - Optional: save a Scenario B file as your CV and analyze again. The Node.js
+     and TypeScript requirement should usually become **Matched**, but this
+     depends on the AI quoting the summary line, so it is not guaranteed.
 4. Optional: **Improve CV** → review the source CV → generate a tailored draft →
    save, approve and **Download DOCX**.
 5. Optional: **Interview Prep** → practise one question by typing an answer.
