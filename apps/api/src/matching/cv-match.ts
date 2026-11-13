@@ -127,13 +127,13 @@ export function matchJobText(job: Opportunity): string {
       .filter(
         (item) => item.category === 'skill' && item.priority === 'required',
       )
-      .map((item) => item.requirement)
+      .map((item) => item.jdQuote)
       .join('\n')}`,
     `Preferred skills: ${requirements
       .filter(
         (item) => item.category === 'skill' && item.priority === 'preferred',
       )
-      .map((item) => item.requirement)
+      .map((item) => item.jdQuote)
       .join('\n')}`,
     `Experience: ${job.experience}`,
     `Domain: ${job.domain}`,
@@ -205,7 +205,12 @@ export function canonicalRequirements(job: Opportunity): MatchRequirement[] {
       .map((text) => text.trim())
       .filter(Boolean))
       rows.push({
-        requirement,
+        // The label drops list bullets and priority annotations; jdQuote keeps the original line.
+        requirement:
+          requirement
+            .replace(/^[-*•–]\s+/u, '')
+            .replace(/\s*\((?:required|preferred|nice to have)\)$/iu, '')
+            .trim() || requirement,
         priority,
         category:
           category === 'skill' &&
