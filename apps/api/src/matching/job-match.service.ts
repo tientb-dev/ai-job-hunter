@@ -43,9 +43,14 @@ import {
   completionPrompt,
   completionOutputSchema,
   completionRejection,
+  matchQuoteChoices,
+  withoutQuoteEnums,
   type MatchRequirement,
 } from './cv-match.js';
-import { emitMatchCompletion } from './cv-match.diagnostics.js';
+import {
+  emitMatchCompletion,
+  emitMatchProviderFailure,
+} from './cv-match.diagnostics.js';
 import { AI_CONFIG, type AiConfig } from '../ai/ai.config.js';
 import type { OutputSchema } from '../ai/ai-provider.js';
 
@@ -307,10 +312,11 @@ export class JobMatchService {
         throw new BadRequestException(
           'CV and job exceed the local matching context budget. Shorten saved job content or use a concise CV and retry.',
         );
-      const generate = async (request: {
-        prompt: string;
-        schema: OutputSchema;
-      }) => {
+      const gemini = this.aiConfig?.provider === 'gemini';
+      const generate = async (
+        stage: 'INITIAL' | 'COMPLETION',
+        request: { prompt: string; schema: OutputSchema },
+      ) => {
         try {
           return (
             (await this.ai.generateStructured(request)) as {
@@ -318,6 +324,7 @@ export class JobMatchService {
             }
           ).requirements;
         } catch (error) {
+          emitMatchProviderFailure(stage, error);
           if (error instanceof AiError && error.code === 'TIMEOUT')
             throw new CvMatchError('CV_MATCH_TIMEOUT');
           if (
@@ -328,23 +335,21 @@ export class JobMatchService {
           throw new CvMatchError('CV_MATCH_UNAVAILABLE');
         }
       };
-      let proposals = await generate({
+      const schema = matchOutputSchema(cv.text, canonical);
+      let proposals = await generate('INITIAL', {
         prompt,
-        schema: matchOutputSchema(cv.text, canonical),
+        schema: gemini ? withoutQuoteEnums(schema) : schema,
       });
       // Gemini only: one bounded completion call for omitted requirements. Never
       // retried; its items still pass the full validation below.
-      const missing =
-        this.aiConfig?.provider === 'gemini'
-          ? missingRequirements(proposals, canonical)
-          : [];
+      const missing = gemini ? missingRequirements(proposals, canonical) : [];
       if (missing.length) {
         let outcome = 'ERROR';
         let returned = 0;
         try {
-          const items = await generate({
+          const items = await generate('COMPLETION', {
             prompt: completionPrompt(cv.text, jd, missing),
-            schema: completionOutputSchema(cv.text, missing),
+            schema: withoutQuoteEnums(completionOutputSchema(cv.text, missing)),
           });
           returned = items.length;
           const rejected = completionRejection(items, missing);
@@ -364,6 +369,8 @@ export class JobMatchService {
         cv.text,
         jd,
         canonical,
+        // Gemini schemas carry no passage enums; enforce the same passages here.
+        gemini ? new Set(matchQuoteChoices(cv.text, canonical)) : undefined,
       );
       const latestCv = await this.cv();
       const latestJob = await this.jobs.get(id);

@@ -1,6 +1,7 @@
 import type { MatchRequirement } from './cv-match.js';
 import { resolveCvQuote } from './cv-match.evidence.js';
 import { normalize } from './matching.policy.js';
+import { AiError } from '../ai/ai.errors.js';
 
 export type MatchEvidenceReason =
   | 'JD_QUOTE_EMPTY'
@@ -134,6 +135,34 @@ export function emitMatchCompletion(
         event: 'CV_MATCH_COMPLETION',
         outcome: /^[A-Z_]{1,40}$/u.test(outcome) ? outcome : 'OTHER',
         counts: { missing, returned },
+      })}\n`,
+    );
+  } catch {
+    // Diagnostics must never replace or alter the original matching failure.
+  }
+}
+
+// Provider failure before error mapping: stage, allowlisted AiError code and the
+// integer upstream HTTP status only. Never a message, body, header or prompt.
+export function emitMatchProviderFailure(
+  stage: 'INITIAL' | 'COMPLETION',
+  error: unknown,
+): void {
+  if (!incompleteDiagnostics) return;
+  try {
+    const aiCode =
+      error instanceof AiError && /^[A-Z_]{1,40}$/u.test(error.code)
+        ? error.code
+        : 'NON_AI_ERROR';
+    const status = error instanceof AiError ? error.httpStatus : undefined;
+    process.stderr.write(
+      `${JSON.stringify({
+        event: 'CV_MATCH_PROVIDER_FAILURE',
+        stage,
+        aiCode,
+        ...(Number.isInteger(status) && status! >= 100 && status! <= 599
+          ? { httpStatus: status }
+          : {}),
       })}\n`,
     );
   } catch {

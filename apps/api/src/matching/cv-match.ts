@@ -79,11 +79,12 @@ export const MATCH_SCHEMA = {
     },
   },
 };
-export function matchOutputSchema(
+// The original CV passages a model may quote (whole lines and short line windows).
+export function matchQuoteChoices(
   cv: string,
   canonical: readonly MatchRequirement[] = [],
-) {
-  const choices = [
+): string[] {
+  return [
     ...new Set([
       ...cvQuoteChoices(cv),
       ...(canonical.some(
@@ -95,6 +96,21 @@ export function matchOutputSchema(
         : []),
     ]),
   ];
+}
+// Gemini rejects request schemas with large passage enums (HTTP 400), so its
+// schema drops them; validateMatchAssessment then enforces the same passage set.
+export function withoutQuoteEnums<T>(schema: T): T {
+  return JSON.parse(JSON.stringify(schema), (key, value: unknown) => {
+    if (key === 'cvQuote' && value && typeof value === 'object')
+      delete (value as { enum?: unknown }).enum;
+    return value;
+  }) as T;
+}
+export function matchOutputSchema(
+  cv: string,
+  canonical: readonly MatchRequirement[] = [],
+) {
+  const choices = matchQuoteChoices(cv, canonical);
   const requirements = MATCH_SCHEMA.properties.requirements;
   return {
     ...MATCH_SCHEMA,
@@ -435,8 +451,14 @@ export function validateMatchAssessment(
   cv: string,
   jd: string,
   canonical: MatchRequirement[],
+  // Set when the request schema did not restrict quotes to these passages.
+  allowedQuotes?: ReadonlySet<string>,
 ) {
   if (!cv.trim()) throw new CvMatchError('CV_MATCH_CV_UNAVAILABLE');
+  const resolveQuote = (quote: string) =>
+    allowedQuotes && !allowedQuotes.has(quote)
+      ? null
+      : resolveCvQuote(cv, quote);
   if (
     !jd.trim() ||
     !proposals.length ||
@@ -472,7 +494,7 @@ export function validateMatchAssessment(
       ids.add(component.componentId);
       if (
         !jd.includes(component.jdQuote) ||
-        (component.cvQuote.trim() && !resolveCvQuote(cv, component.cvQuote))
+        (component.cvQuote.trim() && !resolveQuote(component.cvQuote))
       )
         throw new CvMatchError('CV_MATCH_EVIDENCE_REJECTED');
     }
@@ -512,9 +534,7 @@ export function validateMatchAssessment(
   };
   const toolingIndex = proposals.findIndex(toolingRejected);
   const verified = proposals.map((item) => {
-    const quote = toolingRejected(item)
-      ? null
-      : resolveCvQuote(cv, item.cvQuote);
+    const quote = toolingRejected(item) ? null : resolveQuote(item.cvQuote);
     return {
       ...item,
       cvQuote: quote ?? '',
@@ -522,7 +542,7 @@ export function validateMatchAssessment(
         ...component,
         cvQuote: toolingRejected({ ...item, cvQuote: component.cvQuote })
           ? ''
-          : (resolveCvQuote(cv, component.cvQuote) ?? ''),
+          : (resolveQuote(component.cvQuote) ?? ''),
       })),
       ...(item.cvQuote.trim() && quote === null
         ? { cvEvidenceUnverified: true as const }

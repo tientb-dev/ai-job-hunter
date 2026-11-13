@@ -26,7 +26,11 @@ export type AiDiagnostic =
 
 export class AiError extends Error {
   readonly diagnostic?: AiDiagnostic;
-  constructor(public readonly code: keyof typeof messages) {
+  constructor(
+    public readonly code: keyof typeof messages,
+    // Upstream HTTP status only (an integer); never a body, header or message.
+    readonly httpStatus?: number,
+  ) {
     super(messages[code]);
     this.name = 'AiError';
     // Derive only from the allowlisted code, never provider/error payloads.
