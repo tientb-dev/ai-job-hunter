@@ -171,13 +171,22 @@ describe('server-side evidence enforcement without schema enums', () => {
 
   test.each([
     ['fabricated component quote', 'Ran PRIVATE_FABRICATED Docker clusters.'],
-    ['component fragment that is not a passage', 'services with Docker.'],
   ])('%s is rejected', async (_, quote) => {
     expect(
       await code(
         setup(recording(answer(kafkaLine, quote))).analyze('synthetic'),
       ),
     ).toBe('CV_MATCH_EVIDENCE_REJECTED');
+  });
+
+  test('a unique component fragment is widened to its full allowed line', async () => {
+    const result = await setup(
+      recording(answer(kafkaLine, 'services with Docker')),
+    ).analyze('synthetic');
+    const docker = result.requirements
+      .find((r) => r.requirement === pairs)!
+      .coverage.components.find((c) => c.label === 'Docker');
+    expect(docker).toMatchObject({ status: 'EVIDENCED', cvQuote: dockerLine });
   });
 });
 

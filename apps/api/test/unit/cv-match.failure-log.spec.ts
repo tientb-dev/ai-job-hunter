@@ -44,6 +44,9 @@ const kafkaLine =
   '- Built services consuming Kafka topics. PRIVATE_CV_SENTINEL';
 const dockerLine = '- Deployed services with Docker.';
 const cvText = ['EXPERIENCE', kafkaLine, dockerLine].join('\n');
+// Allowed passages are at most 3 consecutive lines; this quote spans 4.
+const cv5 = [cvText, '- Wrote tests.', '- Reviewed code.'].join('\n');
+const fourLines = `${kafkaLine} ${dockerLine} - Wrote tests. - Reviewed code.`;
 const canonical = canonicalRequirements(job);
 const components = (quote: string, id?: string) =>
   requirementGroup(pairs, 'skill').components.map((c) => ({
@@ -372,40 +375,45 @@ describe('one classified CV_MATCH_FAILURE per failed operation', () => {
     [
       'component quote not an allowed passage',
       () =>
-        setup([
-          () =>
-            reply(
-              rows((row) =>
-                row.requirement === pairs
-                  ? { components: components('services with Docker.') }
-                  : {},
+        setup(
+          [
+            () =>
+              reply(
+                rows((row) =>
+                  row.requirement === pairs
+                    ? { components: components(fourLines) }
+                    : {},
+                ),
               ),
-            ),
-        ]),
+          ],
+          { cv: cv5 },
+        ),
       {
         ...evidence,
         reasonCode: 'COMPONENT_CV_QUOTE_NOT_ALLOWED_PASSAGE',
-        counts: { requirementIndex: 1 },
+        counts: { requirementIndex: 1, spannedLines: 4 },
       },
     ],
     [
       'no verifiable CV quote',
       () =>
-        setup([
-          () =>
-            reply(
-              rows((row) => ({
-                cvQuote:
-                  row.requirement === 'Kafka' ? 'consuming Kafka topics.' : '',
-                ...(row.requirement === pairs
-                  ? {
-                      cvQuote: 'PRIVATE_FAKE_QUOTE',
-                      components: components(''),
-                    }
-                  : {}),
-              })),
-            ),
-        ]),
+        setup(
+          [
+            () =>
+              reply(
+                rows((row) => ({
+                  cvQuote: row.requirement === 'Kafka' ? fourLines : '',
+                  ...(row.requirement === pairs
+                    ? {
+                        cvQuote: 'PRIVATE_FAKE_QUOTE',
+                        components: components(''),
+                      }
+                    : {}),
+                })),
+              ),
+          ],
+          { cv: cv5 },
+        ),
       {
         ...evidence,
         reasonCode: 'NO_VERIFIABLE_CV_QUOTES',
@@ -469,6 +477,20 @@ describe('one classified CV_MATCH_FAILURE per failed operation', () => {
     });
     release();
     await first;
+  });
+
+  test('an ambiguous Gemini component quote is dropped without a failure event', async () => {
+    const service = setup([
+      () =>
+        reply(
+          rows((row) =>
+            row.requirement === pairs
+              ? { components: components('services') }
+              : {},
+          ),
+        ),
+    ]);
+    expect(await events(service)).toEqual([]);
   });
 
   test('success writes no failure event', async () => {

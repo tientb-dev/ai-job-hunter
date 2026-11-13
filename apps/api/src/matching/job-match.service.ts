@@ -331,14 +331,19 @@ export class JobMatchService {
           'CV_MATCH_INCOMPLETE',
           'NO_CANONICAL_REQUIREMENTS',
         );
-      const prompt = matchPrompt(cv.text, jd, canonical);
+      const gemini = this.aiConfig?.provider === 'gemini';
+      // Gemini schemas carry no passage enum (#63); the server still verifies quotes.
+      const quoteRule = (text: string) =>
+        gemini
+          ? `For every cvQuote, copy one complete CV line, or up to three consecutive lines, exactly; never a fragment. Keep surrounding negations and qualifiers.\n${text}`
+          : text;
+      const prompt = quoteRule(matchPrompt(cv.text, jd, canonical));
       if (Buffer.byteLength(prompt) > 64 * 1024) {
         trace.reason = 'PROMPT_BUDGET_EXCEEDED';
         throw new BadRequestException(
           'CV and job exceed the local matching context budget. Shorten saved job content or use a concise CV and retry.',
         );
       }
-      const gemini = this.aiConfig?.provider === 'gemini';
       const generate = async (
         stage: 'INITIAL' | 'COMPLETION',
         request: { prompt: string; schema: OutputSchema },
@@ -378,7 +383,7 @@ export class JobMatchService {
         let returned = 0;
         try {
           const items = await generate('COMPLETION', {
-            prompt: completionPrompt(cv.text, jd, missing),
+            prompt: quoteRule(completionPrompt(cv.text, jd, missing)),
             schema: withoutQuoteEnums(completionOutputSchema(cv.text, missing)),
           });
           returned = items.length;

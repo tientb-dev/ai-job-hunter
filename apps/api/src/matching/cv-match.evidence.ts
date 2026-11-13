@@ -208,3 +208,36 @@ export function databaseAttributedQuoteChoices(source: string): string[] {
   }
   return [...choices];
 }
+
+// Whitespace-normalized occurrences of a quote in the CV (0, 1 or 2 = "2 or more").
+export function cvQuoteOccurrences(source: string, quote: string): 0 | 1 | 2 {
+  const text = source.replace(/\s+/gu, ' ');
+  const target = quote.replace(/\s+/gu, ' ').trim();
+  if (!target) return 0;
+  const first = text.indexOf(target);
+  if (first < 0) return 0;
+  return text.indexOf(target, first + 1) >= 0 ? 2 : 1;
+}
+
+// A quote that is an exact, unique fragment of the CV is widened to the whole
+// line(s) containing it, and accepted only if that is an allowed passage. The
+// result is the full passage, so evidence is judged with every qualifier and
+// negation on those lines; a fragment alone is never accepted.
+export function alignToPassage(
+  source: string,
+  quote: string,
+  allowed: ReadonlySet<string>,
+): string | null {
+  if (cvQuoteOccurrences(source, quote) !== 1) return null;
+  const exact = resolveCvQuote(source, quote);
+  if (!exact) return null;
+  const at = source.indexOf(exact);
+  if (at < 0 || source.indexOf(exact, at + 1) >= 0) return null;
+  const lineBreak = /[\r\n\u2028\u2029]/u;
+  let start = at;
+  while (start > 0 && !lineBreak.test(source[start - 1]!)) start--;
+  let end = at + exact.length;
+  while (end < source.length && !lineBreak.test(source[end]!)) end++;
+  const passage = source.slice(start, end).trim();
+  return allowed.has(passage) ? passage : null;
+}

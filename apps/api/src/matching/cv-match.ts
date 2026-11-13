@@ -19,10 +19,12 @@ import {
   legacyStructuredParts,
 } from '../opportunities/job-import.sections.js';
 import { supportedStacks } from '../discovery/discovery.js';
-import { CvMatchError } from './cv-match.error.js';
+import { CvMatchError, type MatchFailureReason } from './cv-match.error.js';
 import {
   recoveredCvQuote,
   resolveCvQuote,
+  alignToPassage,
+  cvQuoteOccurrences,
   cvQuoteChoices,
   databaseAttributedQuoteChoices,
 } from './cv-match.evidence.js';
@@ -39,6 +41,8 @@ export interface MatchRequirement {
   cvQuote: string;
   // Internal only: prevents recovery from replacing rejected model evidence.
   cvEvidenceUnverified?: true;
+  // Internal only: an ambiguous component quote was dropped; blocks recovery.
+  componentEvidenceUnverified?: true;
 }
 export const MATCH_SCHEMA = {
   type: 'object',
@@ -445,6 +449,21 @@ export function completionRejection(
   }
   return null;
 }
+// Fixed cause for a rejected component CV quote, with the CV lines it spans.
+function componentQuoteRejection(
+  cv: string,
+  quote: string,
+  at: { requirementIndex: number },
+): [MatchFailureReason, Record<string, number>] {
+  const found = cvQuoteOccurrences(cv, quote);
+  if (found === 0) return ['COMPONENT_CV_QUOTE_NOT_IN_CV', at];
+  if (found === 2) return ['COMPONENT_CV_QUOTE_AMBIGUOUS', at];
+  const exact = resolveCvQuote(cv, quote) ?? '';
+  return [
+    'COMPONENT_CV_QUOTE_NOT_ALLOWED_PASSAGE',
+    { ...at, spannedLines: exact.split(/\r\n|[\r\n\u2028\u2029]/u).length },
+  ];
+}
 // An omitted or rejected model assessment is not evidence of a poor fit.
 export function validateMatchAssessment(
   proposals: MatchRequirement[],
@@ -457,9 +476,9 @@ export function validateMatchAssessment(
   if (!cv.trim())
     throw new CvMatchError('CV_MATCH_CV_UNAVAILABLE', 'CV_TEXT_EMPTY');
   const resolveQuote = (quote: string) =>
-    allowedQuotes && !allowedQuotes.has(quote)
-      ? null
-      : resolveCvQuote(cv, quote);
+    !allowedQuotes || allowedQuotes.has(quote)
+      ? resolveCvQuote(cv, quote)
+      : alignToPassage(cv, quote, allowedQuotes);
   if (
     !jd.trim() ||
     !proposals.length ||
@@ -528,13 +547,16 @@ export function validateMatchAssessment(
           'COMPONENT_JD_QUOTE_NOT_IN_JD',
           at,
         );
-      if (component.cvQuote.trim() && !resolveQuote(component.cvQuote))
+      if (
+        component.cvQuote.trim() &&
+        !resolveQuote(component.cvQuote) &&
+        // Gemini only: a fragment found in several places is dropped below
+        // (fail closed, no credit, no recovery) instead of failing the analysis.
+        !(allowedQuotes && cvQuoteOccurrences(cv, component.cvQuote) === 2)
+      )
         throw new CvMatchError(
           'CV_MATCH_EVIDENCE_REJECTED',
-          resolveCvQuote(cv, component.cvQuote)
-            ? 'COMPONENT_CV_QUOTE_NOT_ALLOWED_PASSAGE'
-            : 'COMPONENT_CV_QUOTE_NOT_IN_CV',
-          at,
+          ...componentQuoteRejection(cv, component.cvQuote, at),
         );
     }
   }
@@ -588,6 +610,12 @@ export function validateMatchAssessment(
       })),
       ...(item.cvQuote.trim() && quote === null
         ? { cvEvidenceUnverified: true as const }
+        : {}),
+      ...(item.components?.some(
+        (component) =>
+          component.cvQuote.trim() && resolveQuote(component.cvQuote) === null,
+      )
+        ? { componentEvidenceUnverified: true as const }
         : {}),
     };
   });
@@ -679,6 +707,9 @@ export function scoreCvMatch(
         .filter((candidate) => !candidate.cvEvidenceUnverified)
         .map((candidate) => candidate.cvQuote)
         .filter((quote) => quote.trim() && cv.includes(quote)),
+      ...(linked.some((candidate) => candidate.componentEvidenceUnverified)
+        ? { componentEvidenceUnverified: true as const }
+        : {}),
       ...(proposal?.cvEvidenceUnverified
         ? { cvEvidenceUnverified: true as const }
         : {}),
@@ -718,7 +749,12 @@ export function scoreCvMatch(
       const coverage =
         group.mode === 'SINGLE'
           ? null
-          : evaluateCoverage(group, selected, cv, !item.cvEvidenceUnverified);
+          : evaluateCoverage(
+              group,
+              selected,
+              cv,
+              !item.cvEvidenceUnverified && !item.componentEvidenceUnverified,
+            );
       const status =
         coverage?.status ??
         simpleEvidenceStatus(

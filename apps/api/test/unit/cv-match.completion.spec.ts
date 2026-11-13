@@ -291,3 +291,17 @@ test('diagnostics: completion outcome line holds no source text', async () => {
   ])
     expect(lines.join('')).not.toContain(text);
 });
+
+test('Gemini prompts ask for complete CV lines; Ollama prompts are unchanged', async () => {
+  const rule = /copy one complete CV line, or up to three consecutive lines/u;
+  const gemini = setup([() => reply(initial()), () => reply(completion())]);
+  await gemini.service.analyze('synthetic');
+  for (const [request] of gemini.generate.mock.calls)
+    expect(request.prompt).toMatch(rule);
+  const ollama = setup(
+    [() => reply([...initial(), ...completion()])],
+    'ollama',
+  );
+  await ollama.service.analyze('synthetic');
+  expect(ollama.generate.mock.calls[0]![0].prompt).not.toMatch(rule);
+});
