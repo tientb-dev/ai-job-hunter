@@ -939,7 +939,7 @@ export function evaluateCoverage(
               educationFieldsIn(positiveInCv).includes(field),
             )),
     );
-    const observations =
+    const observations: NonNullable<ComponentCoverage['observations']> =
       group.context === 'proficiency' && !positive
         ? databaseObservations(
             component.label,
@@ -947,6 +947,22 @@ export function evaluateCoverage(
             allowRecovery ? contextCandidates : quotes,
           )
         : [];
+    // Use without the stated duration is shown, never credited; duration is
+    // never inferred from job tenure or a general summary.
+    const usedQuote =
+      group.minimumYears !== undefined && !positive && !negatives.length
+        ? [...quotes, ...all].find((quote) =>
+            supports(component.label, quote, {
+              ...group,
+              minimumYears: undefined,
+            }),
+          )
+        : undefined;
+    if (usedQuote)
+      observations.push({
+        kind: active(usedQuote) ? 'experience' : 'mention',
+        cvQuote: usedQuote,
+      });
     const work = observations.find((item) => item.kind === 'experience');
     const partial =
       group.context === 'proficiency' &&
@@ -986,9 +1002,11 @@ export function evaluateCoverage(
       ...(!conflict && observations.length
         ? {
             observations,
-            qualificationReason: work
-              ? 'Project experience is evidenced; proficiency remains unverified.'
-              : 'Mentioned in the CV; proficiency remains unverified.',
+            qualificationReason: usedQuote
+              ? `Use is evidenced in the CV; the required ${group.minimumYears}+ years is not established.`
+              : work
+                ? 'Project experience is evidenced; proficiency remains unverified.'
+                : 'Mentioned in the CV; proficiency remains unverified.',
           }
         : {}),
     };
