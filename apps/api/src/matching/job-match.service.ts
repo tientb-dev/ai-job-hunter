@@ -18,7 +18,9 @@ import { MatchingService } from './matching.service.js';
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
+  Optional,
   HttpException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -37,8 +39,15 @@ import {
   matchOutputSchema,
   matchJobText,
   matchPrompt,
+  missingRequirements,
+  completionPrompt,
+  completionOutputSchema,
+  completionRejection,
   type MatchRequirement,
 } from './cv-match.js';
+import { emitMatchCompletion } from './cv-match.diagnostics.js';
+import { AI_CONFIG, type AiConfig } from '../ai/ai.config.js';
+import type { OutputSchema } from '../ai/ai-provider.js';
 
 /** Pure, read-only validity of a saved match; resolve() adds the CV re-bind write. */
 export function savedMatchStatus(
@@ -139,6 +148,7 @@ export class JobMatchService {
     private readonly jobs: OpportunitiesService,
     @InjectRepository(CvMatchRecord)
     private readonly matchRows: Repository<CvMatchRecord>,
+    @Optional() @Inject(AI_CONFIG) private readonly aiConfig?: AiConfig,
   ) {}
   async cv() {
     const cv = await this.cvs.findOneBy({ ownerId: LOCAL_OWNER_ID });
@@ -297,24 +307,58 @@ export class JobMatchService {
         throw new BadRequestException(
           'CV and job exceed the local matching context budget. Shorten saved job content or use a concise CV and retry.',
         );
-      let output: unknown;
-      try {
-        output = await this.ai.generateStructured({
-          prompt,
-          schema: matchOutputSchema(cv.text, canonical),
-        });
-      } catch (error) {
-        if (error instanceof AiError && error.code === 'TIMEOUT')
-          throw new CvMatchError('CV_MATCH_TIMEOUT');
-        if (
-          error instanceof AiError &&
-          ['INVALID_JSON', 'SCHEMA_VALIDATION_FAILURE'].includes(error.code)
-        )
-          throw new CvMatchError('CV_MATCH_INVALID_OUTPUT');
-        throw new CvMatchError('CV_MATCH_UNAVAILABLE');
+      const generate = async (request: {
+        prompt: string;
+        schema: OutputSchema;
+      }) => {
+        try {
+          return (
+            (await this.ai.generateStructured(request)) as {
+              requirements: MatchRequirement[];
+            }
+          ).requirements;
+        } catch (error) {
+          if (error instanceof AiError && error.code === 'TIMEOUT')
+            throw new CvMatchError('CV_MATCH_TIMEOUT');
+          if (
+            error instanceof AiError &&
+            ['INVALID_JSON', 'SCHEMA_VALIDATION_FAILURE'].includes(error.code)
+          )
+            throw new CvMatchError('CV_MATCH_INVALID_OUTPUT');
+          throw new CvMatchError('CV_MATCH_UNAVAILABLE');
+        }
+      };
+      let proposals = await generate({
+        prompt,
+        schema: matchOutputSchema(cv.text, canonical),
+      });
+      // Gemini only: one bounded completion call for omitted requirements. Never
+      // retried; its items still pass the full validation below.
+      const missing =
+        this.aiConfig?.provider === 'gemini'
+          ? missingRequirements(proposals, canonical)
+          : [];
+      if (missing.length) {
+        let outcome = 'ERROR';
+        let returned = 0;
+        try {
+          const items = await generate({
+            prompt: completionPrompt(cv.text, jd, missing),
+            schema: completionOutputSchema(cv.text, missing),
+          });
+          returned = items.length;
+          const rejected = completionRejection(items, missing);
+          outcome = rejected ?? 'COMPLETED';
+          if (rejected) throw new CvMatchError('CV_MATCH_INCOMPLETE');
+          proposals = [...proposals, ...items];
+        } catch (error) {
+          if (outcome === 'ERROR' && error instanceof CvMatchError)
+            outcome = error.errorCode;
+          throw error;
+        } finally {
+          emitMatchCompletion(outcome, missing.length, returned);
+        }
       }
-      const proposals = (output as { requirements: MatchRequirement[] })
-        .requirements;
       const verified = validateMatchAssessment(
         proposals,
         cv.text,

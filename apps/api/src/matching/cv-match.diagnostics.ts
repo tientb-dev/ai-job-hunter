@@ -76,6 +76,12 @@ export function emitMatchIncomplete(
       if (item.parentId === undefined) parentIds.missing++;
       else if (ids.has(item.parentId)) parentIds.matching++;
       else parentIds.mismatched++;
+    // Returned items linking to no requirement (ignored by scoring) or to several.
+    const returnedLinks = { none: 0, one: 0, multiple: 0 };
+    for (const item of proposals) {
+      const n = canonical.filter((seed) => linked(item, seed)).length;
+      returnedLinks[n === 0 ? 'none' : n === 1 ? 'one' : 'multiple']++;
+    }
     const unlinked = canonical.flatMap((seed, index) =>
       proposals.some((item) => linked(item, seed))
         ? []
@@ -106,7 +112,28 @@ export function emitMatchIncomplete(
           unlinked: unlinked.length,
         },
         parentIds,
+        returnedLinks,
         unlinked,
+      })}\n`,
+    );
+  } catch {
+    // Diagnostics must never replace or alter the original matching failure.
+  }
+}
+
+// Outcome of the single completion call. Fixed tokens and counts only.
+export function emitMatchCompletion(
+  outcome: string,
+  missing: number,
+  returned: number,
+): void {
+  if (!incompleteDiagnostics) return;
+  try {
+    process.stderr.write(
+      `${JSON.stringify({
+        event: 'CV_MATCH_COMPLETION',
+        outcome: /^[A-Z_]{1,40}$/u.test(outcome) ? outcome : 'OTHER',
+        counts: { missing, returned },
       })}\n`,
     );
   } catch {

@@ -364,6 +364,71 @@ export const linksCanonicalRequirement = (
   (normalize(candidate.requirement) === normalize(seed.requirement) ||
     normalize(candidate.jdQuote) === normalize(seed.jdQuote));
 
+export const missingRequirements = (
+  proposals: readonly MatchRequirement[],
+  canonical: readonly MatchRequirement[],
+) =>
+  canonical.filter(
+    (seed) =>
+      !proposals.some((candidate) =>
+        linksCanonicalRequirement(candidate, seed),
+      ),
+  );
+// Completion asks only for omitted requirements; each item must name one of them.
+export function completionPrompt(
+  cv: string,
+  jd: string,
+  missing: MatchRequirement[],
+): string {
+  return `Completion request: a previous assessment omitted these canonical requirements. Return exactly ${missing.length} item(s), one per supplied canonical requirement, each with its parentId unchanged.
+${matchPrompt(cv, jd, missing)}`;
+}
+export function completionOutputSchema(
+  cv: string,
+  missing: readonly MatchRequirement[],
+) {
+  const base = matchOutputSchema(cv, missing);
+  const list = base.properties.requirements;
+  return {
+    ...base,
+    properties: {
+      requirements: {
+        // Item count is checked by completionRejection so a short reply stays INCOMPLETE.
+        ...list,
+        items: {
+          ...list.items,
+          required: [...list.items.required, 'parentId'],
+          properties: {
+            ...list.items.properties,
+            parentId: {
+              type: 'string',
+              enum: missing.map((seed) => seed.parentId!),
+            },
+          },
+        },
+      },
+    },
+  };
+}
+export type CompletionRejection =
+  'COUNT' | 'UNKNOWN_ID' | 'DUPLICATE_ID' | 'TEXT_MISMATCH';
+// Strict: exactly one item per missing requirement, linked by parentId AND by its
+// canonical label or JD quote. An id alone never establishes the link.
+export function completionRejection(
+  items: readonly MatchRequirement[],
+  missing: readonly MatchRequirement[],
+): CompletionRejection | null {
+  if (items.length !== missing.length) return 'COUNT';
+  const ids = new Set<string>();
+  for (const item of items) {
+    const seed = missing.find((row) => row.parentId === item.parentId);
+    if (!seed || item.parentId === undefined) return 'UNKNOWN_ID';
+    if (ids.has(item.parentId)) return 'DUPLICATE_ID';
+    ids.add(item.parentId);
+    if (!linksCanonicalRequirement(item, seed)) return 'TEXT_MISMATCH';
+  }
+  return null;
+}
 // An omitted or rejected model assessment is not evidence of a poor fit.
 export function validateMatchAssessment(
   proposals: MatchRequirement[],

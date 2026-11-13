@@ -51,6 +51,7 @@ test('enabled: one sanitized line with counts, server ids and booleans', () => {
     event: 'CV_MATCH_INCOMPLETE',
     counts: { canonical: 2, returned: 2, unlinked: 2 },
     parentIds: { missing: 0, matching: 1, mismatched: 1 },
+    returnedLinks: { none: 2, one: 0, multiple: 0 },
     unlinked: [
       {
         id: 'p1',
