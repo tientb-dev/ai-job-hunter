@@ -20,15 +20,15 @@ const failures = {
   ],
   CV_SUGGESTIONS_INVALID_OUTPUT: [
     503,
-    'Local model returned invalid suggestion selection. Retry; no new suggestions were produced.',
+    'The AI model returned invalid suggestion selection. Retry; no new suggestions were produced.',
   ],
   CV_SUGGESTIONS_UNAVAILABLE: [
     503,
-    'Local CV suggestions are unavailable. Check the local API and Ollama, then retry.',
+    'CV suggestions are unavailable. Check the local API and the AI service, then retry.',
   ],
   CV_SUGGESTIONS_TIMEOUT: [
     504,
-    'Local suggestion selection timed out. Check Ollama and retry.',
+    'Suggestion selection timed out. Check the AI service and retry.',
   ],
 } as const;
 

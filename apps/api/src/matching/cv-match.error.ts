@@ -6,15 +6,15 @@ const failures = {
   ],
   CV_MATCH_TIMEOUT: [
     504,
-    'Local CV matching timed out. Check Ollama availability and retry; no new fit score was produced.',
+    'CV matching timed out. Check that the AI service is available and retry; no new fit score was produced.',
   ],
   CV_MATCH_INVALID_OUTPUT: [
     503,
-    'Local model returned malformed or invalid matching output. Retry analysis; no new fit score was produced.',
+    'The AI model returned malformed or invalid matching output. Retry analysis; no new fit score was produced.',
   ],
   CV_MATCH_INCOMPLETE: [
     503,
-    'Local model did not evaluate all job requirements. Retry analysis; no new fit score was produced.',
+    'The AI model did not evaluate all job requirements. Retry analysis; no new fit score was produced.',
   ],
   CV_MATCH_EVIDENCE_REJECTED: [
     503,
@@ -22,7 +22,7 @@ const failures = {
   ],
   CV_MATCH_UNAVAILABLE: [
     503,
-    'Local CV matching is unavailable. Check Ollama and the configured model, then retry; no new fit score was produced.',
+    'CV matching is unavailable. Check the AI service and the configured model, then retry; no new fit score was produced.',
   ],
 } as const;
 export class CvMatchError extends HttpException {

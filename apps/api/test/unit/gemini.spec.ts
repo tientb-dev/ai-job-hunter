@@ -7,8 +7,10 @@ import { AiModule } from '../../src/ai/ai.module.js';
 import { AiService } from '../../src/ai/ai.service.js';
 import {
   GeminiProvider,
+  GEMINI_MAX_ATTEMPTS,
   GEMINI_MAX_OUTPUT_TOKENS,
   geminiSchema,
+  retryDelay,
 } from '../../src/ai/gemini.provider.js';
 import { OllamaProvider } from '../../src/ai/ollama.provider.js';
 import { MAX_RESPONSE_BYTES } from '../../src/ai/ollama.provider.js';
@@ -214,7 +216,7 @@ test('output exceeding an omitted maxItems still fails full validation', async (
 test('maps upstream errors without exposing their body', async () => {
   mockFetch().mockResolvedValue(
     new Response(`quota exceeded for ${KEY} prompt Synthetic fixture`, {
-      status: 429,
+      status: 400,
     }),
   );
   const error = await new GeminiProvider(config).generate(input).then(
@@ -297,4 +299,89 @@ test('tailored drafts gate on the pinned model and record provider provenance', 
     model: GEMINI_MODEL,
     modelDigest: null,
   });
+});
+
+const failure = (status: number, retryAfter?: string) =>
+  new Response('{"error":{}}', {
+    status,
+    headers: retryAfter === undefined ? {} : { 'Retry-After': retryAfter },
+  });
+
+test.each([429, 503])(
+  'retries a transient %i and returns the later success',
+  async (status) => {
+    const fetch = mockFetch()
+      .mockResolvedValueOnce(failure(status, '0'))
+      .mockResolvedValueOnce(envelope(stop('{"name":"Ada"}')));
+    await expect(new GeminiProvider(config).generate(input)).resolves.toBe(
+      '{"name":"Ada"}',
+    );
+    expect(fetch).toHaveBeenCalledTimes(2);
+    // The identical request is resent.
+    expect(fetch.mock.calls[1]![1]!.body).toBe(fetch.mock.calls[0]![1]!.body);
+  },
+);
+
+test('stops after the attempt limit', async () => {
+  const fetch = mockFetch().mockImplementation(async () => failure(429, '0'));
+  await expect(
+    new GeminiProvider(config).generate(input),
+  ).rejects.toMatchObject({ code: 'UPSTREAM_HTTP_FAILURE' });
+  expect(fetch).toHaveBeenCalledTimes(GEMINI_MAX_ATTEMPTS);
+});
+
+test.each([400, 401, 403, 404, 500, 502])(
+  'does not retry non-transient HTTP %i',
+  async (status) => {
+    const fetch = mockFetch().mockImplementation(async () =>
+      failure(status, '0'),
+    );
+    await expect(
+      new GeminiProvider(config).generate(input),
+    ).rejects.toMatchObject({ code: 'UPSTREAM_HTTP_FAILURE' });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  },
+);
+
+test('fails fast when the requested wait would pass the deadline', async () => {
+  const short = aiConfig({ ...geminiEnv, AI_REQUEST_TIMEOUT_MS: '1000' });
+  const fetch = mockFetch().mockImplementation(async () => failure(503, '5'));
+  const started = performance.now();
+  await expect(new GeminiProvider(short).generate(input)).rejects.toMatchObject(
+    { code: 'UPSTREAM_HTTP_FAILURE' },
+  );
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(performance.now() - started).toBeLessThan(500);
+});
+
+test('an abort during the retry wait ends the request as a timeout', async () => {
+  const fetch = mockFetch().mockImplementation(async () => failure(429, '2'));
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), 20);
+  await expect(
+    new GeminiProvider(config).generate({
+      ...input,
+      partial: {
+        signal: controller.signal,
+        deadline: performance.now() + 5000,
+      },
+    }),
+  ).rejects.toMatchObject({ code: 'TIMEOUT' });
+  expect(fetch).toHaveBeenCalledTimes(1);
+});
+
+test('retry delay honours Retry-After, backs off, and refuses long waits', () => {
+  const now = Date.parse('2026-01-01T00:00:00Z');
+  const delay = (status: number, attempt: number, retryAfter?: string) =>
+    retryDelay(failure(status, retryAfter), attempt, now, () => 0);
+  expect(delay(429, 1)).toBe(1000);
+  expect(delay(503, 2)).toBe(2000);
+  expect(retryDelay(failure(429), 1, now, () => 0.999)).toBeLessThan(1250);
+  expect(delay(429, 1, '3')).toBe(3000);
+  expect(delay(429, 1, 'Thu, 01 Jan 2026 00:00:04 GMT')).toBe(4000);
+  expect(delay(429, 1, 'Wed, 31 Dec 2025 23:59:00 GMT')).toBe(0);
+  expect(delay(429, 1, '11')).toBeNull();
+  expect(delay(429, 1, 'soon')).toBeNull();
+  expect(delay(429, GEMINI_MAX_ATTEMPTS)).toBeNull();
+  expect(delay(500, 1)).toBeNull();
 });

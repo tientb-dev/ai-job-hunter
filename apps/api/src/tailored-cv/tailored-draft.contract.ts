@@ -64,11 +64,11 @@ const failures = {
   ],
   CV_DRAFT_INVALID_OUTPUT: [
     502,
-    'The local model returned invalid draft proposals. Existing drafts are unchanged.',
+    'The AI model returned invalid draft proposals. Existing drafts are unchanged.',
   ],
   CV_DRAFT_UNSUPPORTED_REFERENCE: [
     502,
-    'The local model referenced an ineligible fact or requirement. Existing drafts are unchanged.',
+    'The AI model referenced an ineligible fact or requirement. Existing drafts are unchanged.',
   ],
   CV_DRAFT_UNAVAILABLE: [
     503,

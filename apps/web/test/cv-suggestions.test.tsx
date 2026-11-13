@@ -340,7 +340,7 @@ test('reanalysis failure invalidates the previous context, not just the cards', 
     Response.json({ errorCode: 'CV_MATCH_TIMEOUT' }, { status: 504 }),
   );
   fireEvent.click(screen.getByRole('button', { name: 'Reanalyze CV Match' }));
-  await screen.findByText(/Local matching timed out/);
+  await screen.findByText(/Matching timed out/);
   fireEvent.click(screen.getByRole('button', { name: 'Open Improve CV' }));
   expect(screen.queryByRole('article')).toBeNull();
   expect(

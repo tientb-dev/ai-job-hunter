@@ -278,7 +278,7 @@ export async function sourceCvRequest(
       CV_PROFILE_TIMEOUT:
         'Organizing took too long. Your saved review is unchanged. Choose Organize my CV to retry.',
       CV_PROFILE_UNAVAILABLE:
-        'Local AI is unavailable. Start Ollama, then choose Organize my CV to retry. Your saved review is unchanged.',
+        'The AI service is unavailable. Check it (start Ollama if you run AI locally), then choose Organize my CV to retry. Your saved review is unchanged.',
     };
     throw new Error(
       messages[code] ??

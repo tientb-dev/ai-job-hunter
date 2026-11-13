@@ -250,8 +250,7 @@ test('loading, error with kept text, and retry', async () => {
           {
             statusCode: 504,
             errorCode: 'INTERVIEW_TIMEOUT',
-            message:
-              'The local AI took too long. Your text is kept — try again.',
+            message: 'The AI took too long. Your text is kept — try again.',
           },
           504,
         )
@@ -273,7 +272,7 @@ test('cancel stops waiting honestly and keeps the text', async () => {
   const user = await startHr();
   await user.type(screen.getByRole('textbox'), 'notes');
   await user.click(screen.getByRole('button', { name: 'Help me say it' }));
-  expect(screen.getByText(/Checking with the local AI/u)).toBeInTheDocument();
+  expect(screen.getByText(/Checking with the AI/u)).toBeInTheDocument();
   const signal = feedbackCalls()[0]![1]!.signal!;
   await user.click(screen.getByRole('button', { name: 'Cancel' }));
   expect(signal.aborted).toBe(true);

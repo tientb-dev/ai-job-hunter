@@ -39,11 +39,12 @@ export function Dashboard() {
       />
       <Box role="region" aria-label="CV/JD analysis">
         <Typography color="text.secondary">
-          Local processing; inputs and results stay in memory until cleared or
-          you leave this page. API readiness does not guarantee Ollama
-          availability or extraction quality. Quote ambiguity, negation,
-          uncertainty, source-instruction contamination and sensitivity to
-          evidence annotations remain known limitations.
+          Files parse locally and extraction uses the configured AI provider;
+          inputs and results stay in memory until cleared or you leave this
+          page. API readiness does not guarantee AI service availability or
+          extraction quality. Quote ambiguity, negation, uncertainty,
+          source-instruction contamination and sensitivity to evidence
+          annotations remain known limitations.
         </Typography>
         <AnalysisForm
           busy={state.status === 'processing'}

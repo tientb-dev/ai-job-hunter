@@ -136,7 +136,7 @@ function IncompleteAnalysis({
       <Alert severity="info">
         Parsed successfully without AI. No facts were validated and matching is
         disabled. Review the source above. Choose Analyze only when you are
-        ready to run local AI extraction.
+        ready to run AI extraction.
       </Alert>
     );
   if (response.outcome === 'INCOMPLETE')

@@ -163,7 +163,7 @@ test.each([
           : Response.json(
               {
                 errorCode,
-                message: 'Local model returned an incomplete assessment.',
+                message: 'The AI model returned an incomplete assessment.',
               },
               { status: 503 },
             );

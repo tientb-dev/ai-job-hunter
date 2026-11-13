@@ -434,7 +434,7 @@ test('editing after feedback marks it outdated; editing while loading drops the 
   fb = () => late.promise;
   await user.click(getFeedback());
   expect(
-    await within(step3()).findByText(/Checking with the local AI/u),
+    await within(step3()).findByText(/Checking with the AI/u),
   ).toBeInTheDocument();
   await user.type(field(), '!');
   expect(fbCalls()[1]![1]!.signal!.aborted).toBe(true);
@@ -449,8 +449,8 @@ test('editing after feedback marks it outdated; editing while loading drops the 
 });
 
 test.each([
-  [503, 'INTERVIEW_AI_UNAVAILABLE', 'The local AI is unavailable.'],
-  [504, 'INTERVIEW_TIMEOUT', 'The local AI took too long.'],
+  [503, 'INTERVIEW_AI_UNAVAILABLE', 'The AI is unavailable.'],
+  [504, 'INTERVIEW_TIMEOUT', 'The AI took too long.'],
 ])(
   'feedback %s error keeps the text, offers Retry, manual entry still works',
   async (status, errorCode, message) => {

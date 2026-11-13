@@ -56,7 +56,7 @@ export function PartialFacts({ partial }: { partial: PartialDocument }) {
         <Alert severity="warning">
           {partial.kind.toUpperCase()} AI extraction failed:{' '}
           {partial.generationError}. Parsed source is retained. Review the
-          source, check the local model, then choose Analyze to retry manually.
+          source, check the AI service, then choose Analyze to retry manually.
           Parse without AI remains available.
         </Alert>
       )}

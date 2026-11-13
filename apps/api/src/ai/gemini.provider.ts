@@ -14,7 +14,7 @@ import { record } from './ollama.context.js';
 // Bounds paid output per call; matches the Ollama profile's maximum.
 export const GEMINI_MAX_OUTPUT_TOKENS = 4096;
 
-/** One generateContent call per request: no retries, repair or fallback. */
+/** One generateContent request; only transient 429/503 are retried, within the deadline. */
 @Injectable()
 export class GeminiProvider implements AiProvider {
   constructor(@Inject(AI_CONFIG) private readonly config: AiConfig) {}
@@ -52,35 +52,46 @@ export class GeminiProvider implements AiProvider {
     let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
     try {
       if (timedOut) throw new AiError('TIMEOUT');
-      const response = await Promise.race([
-        fetch(
-          `${config.baseUrl}/v1beta/models/${config.model}:generateContent`,
-          {
-            method: 'POST',
-            redirect: 'error',
-            signal: controller.signal,
-            headers: {
-              'Content-Type': 'application/json',
-              'x-goog-api-key': config.apiKey,
-            },
-            body: JSON.stringify({
-              contents: [{ role: 'user', parts: [{ text: request.prompt }] }],
-              generationConfig: {
-                temperature: 0,
-                candidateCount: 1,
-                maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
-                responseMimeType: 'application/json',
-                responseJsonSchema: geminiSchema(request.schema),
+      const body = JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: request.prompt }] }],
+        generationConfig: {
+          temperature: 0,
+          candidateCount: 1,
+          maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+          responseMimeType: 'application/json',
+          responseJsonSchema: geminiSchema(request.schema),
+        },
+      });
+      let response: Response;
+      for (let attempt = 1; ; attempt++) {
+        response = await Promise.race([
+          fetch(
+            `${config.baseUrl}/v1beta/models/${config.model}:generateContent`,
+            {
+              method: 'POST',
+              redirect: 'error',
+              signal: controller.signal,
+              headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': config.apiKey,
               },
-            }),
-          },
-        ),
-        cancelled,
-      ]);
-      if (!response.ok) {
+              body,
+            },
+          ),
+          cancelled,
+        ]);
+        if (response.ok) break;
         // Never surface the upstream body: it can echo request content.
         void response.body?.cancel().catch(() => {});
-        throw new AiError('UPSTREAM_HTTP_FAILURE');
+        const delay = retryDelay(response, attempt);
+        // Fail fast instead of waiting past the request deadline.
+        if (delay === null || performance.now() + delay >= expires)
+          throw new AiError('UPSTREAM_HTTP_FAILURE');
+        let wait: ReturnType<typeof setTimeout> | undefined;
+        await Promise.race([
+          new Promise((resolve) => (wait = setTimeout(resolve, delay))),
+          cancelled,
+        ]).finally(() => clearTimeout(wait));
       }
       if (!response.body) throw new AiError('MALFORMED_RESPONSE');
       reader = response.body.getReader();
@@ -115,6 +126,31 @@ export class GeminiProvider implements AiProvider {
       if (reader) void reader.cancel().catch(() => {});
     }
   }
+}
+
+export const GEMINI_MAX_ATTEMPTS = 3;
+export const GEMINI_MAX_RETRY_DELAY_MS = 10_000;
+
+/** Delay before retrying a transient 429/503, or null when it must not retry. */
+export function retryDelay(
+  response: Response,
+  attempt: number,
+  now = Date.now(),
+  random = Math.random,
+): number | null {
+  if (![429, 503].includes(response.status) || attempt >= GEMINI_MAX_ATTEMPTS)
+    return null;
+  const header = response.headers.get('retry-after')?.trim();
+  let delay = 1000 * 2 ** (attempt - 1) + Math.floor(random() * 250);
+  if (header) {
+    const seconds = /^\d+$/.test(header)
+      ? Number(header) * 1000
+      : Date.parse(header) - now;
+    if (!Number.isFinite(seconds)) return null;
+    delay = Math.max(0, seconds);
+  }
+  // A long server-requested wait (e.g. daily quota) is not worth holding a request.
+  return delay > GEMINI_MAX_RETRY_DELAY_MS ? null : delay;
 }
 
 /**

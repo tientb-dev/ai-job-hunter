@@ -126,8 +126,8 @@ export function AnalysisForm({
           {JD_BYTES.toLocaleString('en-US')} UTF-8 bytes.
         </Typography>
         <Typography variant="body2">
-          Analyze runs local AI for basic facts only. It does not generate a
-          matching score.
+          Analyze runs AI for basic facts only. It does not generate a matching
+          score.
         </Typography>
         <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
           <Button

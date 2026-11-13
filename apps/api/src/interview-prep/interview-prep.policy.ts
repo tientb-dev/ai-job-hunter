@@ -18,15 +18,15 @@ const errors = {
   ],
   INTERVIEW_TIMEOUT: [
     504,
-    'The local AI took too long. Your text is kept — try again.',
+    'The AI took too long. Your text is kept — try again.',
   ],
   INTERVIEW_INVALID_OUTPUT: [
     502,
-    'The local AI returned an unusable answer. Your text is kept — try again.',
+    'The AI returned an unusable answer. Your text is kept — try again.',
   ],
   INTERVIEW_AI_UNAVAILABLE: [
     503,
-    'The local AI is unavailable. Check that Ollama is running, then try again.',
+    'The AI service is unavailable. If you run AI locally, check that Ollama is running, then try again.',
   ],
   INTERVIEW_ANSWER_CONFLICT: [409, 'This answer was changed in another tab.'],
   INTERVIEW_STORAGE_UNAVAILABLE: [
@@ -63,7 +63,7 @@ const errors = {
   ],
   INTERVIEW_TOO_FEW_QUESTIONS: [
     422,
-    "The local AI couldn't produce enough questions grounded in this job description. Nothing was saved — try again.",
+    "The AI couldn't produce enough questions grounded in this job description. Nothing was saved — try again.",
   ],
   // PR16: local speech-to-text. Every fallback keeps the recording and typing.
   STT_UNAVAILABLE: [

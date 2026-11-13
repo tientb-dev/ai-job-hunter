@@ -230,11 +230,11 @@ export async function draftRequest(
       CV_DRAFT_CONTEXT_LIMIT:
         'This CV exceeds the local document budget. Shorten or split overly long fields in source review, then generate a separate draft. Your saved work is unchanged.',
       CV_DRAFT_INVALID_OUTPUT:
-        'Local AI returned an invalid proposal. Your existing drafts are unchanged. Retry generation.',
+        'The AI returned an invalid proposal. Your existing drafts are unchanged. Retry generation.',
       CV_DRAFT_UNSUPPORTED_REFERENCE:
-        'Local AI referenced unsupported content. Your existing drafts are unchanged. Retry generation.',
+        'The AI referenced unsupported content. Your existing drafts are unchanged. Retry generation.',
       CV_DRAFT_UNAVAILABLE:
-        'Local AI is unavailable. Start Ollama and retry. Saved drafts can still be reviewed and downloaded.',
+        'The AI service is unavailable. Check it (start Ollama if you run AI locally) and retry. Saved drafts can still be reviewed and downloaded.',
       CV_DRAFT_PROFILE_NOT_FOUND:
         'Review and save your source CV profile before generating a draft.',
       CV_DRAFT_SAVE_CONFLICT:
@@ -250,7 +250,7 @@ export async function draftRequest(
         'The pinned profile is unavailable or changed. Reload its source review.',
       CV_DRAFT_BUSY:
         'Draft generation is already running. Retry after it finishes.',
-      CV_DRAFT_TIMEOUT: 'Local AI timed out. Existing drafts are unchanged.',
+      CV_DRAFT_TIMEOUT: 'The AI timed out. Existing drafts are unchanged.',
     };
     throw new Error(
       messages[code] ??

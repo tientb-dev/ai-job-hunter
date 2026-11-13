@@ -23,11 +23,11 @@ const failures = {
   ],
   CV_PROFILE_INVALID_OUTPUT: [
     502,
-    'The local model returned an invalid proposal. Your saved profile is unchanged. Retry Organize my CV.',
+    'The AI model returned an invalid proposal. Your saved profile is unchanged. Retry Organize my CV.',
   ],
   CV_PROFILE_TIMEOUT: [
     504,
-    'The local model timed out. Your saved profile is unchanged. Retry Organize my CV.',
+    'The AI model timed out. Your saved profile is unchanged. Retry Organize my CV.',
   ],
   CV_PROFILE_UNAVAILABLE: [
     503,

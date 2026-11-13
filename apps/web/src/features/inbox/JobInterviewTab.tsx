@@ -394,7 +394,7 @@ export function JobInterviewTab({
         <Stack spacing={2} sx={{ alignItems: 'flex-start' }}>
           <Typography variant="body2" color="text.secondary">
             Generate 5–8 technical questions grounded in this job description.
-            The local AI usually takes under 30 seconds.
+            The AI usually takes under 30 seconds.
           </Typography>
           <Button
             startIcon={<AutoAwesomeIcon />}
@@ -468,7 +468,7 @@ export function JobInterviewTab({
         <Stack spacing={1} role="status">
           <LinearProgress aria-label="Generating interview questions" />
           <Typography variant="body2" color="text.secondary">
-            Generating questions from this job description with the local AI…
+            Generating questions from this job description with the AI…
           </Typography>
         </Stack>
       )}

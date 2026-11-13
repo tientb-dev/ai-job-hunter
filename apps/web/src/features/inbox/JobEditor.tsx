@@ -922,8 +922,8 @@ export function JobEditor() {
             {extracting ? 'Extracting…' : 'Extract with AI'}
           </Button>
           <Typography variant="body2" color="text.secondary">
-            Uses the configured local Ollama model only when you click Extract.
-            You can also enter fields manually and save without AI.
+            Uses the configured AI provider only when you click Extract. You can
+            also enter fields manually and save without AI.
           </Typography>
           {extracting && (
             <Typography role="status">
