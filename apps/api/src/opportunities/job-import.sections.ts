@@ -456,6 +456,47 @@ export function sectionCandidates(
   return candidates;
 }
 
+const listDelimiter = /\s*,\s*(?:or\s+)?|\s+or\s+/giu;
+const folded = (value: string) =>
+  value.trim().replace(/\s+/gu, ' ').toLocaleLowerCase('en');
+// The exact source sentence in which the values are consecutive items of one
+// "or" list (e.g. "degree in A, B, or C"). Items joined by "and" never qualify.
+export function alternativeClause(
+  text: string,
+  values: readonly string[],
+): string | undefined {
+  const wanted = values.map(folded);
+  if (!wanted.length || wanted.some((value) => !value)) return undefined;
+  for (const line of text.split(/\r?\n/u))
+    for (const piece of line.split(/(?<=[.!?;])\s+/u)) {
+      const sentence = piece
+        .trim()
+        .replace(/^[-•*]\s+/u, '')
+        .replace(/^[\p{L} ]{1,40}:\s+/u, '')
+        .replace(/[.;]$/u, '');
+      if (sentence.length > 2000 || !/\bor\b/iu.test(sentence)) continue;
+      const parts = sentence.split(listDelimiter).map(folded);
+      const delimiters = [...sentence.matchAll(listDelimiter)].map((m) => m[0]);
+      const start = parts.findIndex(
+        (part) => part === wanted[0] || part.endsWith(` ${wanted[0]}`),
+      );
+      const or = delimiters.findIndex(
+        (delimiter, index) => index >= start && /\bor\b/iu.test(delimiter),
+      );
+      if (
+        start < 0 ||
+        or < 0 ||
+        /\band\b/u.test(parts[start]!) ||
+        start + wanted.length - 1 > or + 1 ||
+        parts.slice(start + 1, or + 2).some((part) => /^and\b/u.test(part)) ||
+        !wanted.every((value, k) => k === 0 || parts[start + k] === value)
+      )
+        continue;
+      return sentence;
+    }
+  return undefined;
+}
+
 export function requiredAlternativeLine(
   text: string,
   value: string,

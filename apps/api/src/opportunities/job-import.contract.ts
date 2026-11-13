@@ -14,6 +14,7 @@ import {
   excludedSkillEvidence,
   skillSourceKind,
   requiredAlternativeLine,
+  alternativeClause,
   preferredSourceLine,
   requiredSourceLine,
 } from './job-import.sections.js';
@@ -208,7 +209,10 @@ export function mergeCandidates(
       quote = preferredSourceLine(source, value) ?? quote;
     if (canonical && field === 'skills') {
       quote = requiredSourceLine(source, value) ?? quote;
-      const alternative = requiredAlternativeLine(source, value);
+      // A fragment of an inline "A, B, or C" sentence keeps the whole clause.
+      const alternative =
+        requiredAlternativeLine(source, value) ??
+        alternativeClause(source, [value]);
       if (alternative && alternative.length <= 2000) {
         value = alternative;
         quote = alternative;

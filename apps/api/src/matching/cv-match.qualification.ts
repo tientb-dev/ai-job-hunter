@@ -9,7 +9,19 @@ export type QualificationPredicate =
   | { kind: 'bootcamp'; completed: true };
 
 const bachelor = String.raw`(?:bachelor(?:['’]s)?\s+(?:degree|of science|of engineering)|b\.?sc\.?|bs)`;
-const field = String.raw`(?:computer science|software engineering|engineering|information technology)`;
+const field = String.raw`(?:computer science|computer engineering|software engineering|information technology|information systems|engineering)`;
+// "A related technical discipline" is bounded to these fields, never any degree.
+const technicalFields = [
+  'computer science',
+  'computer engineering',
+  'software engineering',
+  'information technology',
+  'information systems',
+];
+const listedDegreePattern = new RegExp(
+  String.raw`^${bachelor}\s+in\s+(${field}(?:\s*,\s*${field})+)\s*,?\s+or\s+(${field}|(?:an?\s+)?related\s+(?:technical\s+)?(?:discipline|field))$`,
+  'iu',
+);
 const degreePattern = new RegExp(
   String.raw`^${bachelor}\s+in\s+(${field}(?:\s+or\s+${field})*)$`,
   'iu',
@@ -28,6 +40,34 @@ export function qualificationGroup(text: string): RequirementGroup | null {
         /[()]|\band\b|\d+\+?\s+(?:years?|months?)/iu.test(text)) &&
       /\bor\b|\band\b/iu.test(text));
   if (!mixed) return null;
+  // One bachelor's degree with a comma-listed field alternative family.
+  const listed = listedDegreePattern.exec(text);
+  if (listed) {
+    const fields = listed[1]!
+      .toLowerCase()
+      .split(/\s*,\s*/u)
+      .concat(
+        /related/iu.test(listed[2]!)
+          ? technicalFields
+          : [listed[2]!.toLowerCase()],
+      );
+    return {
+      mode: 'OR',
+      context: 'skill',
+      components: [
+        {
+          id: 'c1',
+          label: text,
+          jdQuote: text,
+          qualification: {
+            kind: 'degree',
+            level: 'bachelor',
+            acceptedFields: [...new Set(fields)],
+          },
+        },
+      ],
+    };
+  }
   const unknown: RequirementGroup = {
     mode: 'UNKNOWN',
     context: 'skill',

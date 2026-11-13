@@ -33,6 +33,8 @@ export interface RequirementGroup {
   managedLanguage?: true;
   aiFamiliarityOrInterest?: true;
   minimumYears?: number;
+  // Named alternatives: one must be shown in work, never a bare skills list.
+  demonstratedUse?: true;
 }
 export interface ComponentEvidence {
   componentId: string;
@@ -175,6 +177,19 @@ export function requirementGroup(
       ),
       managedLanguage: true,
     };
+  const named =
+    /^(?:(?:strong|solid|proven|hands-on)\s+)?experience (?:with|in|using)\s+[\p{L} /-]{1,60}?\s+such as\s+(.+?),?\s+or\s+(?:equivalent|similar)(?:\s+[\p{L}-]+){0,2}$/iu.exec(
+      text,
+    );
+  if (named) {
+    const labels = named[1]!.split(/\s*,\s*|\s+or\s+/iu).map((l) => l.trim());
+    if (
+      labels.length >= 2 &&
+      labels.length <= 10 &&
+      labels.every((label) => /^[\w+#./-]+(?: [\w+#./-]+)?$/u.test(label))
+    )
+      return { ...group('OR', labels, 'experience'), demonstratedUse: true };
+  }
   if (
     /\b(?:multiple|at least (?:[0-9]+|two|three|four|five)|such as|including|either.*and)\b|ít nhất|một trong/iu.test(
       text,
@@ -367,6 +382,12 @@ function supports(
     if (!years || Number(years[1]) < group.minimumYears) return false;
   }
   if (group.managedLanguage) return supportsManagedLanguage(label, text);
+  if (group.demonstratedUse)
+    return (
+      recoveryWork.test(text) &&
+      !skillsDeclaration.test(text) &&
+      !aiToolUse.test(text)
+    );
   if (group.context === 'proficiency')
     return supportsDatabaseProficiency(label, text);
   if (group.context === 'education') {
@@ -863,7 +884,15 @@ export function evaluateCoverage(
             supports(component.label, quote, group),
           )
         : undefined;
+    const demonstratedRecovery =
+      allowRecovery && group.demonstratedUse
+        ? all.find(
+            (quote) =>
+              quote.length <= 2000 && supports(component.label, quote, group),
+          )
+        : undefined;
     const recovered =
+      demonstratedRecovery ??
       managedRecovery ??
       proficiencyRecovery ??
       (allowRecovery &&
@@ -1079,11 +1108,11 @@ const simpleLabel = (requirement: string) =>
     .trim()
     .replace(/\.$/u, '')
     .replace(
-      /^(?:experience (?:with|in|using)|familiarity with|working knowledge of|knowledge of|understanding of|proficiency (?:with|in)|backend)\s+/iu,
+      /^(?:(?:(?:strong|solid|proven|hands-on)\s+)?experience (?:with|in|using)|familiarity with|working knowledge of|knowledge of|understanding of|proficiency (?:with|in)|backend)\s+/iu,
       '',
     );
 const recoveryWork =
-  /\b(?:built|designed|architected|developed|delivered|implemented|used|worked|integrated|deployed|led|created|maintained|wrote|administered|migrated|operated)\b/iu;
+  /\b(?:built|designed|architected|developed|delivered|implemented|used|worked|integrated|deployed|led|created|maintained|wrote|administered|migrated|operated|containeri[sz]ed|consumed|consuming|published|publishing)\b/iu;
 const aiToolUse =
   /copilot|cursor|claude code|codeium|tabnine|chatgpt|ai[- ]assisted|coding (?:tools?|assistants?)/iu;
 
