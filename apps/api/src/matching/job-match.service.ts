@@ -49,7 +49,8 @@ import {
 } from './cv-match.js';
 import {
   emitMatchCompletion,
-  emitMatchProviderFailure,
+  emitMatchFailure,
+  type MatchFailureTrace,
 } from './cv-match.diagnostics.js';
 import { AI_CONFIG, type AiConfig } from '../ai/ai.config.js';
 import type { OutputSchema } from '../ai/ai-provider.js';
@@ -277,10 +278,27 @@ export class JobMatchService {
     }
   }
   async analyze(id: string) {
-    if (this.active)
+    const started = performance.now();
+    const trace: MatchFailureTrace = { stage: 'SETUP' };
+    try {
+      return await this.runAnalysis(id, trace);
+    } catch (error) {
+      emitMatchFailure(
+        error,
+        trace,
+        this.aiConfig?.provider,
+        performance.now() - started,
+      );
+      throw error;
+    }
+  }
+  private async runAnalysis(id: string, trace: MatchFailureTrace) {
+    if (this.active) {
+      trace.reason = 'ANALYSIS_ALREADY_RUNNING';
       throw new ConflictException(
         'A CV match is already running. Retry after it finishes.',
       );
+    }
     this.active = true;
     try {
       const cv = await this.cvs.findOne({
@@ -288,7 +306,7 @@ export class JobMatchService {
         select: { ownerId: true, text: true, fileName: true, updatedAt: true },
       });
       if (!cv || typeof cv.text !== 'string' || !cv.text.trim())
-        throw new CvMatchError('CV_MATCH_CV_UNAVAILABLE');
+        throw new CvMatchError('CV_MATCH_CV_UNAVAILABLE', 'CV_TEXT_EMPTY');
       const job = await this.jobs.get(id);
       if (
         ![
@@ -300,23 +318,32 @@ export class JobMatchService {
           job.jdText,
           job.postText,
         ].some((text) => text.trim())
-      )
+      ) {
+        trace.reason = 'NO_JOB_CONTENT';
         throw new BadRequestException(
           'Save job requirements or JD content before analyzing.',
         );
+      }
       const jd = matchJobText(job);
       const canonical = canonicalRequirements(job);
-      if (!canonical.length) throw new CvMatchError('CV_MATCH_INCOMPLETE');
+      if (!canonical.length)
+        throw new CvMatchError(
+          'CV_MATCH_INCOMPLETE',
+          'NO_CANONICAL_REQUIREMENTS',
+        );
       const prompt = matchPrompt(cv.text, jd, canonical);
-      if (Buffer.byteLength(prompt) > 64 * 1024)
+      if (Buffer.byteLength(prompt) > 64 * 1024) {
+        trace.reason = 'PROMPT_BUDGET_EXCEEDED';
         throw new BadRequestException(
           'CV and job exceed the local matching context budget. Shorten saved job content or use a concise CV and retry.',
         );
+      }
       const gemini = this.aiConfig?.provider === 'gemini';
       const generate = async (
         stage: 'INITIAL' | 'COMPLETION',
         request: { prompt: string; schema: OutputSchema },
       ) => {
+        trace.stage = stage;
         try {
           return (
             (await this.ai.generateStructured(request)) as {
@@ -324,7 +351,10 @@ export class JobMatchService {
             }
           ).requirements;
         } catch (error) {
-          emitMatchProviderFailure(stage, error);
+          trace.stage = stage;
+          trace.aiCode = error instanceof AiError ? error.code : undefined;
+          trace.upstreamHttpStatus =
+            error instanceof AiError ? error.httpStatus : undefined;
           if (error instanceof AiError && error.code === 'TIMEOUT')
             throw new CvMatchError('CV_MATCH_TIMEOUT');
           if (
@@ -354,7 +384,15 @@ export class JobMatchService {
           returned = items.length;
           const rejected = completionRejection(items, missing);
           outcome = rejected ?? 'COMPLETED';
-          if (rejected) throw new CvMatchError('CV_MATCH_INCOMPLETE');
+          if (rejected)
+            throw new CvMatchError(
+              'CV_MATCH_INCOMPLETE',
+              `COMPLETION_${rejected}`,
+              {
+                missing: missing.length,
+                returned: items.length,
+              },
+            );
           proposals = [...proposals, ...items];
         } catch (error) {
           if (outcome === 'ERROR' && error instanceof CvMatchError)
@@ -364,6 +402,7 @@ export class JobMatchService {
           emitMatchCompletion(outcome, missing.length, returned);
         }
       }
+      trace.stage = 'VALIDATION';
       const verified = validateMatchAssessment(
         proposals,
         cv.text,
@@ -372,15 +411,19 @@ export class JobMatchService {
         // Gemini schemas carry no passage enums; enforce the same passages here.
         gemini ? new Set(matchQuoteChoices(cv.text, canonical)) : undefined,
       );
+      trace.stage = 'SOURCE_VERIFICATION';
       const latestCv = await this.cv();
       const latestJob = await this.jobs.get(id);
       if (
         latestCv?.updatedAt.getTime() !== cv.updatedAt.getTime() ||
         latestJob.updatedAt.getTime() !== job.updatedAt.getTime()
-      )
+      ) {
+        trace.reason = 'SOURCE_CHANGED';
         throw new ConflictException(
           'CV or job changed during analysis. Reanalyze using the latest saved data.',
         );
+      }
+      trace.stage = 'SCORING';
       const result = this.matching.matchSavedCv(
         verified,
         cv.text,
@@ -389,6 +432,7 @@ export class JobMatchService {
       );
       const analyzedAt = new Date();
       const matchId = randomUUID();
+      trace.stage = 'PERSISTENCE';
       await this.matchRows.manager.transaction(async (m) => {
         const rows = m.getRepository(CvMatchRecord);
         await rows.delete({ ownerId: LOCAL_OWNER_ID, jobId: id });

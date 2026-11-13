@@ -454,7 +454,8 @@ export function validateMatchAssessment(
   // Set when the request schema did not restrict quotes to these passages.
   allowedQuotes?: ReadonlySet<string>,
 ) {
-  if (!cv.trim()) throw new CvMatchError('CV_MATCH_CV_UNAVAILABLE');
+  if (!cv.trim())
+    throw new CvMatchError('CV_MATCH_CV_UNAVAILABLE', 'CV_TEXT_EMPTY');
   const resolveQuote = (quote: string) =>
     allowedQuotes && !allowedQuotes.has(quote)
       ? null
@@ -470,14 +471,30 @@ export function validateMatchAssessment(
     )
   ) {
     emitMatchIncomplete(proposals, canonical, linksCanonicalRequirement);
-    throw new CvMatchError('CV_MATCH_INCOMPLETE');
+    const unlinked = canonical.filter(
+      (seed) =>
+        !proposals.some((candidate) =>
+          linksCanonicalRequirement(candidate, seed),
+        ),
+    ).length;
+    throw new CvMatchError(
+      'CV_MATCH_INCOMPLETE',
+      !jd.trim()
+        ? 'JD_TEXT_EMPTY'
+        : !proposals.length
+          ? 'NO_ASSESSMENTS'
+          : 'REQUIREMENTS_UNLINKED',
+      { canonical: canonical.length, returned: proposals.length, unlinked },
+    );
   }
-  for (const proposal of proposals) {
+  for (const [index, proposal] of proposals.entries()) {
     const parent = canonical.find((seed) =>
       linksCanonicalRequirement(proposal, seed),
     );
     if (proposal.parentId && !parent)
-      throw new CvMatchError('CV_MATCH_INVALID_OUTPUT');
+      throw new CvMatchError('CV_MATCH_INVALID_OUTPUT', 'PARENT_ID_UNLINKED', {
+        requirementIndex: index,
+      });
     const ids = new Set<string>();
     for (const component of proposal.components ?? []) {
       const seed =
@@ -485,18 +502,40 @@ export function validateMatchAssessment(
         requirementGroup(parent.requirement, parent.category).components.find(
           (item) => item.id === component.componentId,
         );
-      if (
-        !seed ||
-        ids.has(component.componentId) ||
-        seed.jdQuote !== component.jdQuote
-      )
-        throw new CvMatchError('CV_MATCH_INVALID_OUTPUT');
+      const at = { requirementIndex: index };
+      if (!seed)
+        throw new CvMatchError(
+          'CV_MATCH_INVALID_OUTPUT',
+          'COMPONENT_UNKNOWN',
+          at,
+        );
+      if (ids.has(component.componentId))
+        throw new CvMatchError(
+          'CV_MATCH_INVALID_OUTPUT',
+          'COMPONENT_DUPLICATE',
+          at,
+        );
+      if (seed.jdQuote !== component.jdQuote)
+        throw new CvMatchError(
+          'CV_MATCH_INVALID_OUTPUT',
+          'COMPONENT_JD_SPAN_MISMATCH',
+          at,
+        );
       ids.add(component.componentId);
-      if (
-        !jd.includes(component.jdQuote) ||
-        (component.cvQuote.trim() && !resolveQuote(component.cvQuote))
-      )
-        throw new CvMatchError('CV_MATCH_EVIDENCE_REJECTED');
+      if (!jd.includes(component.jdQuote))
+        throw new CvMatchError(
+          'CV_MATCH_EVIDENCE_REJECTED',
+          'COMPONENT_JD_QUOTE_NOT_IN_JD',
+          at,
+        );
+      if (component.cvQuote.trim() && !resolveQuote(component.cvQuote))
+        throw new CvMatchError(
+          'CV_MATCH_EVIDENCE_REJECTED',
+          resolveCvQuote(cv, component.cvQuote)
+            ? 'COMPONENT_CV_QUOTE_NOT_ALLOWED_PASSAGE'
+            : 'COMPONENT_CV_QUOTE_NOT_IN_CV',
+          at,
+        );
     }
   }
   const tooling =
@@ -519,7 +558,10 @@ export function validateMatchAssessment(
   });
   if (rejectedIndex >= 0) {
     emitMatchEvidenceRejection(reason, rejectedIndex, proposals, cv, jd);
-    throw new CvMatchError('CV_MATCH_EVIDENCE_REJECTED');
+    throw new CvMatchError('CV_MATCH_EVIDENCE_REJECTED', reason, {
+      requirementIndex: rejectedIndex,
+      returned: proposals.length,
+    });
   }
   const toolingRejected = (item: MatchRequirement) => {
     const sourceRequirement =
@@ -568,7 +610,30 @@ export function validateMatchAssessment(
       cv,
       jd,
     );
-    throw new CvMatchError('CV_MATCH_EVIDENCE_REJECTED');
+    const unverified = proposals.filter(
+      (item, i) => verified[i]!.cvEvidenceUnverified,
+    );
+    throw new CvMatchError(
+      'CV_MATCH_EVIDENCE_REJECTED',
+      toolingIndex >= 0
+        ? 'AI_TOOLING_FOR_PRODUCTION_REQUIREMENT'
+        : 'NO_VERIFIABLE_CV_QUOTES',
+      {
+        returned: proposals.length,
+        unverified: unverified.length,
+        // Partition of unverified: AI-tooling quote for a production requirement,
+        // else exact CV text that is not an allowed passage, else not in the CV.
+        toolingRejected: unverified.filter(toolingRejected).length,
+        notAllowedPassage: unverified.filter(
+          (item) =>
+            !toolingRejected(item) && resolveCvQuote(cv, item.cvQuote) !== null,
+        ).length,
+        notInCv: unverified.filter(
+          (item) =>
+            !toolingRejected(item) && resolveCvQuote(cv, item.cvQuote) === null,
+        ).length,
+      },
+    );
   }
   if (toolingIndex >= 0)
     emitMatchEvidenceRejection(

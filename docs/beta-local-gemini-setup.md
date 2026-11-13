@@ -261,10 +261,13 @@ and your operating system. Do not send your `.env`, API key or real CV.
 | AI busy / unavailable                           | Wait a minute (rate limit); check internet connection                   |
 | PDF upload reads no text                        | Use a text-based PDF or DOCX, not a scan                                |
 
-### CV Match "incomplete assessment" diagnostic
+### CV Match failure log
 
-If CV Match reports an incomplete assessment, add `CV_MATCH_DIAGNOSTICS=1` to
-`.env`, restart the API and reanalyze once. The API terminal then prints one
-`{"event":"CV_MATCH_INCOMPLETE",...}` line with counts, internal requirement
-IDs (`p1`, `p2`, …) and true/false flags only — no CV, JD or requirement text.
-Send that line, then remove the setting. It is off by default.
+When CV Match fails, the API terminal always prints one
+`{"event":"CV_MATCH_FAILURE",...}` line: the stage, error and reason codes,
+provider, HTTP status numbers, duration and counts only — no CV, JD,
+requirement or AI output text. Send that line with your report.
+
+For more detail, add `CV_MATCH_DIAGNOSTICS=1` to `.env`, restart the API and
+reanalyze once; extra `CV_MATCH_*` lines follow the same privacy rules. Remove
+the setting afterwards. It is off by default.
