@@ -89,4 +89,6 @@ jobs:
         working-directory: apps/api
         run: |
           pnpm test:compile
-          node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js --runInBand pdf-parser pdf-resources
+          # <rootDir>/.test-dist becomes "api\.test-dist" (an escaped dot) on
+          # Windows, so match the compiled parser suites without <rootDir>.
+          node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js --runInBand --testMatch "**/.test-dist/test/unit/pdf-*.spec.js" pdf-parser pdf-resources
