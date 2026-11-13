@@ -12,6 +12,7 @@ import {
   type MatchEvidenceReason,
 } from './cv-match.diagnostics.js';
 import { jdRequirementLines } from '../extraction/jd-requirements.js';
+import { alternativeClause } from '../opportunities/job-import.sections.js';
 import { supportedStacks } from '../discovery/discovery.js';
 import { CvMatchError } from './cv-match.error.js';
 import {
@@ -235,7 +236,40 @@ export function canonicalRequirements(job: Opportunity): MatchRequirement[] {
         cvQuote: '',
       });
   }
-  return rows.map((row, index) => ({
+  // Regroup saved fragments of one source "or" list (e.g. degree fields split
+  // into rows) into that exact sentence. Same category and priority only.
+  const sourceText = [job.description, job.jdText, job.postText].join('\n');
+  const grouped: MatchRequirement[] = [];
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]!;
+    let next = row;
+    for (let j = rows.length - 1; j > i && row.category === 'skill'; j--) {
+      const run = rows.slice(i, j + 1);
+      if (
+        run.some(
+          (item) =>
+            item.category !== row.category || item.priority !== row.priority,
+        )
+      )
+        continue;
+      const clause = alternativeClause(
+        sourceText,
+        run.map((item) => item.requirement),
+      );
+      if (!clause) continue;
+      next = { ...row, requirement: clause, jdQuote: clause };
+      i = j;
+      break;
+    }
+    if (
+      next === row ||
+      !grouped.some(
+        (item) => normalize(item.requirement) === normalize(next.requirement),
+      )
+    )
+      grouped.push(next);
+  }
+  return grouped.map((row, index) => ({
     ...row,
     parentId: `p${index + 1}`,
   }));
