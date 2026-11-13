@@ -235,11 +235,13 @@ Steps:
      does not state 3+ years with them, so each one shows its CV passage with
      a note that use is evidenced but the 3+ years is not established. This
      is intended: years are never inferred from job dates or the summary.
-   - PostgreSQL is usually **Matched** and Kubernetes usually **Unknown**.
-     These come from the AI's judgement, so results can vary between runs.
+   - PostgreSQL shows **Matched** and Kubernetes **Unknown**; **Minimum 3
+     years** shows **Matched** from the summary line. A CV quote the AI picks
+     must name the requirement, and missing or irrelevant quotes are recovered
+     from exact CV work passages, so these do not depend on the AI's choice.
    - Optional: save a Scenario B file as your CV and analyze again. The Node.js
-     and TypeScript requirement should usually become **Matched**, but this
-     depends on the AI quoting the summary line, so it is not guaranteed.
+     and TypeScript requirement becomes **Matched** from the summary line that
+     states 4 years with both technologies.
 4. Optional: **Improve CV** → review the source CV → generate a tailored draft →
    save, approve and **Download DOCX**.
 5. Optional: **Interview Prep** → practise one question by typing an answer.

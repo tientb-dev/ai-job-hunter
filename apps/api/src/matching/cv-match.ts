@@ -4,6 +4,7 @@ import {
   simpleSkillList,
   simpleEvidenceStatus,
   simpleContradictions,
+  recoverSimpleQuote,
   type ComponentEvidence,
 } from './cv-match.coverage.js';
 import {
@@ -414,6 +415,13 @@ export function scoreCvMatch(
           !candidate.cvEvidenceUnverified && candidate.cvQuote.trim(),
       ) ?? linked[0];
     const quote = proposal?.cvQuote ?? '';
+    // An exact but irrelevant quote is unusable and must not block recovery.
+    const usable =
+      !!quote.trim() &&
+      cv.includes(quote) &&
+      (requirementGroup(item.requirement, item.category).mode !== 'SINGLE' ||
+        simpleEvidenceStatus(item.requirement, quote, cv, item.category) !==
+          'NOT_EVIDENCED');
     return {
       ...item,
       components: linked.flatMap((candidate) => candidate.components ?? []),
@@ -426,9 +434,10 @@ export function scoreCvMatch(
         : {}),
       cvQuote: proposal?.cvEvidenceUnverified
         ? ''
-        : quote.trim() && cv.includes(quote)
+        : usable
           ? quote
-          : recoveredCvQuote(item, cv),
+          : recoveredCvQuote(item, cv) ||
+            recoverSimpleQuote(item.requirement, item.category, cv),
     };
   });
   const requirements = merged
