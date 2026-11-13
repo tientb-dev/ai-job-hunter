@@ -1,4 +1,5 @@
 import {
+  demonstratedUseReason,
   evaluateCoverage,
   recoverSimpleQuote,
   requirementGroup,
@@ -69,9 +70,32 @@ export function evidenceSummary(
             recoverSimpleQuote(seed.requirement, seed.category, cv)
           )
         : evaluateCoverage(group, [], cv, true).credit > 0);
-    const status = result.requirements.find(
+    const scored = result.requirements.find(
       (row) => row.parentId === seed.parentId,
-    )?.status;
+    );
+    const status = scored?.status;
+    // Broker OR alternatives: position, fixed reason and whether the model quoted it.
+    const components = group.demonstratedUse
+      ? group.components.map((component, position) => ({
+          position,
+          reason: demonstratedUseReason(
+            component.label,
+            cv,
+            group,
+            scored?.coverage.components.find((c) => c.id === component.id)
+              ?.status ?? 'NOT_EVIDENCED',
+          ),
+          modelQuote: proposals.some(
+            (item) =>
+              linksCanonicalRequirement(item, seed) &&
+              item.components?.some(
+                (c) => c.componentId === component.id && c.cvQuote.trim(),
+              ),
+          )
+            ? 'PROVIDED'
+            : 'NONE',
+        }))
+      : undefined;
     return {
       index,
       mode: MODES.includes(group.mode) ? group.mode : 'UNKNOWN',
@@ -81,6 +105,7 @@ export function evidenceSummary(
         : candidate
           ? 'BLOCKED_WITH_CANDIDATE'
           : 'BLOCKED_NO_CANDIDATE',
+      ...(components ? { components } : {}),
     };
   });
   return {

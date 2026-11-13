@@ -330,6 +330,125 @@ const passages = (text: string) =>
     .map((line) => line.trim())
     .filter(Boolean);
 
+// A work bullet wrapped across physical PDF lines, as one exact source slice.
+// Continuation lines are joined only when the boundary is unambiguous: the
+// bullet line does not end a sentence, and the next line is not a bullet,
+// heading, blank line or declaration ("Skills: …"), and either starts in
+// lowercase or follows a comma/connector. At most 3 lines, like allowed passages.
+const bulletStart = /^\s*(?:[-*•–▪●◦]|\d{1,2}[.)])\s+\S/u;
+const declarationLine = /^\s*[\p{L}][\p{L} &/+-]{0,30}:\s/u;
+const headingLine = /^\s*[^\p{Ll}]*\p{Lu}[^\p{Ll}]*$/u;
+const sentenceEnd = /[.!?:;]\s*$/u;
+const connectorEnd =
+  /(?:,|\b(?:and|or|with|using|via|to|for|of|in|on|into|from|by|the|a|an))\s*$/iu;
+export function bulletUnits(cv: string): string[] {
+  const lines: { start: number; end: number; text: string }[] = [];
+  let start = 0;
+  for (const match of cv.matchAll(/\r\n|[\r\n\u2028\u2029]/gu)) {
+    lines.push({ start, end: match.index, text: cv.slice(start, match.index) });
+    start = match.index + match[0].length;
+  }
+  lines.push({ start, end: cv.length, text: cv.slice(start) });
+  const units: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (!bulletStart.test(lines[i]!.text)) continue;
+    let last = i;
+    while (last - i < 2 && last + 1 < lines.length) {
+      const previous = lines[last]!.text;
+      const next = lines[last + 1]!.text;
+      if (
+        !next.trim() ||
+        bulletStart.test(next) ||
+        headingLine.test(next) ||
+        declarationLine.test(next) ||
+        skillsDeclaration.test(next) ||
+        sentenceEnd.test(previous) ||
+        !(/^\s*\p{Ll}/u.test(next) || connectorEnd.test(previous))
+      )
+        break;
+      last++;
+    }
+    if (last > i)
+      units.push(cv.slice(lines[i]!.start, lines[last]!.end).trim());
+  }
+  return units;
+}
+
+// Broker demonstrated use: a wrapped bullet is one unit, and its lines are
+// never judged alone (a verb or negation on another line stays in context).
+function demonstratedPassages(selected: string[], cv: string): string[] {
+  const units = bulletUnits(cv);
+  const inUnit = (passage: string) =>
+    units.some((unit) => unit.includes(passage));
+  return [
+    ...units.filter((unit) =>
+      selected.some((quote) =>
+        passages(unit).some((part) => quote.includes(part)),
+      ),
+    ),
+    ...selected.flatMap(passages).filter((passage) => !inUnit(passage)),
+  ];
+}
+
+// Diagnostics only (never used for scoring): why a broker alternative was not
+// credited. Fixed codes; inspects the CV but returns no text.
+export type DemonstratedUseReason =
+  | 'EVIDENCED'
+  | 'NO_MENTION'
+  | 'NEGATED'
+  | 'SKILLS_ONLY'
+  | 'WRAPPED_SPLIT'
+  | 'NO_WORK_VERB'
+  // Any other outcome (CONFLICT, AI-tool use, uncertainty, …).
+  | 'UNKNOWN';
+export function demonstratedUseReason(
+  label: string,
+  cv: string,
+  group: RequirementGroup,
+  status: string,
+): DemonstratedUseReason {
+  if (status === 'EVIDENCED') return 'EVIDENCED';
+  if (status !== 'NOT_EVIDENCED') return 'UNKNOWN';
+  const lines = cv.split(/\r\n|[\r\n\u2028\u2029]/u);
+  const mentioned = lines
+    .map((line, index) => ({ line, index }))
+    .filter(({ line }) => componentMention(label, line, group));
+  if (!mentioned.length) return 'NO_MENTION';
+  const units = bulletUnits(cv);
+  if (
+    mentioned.some(({ line }) => negative(line)) ||
+    units.some((unit) => componentMention(label, unit, group) && negative(unit))
+  )
+    return 'NEGATED';
+  const work = mentioned.filter(
+    ({ line }) => !skillsDeclaration.test(line) && !declarationLine.test(line),
+  );
+  if (!work.length) return 'SKILLS_ONLY';
+  // A work verb only on an adjacent line that could not be joined safely.
+  if (
+    work.some(
+      ({ line, index }) =>
+        !recoveryWork.test(line) &&
+        !units.some((unit) => unit.includes(line.trim())) &&
+        [lines[index - 1], lines[index + 1]].some(
+          (near) => !!near?.trim() && recoveryWork.test(near),
+        ),
+    )
+  )
+    return 'WRAPPED_SPLIT';
+  if (
+    work.every(
+      ({ line }) =>
+        !recoveryWork.test(line) &&
+        !units.some(
+          (unit) => unit.includes(line.trim()) && recoveryWork.test(unit),
+        ),
+    )
+  )
+    return 'NO_WORK_VERB';
+  return 'UNKNOWN';
+}
+
 const ciCdPractices = /^ci\/cd practices$/iu;
 const ciCdAutomation = String.raw`(?:(?:ci\s*\/\s*cd|continuous integration and (?:continuous )?(?:delivery|deployment))\s+(?:pipelines?|workflows?|automation)|automated\s+build(?:,\s*test)?\s+and\s+(?:test|deployment)\s+(?:pipelines?|workflows?))`;
 const ciCdPracticeDeclaration = /\bci\s*\/\s*cd\s+practices\b/iu;
@@ -908,7 +1027,9 @@ export function evaluateCoverage(
     ? selected.filter(
         (quote) => cv.includes(quote) && completeAttribution(cv, quote),
       )
-    : selected.flatMap(passages);
+    : group.demonstratedUse
+      ? demonstratedPassages(selected, cv)
+      : selected.flatMap(passages);
   // Reuse the existing source-passage enumeration and exact quote resolver.
   // Shortest sufficient contiguous passage wins; never concatenate source spans.
   const contextCandidates = contextual
@@ -953,7 +1074,7 @@ export function evaluateCoverage(
         : undefined;
     const demonstratedRecovery =
       allowRecovery && group.demonstratedUse
-        ? all.find(
+        ? demonstratedPassages([cv], cv).find(
             (quote) =>
               quote.length <= 2000 && supports(component.label, quote, group),
           )

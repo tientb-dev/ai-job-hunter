@@ -8,7 +8,10 @@ import type { ExtractionService } from '../../src/extraction/extraction.service.
 import { JobMatchService } from '../../src/matching/job-match.service.js';
 import { MatchingService } from '../../src/matching/matching.service.js';
 import { configureCvMatchDiagnostics } from '../../src/matching/cv-match.diagnostics.js';
-import { requirementGroup } from '../../src/matching/cv-match.coverage.js';
+import {
+  demonstratedUseReason,
+  requirementGroup,
+} from '../../src/matching/cv-match.coverage.js';
 import type { SavedCv } from '../../src/matching/saved-cv.entity.js';
 import {
   canonicalRequirements,
@@ -112,6 +115,12 @@ describe('CV_MATCH_EVIDENCE_SUMMARY', () => {
             mode: 'OR',
             status: 'NOT_EVIDENCED',
             recovery: 'BLOCKED_WITH_CANDIDATE',
+            // Kafka has work evidence but recovery was blocked: UNKNOWN; the
+            // recovery field above carries the cause.
+            components: [
+              { position: 0, reason: 'UNKNOWN', modelQuote: 'PROVIDED' },
+              { position: 1, reason: 'SKILLS_ONLY', modelQuote: 'NONE' },
+            ],
           },
           {
             index: 1,
@@ -139,6 +148,10 @@ describe('CV_MATCH_EVIDENCE_SUMMARY', () => {
       mode: 'OR',
       status: 'NOT_EVIDENCED',
       recovery: 'BLOCKED_NO_CANDIDATE',
+      components: [
+        { position: 0, reason: 'SKILLS_ONLY', modelQuote: 'PROVIDED' },
+        { position: 1, reason: 'SKILLS_ONLY', modelQuote: 'NONE' },
+      ],
     });
   });
 
@@ -179,5 +192,57 @@ describe('CV_MATCH_EVIDENCE_SUMMARY', () => {
       quotes: { allowed: 2, widened: 0, ambiguous: 0, dropped: 0 },
       recoveryBlocked: 0,
     });
+  });
+});
+
+test('wrapped work bullet: RabbitMQ reported EVIDENCED, no source text logged', async () => {
+  configureCvMatchDiagnostics(true);
+  const cv = [
+    'SKILLS',
+    'Messaging: RabbitMQ',
+    'EXPERIENCE',
+    '- Led the PRIVATE_PROJECT redesign into a microservices',
+    'architecture with asynchronous communication using RabbitMQ.',
+    pgLine,
+  ].join('\n');
+  const [line] = await summary(run(cv, '', pgLine));
+  expect(line!.requirements).toContainEqual({
+    index: 0,
+    mode: 'OR',
+    status: 'EVIDENCED',
+    recovery: 'ALLOWED',
+    components: [
+      { position: 0, reason: 'NO_MENTION', modelQuote: 'NONE' },
+      { position: 1, reason: 'EVIDENCED', modelQuote: 'NONE' },
+    ],
+  });
+});
+
+describe('broker component reason codes', () => {
+  const group = requirementGroup(broker, 'skill');
+  const reason = (cv: string, status = 'NOT_EVIDENCED') =>
+    demonstratedUseReason('RabbitMQ', cv, group, status);
+  test.each([
+    ['EVIDENCED', '- Integrated RabbitMQ into backend services.', 'EVIDENCED'],
+    ['NO_MENTION', '- Built services consuming Kafka topics.', 'NOT_EVIDENCED'],
+    [
+      'SKILLS_ONLY',
+      'SKILLS\nMessaging: RabbitMQ\nTechnologies: Java, RabbitMQ',
+      'NOT_EVIDENCED',
+    ],
+    [
+      'NEGATED',
+      '- Led reviews but never\nused RabbitMQ in production.',
+      'NOT_EVIDENCED',
+    ],
+    [
+      'WRAPPED_SPLIT',
+      '- Led the Example platform redesign.\nasynchronous messaging over RabbitMQ.',
+      'NOT_EVIDENCED',
+    ],
+    ['NO_WORK_VERB', 'EXPERIENCE\n- Message queue: RabbitMQ', 'NOT_EVIDENCED'],
+    ['UNKNOWN', '- Integrated RabbitMQ into backend services.', 'CONFLICT'],
+  ])('%s', (expected, cv, status) => {
+    expect(reason(cv, status)).toBe(expected);
   });
 });
