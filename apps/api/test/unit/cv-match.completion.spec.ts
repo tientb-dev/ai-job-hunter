@@ -195,16 +195,17 @@ describe('invalid completions are rejected with no saved score', () => {
     expect(saved()).toBe(0);
   });
 
-  test('unsupported CV evidence is caught by existing validation', async () => {
-    const { service, saved } = setup([
+  test('unsupported CV evidence is not accepted by server validation', async () => {
+    const { service } = setup([
       () => reply(initial()),
       () => reply([docker, { ...kafka!, cvQuote: 'Fabricated Kafka passage' }]),
     ]);
-    // The schema's exact-passage enum rejects a quote that is not in the CV.
-    expect(await code(service.analyze('synthetic'))).toBe(
-      'CV_MATCH_INVALID_OUTPUT',
+    // Gemini schemas carry no passage enum; the server drops the quote instead.
+    const result = await service.analyze('synthetic');
+    const row = result.requirements.find(
+      (item) => item.requirement === 'Kafka',
     );
-    expect(saved()).toBe(0);
+    expect(row).toMatchObject({ status: 'NOT_EVIDENCED', cvQuote: '' });
   });
 });
 

@@ -86,7 +86,7 @@ export class GeminiProvider implements AiProvider {
         const delay = retryDelay(response, attempt);
         // Fail fast instead of waiting past the request deadline.
         if (delay === null || performance.now() + delay >= expires)
-          throw new AiError('UPSTREAM_HTTP_FAILURE');
+          throw new AiError('UPSTREAM_HTTP_FAILURE', response.status);
         let wait: ReturnType<typeof setTimeout> | undefined;
         await Promise.race([
           new Promise((resolve) => (wait = setTimeout(resolve, delay))),
