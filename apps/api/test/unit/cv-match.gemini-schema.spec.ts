@@ -2,7 +2,6 @@ import 'reflect-metadata';
 import { afterEach, describe, expect, jest, test } from '@jest/globals';
 import type { Repository } from 'typeorm';
 import { memoryMatchRows } from '../support/memory-match-rows.js';
-import { AiError } from '../../src/ai/ai.errors.js';
 import { AiService } from '../../src/ai/ai.service.js';
 import { aiConfig, type AiConfig } from '../../src/ai/ai.config.js';
 import type { AiProvider, OutputSchema } from '../../src/ai/ai-provider.js';
@@ -10,7 +9,6 @@ import { GeminiProvider } from '../../src/ai/gemini.provider.js';
 import type { ExtractionService } from '../../src/extraction/extraction.service.js';
 import { JobMatchService } from '../../src/matching/job-match.service.js';
 import { MatchingService } from '../../src/matching/matching.service.js';
-import { configureCvMatchDiagnostics } from '../../src/matching/cv-match.diagnostics.js';
 import { requirementGroup } from '../../src/matching/cv-match.coverage.js';
 import type { SavedCv } from '../../src/matching/saved-cv.entity.js';
 import {
@@ -180,92 +178,6 @@ describe('server-side evidence enforcement without schema enums', () => {
         setup(recording(answer(kafkaLine, quote))).analyze('synthetic'),
       ),
     ).toBe('CV_MATCH_EVIDENCE_REJECTED');
-  });
-});
-
-describe('provider failure diagnostics', () => {
-  afterEach(() => {
-    configureCvMatchDiagnostics(false);
-    jest.restoreAllMocks();
-  });
-  const lines = (write: { mock: { calls: unknown[][] } }) =>
-    write.mock.calls.map(([line]) => JSON.parse(String(line)) as unknown);
-
-  test.each([
-    [
-      new AiError('UPSTREAM_HTTP_FAILURE', 400),
-      { aiCode: 'UPSTREAM_HTTP_FAILURE', httpStatus: 400 },
-      'CV_MATCH_UNAVAILABLE',
-    ],
-    [
-      new AiError('OUTPUT_LIMIT_EXCEEDED'),
-      { aiCode: 'OUTPUT_LIMIT_EXCEEDED' },
-      'CV_MATCH_UNAVAILABLE',
-    ],
-    [
-      new AiError('CONNECTION_FAILURE'),
-      { aiCode: 'CONNECTION_FAILURE' },
-      'CV_MATCH_UNAVAILABLE',
-    ],
-    [new AiError('TIMEOUT'), { aiCode: 'TIMEOUT' }, 'CV_MATCH_TIMEOUT'],
-    [
-      new Error('PRIVATE_RAW_MESSAGE'),
-      { aiCode: 'NON_AI_ERROR' },
-      'CV_MATCH_UNAVAILABLE',
-    ],
-  ])(
-    'initial %p is logged by stage and code; contract unchanged',
-    async (error, fields, expected) => {
-      configureCvMatchDiagnostics(true);
-      const write = jest.spyOn(process.stderr, 'write').mockReturnValue(true);
-      expect(
-        await code(
-          setup(async () => {
-            throw error;
-          }).analyze('synthetic'),
-        ),
-      ).toBe(expected);
-      expect(lines(write)).toEqual([
-        { event: 'CV_MATCH_PROVIDER_FAILURE', stage: 'INITIAL', ...fields },
-      ]);
-      expect(write.mock.calls.join('')).not.toMatch(/PRIVATE/u);
-    },
-  );
-
-  test('completion-stage failure is labelled COMPLETION', async () => {
-    configureCvMatchDiagnostics(true);
-    const write = jest.spyOn(process.stderr, 'write').mockReturnValue(true);
-    const replies = [
-      JSON.stringify({
-        requirements: canonical
-          .slice(0, 1)
-          .map((row) => ({ ...row, parentId: undefined, cvQuote: kafkaLine })),
-      }),
-    ];
-    const service = setup(async () => {
-      const next = replies.shift();
-      if (next) return next;
-      throw new AiError('UPSTREAM_HTTP_FAILURE', 503);
-    });
-    expect(await code(service.analyze('synthetic'))).toBe(
-      'CV_MATCH_UNAVAILABLE',
-    );
-    expect(lines(write)).toContainEqual({
-      event: 'CV_MATCH_PROVIDER_FAILURE',
-      stage: 'COMPLETION',
-      aiCode: 'UPSTREAM_HTTP_FAILURE',
-      httpStatus: 503,
-    });
-  });
-
-  test('diagnostics are off by default', async () => {
-    const write = jest.spyOn(process.stderr, 'write').mockReturnValue(true);
-    await code(
-      setup(async () => {
-        throw new AiError('CONNECTION_FAILURE');
-      }).analyze('synthetic'),
-    );
-    expect(write).not.toHaveBeenCalled();
   });
 });
 

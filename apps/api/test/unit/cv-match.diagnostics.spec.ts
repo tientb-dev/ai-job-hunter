@@ -1,10 +1,16 @@
-import { afterEach, expect, jest, test } from '@jest/globals';
+import { afterEach, beforeEach, expect, jest, test } from '@jest/globals';
+import { configureCvMatchDiagnostics } from '../../src/matching/cv-match.diagnostics.js';
 import {
   validateMatchAssessment,
   type MatchRequirement,
 } from '../../src/matching/cv-match.js';
 import { CvMatchError } from '../../src/matching/cv-match.error.js';
+// The detailed rejection event is opt-in (CV_MATCH_DIAGNOSTICS=1).
+beforeEach(() => {
+  configureCvMatchDiagnostics(true);
+});
 afterEach(() => {
+  configureCvMatchDiagnostics(false);
   jest.restoreAllMocks();
 });
 const cv = 'PRIVATE_SYNTHETIC_CV_SENTINEL';

@@ -1,7 +1,8 @@
 import type { MatchRequirement } from './cv-match.js';
 import { resolveCvQuote } from './cv-match.evidence.js';
 import { normalize } from './matching.policy.js';
-import { AiError } from '../ai/ai.errors.js';
+import { HttpException } from '@nestjs/common';
+import { CvMatchError } from './cv-match.error.js';
 
 export type MatchEvidenceReason =
   | 'JD_QUOTE_EMPTY'
@@ -19,6 +20,8 @@ export function emitMatchEvidenceRejection(
   jd: string,
   outcome: 'REJECTED' | 'DOWNGRADED' = 'REJECTED',
 ): void {
+  // Rejections are reported once by CV_MATCH_FAILURE; this detail is opt-in.
+  if (outcome === 'REJECTED' && !incompleteDiagnostics) return;
   try {
     const category = proposals[requirementIndex]?.category;
     const cvAccepted = proposals.filter(
@@ -142,30 +145,77 @@ export function emitMatchCompletion(
   }
 }
 
-// Provider failure before error mapping: stage, allowlisted AiError code and the
-// integer upstream HTTP status only. Never a message, body, header or prompt.
-export function emitMatchProviderFailure(
-  stage: 'INITIAL' | 'COMPLETION',
+export type MatchFailureStage =
+  | 'SETUP'
+  | 'INITIAL'
+  | 'COMPLETION'
+  | 'VALIDATION'
+  | 'SOURCE_VERIFICATION'
+  | 'SCORING'
+  | 'PERSISTENCE';
+// Mutable per-request progress; holds fixed tokens and integers only.
+export interface MatchFailureTrace {
+  stage: MatchFailureStage;
+  reason?: string;
+  aiCode?: string;
+  upstreamHttpStatus?: number;
+}
+const token = (value: unknown, fallback: string) =>
+  typeof value === 'string' && /^[A-Z][A-Z0-9_]{0,59}$/u.test(value)
+    ? value
+    : fallback;
+// Always on: exactly one structured line per failed CV Match operation. Only
+// allowlisted tokens and integers; never an error object, message or source text.
+export function emitMatchFailure(
   error: unknown,
+  trace: MatchFailureTrace,
+  provider: string | undefined,
+  durationMs: number,
 ): void {
-  if (!incompleteDiagnostics) return;
   try {
-    const aiCode =
-      error instanceof AiError && /^[A-Z_]{1,40}$/u.test(error.code)
-        ? error.code
-        : 'NON_AI_ERROR';
-    const status = error instanceof AiError ? error.httpStatus : undefined;
+    const matchError = error instanceof CvMatchError ? error : undefined;
+    const responseStatus =
+      error instanceof HttpException ? error.getStatus() : 503;
+    const stage =
+      trace.stage === 'VALIDATION'
+        ? matchError?.errorCode === 'CV_MATCH_EVIDENCE_REJECTED'
+          ? 'EVIDENCE_VALIDATION'
+          : 'OUTPUT_VALIDATION'
+        : trace.stage;
+    const reasonCode = token(
+      matchError?.reasonCode ??
+        trace.aiCode ??
+        trace.reason ??
+        (responseStatus === 404 ? 'NOT_FOUND' : undefined),
+      'UNKNOWN',
+    );
+    const counts = Object.fromEntries(
+      Object.entries(matchError?.counts ?? {}).filter(
+        ([key, value]) =>
+          /^[a-zA-Z]{1,30}$/u.test(key) &&
+          Number.isInteger(value) &&
+          value >= 0 &&
+          value <= 100_000,
+      ),
+    );
+    const upstream = trace.upstreamHttpStatus;
     process.stderr.write(
       `${JSON.stringify({
-        event: 'CV_MATCH_PROVIDER_FAILURE',
+        event: 'CV_MATCH_FAILURE',
         stage,
-        aiCode,
-        ...(Number.isInteger(status) && status! >= 100 && status! <= 599
-          ? { httpStatus: status }
+        errorCode: token(matchError?.errorCode, 'NONE'),
+        reasonCode,
+        provider:
+          provider === 'gemini' || provider === 'ollama' ? provider : 'unknown',
+        ...(Number.isInteger(upstream) && upstream! >= 100 && upstream! <= 599
+          ? { upstreamHttpStatus: upstream }
           : {}),
+        responseStatus: Number.isInteger(responseStatus) ? responseStatus : 503,
+        durationMs: Math.max(0, Math.round(durationMs)),
+        ...(Object.keys(counts).length ? { counts } : {}),
       })}\n`,
     );
   } catch {
-    // Diagnostics must never replace or alter the original matching failure.
+    // Logging must never replace or alter the original failure.
   }
 }
