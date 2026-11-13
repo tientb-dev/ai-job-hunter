@@ -32,6 +32,9 @@ is implemented.
 
 ## Local development
 
+Beta testers: follow the [Local + Gemini beta setup guide](docs/beta-local-gemini-setup.md)
+instead of this section.
+
 Use Ubuntu WSL2, Bash, Node 24.22.1 and pnpm 12.14.0:
 
 ```bash
