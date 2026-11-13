@@ -260,3 +260,11 @@ and your operating system. Do not send your `.env`, API key or real CV.
 | Port 3000 or 5173 already in use                | Close the other app; these ports cannot be changed without code changes |
 | AI busy / unavailable                           | Wait a minute (rate limit); check internet connection                   |
 | PDF upload reads no text                        | Use a text-based PDF or DOCX, not a scan                                |
+
+### CV Match "incomplete assessment" diagnostic
+
+If CV Match reports an incomplete assessment, add `CV_MATCH_DIAGNOSTICS=1` to
+`.env`, restart the API and reanalyze once. The API terminal then prints one
+`{"event":"CV_MATCH_INCOMPLETE",...}` line with counts, internal requirement
+IDs (`p1`, `p2`, …) and true/false flags only — no CV, JD or requirement text.
+Send that line, then remove the setting. It is off by default.

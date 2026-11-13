@@ -1,5 +1,6 @@
 import type { MatchRequirement } from './cv-match.js';
 import { resolveCvQuote } from './cv-match.evidence.js';
+import { normalize } from './matching.policy.js';
 
 export type MatchEvidenceReason =
   | 'JD_QUOTE_EMPTY'
@@ -43,6 +44,69 @@ export function emitMatchEvidenceRejection(
           jdAccepted,
           jdRejected: proposals.length - jdAccepted,
         },
+      })}\n`,
+    );
+  } catch {
+    // Diagnostics must never replace or alter the original matching failure.
+  }
+}
+
+let incompleteDiagnostics = false;
+// Opt-in via CV_MATCH_DIAGNOSTICS=1 (default off); configured once at bootstrap.
+export function configureCvMatchDiagnostics(enabled: boolean): void {
+  incompleteDiagnostics = enabled;
+}
+const loose = (text: string) =>
+  normalize(text)
+    .replace(/^[-*•–]\s+/u, '')
+    .replace(/[.;:,!]+$/u, '')
+    .trim();
+// Emitted only before CV_MATCH_INCOMPLETE. Logs counts, booleans and server-generated
+// canonical ids (p1, p2, …); never labels, quotes, model-supplied ids or source text.
+export function emitMatchIncomplete(
+  proposals: readonly MatchRequirement[],
+  canonical: readonly MatchRequirement[],
+  linked: (candidate: MatchRequirement, seed: MatchRequirement) => boolean,
+): void {
+  if (!incompleteDiagnostics) return;
+  try {
+    const ids = new Set(canonical.map((seed) => seed.parentId));
+    const parentIds = { missing: 0, matching: 0, mismatched: 0 };
+    for (const item of proposals)
+      if (item.parentId === undefined) parentIds.missing++;
+      else if (ids.has(item.parentId)) parentIds.matching++;
+      else parentIds.mismatched++;
+    const unlinked = canonical.flatMap((seed, index) =>
+      proposals.some((item) => linked(item, seed))
+        ? []
+        : [
+            {
+              // Only the server-generated form is logged; anything else becomes an index.
+              id: /^p\d{1,4}$/u.test(seed.parentId ?? '')
+                ? seed.parentId
+                : `#${index}`,
+              parentIdReturned: proposals.some(
+                (item) => item.parentId === seed.parentId,
+              ),
+              labelLooseMatch: proposals.some(
+                (item) => loose(item.requirement) === loose(seed.requirement),
+              ),
+              jdQuoteLooseMatch: proposals.some(
+                (item) => loose(item.jdQuote) === loose(seed.jdQuote),
+              ),
+            },
+          ],
+    );
+    process.stderr.write(
+      `${JSON.stringify({
+        event: 'CV_MATCH_INCOMPLETE',
+        counts: {
+          canonical: canonical.length,
+          returned: proposals.length,
+          unlinked: unlinked.length,
+        },
+        parentIds,
+        unlinked,
       })}\n`,
     );
   } catch {

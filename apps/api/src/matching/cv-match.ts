@@ -9,6 +9,7 @@ import {
 } from './cv-match.coverage.js';
 import {
   emitMatchEvidenceRejection,
+  emitMatchIncomplete,
   type MatchEvidenceReason,
 } from './cv-match.diagnostics.js';
 import { jdRequirementLines } from '../extraction/jd-requirements.js';
@@ -380,8 +381,10 @@ export function validateMatchAssessment(
           linksCanonicalRequirement(candidate, seed),
         ),
     )
-  )
+  ) {
+    emitMatchIncomplete(proposals, canonical, linksCanonicalRequirement);
     throw new CvMatchError('CV_MATCH_INCOMPLETE');
+  }
   for (const proposal of proposals) {
     const parent = canonical.find((seed) =>
       linksCanonicalRequirement(proposal, seed),

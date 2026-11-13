@@ -9,13 +9,19 @@ import { validateEnvironment } from './config/environment.js';
 import { createValidationPipe } from './config/validation.js';
 import { configurePdfParserDiagnostics } from './extraction/pdf-parser.diagnostics.js';
 import { configureAiGenerationDiagnostics } from './ai/ai-generation.diagnostics.js';
+import { configureCvMatchDiagnostics } from './matching/cv-match.diagnostics.js';
 
 async function bootstrap(): Promise<void> {
   const host = '127.0.0.1';
-  const { port, pdfParserDiagnostics, aiGenerationDiagnostics } =
-    validateEnvironment();
+  const {
+    port,
+    pdfParserDiagnostics,
+    aiGenerationDiagnostics,
+    cvMatchDiagnostics,
+  } = validateEnvironment();
   configurePdfParserDiagnostics(pdfParserDiagnostics, host);
   configureAiGenerationDiagnostics(aiGenerationDiagnostics, host);
+  configureCvMatchDiagnostics(cvMatchDiagnostics);
   const app = await NestFactory.create(AppModule);
   configureAnalysisHttp(app, localAnalysisSecurity(port));
   app.setGlobalPrefix('api/v1');

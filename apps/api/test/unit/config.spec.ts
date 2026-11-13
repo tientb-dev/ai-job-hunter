@@ -18,6 +18,7 @@ test('accepts isolated test settings and disables schema automation', () => {
   expect(validateEnvironment(env).port).toBe(3000);
   expect(validateEnvironment(env).pdfParserDiagnostics).toBe(false);
   expect(validateEnvironment(env).aiGenerationDiagnostics).toBe(false);
+  expect(validateEnvironment(env).cvMatchDiagnostics).toBe(false);
 });
 test('enables PDF parser diagnostics only for the literal opt-in value', () => {
   expect(
@@ -37,6 +38,16 @@ test('enables AI generation diagnostics only for the literal opt-in value', () =
   expect(
     validateEnvironment({ ...env, AI_GENERATION_DIAGNOSTICS: 'true' })
       .aiGenerationDiagnostics,
+  ).toBe(false);
+});
+test('enables CV Match diagnostics only for the literal opt-in value', () => {
+  expect(
+    validateEnvironment({ ...env, CV_MATCH_DIAGNOSTICS: '1' })
+      .cvMatchDiagnostics,
+  ).toBe(true);
+  expect(
+    validateEnvironment({ ...env, CV_MATCH_DIAGNOSTICS: 'true' })
+      .cvMatchDiagnostics,
   ).toBe(false);
 });
 test.each(['0', '65536', 'abc', '3000.5', ''])(
