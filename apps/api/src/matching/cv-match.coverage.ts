@@ -907,6 +907,14 @@ export function evaluateCoverage(
         )
       : (quotes.find((quote) => supports(component.label, quote, group)) ??
         recovered ??
+        (allowRecovery && group.minimumYears !== undefined
+          ? all.find(
+              (quote) =>
+                quote.length <= 2000 &&
+                supports(component.label, quote, group) &&
+                statedDuration(component.label, quote, group.minimumYears!),
+            )
+          : undefined) ??
         (allowRecovery ? recoverAndDesign(component, group, all) : undefined));
     const source = degree ? education : all;
     const positiveInCv =
@@ -951,11 +959,14 @@ export function evaluateCoverage(
     // never inferred from job tenure or a general summary.
     const usedQuote =
       group.minimumYears !== undefined && !positive && !negatives.length
-        ? [...quotes, ...all].find((quote) =>
-            supports(component.label, quote, {
-              ...group,
-              minimumYears: undefined,
-            }),
+        ? [...quotes, ...all].find(
+            (quote) =>
+              supports(component.label, quote, {
+                ...group,
+                minimumYears: undefined,
+              }) &&
+              // Never claim the duration is unverified for a passage stating it.
+              !statedDuration(component.label, quote, group.minimumYears!),
           )
         : undefined;
     if (usedQuote)
@@ -1061,6 +1072,51 @@ export function evaluateCoverage(
   };
 }
 
+const skillsDeclaration =
+  /^\s*(?:(?:technical )?skills|backend|databases|tools|frontend)\s*[:—–-]/iu;
+const simpleLabel = (requirement: string) =>
+  requirement
+    .trim()
+    .replace(/\.$/u, '')
+    .replace(
+      /^(?:experience (?:with|in|using)|familiarity with|working knowledge of|knowledge of|understanding of|proficiency (?:with|in)|backend)\s+/iu,
+      '',
+    );
+const recoveryWork =
+  /\b(?:built|designed|architected|developed|delivered|implemented|used|worked|integrated|deployed|led|created|maintained|wrote|administered|migrated|operated)\b/iu;
+const aiToolUse =
+  /copilot|cursor|claude code|codeium|tabnine|chatgpt|ai[- ]assisted|coding (?:tools?|assistants?)/iu;
+
+// Recover a single named skill only from an exact CV passage describing work
+// with it; a skills-list or other keyword-only mention never establishes it.
+export function recoverSimpleQuote(
+  requirement: string,
+  category: string,
+  cv: string,
+): string {
+  const label = simpleLabel(requirement);
+  if (category !== 'skill' || !/^[\w+#./-]+$/u.test(label)) return '';
+  return (
+    passages(cv).find(
+      (line) =>
+        line.length <= 2000 &&
+        recoveryWork.test(line) &&
+        !aiToolUse.test(line) &&
+        simpleEvidenceStatus(requirement, line, cv, category) === 'EVIDENCED',
+    ) ?? ''
+  );
+}
+
+// Technology-specific duration must be stated for that technology
+// ("4 years of experience with Node.js"), never job tenure or general experience.
+function statedDuration(label: string, text: string, years: number): boolean {
+  for (const match of text.matchAll(
+    /\b(\d+)\+?\s+years?\s+(?:of\s+)?(?:[\p{L}-]+\s+)?experience\s+(?:with|in|using)\s+(.*)$/giu,
+  ))
+    if (Number(match[1]) >= years && mentions(label, match[2]!)) return true;
+  return false;
+}
+
 // Simple requirements retain their established semantic model links, with narrow
 // vetoes for verifiable negatives and insufficient generic duration.
 export function simpleEvidenceStatus(
@@ -1071,11 +1127,14 @@ export function simpleEvidenceStatus(
 ): CoverageStatus {
   if (!quote) return 'NOT_EVIDENCED';
   // Legacy generic Experience rows are semantic duration assessments, not a skill token.
+  // A single named skill, bare or behind a generic prefix ("Experience with
+  // Kubernetes"), needs a passage that names it; an exact CV substring alone is not evidence.
   const bareSkill =
     category === 'skill' &&
-    /^[\w+#./-]+$/u.test(requirement) &&
+    /^[\w+#./-]+$/u.test(simpleLabel(requirement)) &&
     !/^experience$/iu.test(requirement);
-  if (bareSkill && !mentions(requirement, quote)) return 'NOT_EVIDENCED';
+  if (bareSkill && !mentions(simpleLabel(requirement), quote))
+    return 'NOT_EVIDENCED';
   const minimum =
     /^(?:(?:minimum|at least|min\.?)\s+)?(\d+)\+?\s+(?:years?|yrs?)$/iu.exec(
       requirement.trim(),
@@ -1094,14 +1153,17 @@ export function simpleEvidenceStatus(
   const language = singleManagedLanguage.exec(
     requirement.trim().replace(/\.$/u, ''),
   )?.[1];
-  const label =
-    language ??
-    requirement.replace(
-      /^(?:experience (?:with|in)|backend|knowledge of)\s+/iu,
-      '',
-    );
+  const label = language ?? simpleLabel(requirement);
+  // Descriptive requirements keep the model's semantic link, but only to a
+  // passage that names the requirement or states work/skills (not a name or contact line).
   const selected = passages(quote).filter(
-    (line) => !negative(line) && !uncertain(line),
+    (line) =>
+      !negative(line) &&
+      !uncertain(line) &&
+      (mentions(label, line) ||
+        active(line) ||
+        skillsDeclaration.test(line) ||
+        /\b\d+\+?\s+(?:years?|yrs?)\b/iu.test(line)),
   );
   const negatives = passages(cv).filter(
     (line) => mentions(label, line) && negative(line),
@@ -1123,11 +1185,6 @@ export function simpleContradictions(
   const language = singleManagedLanguage.exec(
     requirement.trim().replace(/\.$/u, ''),
   )?.[1];
-  const label =
-    language ??
-    requirement.replace(
-      /^(?:experience (?:with|in)|backend|knowledge of)\s+/iu,
-      '',
-    );
+  const label = language ?? simpleLabel(requirement);
   return passages(cv).filter((line) => mentions(label, line) && negative(line));
 }

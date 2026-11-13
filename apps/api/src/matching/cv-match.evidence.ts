@@ -44,7 +44,7 @@ export function recoveredCvQuote(item: MatchRequirement, cv: string): string {
       return line;
     if (minimum) {
       const years =
-        /\b(\d+)\+?\s+(?:years?|yrs?)\s+(?:of\s+)?(?:professional\s+)?experience\s+(?:(?:building|developing)\s+(?:enterprise\s+)?(?:applications|software|systems|services)|in software|in enterprise)\b/u.exec(
+        /\b(\d+)\+?\s+(?:years?|yrs?)\s+(?:of\s+)?(?:(?:professional|industry|working|hands-on|commercial|software|development)\s+)?experience\b/u.exec(
           text,
         );
       if (years && Number(years[1]) >= Number(minimum[1])) return line;

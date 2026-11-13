@@ -43,8 +43,12 @@ test('required evidence outweighs preferred and omitted canonical gaps remain vi
     jd,
     canonicalRequirements(job),
   );
-  expect(required.score).toBe(38);
-  expect(preferred.score).toBe(13);
+  // An omitted model link is recovered from an exact CV work passage naming the skill.
+  expect(required.score).toBe(50);
+  expect(preferred.score).toBe(50);
+  expect(
+    required.requirements.find((row) => row.requirement === 'Java'),
+  ).toMatchObject({ status: 'EVIDENCED', cvQuote: 'Developed Java services.' });
   expect(
     required.requirements.find((row) => row.category === 'experience')?.status,
   ).toBe('NOT_EVIDENCED');
@@ -56,14 +60,19 @@ test('required evidence outweighs preferred and omitted canonical gaps remain vi
 test('rejects fabricated quotes, prevents priority downgrade and never asserts absent abilities', () => {
   const result = scoreCvMatch(
     [
-      item('Python', 'Invented Python expertise', 'preferred'),
+      // validateMatchAssessment marks unresolvable quotes; recovery must not restore them.
+      {
+        ...item('Python', 'Invented Python expertise', 'preferred'),
+        cvEvidenceUnverified: true,
+      },
       item('Invented certification', 'Built Python applications.'),
     ],
     cv,
     jd,
     canonicalRequirements(job),
   );
-  expect(result.score).toBe(0);
+  // Only the omitted preferred Java link is recovered from CV work.
+  expect(result.score).toBe(13);
   expect(
     result.requirements.find((row) => row.requirement === 'Python'),
   ).toMatchObject({
@@ -84,7 +93,7 @@ test('fully supported required skills can recommend Apply; reanalysis reflects n
   const seed = [item('Python'), item('Java', '', 'preferred')];
   expect(
     scoreCvMatch([item('Python', 'Built Python applications.')], cv, jd, seed),
-  ).toMatchObject({ score: 75, recommendation: 'Apply' });
+  ).toMatchObject({ score: 100, recommendation: 'Apply' });
   expect(
     scoreCvMatch(
       [item('Python', 'Built Python applications.')],
