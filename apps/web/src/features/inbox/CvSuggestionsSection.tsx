@@ -116,7 +116,7 @@ export function CvSuggestionsSection({
           CV_SUGGESTIONS_BUSY:
             'A CV match or suggestions request is already running. Retry after it finishes.',
           CV_SUGGESTIONS_TIMEOUT:
-            'Suggestion selection timed out. Check local Ollama and retry.',
+            'Suggestion selection timed out. Check the AI service and retry.',
           CV_SUGGESTIONS_CONTEXT_LIMIT:
             'Suggestion evidence exceeds the local context budget. Use concise saved sources and reanalyze.',
           CV_SUGGESTIONS_JOB_NOT_FOUND:
@@ -125,7 +125,7 @@ export function CvSuggestionsSection({
         throw new SuggestionRequestFailure(
           typeof code === 'string' && messages[code]
             ? messages[code]
-            : 'Could not request suggestions. Check the local API and Ollama, then retry.',
+            : 'Could not request suggestions. Check the local API and the AI service, then retry.',
         );
       }
       if (

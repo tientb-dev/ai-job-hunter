@@ -154,7 +154,7 @@ export function CvMatchSection({
             </Stack>
             <Typography variant="caption" color="text.secondary">
               Uses the latest saved CV and job, not unsaved edits. Files parse
-              locally; analysis sends them to local Ollama.
+              locally; analysis sends them to the configured AI provider.
             </Typography>
           </Box>
           {matchStatus === 'CHECKING' && (

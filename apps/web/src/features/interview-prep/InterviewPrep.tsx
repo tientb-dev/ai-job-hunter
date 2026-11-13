@@ -1407,14 +1407,14 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
             <Stack spacing={1} role="status">
               <LinearProgress aria-label="Waiting for feedback" />
               <Typography variant="body2" color="text.secondary">
-                Checking with the local AI… usually under 10 seconds.
+                Checking with the AI… usually under 10 seconds.
               </Typography>
             </Stack>
           )}
           {status.kind === 'idle' && status.cancelled && (
             <Typography variant="body2" color="text.secondary" role="status">
-              Stopped waiting. Your text is kept. The local AI may still finish
-              in the background.
+              Stopped waiting. Your text is kept. The AI may still finish in the
+              background.
             </Typography>
           )}
           {status.kind === 'error' && (

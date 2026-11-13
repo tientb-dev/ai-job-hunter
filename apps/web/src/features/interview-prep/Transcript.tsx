@@ -121,7 +121,7 @@ export function TranscriptPanel({
         <Stack spacing={1} role="status">
           <LinearProgress aria-label="Waiting for feedback" />
           <Typography variant="body2" color="text.secondary">
-            Checking with the local AI… usually under 10 seconds.
+            Checking with the AI… usually under 10 seconds.
           </Typography>
         </Stack>
       )}

@@ -303,7 +303,7 @@ test('a generation failure keeps existing sets and allows a retry', async () => 
     error(
       504,
       'INTERVIEW_TIMEOUT',
-      'The local AI took too long. Your text is kept — try again.',
+      'The AI took too long. Your text is kept — try again.',
     ),
   ];
   mount();
@@ -317,7 +317,7 @@ test('a generation failure keeps existing sets and allows a retry', async () => 
     }),
   );
   expect(await screen.findByRole('alert')).toHaveTextContent(
-    'The local AI took too long.',
+    'The AI took too long.',
   );
   expect(
     screen.getByText('Set 1 question 1: how would you design it?'),

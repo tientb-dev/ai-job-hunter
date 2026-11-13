@@ -286,7 +286,7 @@ test('fewer than 3 valid after the retry fails without persisting', async () => 
     statusCode: 422,
     errorCode: 'INTERVIEW_TOO_FEW_QUESTIONS',
     message:
-      "The local AI couldn't produce enough questions grounded in this job description. Nothing was saved — try again.",
+      "The AI couldn't produce enough questions grounded in this job description. Nothing was saved — try again.",
   });
   expect(await setCount(jobId)).toBe(0);
 });

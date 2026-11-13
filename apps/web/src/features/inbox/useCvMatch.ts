@@ -186,7 +186,7 @@ export function useCvMatch(
         throw new Error(
           typeof code === 'string' && analyzeErrors[code]
             ? analyzeErrors[code]
-            : 'CV matching failed. Check your saved CV, saved job requirements and local Ollama service, then retry.',
+            : 'CV matching failed. Check your saved CV, saved job requirements and the AI service, then retry.',
         );
       }
       if (!isMatchResult(value))
@@ -244,11 +244,11 @@ const analyzeErrors: Record<string, string> = {
   CV_MATCH_CV_UNAVAILABLE:
     'Saved CV text is missing or empty. Save a readable CV again before analyzing.',
   CV_MATCH_TIMEOUT:
-    'Local matching timed out. Check Ollama and retry; no new fit score was produced.',
+    'Matching timed out. Check the AI service and retry; no new fit score was produced.',
   CV_MATCH_INVALID_OUTPUT:
-    'Local model returned invalid matching output. Retry; no new fit score was produced.',
+    'The AI model returned invalid matching output. Retry; no new fit score was produced.',
   CV_MATCH_INCOMPLETE:
-    'Local model returned an incomplete assessment. Retry; no new fit score was produced.',
+    'The AI model returned an incomplete assessment. Retry; no new fit score was produced.',
   CV_MATCH_EVIDENCE_REJECTED:
     'Evidence could not be verified against the saved sources. Retry; no new fit score was produced.',
 };
