@@ -152,12 +152,6 @@ describe('integrity: widening never drops negation or invents evidence', () => {
       'COMPONENT_CV_QUOTE_NOT_IN_CV',
     ],
     [
-      'fragment occurring twice',
-      'EXPERIENCE\n- Used Docker.\n- Used Docker.',
-      'Used Docker',
-      'COMPONENT_CV_QUOTE_AMBIGUOUS',
-    ],
-    [
       'quote spanning more lines than any allowed passage',
       'A\n- Deployed\nservices\nwith Docker',
       'A - Deployed services with Docker',
@@ -165,6 +159,12 @@ describe('integrity: widening never drops negation or invents evidence', () => {
     ],
   ])('%s stays rejected', (_, cv, quote, reason) => {
     expect(rejection(cv, quote)).toBe(reason);
+  });
+
+  test('a fragment occurring twice is dropped, never credited (Gemini path)', () => {
+    const cv = 'EXPERIENCE\n- Used Docker.\n- Used Docker.';
+    expect(rejection(cv, 'Used Docker')).toBe('ACCEPTED');
+    expect(assess(cv, 'Used Docker').docker.status).not.toBe('EVIDENCED');
   });
 
   test('alignToPassage returns only an allowed passage, never the fragment', () => {

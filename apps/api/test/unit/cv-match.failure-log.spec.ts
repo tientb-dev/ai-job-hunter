@@ -395,25 +395,6 @@ describe('one classified CV_MATCH_FAILURE per failed operation', () => {
       },
     ],
     [
-      'ambiguous component quote',
-      () =>
-        setup([
-          () =>
-            reply(
-              rows((row) =>
-                row.requirement === pairs
-                  ? { components: components('services') }
-                  : {},
-              ),
-            ),
-        ]),
-      {
-        ...evidence,
-        reasonCode: 'COMPONENT_CV_QUOTE_AMBIGUOUS',
-        counts: { requirementIndex: 1 },
-      },
-    ],
-    [
       'no verifiable CV quote',
       () =>
         setup(
@@ -496,6 +477,20 @@ describe('one classified CV_MATCH_FAILURE per failed operation', () => {
     });
     release();
     await first;
+  });
+
+  test('an ambiguous Gemini component quote is dropped without a failure event', async () => {
+    const service = setup([
+      () =>
+        reply(
+          rows((row) =>
+            row.requirement === pairs
+              ? { components: components('services') }
+              : {},
+          ),
+        ),
+    ]);
+    expect(await events(service)).toEqual([]);
   });
 
   test('success writes no failure event', async () => {

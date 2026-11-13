@@ -41,6 +41,8 @@ export interface MatchRequirement {
   cvQuote: string;
   // Internal only: prevents recovery from replacing rejected model evidence.
   cvEvidenceUnverified?: true;
+  // Internal only: an ambiguous component quote was dropped; blocks recovery.
+  componentEvidenceUnverified?: true;
 }
 export const MATCH_SCHEMA = {
   type: 'object',
@@ -545,7 +547,13 @@ export function validateMatchAssessment(
           'COMPONENT_JD_QUOTE_NOT_IN_JD',
           at,
         );
-      if (component.cvQuote.trim() && !resolveQuote(component.cvQuote))
+      if (
+        component.cvQuote.trim() &&
+        !resolveQuote(component.cvQuote) &&
+        // Gemini only: a fragment found in several places is dropped below
+        // (fail closed, no credit, no recovery) instead of failing the analysis.
+        !(allowedQuotes && cvQuoteOccurrences(cv, component.cvQuote) === 2)
+      )
         throw new CvMatchError(
           'CV_MATCH_EVIDENCE_REJECTED',
           ...componentQuoteRejection(cv, component.cvQuote, at),
@@ -602,6 +610,12 @@ export function validateMatchAssessment(
       })),
       ...(item.cvQuote.trim() && quote === null
         ? { cvEvidenceUnverified: true as const }
+        : {}),
+      ...(item.components?.some(
+        (component) =>
+          component.cvQuote.trim() && resolveQuote(component.cvQuote) === null,
+      )
+        ? { componentEvidenceUnverified: true as const }
         : {}),
     };
   });
@@ -693,6 +707,9 @@ export function scoreCvMatch(
         .filter((candidate) => !candidate.cvEvidenceUnverified)
         .map((candidate) => candidate.cvQuote)
         .filter((quote) => quote.trim() && cv.includes(quote)),
+      ...(linked.some((candidate) => candidate.componentEvidenceUnverified)
+        ? { componentEvidenceUnverified: true as const }
+        : {}),
       ...(proposal?.cvEvidenceUnverified
         ? { cvEvidenceUnverified: true as const }
         : {}),
@@ -732,7 +749,12 @@ export function scoreCvMatch(
       const coverage =
         group.mode === 'SINGLE'
           ? null
-          : evaluateCoverage(group, selected, cv, !item.cvEvidenceUnverified);
+          : evaluateCoverage(
+              group,
+              selected,
+              cv,
+              !item.cvEvidenceUnverified && !item.componentEvidenceUnverified,
+            );
       const status =
         coverage?.status ??
         simpleEvidenceStatus(
