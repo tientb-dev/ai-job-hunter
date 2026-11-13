@@ -17,6 +17,7 @@ function mount(
   cv: typeof savedCv | null,
   confirmed = 0,
   profileResponse?: () => Promise<Response>,
+  currentResponse?: () => Promise<Response>,
 ) {
   const profile = cvProfileFixture();
   profile.document.sections.forEach((section, index) => {
@@ -29,7 +30,9 @@ function mount(
           fileName: 'replacement-cv.pdf',
           updatedAt: '2026-02-01T00:00:00.000Z',
         });
-      return Response.json(cv);
+      if (currentResponse) return currentResponse();
+      // Like Nest: a null result is an empty 200 body, not the text "null".
+      return cv ? Response.json(cv) : new Response(null, { status: 200 });
     }
     if (url.endsWith('/sources') || url.endsWith('/content'))
       return Response.json(sourceCvFixture);
@@ -66,6 +69,29 @@ test('empty state offers one primary save action and no job description fields',
     screen.queryByRole('region', { name: 'Source CV review' }),
   ).not.toBeInTheDocument();
   expect(calls(fetch, '/sources')).toBe(0);
+});
+
+const loadError = /Could not load your saved CV/;
+
+test('empty state never reports a load error', async () => {
+  mount(null);
+  expect(await screen.findByText(/No CV saved yet/)).toBeVisible();
+  expect(screen.queryByText(loadError)).toBeNull();
+});
+
+test('loading state shows neither empty state, error nor save action', async () => {
+  mount(null, 0, undefined, () => new Promise<Response>(() => {}));
+  await waitFor(() => expect(screen.queryByText(/No CV saved yet/)).toBeNull());
+  expect(screen.queryByText(loadError)).toBeNull();
+  expect(screen.queryByText('Save source CV')).toBeNull();
+});
+
+test.each([
+  ['a server error', async () => new Response('', { status: 500 })],
+  ['a network failure', () => Promise.reject(new TypeError('offline'))],
+])('%s shows the load error', async (_, response) => {
+  mount(null, 0, undefined, response);
+  expect(await screen.findByText(loadError)).toBeVisible();
 });
 
 test('saved state shows file, date and review progress with Replace as secondary', async () => {

@@ -166,7 +166,9 @@ export async function opportunityRequest<T>(
     }
     throw new Error(message);
   }
-  return response.json() as Promise<T>;
+  // Nest sends an empty 200 body when a handler returns null (e.g. no saved CV).
+  const text = await response.text();
+  return (text ? JSON.parse(text) : null) as T;
 }
 
 export function importUpload(record: unknown, file?: File): FormData {
