@@ -275,12 +275,18 @@ test('diagnostics: completion outcome line holds no source text', async () => {
   ]);
   await service.analyze('synthetic');
   const lines = write.mock.calls.map(([line]) => String(line));
-  expect(lines.map((line) => JSON.parse(line))).toEqual([
+  const events = lines.map((line) => JSON.parse(line) as { event: string });
+  expect(events.filter((e) => e.event === 'CV_MATCH_COMPLETION')).toEqual([
     {
       event: 'CV_MATCH_COMPLETION',
       outcome: 'COMPLETED',
       counts: { missing: 2, returned: 2 },
     },
+  ]);
+  // A completed analysis also writes the opt-in evidence summary (#F1).
+  expect(events.map((e) => e.event)).toEqual([
+    'CV_MATCH_COMPLETION',
+    'CV_MATCH_EVIDENCE_SUMMARY',
   ]);
   for (const text of [
     ...Object.values(quote),

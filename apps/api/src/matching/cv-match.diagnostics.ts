@@ -219,3 +219,16 @@ export function emitMatchFailure(
     // Logging must never replace or alter the original failure.
   }
 }
+
+// Opt-in (CV_MATCH_DIAGNOSTICS=1) summary after a completed analysis. The
+// payload holds fixed codes and integers only (see evidenceSummary).
+export function emitMatchEvidenceSummary(build: () => unknown): void {
+  if (!incompleteDiagnostics) return;
+  try {
+    process.stderr.write(
+      `${JSON.stringify({ event: 'CV_MATCH_EVIDENCE_SUMMARY', ...(build() as object) })}\n`,
+    );
+  } catch {
+    // Diagnostics must never alter a completed analysis.
+  }
+}
