@@ -65,3 +65,30 @@ jobs:
           if [ -f .env.test ]; then
             pnpm db:test:down
           fi
+
+  # Windows-only path handling (PDF resource separators); parser suites only.
+  windows-pdf-parser:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.22.1'
+      - name: Set up pnpm
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: '12.14.0'
+          run_install: false
+      - run: pnpm install --frozen-lockfile
+      - name: PDF parser and resource tests
+        working-directory: apps/api
+        run: |
+          pnpm test:compile
+          # <rootDir>/.test-dist becomes "api\.test-dist" (an escaped dot) on
+          # Windows, so match the compiled parser suites without <rootDir>.
+          node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js --runInBand --testMatch "**/.test-dist/test/unit/pdf-*.spec.js" pdf-parser pdf-resources

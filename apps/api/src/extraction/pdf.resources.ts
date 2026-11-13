@@ -1,4 +1,5 @@
 import { readFile, realpath } from 'node:fs/promises';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ExtractionError } from './extraction.errors.js';
 import { EXTRACTION_LIMITS as limits } from './extraction.limits.js';
@@ -217,7 +218,11 @@ export class BundledPdfResources {
       if (!resource) throw new Error();
       const root =
         input.kind === 'cMapUrl' ? roots.cMapUrl : roots.standardFontDataUrl;
-      const expected = `${await realpath(fileURLToPath(root))}/${input.filename}`;
+      // Platform separator: realpath returns backslashes on Windows.
+      const expected = join(
+        await realpath(fileURLToPath(root)),
+        input.filename,
+      );
       if ((await realpath(resource)) !== expected) throw new Error();
       const bytes = await readFile(resource);
       if (bytes.byteLength > limits.resourceBytes) throw new Error();

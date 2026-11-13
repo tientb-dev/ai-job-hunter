@@ -7,6 +7,8 @@ import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import request from 'supertest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { databaseOptions } from '../../src/database/database.config.js';
 import { DatabaseModule } from '../../src/database/database.module.js';
 import { OpportunitiesModule } from '../../src/opportunities/opportunities.module.js';
@@ -21,6 +23,8 @@ let ownsCv = false;
 let generations = 0;
 const origin = { Origin: 'http://127.0.0.1:5173', Host: '127.0.0.1:3000' };
 const syntheticName = 'synthetic-match-cv.pdf';
+// Beta guide fixtures; the PDF needs a bundled standard font (Windows regression).
+const betaSamples = ['synthetic-cv.docx', 'synthetic-cv.pdf'];
 beforeAll(async () => {
   database = new DataSource(databaseOptions('test'));
   await database.initialize();
@@ -65,8 +69,8 @@ afterAll(async () => {
   if (database?.isInitialized) {
     if (ownsCv)
       await database.query(
-        'DELETE FROM ai_job_hunter.saved_cvs WHERE "ownerId"=$1 AND "fileName"=$2',
-        [LOCAL_OWNER_ID, syntheticName],
+        'DELETE FROM ai_job_hunter.saved_cvs WHERE "ownerId"=$1 AND "fileName"=ANY($2)',
+        [LOCAL_OWNER_ID, [syntheticName, ...betaSamples]],
       );
     if (id)
       await database.query(
@@ -213,6 +217,44 @@ test('synthetic CV upload persists and matching reuses latest CV/job without mod
     followUpDate: input.followUpDate,
   });
 });
+// Runs before the restart test: closing a restarted context closes the
+// shared extraction owner for later tests in this file.
+test('beta sample PDF replaces a saved DOCX over HTTP', async () => {
+  const upload = (fileName: string, contentType: string) =>
+    request(app.getHttpServer())
+      .post('/api/v1/opportunities/cv/current')
+      .set(origin)
+      .field('record', '{}')
+      .attach(
+        'document',
+        readFileSync(
+          resolve(process.cwd(), '../../docs/beta-samples', fileName),
+        ),
+        { filename: fileName, contentType },
+      )
+      .expect((response) =>
+        expect([fileName, response.status, response.body]).toEqual([
+          fileName,
+          200,
+          { fileName, updatedAt: expect.any(String) },
+        ]),
+      );
+  ownsCv = true;
+  await upload(
+    'synthetic-cv.docx',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  );
+  await upload('synthetic-cv.pdf', 'application/pdf');
+  const [stored] = await database.query(
+    'SELECT "fileName", text FROM ai_job_hunter.saved_cvs WHERE "ownerId"=$1',
+    [LOCAL_OWNER_ID],
+  );
+  expect(stored.fileName).toBe('synthetic-cv.pdf');
+  expect(stored.text).toContain(
+    '- Built REST APIs with Node.js, TypeScript and NestJS.',
+  );
+});
+
 test('saved matches persist across restart, survive identical re-upload and go stale on changed inputs', async () => {
   const upload = (line: string) =>
     request(app.getHttpServer())
