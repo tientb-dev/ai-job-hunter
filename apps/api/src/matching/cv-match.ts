@@ -621,12 +621,16 @@ export function validateMatchAssessment(
       {
         returned: proposals.length,
         unverified: unverified.length,
-        // Of those: exact CV text that is not an allowed passage, vs not in the CV.
+        // Partition of unverified: AI-tooling quote for a production requirement,
+        // else exact CV text that is not an allowed passage, else not in the CV.
+        toolingRejected: unverified.filter(toolingRejected).length,
         notAllowedPassage: unverified.filter(
-          (item) => resolveCvQuote(cv, item.cvQuote) !== null,
+          (item) =>
+            !toolingRejected(item) && resolveCvQuote(cv, item.cvQuote) !== null,
         ).length,
         notInCv: unverified.filter(
-          (item) => resolveCvQuote(cv, item.cvQuote) === null,
+          (item) =>
+            !toolingRejected(item) && resolveCvQuote(cv, item.cvQuote) === null,
         ).length,
       },
     );

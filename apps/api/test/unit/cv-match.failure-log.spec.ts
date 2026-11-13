@@ -9,12 +9,17 @@ import type { ExtractionService } from '../../src/extraction/extraction.service.
 import { JobMatchService } from '../../src/matching/job-match.service.js';
 import { MatchingService } from '../../src/matching/matching.service.js';
 import { CvMatchError } from '../../src/matching/cv-match.error.js';
-import { configureCvMatchDiagnostics } from '../../src/matching/cv-match.diagnostics.js';
+import {
+  configureCvMatchDiagnostics,
+  emitMatchFailure,
+} from '../../src/matching/cv-match.diagnostics.js';
 import { requirementGroup } from '../../src/matching/cv-match.coverage.js';
 import type { SavedCv } from '../../src/matching/saved-cv.entity.js';
 import type { CvMatchRecord } from '../../src/matching/cv-match.entity.js';
 import {
   canonicalRequirements,
+  completionRejection,
+  validateMatchAssessment,
   type MatchRequirement,
 } from '../../src/matching/cv-match.js';
 import type { Opportunity } from '../../src/opportunities/opportunity.entity.js';
@@ -407,6 +412,7 @@ describe('one classified CV_MATCH_FAILURE per failed operation', () => {
         counts: {
           returned: 2,
           unverified: 2,
+          toolingRejected: 0,
           notAllowedPassage: 1,
           notInCv: 1,
         },
@@ -504,4 +510,235 @@ test('internal reason and counts never reach the HTTP response body', () => {
   expect(detailed.getResponse()).toEqual(plain.getResponse());
   expect(detailed.getStatus()).toBe(plain.getStatus());
   expect(detailed.message).toBe(plain.message);
+});
+
+// Three requirements so a completion can be asked for two of them.
+const job3 = {
+  ...job,
+  skills: `Kafka\nRedis\n${pairs}`,
+  description: `Requirements: Kafka. Redis. ${pairs}.\nPRIVATE_JD_SENTINEL`,
+} as Opportunity;
+const [kafka3, redis3, pairs3] = canonicalRequirements(job3) as [
+  MatchRequirement,
+  MatchRequirement,
+  MatchRequirement,
+];
+const first3 = () =>
+  reply([{ ...kafka3, parentId: undefined, cvQuote: kafkaLine }]);
+const withComponents = (list: NonNullable<MatchRequirement['components']>) =>
+  rows((row) => (row.requirement === pairs ? { components: list } : {}));
+const [c1, c2] = components(dockerLine) as [
+  ReturnType<typeof components>[number],
+  ReturnType<typeof components>[number],
+];
+const validation = (reasonCode: string, requirementIndex: number) => ({
+  stage: 'OUTPUT_VALIDATION',
+  errorCode: 'CV_MATCH_INVALID_OUTPUT',
+  reasonCode,
+  provider: 'gemini',
+  responseStatus: 503,
+  counts: { requirementIndex },
+});
+const completion = (reasonCode: string, missing: number, returned: number) => ({
+  stage: 'COMPLETION',
+  errorCode: 'CV_MATCH_INCOMPLETE',
+  reasonCode,
+  provider: 'gemini',
+  responseStatus: 503,
+  counts: { missing, returned },
+});
+
+describe('remaining reason codes through analyze()', () => {
+  test.each<[string, () => JobMatchService, Record<string, unknown>]>([
+    [
+      'PARENT_ID_UNLINKED',
+      () =>
+        setup([
+          () =>
+            reply([
+              ...rows(),
+              {
+                ...rows()[0]!,
+                requirement: 'PRIVATE_EXTRA',
+                jdQuote: 'Kafka',
+                parentId: 'p9',
+              },
+            ]),
+        ]),
+      validation('PARENT_ID_UNLINKED', 2),
+    ],
+    [
+      'COMPONENT_DUPLICATE',
+      () => setup([() => reply(withComponents([c1, c1]))]),
+      validation('COMPONENT_DUPLICATE', 1),
+    ],
+    [
+      'COMPONENT_JD_SPAN_MISMATCH',
+      () =>
+        setup([
+          () => reply(withComponents([{ ...c1, jdQuote: 'PRIVATE_SPAN' }, c2])),
+        ]),
+      validation('COMPONENT_JD_SPAN_MISMATCH', 1),
+    ],
+    [
+      'COMPLETION_DUPLICATE_ID',
+      () =>
+        setup(
+          [
+            first3,
+            () =>
+              reply([
+                { ...redis3, cvQuote: '' },
+                { ...redis3, cvQuote: 'PRIVATE_DUP' },
+              ]),
+          ],
+          { savedJob: job3 },
+        ),
+      completion('COMPLETION_DUPLICATE_ID', 2, 2),
+    ],
+    [
+      'COMPLETION_TEXT_MISMATCH',
+      () =>
+        setup(
+          [
+            first3,
+            () =>
+              reply([
+                { ...redis3, cvQuote: '' },
+                {
+                  ...pairs3,
+                  requirement: 'PRIVATE_LABEL',
+                  jdQuote: 'Kafka',
+                  cvQuote: '',
+                },
+              ]),
+          ],
+          { savedJob: job3 },
+        ),
+      completion('COMPLETION_TEXT_MISMATCH', 2, 2),
+    ],
+  ])('%s', async (_, service, expected) => {
+    expect(await failure(service())).toEqual(expected);
+  });
+
+  test('an invented completion id is stopped earlier by the completion schema', async () => {
+    // The parentId enum makes COMPLETION_UNKNOWN_ID unreachable via a provider.
+    const service = setup(
+      [
+        first3,
+        () =>
+          reply([
+            { ...redis3, cvQuote: '' },
+            { ...pairs3, parentId: 'p9', cvQuote: '' },
+          ]),
+      ],
+      { savedJob: job3 },
+    );
+    expect(await failure(service)).toEqual({
+      stage: 'COMPLETION',
+      errorCode: 'CV_MATCH_INVALID_OUTPUT',
+      reasonCode: 'SCHEMA_VALIDATION_FAILURE',
+      provider: 'gemini',
+      responseStatus: 503,
+    });
+  });
+});
+
+describe('reason codes not reachable through analyze() inputs', () => {
+  const lines = (error: unknown, stage: 'VALIDATION' | 'COMPLETION') => {
+    const write = jest.spyOn(process.stderr, 'write').mockReturnValue(true);
+    emitMatchFailure(error, { stage }, 'gemini', 0);
+    const out = write.mock.calls.map(([line]) => String(line));
+    write.mockRestore();
+    expect(out).toHaveLength(1);
+    expect(out.join('')).not.toMatch(/PRIVATE/u);
+    const { durationMs, ...rest } = JSON.parse(out[0]!) as Record<
+      string,
+      unknown
+    >;
+    expect(durationMs).toBe(0);
+    return rest;
+  };
+  const thrown = (run: () => unknown) => {
+    try {
+      run();
+    } catch (error) {
+      return error;
+    }
+    throw new Error('expected a failure');
+  };
+
+  test('COMPONENT_JD_QUOTE_NOT_IN_JD', () => {
+    // analyze() always includes each canonical clause in the JD text, so this
+    // check is exercised with a JD that omits the component span.
+    const error = thrown(() =>
+      validateMatchAssessment(
+        withComponents([c1, c2]),
+        cvText,
+        `Kafka\n${pairs.replace('Kubernetes', 'PRIVATE')}`,
+        canonical,
+      ),
+    );
+    expect(lines(error, 'VALIDATION')).toEqual({
+      event: 'CV_MATCH_FAILURE',
+      stage: 'EVIDENCE_VALIDATION',
+      errorCode: 'CV_MATCH_EVIDENCE_REJECTED',
+      reasonCode: 'COMPONENT_JD_QUOTE_NOT_IN_JD',
+      provider: 'gemini',
+      responseStatus: 503,
+      counts: { requirementIndex: 1 },
+    });
+  });
+
+  test('COMPLETION_UNKNOWN_ID', () => {
+    const missing = [redis3, pairs3];
+    const items = [redis3, { ...pairs3, parentId: undefined }];
+    const reason = completionRejection(items, missing);
+    expect(reason).toBe('UNKNOWN_ID');
+    expect(
+      lines(
+        new CvMatchError('CV_MATCH_INCOMPLETE', `COMPLETION_${reason!}`, {
+          missing: 2,
+          returned: 2,
+        }),
+        'COMPLETION',
+      ),
+    ).toEqual({
+      event: 'CV_MATCH_FAILURE',
+      ...completion('COMPLETION_UNKNOWN_ID', 2, 2),
+    });
+  });
+
+  test('AI-tooling quotes are counted separately in NO_VERIFIABLE_CV_QUOTES', () => {
+    const production = 'Production AI/ML model development';
+    const quote = 'Used Cursor for coding. PRIVATE_TOOL';
+    const seed: MatchRequirement = {
+      requirement: production,
+      priority: 'required',
+      category: 'skill',
+      jdQuote: production,
+      cvQuote: '',
+    };
+    const error = thrown(() =>
+      validateMatchAssessment(
+        [
+          { ...seed, cvQuote: quote },
+          { ...seed, cvQuote: 'PRIVATE_NOT_IN_CV' },
+        ],
+        quote,
+        production,
+        [seed],
+      ),
+    );
+    expect(lines(error, 'VALIDATION')).toMatchObject({
+      reasonCode: 'AI_TOOLING_FOR_PRODUCTION_REQUIREMENT',
+      counts: {
+        returned: 2,
+        unverified: 2,
+        toolingRejected: 1,
+        notAllowedPassage: 0,
+        notInCv: 1,
+      },
+    });
+  });
 });
