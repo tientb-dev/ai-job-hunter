@@ -19,10 +19,12 @@ import {
   legacyStructuredParts,
 } from '../opportunities/job-import.sections.js';
 import { supportedStacks } from '../discovery/discovery.js';
-import { CvMatchError } from './cv-match.error.js';
+import { CvMatchError, type MatchFailureReason } from './cv-match.error.js';
 import {
   recoveredCvQuote,
   resolveCvQuote,
+  alignToPassage,
+  cvQuoteOccurrences,
   cvQuoteChoices,
   databaseAttributedQuoteChoices,
 } from './cv-match.evidence.js';
@@ -445,6 +447,21 @@ export function completionRejection(
   }
   return null;
 }
+// Fixed cause for a rejected component CV quote, with the CV lines it spans.
+function componentQuoteRejection(
+  cv: string,
+  quote: string,
+  at: { requirementIndex: number },
+): [MatchFailureReason, Record<string, number>] {
+  const found = cvQuoteOccurrences(cv, quote);
+  if (found === 0) return ['COMPONENT_CV_QUOTE_NOT_IN_CV', at];
+  if (found === 2) return ['COMPONENT_CV_QUOTE_AMBIGUOUS', at];
+  const exact = resolveCvQuote(cv, quote) ?? '';
+  return [
+    'COMPONENT_CV_QUOTE_NOT_ALLOWED_PASSAGE',
+    { ...at, spannedLines: exact.split(/\r\n|[\r\n\u2028\u2029]/u).length },
+  ];
+}
 // An omitted or rejected model assessment is not evidence of a poor fit.
 export function validateMatchAssessment(
   proposals: MatchRequirement[],
@@ -457,9 +474,9 @@ export function validateMatchAssessment(
   if (!cv.trim())
     throw new CvMatchError('CV_MATCH_CV_UNAVAILABLE', 'CV_TEXT_EMPTY');
   const resolveQuote = (quote: string) =>
-    allowedQuotes && !allowedQuotes.has(quote)
-      ? null
-      : resolveCvQuote(cv, quote);
+    !allowedQuotes || allowedQuotes.has(quote)
+      ? resolveCvQuote(cv, quote)
+      : alignToPassage(cv, quote, allowedQuotes);
   if (
     !jd.trim() ||
     !proposals.length ||
@@ -531,10 +548,7 @@ export function validateMatchAssessment(
       if (component.cvQuote.trim() && !resolveQuote(component.cvQuote))
         throw new CvMatchError(
           'CV_MATCH_EVIDENCE_REJECTED',
-          resolveCvQuote(cv, component.cvQuote)
-            ? 'COMPONENT_CV_QUOTE_NOT_ALLOWED_PASSAGE'
-            : 'COMPONENT_CV_QUOTE_NOT_IN_CV',
-          at,
+          ...componentQuoteRejection(cv, component.cvQuote, at),
         );
     }
   }
