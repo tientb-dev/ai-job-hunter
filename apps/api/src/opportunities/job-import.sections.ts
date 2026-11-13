@@ -251,7 +251,8 @@ function containsTerm(text: string, value: string): boolean {
 
 // An initial OR group may be followed by independently mandatory list items.
 // A comma before the first "or" instead denotes the complete alternatives list.
-function structuredParts(line: string): string[] {
+// Exported as the pre-v5 split so saved fragments can be traced to their line.
+export function legacyStructuredParts(line: string): string[] {
   const group = /^[^,]+?\bor\b[^,]+(?=,)/iu.exec(line)?.[0];
   if (!group || /\([^)]*$/u.test(group)) return [line];
   return [
@@ -262,6 +263,19 @@ function structuredParts(line: string): string[] {
       .map((part) => part.trim())
       .filter(Boolean),
   ];
+}
+// The tail continues the same alternatives ("..., or a related discipline",
+// "such as Kafka, RabbitMQ") rather than listing separate requirements.
+export function continuedAlternatives(line: string): boolean {
+  const parts = legacyStructuredParts(line);
+  return (
+    parts.length > 1 &&
+    !parts.slice(1).some((part) => /\band\b/iu.test(part)) &&
+    (/^or\b/iu.test(parts.at(-1)!) || /\bsuch as\b/iu.test(parts[0]!))
+  );
+}
+function structuredParts(line: string): string[] {
+  return continuedAlternatives(line) ? [line] : legacyStructuredParts(line);
 }
 
 function conciseParts(line: string): string[] {

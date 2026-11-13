@@ -19,7 +19,7 @@ const technicalFields = [
   'information systems',
 ];
 const listedDegreePattern = new RegExp(
-  String.raw`^${bachelor}\s+in\s+(${field}(?:\s*,\s*${field})+)\s*,?\s+or\s+(${field}|(?:an?\s+)?related\s+(?:technical\s+)?(?:discipline|field))$`,
+  String.raw`^${bachelor}(?:\s+or\s+(?:higher|above))?\s+in\s+(${field}(?:\s*,\s*${field})+)\s*,?\s+or\s+(${field}|(?:an?\s+)?related\s+(?:technical\s+)?(?:discipline|field))$`,
   'iu',
 );
 const degreePattern = new RegExp(

@@ -12,7 +12,11 @@ import {
   type MatchEvidenceReason,
 } from './cv-match.diagnostics.js';
 import { jdRequirementLines } from '../extraction/jd-requirements.js';
-import { alternativeClause } from '../opportunities/job-import.sections.js';
+import {
+  alternativeClause,
+  continuedAlternatives,
+  legacyStructuredParts,
+} from '../opportunities/job-import.sections.js';
 import { supportedStacks } from '../discovery/discovery.js';
 import { CvMatchError } from './cv-match.error.js';
 import {
@@ -144,6 +148,63 @@ export function matchJobText(job: Opportunity): string {
     `JD:\n${job.jdText}`,
   ].join('\n');
 }
+const requirementLabel = (text: string) =>
+  text
+    .replace(/^[-*•–]\s+/u, '')
+    .replace(/\s*\((?:required|preferred|nice to have)\)$/iu, '')
+    .trim() || text;
+const fragmentKey = (text: string) =>
+  normalize(requirementLabel(text)).replace(/[.;]+$/u, '');
+// Undo the pre-v5 import split of one JD line ("degree in A, B, or C" saved as
+// A / B / "or C") only when every fragment is saved exactly once with one
+// category and priority, and no fragment is also its own JD requirement line.
+function repairSplitClauses(
+  rows: MatchRequirement[],
+  source: string,
+): MatchRequirement[] {
+  const lines = source
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const standalone = new Set(lines.map(fragmentKey));
+  let result = rows;
+  for (const line of lines) {
+    const value = line.replace(/[.;]+$/u, '');
+    if (!continuedAlternatives(value)) continue;
+    const parts = legacyStructuredParts(value).map(fragmentKey);
+    if (parts.some((part) => standalone.has(part))) continue;
+    const matches = parts.map((part) =>
+      result.flatMap((row, index) =>
+        fragmentKey(row.requirement) === part ? [index] : [],
+      ),
+    );
+    if (matches.some((found) => found.length !== 1)) continue;
+    const members = matches.map((found) => found[0]!);
+    const first = Math.min(...members);
+    const seed = result[first]!;
+    if (
+      members.some(
+        (index) =>
+          result[index]!.category !== seed.category ||
+          result[index]!.priority !== seed.priority,
+      )
+    )
+      continue;
+    const jdQuote = value.replace(/^[-*•–]\s+/u, '');
+    const clause = { ...seed, requirement: requirementLabel(jdQuote), jdQuote };
+    result = result.flatMap((row, index) =>
+      index === first
+        ? [clause]
+        : members.includes(index) ||
+            (fragmentKey(row.requirement) === fragmentKey(jdQuote) &&
+              row.category === seed.category &&
+              row.priority === seed.priority)
+          ? []
+          : [row],
+    );
+  }
+  return result;
+}
 export function canonicalRequirements(job: Opportunity): MatchRequirement[] {
   const rows: MatchRequirement[] = [];
   const description = job.description || job.jdText;
@@ -207,11 +268,7 @@ export function canonicalRequirements(job: Opportunity): MatchRequirement[] {
       .filter(Boolean))
       rows.push({
         // The label drops list bullets and priority annotations; jdQuote keeps the original line.
-        requirement:
-          requirement
-            .replace(/^[-*•–]\s+/u, '')
-            .replace(/\s*\((?:required|preferred|nice to have)\)$/iu, '')
-            .trim() || requirement,
+        requirement: requirementLabel(requirement),
         priority,
         category:
           category === 'skill' &&
@@ -236,15 +293,16 @@ export function canonicalRequirements(job: Opportunity): MatchRequirement[] {
         cvQuote: '',
       });
   }
+  const sourceText = [job.description, job.jdText, job.postText].join('\n');
+  const repaired = repairSplitClauses(rows, sourceText);
   // Regroup saved fragments of one source "or" list (e.g. degree fields split
   // into rows) into that exact sentence. Same category and priority only.
-  const sourceText = [job.description, job.jdText, job.postText].join('\n');
   const grouped: MatchRequirement[] = [];
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i]!;
+  for (let i = 0; i < repaired.length; i++) {
+    const row = repaired[i]!;
     let next = row;
-    for (let j = rows.length - 1; j > i && row.category === 'skill'; j--) {
-      const run = rows.slice(i, j + 1);
+    for (let j = repaired.length - 1; j > i && row.category === 'skill'; j--) {
+      const run = repaired.slice(i, j + 1);
       if (
         run.some(
           (item) =>
