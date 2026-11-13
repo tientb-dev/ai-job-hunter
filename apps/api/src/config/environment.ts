@@ -14,6 +14,7 @@ export function validateEnvironment(env: NodeJS.ProcessEnv = process.env) {
     port: Number(port),
     ai: aiConfig(env),
     pdfParserDiagnostics: env.PDF_PARSER_DIAGNOSTICS === '1',
+    cvMatchDiagnostics: env.CV_MATCH_DIAGNOSTICS === '1',
     aiGenerationDiagnostics: env.AI_GENERATION_DIAGNOSTICS === '1',
   };
 }
