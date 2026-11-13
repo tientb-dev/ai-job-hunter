@@ -164,7 +164,7 @@ Do not delete Docker volumes or run `docker compose down -v`; that erases your d
 
 Interview practice works without it. Type or paste your answers instead. If you
 want local speech-to-text, follow "Optional local speech-to-text" in the
-[README](../README.md#optional-local-speech-to-text-pr16). This step needs a
+[development guide](development.md#optional-local-speech-to-text). This step needs a
 C/C++ build and is meant for technical testers.
 
 ## 7. Test with synthetic data
