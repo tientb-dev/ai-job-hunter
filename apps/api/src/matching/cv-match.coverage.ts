@@ -178,7 +178,7 @@ export function requirementGroup(
       managedLanguage: true,
     };
   const named =
-    /^(?:(?:strong|solid|proven|hands-on)\s+)?experience (?:with|in|using)\s+[\p{L} /-]{1,60}?\s+such as\s+(.+?),?\s+or\s+(?:equivalent|similar)(?:\s+[\p{L}-]+){0,2}$/iu.exec(
+    /^(?:(?:strong|solid|proven|hands-on)\s+)?experience (?:working )?(?:with|in|using)\s+[\p{L} /-]{1,60}?\s+such as\s+(.+?)(?:,?\s+or\s+(?:equivalent|similar)(?:\s+[\p{L}-]+){0,2})?$/iu.exec(
       text,
     );
   if (named) {
@@ -186,6 +186,9 @@ export function requirementGroup(
     if (
       labels.length >= 2 &&
       labels.length <= 10 &&
+      !/\band\b/iu.test(named[1]!) &&
+      // Quantities ("multiple languages such as ...") are not one-of alternatives.
+      !/\b(?:multiple|several|various|at least|two|three|all)\b/iu.test(text) &&
       labels.every((label) => /^[\w+#./-]+(?: [\w+#./-]+)?$/u.test(label))
     )
       return { ...group('OR', labels, 'experience'), demonstratedUse: true };
