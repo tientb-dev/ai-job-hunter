@@ -275,7 +275,19 @@ test('diagnostics: completion outcome line holds no source text', async () => {
   ]);
   await service.analyze('synthetic');
   const lines = write.mock.calls.map(([line]) => String(line));
-  const events = lines.map((line) => JSON.parse(line) as { event: string });
+  const parsed = lines.map(
+    (line) => JSON.parse(line) as { event: string; attempt?: string },
+  );
+  // Every event of one analysis carries the same random attempt id, and nothing else
+  // identifying.
+  const attempts = new Set(parsed.map((e) => e.attempt));
+  expect(attempts.size).toBe(1);
+  expect([...attempts][0]).toMatch(/^[0-9a-f-]{36}$/u);
+  const events = parsed.map((event) => {
+    const copy = { ...event };
+    delete copy.attempt;
+    return copy;
+  });
   expect(events.filter((e) => e.event === 'CV_MATCH_COMPLETION')).toEqual([
     {
       event: 'CV_MATCH_COMPLETION',

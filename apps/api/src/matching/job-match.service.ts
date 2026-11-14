@@ -37,6 +37,7 @@ import { SavedCv } from './saved-cv.entity.js';
 import {
   validateMatchAssessment,
   canonicalRequirements,
+  canonicalRequirementsUnverified,
   matchOutputSchema,
   matchJobText,
   matchPrompt,
@@ -51,6 +52,7 @@ import {
 import {
   emitMatchCompletion,
   emitMatchFailure,
+  matchAttempt,
   emitMatchEvidenceSummary,
   type MatchFailureTrace,
 } from './cv-match.diagnostics.js';
@@ -282,17 +284,19 @@ export class JobMatchService {
   async analyze(id: string) {
     const started = performance.now();
     const trace: MatchFailureTrace = { stage: 'SETUP' };
-    try {
-      return await this.runAnalysis(id, trace);
-    } catch (error) {
-      emitMatchFailure(
-        error,
-        trace,
-        this.aiConfig?.provider,
-        performance.now() - started,
-      );
-      throw error;
-    }
+    return matchAttempt.run(randomUUID(), async () => {
+      try {
+        return await this.runAnalysis(id, trace);
+      } catch (error) {
+        emitMatchFailure(
+          error,
+          trace,
+          this.aiConfig?.provider,
+          performance.now() - started,
+        );
+        throw error;
+      }
+    });
   }
   private async runAnalysis(id: string, trace: MatchFailureTrace) {
     if (this.active) {
@@ -439,6 +443,7 @@ export class JobMatchService {
         cv.text,
         jd,
         canonical,
+        canonicalRequirementsUnverified(job),
       );
       const analyzedAt = new Date();
       const matchId = randomUUID();

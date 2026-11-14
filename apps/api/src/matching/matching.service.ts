@@ -10,8 +10,9 @@ export class MatchingService {
     cv: string,
     jd: string,
     canonical: MatchRequirement[],
+    unverified = false,
   ) {
-    return scoreCvMatch(proposals, cv, jd, canonical);
+    return scoreCvMatch(proposals, cv, jd, canonical, unverified);
   }
 
   match(input: MatchingInput): MatchingResult {

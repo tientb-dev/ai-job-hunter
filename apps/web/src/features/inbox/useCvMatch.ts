@@ -310,7 +310,9 @@ export function isMatchResult(value: unknown): value is MatchResult {
         Number.isInteger(row.score) &&
         row.score >= 0 &&
         row.score <= 100)) &&
-    ['Apply', 'Consider', 'Low Fit'].includes(row.recommendation ?? '') &&
+    ['Apply', 'Consider', 'Low Fit', 'Review requirements'].includes(
+      row.recommendation ?? '',
+    ) &&
     typeof row.explanation === 'string' &&
     typeof row.advice === 'string' &&
     Array.isArray(row.requirements) &&
