@@ -39,6 +39,7 @@ import { InterviewPrep } from '../features/interview-prep/InterviewPrep';
 import { JobPractice } from '../features/interview-prep/JobPractice';
 import { MockInterview } from '../features/interview-prep/MockInterview';
 import { ApiReadiness } from '../features/health/ApiReadiness';
+import { SignOutButton } from '../features/auth/session';
 
 const UiAcceptancePreview = import.meta.env.DEV
   ? lazy(() => import('../features/dashboard/UiAcceptancePreview'))
@@ -112,11 +113,10 @@ export function App() {
           </Button>
         ))}
       </Stack>
-      {desktop && (
-        <Box sx={{ mt: 'auto', pt: 2 }}>
-          <ApiReadiness />
-        </Box>
-      )}
+      <Stack spacing={1} sx={{ mt: 'auto', pt: 2, alignItems: 'flex-start' }}>
+        <SignOutButton />
+        {desktop && <ApiReadiness />}
+      </Stack>
     </>
   );
   const jobsMatch = useMatch('/jobs');

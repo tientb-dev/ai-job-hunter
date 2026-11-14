@@ -1,3 +1,4 @@
+import { AuthModule } from './auth/auth.module.js';
 import { TailoredCvModule } from './tailored-cv/tailored-cv.module.js';
 import { InterviewPrepModule } from './interview-prep/interview-prep.module.js';
 import { DiscoveryQueueModule } from './discovery/discovery-queue.module.js';
@@ -13,6 +14,7 @@ import { MatchingModule } from './matching/matching.module.js';
 @Module({
   imports: [
     DatabaseModule,
+    AuthModule,
     TailoredCvModule,
     OpportunitiesModule,
     DiscoveryQueueModule,

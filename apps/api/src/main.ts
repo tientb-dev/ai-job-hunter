@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { FoundationRequestErrors } from './tailored-cv/tailored-cv.http.js';
 import { configureAnalysisHttp } from './analysis/analysis-http.js';
 import { localAnalysisSecurity } from './analysis/analysis-security.js';
+import { configureAuth } from './auth/auth.http.js';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
@@ -23,7 +24,10 @@ async function bootstrap(): Promise<void> {
   configureAiGenerationDiagnostics(aiGenerationDiagnostics, host);
   configureCvMatchDiagnostics(cvMatchDiagnostics);
   const app = await NestFactory.create(AppModule);
-  configureAnalysisHttp(app, localAnalysisSecurity(port));
+  const security = localAnalysisSecurity(port);
+  // Auth first: it must run before every other Express handler, including /analyses.
+  configureAuth(app, { origins: security.origins });
+  configureAnalysisHttp(app, security);
   app.setGlobalPrefix('api/v1');
   app.useGlobalFilters(new FoundationRequestErrors(app.getHttpAdapter()));
   app.useGlobalPipes(createValidationPipe());
