@@ -1489,6 +1489,80 @@ function namedTechnologyStatus(
     : 'EVIDENCED';
 }
 
+// "(Hands-on) experience with <descriptive phrase>" (e.g. "asynchronous processing
+// systems"): every key word of the phrase must appear, exactly (case and a
+// plural "s" aside), in the same clause as a work verb. Generic head nouns are
+// ignored only when at least two other key words remain. No synonyms.
+const genericHeads = new Set([
+  'system',
+  'service',
+  'solution',
+  'application',
+  'platform',
+]);
+const singular = (word: string) =>
+  word.toLowerCase().replace(/(?<=\p{L}{3})s$/u, '');
+function descriptiveExperience(
+  requirement: string,
+  category: string,
+): string[] | null {
+  if (category !== 'skill') return null;
+  const text = requirement.trim().replace(/\.$/u, '');
+  const prefix =
+    /^(?:(?:strong|solid|proven|hands-on)\s+)?experience (?:with|in|using)\s+(.+)$/iu.exec(
+      text,
+    );
+  // The legacy "<phrase> experience" form keeps PR57 behaviour (out of scope).
+  const phrase = prefix?.[1]?.trim();
+  if (!phrase) return null;
+  const words = phrase.split(/\s+/u);
+  if (
+    words.length > 5 ||
+    words.some(
+      (word) =>
+        !/^[\p{L}-]+$/u.test(word) ||
+        /^(?:and|or|such|as|including|like|etc)$/iu.test(word),
+    )
+  )
+    return null;
+  const key = words.map(singular);
+  const specific = key.filter((word) => !genericHeads.has(word));
+  return specific.length >= 2 ? specific : key;
+}
+function descriptiveExperienceStatus(
+  key: string[],
+  quote: string,
+  cv: string,
+): CoverageStatus {
+  const has = (text: string) => {
+    const present = new Set(
+      (text.match(/[\p{L}-]+/gu) ?? []).map((word) => singular(word)),
+    );
+    return key.every((word) => present.has(word));
+  };
+  // A wrapped bullet is one unit (PR67); its lines are not judged alone.
+  const supported = demonstratedPassages([quote], cv).some(
+    (passage) =>
+      !negative(passage) &&
+      !uncertain(passage) &&
+      !declarationLine(passage) &&
+      passage
+        .split(
+          /;|(?<=[.!?])\s+|\b(?:after|before|while|during|but|although|though)\b/iu,
+        )
+        .some(
+          (clause) =>
+            has(clause) &&
+            recoveryWork.test(clause) &&
+            !passingMention.test(clause),
+        ),
+  );
+  if (!supported) return 'NOT_EVIDENCED';
+  return passages(cv).some((line) => has(line) && negative(line))
+    ? 'CONFLICT'
+    : 'EVIDENCED';
+}
+
 export function simpleEvidenceStatus(
   requirement: string,
   quote: string,
@@ -1526,6 +1600,9 @@ export function simpleEvidenceStatus(
   const named =
     language === undefined && namedTechnology(requirement, category);
   if (named) return namedTechnologyStatus(named, quote, cv);
+  const descriptive =
+    language === undefined && descriptiveExperience(requirement, category);
+  if (descriptive) return descriptiveExperienceStatus(descriptive, quote, cv);
   const label = language ?? simpleLabel(requirement);
   // Descriptive requirements keep the model's semantic link, but only to a
   // passage that names the requirement or states work/skills (not a name or contact line).
