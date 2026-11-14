@@ -266,6 +266,13 @@ export function TailoredCvReview({
   useEffect(() => {
     onDirtyChange(dirty);
   }, [dirty, onDirtyChange]);
+  // In-app navigation is guarded elsewhere; also warn before reload/close.
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
   useEffect(
     () => () => {
       epoch.current++;
@@ -338,6 +345,7 @@ export function TailoredCvReview({
       setReviewed(false);
       setRecoverable(null);
       setEditing(null);
+      return draft;
     },
     [jobId, isWizard],
   );
@@ -494,11 +502,21 @@ export function TailoredCvReview({
   const issuesRemaining = openBlocking > 0;
   const facts =
     document?.sections.flatMap((s) => s.entries.flatMap((e) => e.facts)) ?? [];
-  const openPlaceholders = facts.filter((fact) =>
-    fact.verification?.details.some(
-      (d) => d.startsWith('[') && fact.acceptedText.includes(d),
-    ),
-  ).length;
+  // Same rule as the API: new [placeholders] in changed wording block approval;
+  // brackets already in the source wording (e.g. "[Remote]") do not.
+  const openPlaceholders = facts.filter((fact) => {
+    const state = document?.review.factReviews[fact.id];
+    return (
+      fact.verification?.details.some(
+        (d) => d.startsWith('[') && fact.acceptedText.includes(d),
+      ) ||
+      (!!state &&
+        state.wording !== 'reviewed_profile' &&
+        [...fact.acceptedText.matchAll(/\[[^\]\n]{1,40}\]/gu)].some(
+          (m) => !state.reviewedText.includes(m[0]),
+        ))
+    );
+  }).length;
   const editedIds = document
     ? Object.entries(document.review.factReviews)
         .filter(([, s]) => s.wording !== 'reviewed_profile')
@@ -800,6 +818,34 @@ export function TailoredCvReview({
       helperText="Edits are user-authored wording, not original-source evidence."
     />
   );
+  // Accurate wording status: an edit is the user's own wording, never a
+  // confirmation of the claim, and is only persisted by Save draft.
+  const unsavedEdit = (id: string) =>
+    operations.some((op) => op.action === 'edit' && op.factId === id);
+  const savedEdit = (id: string) =>
+    saved?.document.review.factReviews[id]?.wording === 'user_edited';
+  const unsavedNote = (fact: (typeof facts)[number]) =>
+    unsavedEdit(fact.id) ? (
+      <Alert
+        severity="info"
+        variant="outlined"
+        sx={{ mt: 1 }}
+        action={
+          <Button
+            size="small"
+            variant="contained"
+            startIcon={<SaveIcon />}
+            aria-label={`Save draft with your wording for ${fact.field}`}
+            disabled={blocked || blank || operations.length > 384}
+            onClick={saveDraft}
+          >
+            Save draft
+          </Button>
+        }
+      >
+        Edited by you — not saved. Save the draft to keep this wording.
+      </Alert>
+    ) : null;
   const contextualEdit = (fact: (typeof facts)[number], where: string) =>
     contextEdit === fact.id ? (
       <Stack spacing={1} sx={{ mt: 1.5 }}>
@@ -812,6 +858,7 @@ export function TailoredCvReview({
       </Stack>
     ) : (
       <Box sx={{ mt: 1 }}>
+        {unsavedNote(fact)}
         <Button
           size="small"
           disabled={blocked}
@@ -822,7 +869,60 @@ export function TailoredCvReview({
         </Button>
       </Box>
     );
-  const renderCheck = ({
+  const renderCheck = (card: (typeof verificationCards)[number]) => {
+    const { fact, where } = card;
+    const adopted = unsavedEdit(fact.id)
+      ? 'Edited by you — not saved'
+      : savedEdit(fact.id)
+        ? 'Saved — user-authored wording'
+        : null;
+    if (!adopted) return renderVerify(card);
+    // Already acted on: show the user's wording and status; the original AI
+    // provenance warning stays available below, marked as history.
+    return (
+      <Alert
+        key={`verify-${fact.id}`}
+        id={fact.proposedWording ? undefined : `suggestion-${fact.id}`}
+        tabIndex={-1}
+        severity="info"
+        variant="outlined"
+        aria-label={`Your wording for ${fact.field}`}
+      >
+        <Stack spacing={1}>
+          <Typography
+            variant="subtitle1"
+            component="h4"
+            sx={{ fontWeight: 600 }}
+          >
+            {where} · {adopted}
+          </Typography>
+          <Typography sx={{ whiteSpace: 'pre-wrap' }}>
+            {fact.acceptedText}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Your own wording, not evidence from your original CV. Approval
+            records your review, not verification of this claim.
+          </Typography>
+          <Box component="details">
+            <Typography component="summary" variant="body2">
+              Original AI suggestion (not in your CV:{' '}
+              {fact.verification!.details.join(', ')})
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{ whiteSpace: 'pre-wrap', mt: 0.5 }}
+            >
+              {fact.verification!.text}
+            </Typography>
+          </Box>
+          {docReview
+            ? !fact.proposedWording && contextualEdit(fact, where)
+            : unsavedNote(fact)}
+        </Stack>
+      </Alert>
+    );
+  };
+  const renderVerify = ({
     fact,
     section,
     where,
@@ -1065,9 +1165,9 @@ export function TailoredCvReview({
         operations,
       });
       if (token === epoch.current) {
-        accept(value);
+        const draft = accept(value);
         setMessage(
-          wasApproved ? 'Draft saved. Approval cleared.' : 'Draft saved.',
+          `Draft saved as revision ${draft.revision}.${wasApproved ? ' Approval cleared.' : ''}`,
         );
         if (isWizard) focusContinue.current = true;
       }
