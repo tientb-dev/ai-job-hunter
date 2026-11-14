@@ -255,7 +255,9 @@ describe('Docker evidence relevance', () => {
         'Tools: Git, Docker\nNever used Docker in production.',
         'Tools: Git, Docker',
       ).status,
-    ).toBe('CONFLICT');
+      // An experience row needs related professional use; a skills line is no
+      // positive evidence, so there is nothing to conflict with (credit 0).
+    ).toBe('NOT_EVIDENCED');
   });
 });
 

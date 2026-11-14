@@ -74,11 +74,13 @@ test('one invalid model match is downgraded without recovering replacement evide
     cvQuote: '',
   });
   expect(result.requirements[1]?.status).toBe('EVIDENCED');
+  // Named-technology relevance: "Spring Boot" and the work verb sit on
+  // different lines of a non-bullet wrap, which is not a reliably bounded unit
+  // (PR67 boundaries), so it fails closed instead of linking across lines.
   expect(result.requirements[2]).toMatchObject({
-    status: 'EVIDENCED',
-    cvQuote: 'Built Java\n  Spring Boot services.',
+    status: 'NOT_EVIDENCED',
   });
-  expect(result.score).toBe(67);
+  expect(result.score).toBe(33);
   expect(
     result.requirements.every((item) => !('cvEvidenceUnverified' in item)),
   ).toBe(true);
