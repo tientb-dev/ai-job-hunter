@@ -569,7 +569,9 @@ describe('Accepted beta limitations (characterization)', () => {
     ).toBe('NOT_EVIDENCED/0');
   });
 
-  test('L2 AND components are not recovered when the model omits their quotes', () => {
+  // L2 superseded (PO-approved PR #74): named-technology components of plain
+  // experience AND groups are recovered from the candidate's own work clause.
+  test('L2 (superseded) named AND components recover when the model omits their quotes', () => {
     expect(
       both(
         'Experience with Docker and Kubernetes',
@@ -579,7 +581,7 @@ describe('Accepted beta limitations (characterization)', () => {
         ),
         {},
       ),
-    ).toBe('NOT_EVIDENCED/0');
+    ).toBe('EVIDENCED/1');
   });
 
   test('L3 conservative descriptive matching: different wording is not matched', () => {
