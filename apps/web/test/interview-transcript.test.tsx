@@ -477,9 +477,8 @@ test('leaving with transcript text asks first: Stay keeps it, Discard clears and
   await user.click(screen.getByRole('button', { name: 'Next question' }));
   const dialog = await screen.findByRole('dialog');
   expect(dialog).toHaveTextContent('Discard your transcript?');
-  await user.click(
-    within(dialog).getByRole('button', { name: 'Stay and edit' }),
-  );
+  expect(dialog).toHaveTextContent('Practice transcripts are never saved.');
+  await user.click(within(dialog).getByRole('button', { name: 'Stay' }));
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   expect(field()).toHaveValue('My transcript.');
   expect(document.getElementById('practice-question')).toHaveTextContent(
@@ -488,7 +487,7 @@ test('leaving with transcript text asks first: Stay keeps it, Discard clears and
   await user.click(screen.getByRole('button', { name: 'Next question' }));
   await user.click(
     within(await screen.findByRole('dialog')).getByRole('button', {
-      name: 'Discard changes',
+      name: 'Leave and clear',
     }),
   );
   expect(document.getElementById('practice-question')).toHaveTextContent(
@@ -599,4 +598,36 @@ test('saved answers fail to load: step 3 still records, transcribes and gets fee
   expect(
     await screen.findByRole('button', { name: 'Read Along' }),
   ).toBeInTheDocument();
+});
+
+test('an unchanged review suggestion says no rewrite was needed, judged against the submitted text', async () => {
+  fb = async () =>
+    json({ ...feedback, suggestion: 'my transcript is   clear' });
+  const user = await start();
+  await user.type(field(), 'My transcript is clear.');
+  await user.click(getFeedback());
+  expect(
+    await screen.findByText(
+      /already simple and clear, so no rewrite was needed/,
+    ),
+  ).toBeVisible();
+  expect(
+    screen.queryByRole('button', { name: /^(Show|Hide) suggestion$/u }),
+  ).toBeNull();
+});
+
+test('a different review suggestion is still offered as a rewrite', async () => {
+  fb = async () =>
+    json({ ...feedback, suggestion: 'I stay calm when I solve problems.' });
+  const user = await start();
+  await user.type(field(), 'I solve problems calmly.');
+  await user.click(getFeedback());
+  await within(step3()).findByText('Add one concrete example.');
+  expect(
+    within(step3()).getByText('I stay calm when I solve problems.'),
+  ).toBeVisible();
+  expect(
+    within(step3()).getByRole('button', { name: 'Hide suggestion' }),
+  ).toBeVisible();
+  expect(screen.queryByText(/no rewrite was needed/)).toBeNull();
 });

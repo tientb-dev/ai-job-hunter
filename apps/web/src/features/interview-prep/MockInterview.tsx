@@ -510,9 +510,10 @@ function QuestionStep({
               recording={recorder.blob}
               questionId={questionId}
               variant={0}
-              renderFeedback={(f) => (
+              renderFeedback={(f, sent) => (
                 <Feedback
                   feedback={f}
+                  answer={sent}
                   shown={shown}
                   onToggle={() => setShown((v) => !v)}
                 />
