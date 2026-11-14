@@ -589,10 +589,18 @@ test('meaning-review rewrites are ordinary pending decisions; only verification 
   ).toBeEnabled();
   expect(within(recommended).getByText('Waiting for you')).toBeVisible();
   expect(within(recommended).getByText(/unchanged meaning/)).toBeVisible();
-  const check = screen.getByRole('region', { name: /^Needs your check/ });
-  expect(within(check).getByText(/not in your CV: \[number\]/)).toBeVisible();
+  // The AI claim warning is informational, not an open decision.
   expect(
-    within(check).queryByRole('button', { name: /Accept suggestion/ }),
+    screen.queryByRole('region', { name: /^Needs your check/ }),
+  ).toBeNull();
+  const warnings = screen.getByRole('region', {
+    name: /^AI claims not in your CV/,
+  });
+  expect(
+    within(warnings).getByText(/not in your CV: \[number\]/),
+  ).toBeVisible();
+  expect(
+    within(warnings).queryByRole('button', { name: /Accept suggestion/ }),
   ).toBeNull();
   expect(screen.queryByText(/Accept all formatting/)).toBeNull();
 });
