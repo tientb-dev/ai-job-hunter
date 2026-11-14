@@ -222,6 +222,35 @@ export function requirementGroup(
     )
   )
     return group('UNKNOWN', [text]);
+  // "(Hands-on) experience designing and developing A, B, and C": the verb pair
+  // and "hands-on experience" are shared context (design), not a component.
+  // Only a plain list of short noun phrases is decomposed; anything nested or
+  // alternative ("or", "including", "for …", "with …") stays UNKNOWN.
+  const designAndDevelop =
+    /^(?:hands-on\s+)?experience\s+designing\s+and\s+developing\s+(.+)$/iu.exec(
+      text,
+    );
+  if (designAndDevelop) {
+    const list = designAndDevelop[1]!;
+    const labels = list
+      .split(/\s*,\s*(?:and\s+)?|\s+and\s+/iu)
+      .map((label) => label.trim())
+      .filter(Boolean);
+    if (
+      labels.length >= 2 &&
+      labels.length <= 5 &&
+      !/\b(?:or|including|such as|ability|designing|developing|with|for|using|via|like|etc)\b/iu.test(
+        list,
+      ) &&
+      labels.every(
+        (label) =>
+          label.split(/\s+/u).length <= 4 &&
+          /^[\p{L}\d][\p{L}\d .+#/-]*$/u.test(label),
+      )
+    )
+      return group('AND', labels, 'design');
+    return group('UNKNOWN', [text], 'design');
+  }
   let context: RequirementGroup['context'] = 'skill';
   let body = text;
   const prefix =
