@@ -161,10 +161,7 @@ describe('policy preservation', () => {
     );
   });
 
-  test('descriptive labels keep the existing path', () => {
-    const line =
-      '- Automated build and test pipelines with GitHub Actions for CI/CD.';
-    expect(status('CI/CD pipelines', cvOf(line), line)).toBe('EVIDENCED/1');
+  test('descriptive soft-skill labels keep the existing path', () => {
     const team = '- Led cross-team design reviews for the order platform.';
     expect(status('Strong communication skills', cvOf(team), team)).toBe(
       'EVIDENCED/1',
@@ -193,4 +190,60 @@ describe('policy preservation', () => {
       ),
     ).toBe('EVIDENCED/1');
   });
+});
+
+describe('CI/CD pipelines is a named capability (PR68)', () => {
+  test.each([
+    [
+      'Experience with CI/CD pipelines',
+      '- Built CI/CD pipelines with GitHub Actions for order services.',
+    ],
+    [
+      'Experience with CI/CD pipelines',
+      '- Implemented CI/CD for the billing service.',
+    ],
+    [
+      'CI/CD pipelines',
+      '- Automated build and test pipelines with GitHub Actions for CI/CD.',
+    ],
+    ['CI/CD pipeline', '- Built a CI/CD pipeline for the billing service.'],
+  ])('related CI/CD work: %s ← %s', (requirement, line) => {
+    expect(status(requirement, cvOf(line), line)).toBe('EVIDENCED/1');
+  });
+
+  const kafkaDocker =
+    '- Built services consuming Kafka topics.\n- Containerized services with Docker.';
+  test.each([
+    ['unrelated Kafka/Docker work', kafkaDocker],
+    [
+      'other DevOps work without CI/CD',
+      '- Deployed Kubernetes workloads and monitored them with Prometheus.',
+    ],
+    ['passing mention', '- Attended a CI/CD workshop.'],
+    ['negated', 'Never built CI/CD pipelines.'],
+  ])('%s → Not Matched', (_, quote) => {
+    expect(
+      status(
+        'Experience with CI/CD pipelines',
+        cvOf(...quote.split('\n')),
+        quote,
+      ),
+    ).toBe('NOT_EVIDENCED/0');
+  });
+
+  const skills = 'Tools: Docker, CI/CD, Terraform';
+  test('skills-only CI/CD is not experience', () => {
+    expect(
+      status('Experience with CI/CD pipelines', cvOf('SKILLS', skills), skills),
+    ).toBe('NOT_EVIDENCED/0');
+  });
+
+  test.each(['CI/CD pipelines', 'Familiarity with CI/CD pipelines'])(
+    'a skills declaration still supports %s (PR57)',
+    (requirement) => {
+      expect(status(requirement, cvOf('SKILLS', skills), skills)).toBe(
+        'EVIDENCED/1',
+      );
+    },
+  );
 });

@@ -1386,11 +1386,19 @@ function namedTechnology(
     (tokens.length === 1 ||
       (tokens.length <= 3 &&
         tokens.every((token) => /[\p{Lu}+#./\d]/u.test(token))));
-  return named ? { label, experience } : null;
+  // CI/CD pipelines is the one approved lowercase-word capability (PO, PR68).
+  return named || ciCdPipelines.test(label) ? { label, experience } : null;
 }
+const ciCdPipelines = /^CI\/CD pipelines?$/iu;
 // Exact mention or approved alias; REST API and REST APIs are equivalent.
 function mentionsTechnology(label: string, text: string): boolean {
   if (/^REST APIs?$/iu.test(label)) return /\bREST APIs?\b/iu.test(text);
+  // "CI/CD" or the existing CI/CD automation phrases; no wider DevOps terms.
+  if (ciCdPipelines.test(label))
+    return (
+      /\bci\s*\/\s*cd\b/iu.test(text) ||
+      new RegExp(ciCdAutomation, 'iu').test(text)
+    );
   return mentions(label, text);
 }
 const passingMention =
@@ -1405,7 +1413,10 @@ function relatedWork(label: string, passage: string): boolean {
     .some(
       (clause) =>
         mentionsTechnology(label, clause) &&
-        recoveryWork.test(clause) &&
+        (recoveryWork.test(clause) ||
+          // Existing CI/CD automation wording ("Automated build and test pipelines").
+          (ciCdPipelines.test(label) &&
+            /\bautomat(?:ed|ing)\b/iu.test(clause))) &&
         !passingMention.test(clause),
     );
 }
