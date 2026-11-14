@@ -98,3 +98,7 @@ export const UploadIcon = createSvgIcon(
   <path d="M11 16V7.8l-3.6 3.6L6 10l6-6 6 6-1.4 1.4L13 7.8V16h-2zM4 18h16v3H4v-3z" />,
   'Upload',
 );
+export const LogoutIcon = createSvgIcon(
+  <path d="m17 7-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4z" />,
+  'Logout',
+);

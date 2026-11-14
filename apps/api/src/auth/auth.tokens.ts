@@ -1,0 +1,1 @@
+export const AUTH_SECURE_COOKIES = Symbol('AUTH_SECURE_COOKIES');

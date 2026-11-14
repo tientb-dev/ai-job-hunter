@@ -2156,3 +2156,24 @@ Grounding decisions:
 
 - **Retries:** only HTTP 429 and 503, at most 3 attempts per request. The wait is `Retry-After` (seconds or HTTP date) when present, else 1 s then 2 s backoff plus up to 250 ms jitter. A wait over 10 s (for example a daily-quota reset) or one that would cross the existing request/partial deadline fails immediately as `UPSTREAM_HTTP_FAILURE`; aborts during a wait end as `TIMEOUT`. Other statuses, transport errors and invalid output are never retried. Alternatives (a request queue or global rate limiter) were rejected for a 3–5 tester beta; per-request bounded retries keep the worst case at two extra calls. Ollama is unchanged.
 - **Messages:** AI workflows run on either provider, so user guidance says "AI service"/"AI model" instead of "local AI"/"Ollama". Where the old text told users to start Ollama, it is kept as conditional advice ("if you run AI locally"). Ollama-only manual tools and setup docs keep their Ollama wording.
+
+## Web beta PR1 Authentication and invitation codes
+
+- Email + password + one-time invitation code; no public sign-up, OAuth or email delivery.
+- Passwords: Node `crypto.scrypt` (N=2^15, r=8, p=3; parameters stored per hash), no new dependency.
+  Alternative considered: argon2 (native addon, extra build dependency) for equivalent beta security.
+- Sessions: 256-bit opaque token in an `HttpOnly; SameSite=Lax` cookie (`__Host-` and `Secure` when
+  `NODE_ENV=production`); only its SHA-256 is stored in `auth_sessions`. 7-day absolute expiry; logout
+  deletes the row; password reset deletes every session of the account.
+- Invitation and reset codes share `auth_codes` (kind INVITE/RESET), 100-bit random, SHA-256 stored,
+  single-use via `UPDATE … WHERE "usedAt" IS NULL RETURNING` inside the registration transaction, so
+  concurrent redemptions serialize on the row lock and a failed account insert releases the code.
+- Enforcement is Express middleware (`configureAuth`) installed in `main.ts` before every other handler,
+  so it also covers the raw `POST /analyses` middleware that Nest guards would not see. Public: health,
+  login, register, reset-password, logout. State-changing requests require exactly one allowed `Origin`
+  (CSRF). Login/register/reset are rate limited in memory per client address.
+- Transitional: existing modules still use `LOCAL_OWNER_ID`. Only the account created with
+  `auth invite --local-owner` (whose id is `LOCAL_OWNER_ID`) may use data endpoints; others get 403
+  `DATA_ACCESS_PENDING`. PR 2 replaces this with per-account ownership.
+- Existing integration tests build `AppModule` without `main.ts` wiring, so they do not exercise auth;
+  `test/integration/auth.spec.ts` does.
