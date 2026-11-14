@@ -1055,23 +1055,17 @@ function educationPassages(cv: string): string[] {
 
 // Recovery-only, stricter than PR68's relatedWork: the clause must start with
 // the candidate's own work verb (after a bullet or "I"), name the technology,
-// and not attribute it to others ("teams that used Docker"). Eligible labels
-// carry a capital, digit or symbol ("Docker") or are the approved CI/CD
-// pipelines; lowercase descriptive components ("logging") are never recovered.
+// and not attribute it to others ("teams that used Docker"). Only Docker and
+// the approved CI/CD pipelines are eligible; every other component is not.
 const thirdParty =
   /\b(?:teams?|clients?|customers?|users?|colleagues|engineers|developers|partners|vendors|others|people|they)\s+(?:that|who|which)\b/iu;
 function recoverAndNamedComponent(
   label: string,
   cv: string,
 ): string | undefined {
-  const eligible =
-    ciCdPipelines.test(label) ||
-    label
-      .split(/\s+/u)
-      .every(
-        (token) => /^[\w+#./-]+$/u.test(token) && /[\p{Lu}+#./\d]/u.test(token),
-      );
-  if (!eligible || label.split(/\s+/u).length > 3) return undefined;
+  // PO-approved scope: Docker and the approved CI/CD pipelines only. No
+  // general named-technology classifier ("APIs" must not become eligible).
+  if (!/^docker$/iu.test(label) && !ciCdPipelines.test(label)) return undefined;
   const ownWork = new RegExp(
     String.raw`^(?:[-*•–▪●◦]\s*|\d{1,2}[.)]\s*)?(?:I\s+)?${recoveryWork.source}`,
     'iu',

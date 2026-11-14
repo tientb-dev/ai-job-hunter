@@ -155,6 +155,12 @@ describe('no recovery from weak or unrelated evidence', () => {
       'third-party relative clause',
       work('- Mentored engineers who deployed Docker workloads.'),
     ],
+    ['third-party enablement', work('- Ran onboarding for Docker users.')],
+    ['training others', work('- Led Docker training for new engineers.')],
+    [
+      'mentoring others',
+      work('- Mentored engineers on Docker best practices.'),
+    ],
     ['negated', work('Never used Docker in production.')],
     ['uncertain', work('Maybe containerized services with Docker.')],
     [
@@ -180,6 +186,82 @@ describe('no recovery from weak or unrelated evidence', () => {
       'automated deployment practices': NOT,
     });
   });
+});
+
+describe('eligibility is limited to Docker and CI/CD pipelines', () => {
+  test('uppercase generic labels such as APIs are not eligible', () => {
+    const apis = 'Experience with APIs and integrations';
+    const apiJob = {
+      ...job,
+      skills: `- ${apis}`,
+      description: `Requirements\n- ${apis}.`,
+    } as Opportunity;
+    const apiCanonical = canonicalRequirements(apiJob);
+    const apiJd = matchJobText(apiJob);
+    const cv = work(
+      '- Designed temporal routing, flux circuits, APIs, integrations and data flows.',
+    );
+    for (const allowed of [
+      new Set(matchQuoteChoices(cv, apiCanonical)),
+      undefined,
+    ]) {
+      const row = scoreCvMatch(
+        validateMatchAssessment(
+          apiCanonical.map((r) => ({ ...r, cvQuote: '', components: [] })),
+          cv,
+          apiJd,
+          apiCanonical,
+          allowed,
+        ),
+        cv,
+        apiJd,
+        apiCanonical,
+      ).requirements[0]!;
+      expect(row).toMatchObject({ status: 'NOT_EVIDENCED', credit: 0 });
+    }
+  });
+
+  test('other technologies (Kubernetes) are not recovered by this rule', () => {
+    const pair = 'Experience with Docker and Kubernetes';
+    const pairJob = {
+      ...job,
+      skills: `- ${pair}`,
+      description: `Requirements\n- ${pair}.`,
+    } as Opportunity;
+    const pairCanonical = canonicalRequirements(pairJob);
+    const pairJd = matchJobText(pairJob);
+    const cv = work(
+      '- Deployed services with Docker.',
+      '- Deployed workloads to a Kubernetes cluster.',
+    );
+    const row = scoreCvMatch(
+      validateMatchAssessment(
+        pairCanonical.map((r) => ({ ...r, cvQuote: '', components: [] })),
+        cv,
+        pairJd,
+        pairCanonical,
+      ),
+      cv,
+      pairJd,
+      pairCanonical,
+    ).requirements[0]!;
+    expect(row.coverage.components.map((c) => [c.label, c.status])).toEqual([
+      ['Docker', 'EVIDENCED'],
+      ['Kubernetes', 'NOT_EVIDENCED'],
+    ]);
+  });
+});
+
+/**
+ * Known residual risk (not a blacklist): enablement wording that starts with an
+ * accepted work verb and names Docker is still recovered. Pinned so any change
+ * is deliberate; preventing it needs a reviewed lexicon or classifier.
+ */
+test('KNOWN RISK: "Led Docker onboarding sessions for new engineers." is recovered', () => {
+  expect(
+    coverage(work('- Led Docker onboarding sessions for new engineers.'))
+      .components.Docker,
+  ).toBe('EVIDENCED');
 });
 
 describe('existing safeguards', () => {

@@ -186,6 +186,7 @@ test('contradictory positive/negative design assertions cause Conflict with zero
 test('unrecognized, ambiguous and non-design AND groups gain no new recovery', () => {
   for (const text of [
     'Experience designing temporal routing and flux circuits',
+    'Experience with APIs and integrations',
     'Working knowledge of RAG and vector search',
     'Experience designing APIs and integrations or data flows',
   ]) {
@@ -196,18 +197,6 @@ test('unrecognized, ambiguous and non-design AND groups gain no new recovery', (
       ).score,
     ).toBe(0);
   }
-});
-
-// Superseded in part by PR #74: in an experience AND group, a named-technology
-// component ("APIs") is recovered from the candidate's own work clause; the
-// descriptive component ("integrations") is not.
-test('experience AND: only the named component is recovered from own work', () => {
-  expect(
-    assess(
-      'Designed temporal routing, flux circuits, APIs, integrations and data flows. Skills: RAG, vector search.',
-      job('Experience with APIs and integrations'),
-    ).score,
-  ).toBe(50);
 });
 
 test('rejected parent and fabricated component/JD evidence cannot be rescued by valid design text', () => {
