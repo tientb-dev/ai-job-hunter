@@ -370,7 +370,7 @@ const declarationLabel = /^\s*[\p{L}][\p{L} &/+-]{0,30}:\s+/u;
 // as a work sentence. A short-item list ("Backend: Java, REST APIs",
 // "Tools used: Git") is a declaration; "Example Platform: Developed REST APIs
 // for …" is project work. Anything in between fails closed as a declaration.
-function declarationLine(line: string): boolean {
+export function declarationLine(line: string): boolean {
   if (skillsDeclaration.test(line)) return true;
   const label = declarationLabel.exec(line);
   if (!label) return false;
