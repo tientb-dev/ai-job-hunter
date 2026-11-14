@@ -24,12 +24,11 @@ function twoPending() {
   return draft;
 }
 
-function setup() {
-  const draft = twoPending();
+function setup(draft = twoPending()) {
   const onContinue = vi.fn();
   vi.stubGlobal(
     'fetch',
-    vi.fn(async (url: string) => {
+    vi.fn(async (url: string, init?: RequestInit) => {
       if (url.endsWith('/drafts/readiness'))
         return Response.json({
           contractVersion: '1',
@@ -55,6 +54,14 @@ function setup() {
         next.revision += 1;
         for (const state of Object.values(next.document.review.factReviews))
           if (state.proposal === 'pending') state.proposal = 'rejected';
+        for (const op of JSON.parse(init!.body as string).operations)
+          if (op.action === 'edit') {
+            next.document.sections
+              .flatMap((s) => s.entries.flatMap((e) => e.facts))
+              .find((f) => f.id === op.factId)!.acceptedText = op.text;
+            next.document.review.factReviews[op.factId]!.wording =
+              'user_edited';
+          }
         return Response.json(next);
       }
       if (url.endsWith(`/drafts/${draft.id}`)) return Response.json(draft);
@@ -185,4 +192,95 @@ test('contextual Edit queues the same edit the Full CV editor shows', async () =
   // An emptied value blocks Save, as in the Full CV editor.
   fireEvent.change(field, { target: { value: ' ' } });
   expect(screen.getByRole('button', { name: 'Save draft' })).toBeDisabled();
+});
+
+// Adds an optional AI claim warning on a fact without a rewrite, and puts the
+// first suggestion in "Needs your check" (synthetic data only).
+function withWarning() {
+  const draft = twoPending();
+  const entry = draft.document.sections.find((s) => s.kind === 'experience')!
+    .entries[0]!;
+  const warned = structuredClone(entry.facts[0]!);
+  warned.id = 'warned';
+  warned.field = 'impact';
+  warned.acceptedText = 'Improved a synthetic report.';
+  warned.proposedWording = null;
+  warned.verification = {
+    text: 'Improved a synthetic report by [X%].',
+    details: ['[X%]'],
+    requirementIds: [],
+    explanation: 'Stronger framing.',
+  };
+  entry.facts.push(warned);
+  draft.document.review.factReviews[warned.id] = {
+    reviewedText: warned.acceptedText,
+    wording: 'reviewed_profile',
+    proposal: 'none',
+  };
+  draft.document.reviewIssues.push({
+    code: 'CV_DRAFT_UNSAFE_REWRITE',
+    factId: 'description',
+    reason: 'Blocked verify: synthetic.',
+  });
+  return draft;
+}
+
+test('decisions and optional AI warnings use separate, consistent counters', async () => {
+  setup(withWarning());
+  const bar = await screen.findByRole('region', { name: 'Review actions' });
+  expect(bar).toHaveTextContent('0 of 2 decided');
+  expect(screen.getByText('2 suggestions · 1 AI warning')).toBeVisible();
+  const next = screen.getByRole('button', { name: 'Next suggestion' });
+  fireEvent.click(next);
+  expect(screen.getByText('Suggestion 1 of 2')).toBeVisible();
+  fireEvent.click(next);
+  expect(screen.getByText('Suggestion 2 of 2')).toBeVisible();
+  fireEvent.click(next);
+  expect(screen.getByText('AI warning 1 of 1')).toBeVisible();
+});
+
+test('Keep original and a saved edit no longer count as open checks; AI provenance stays', async () => {
+  setup(withWarning());
+  await screen.findByRole('region', { name: 'Review actions' });
+  const check = screen.getByRole('region', { name: /^Needs your check/ });
+  expect(check).toHaveAccessibleName(/\(1 open of 1\)/);
+  fireEvent.click(
+    within(check).getByRole('button', { name: /^Keep original for/ }),
+  );
+  await waitFor(() =>
+    expect(
+      screen.getByRole('region', { name: /^Needs your check/ }),
+    ).toHaveAccessibleName(/\(0 open of 1\)/),
+  );
+  const warnings = screen.getByRole('region', {
+    name: /^AI claims not in your CV/,
+  });
+  fireEvent.click(
+    within(warnings).getByRole('button', { name: 'Use as my draft' }),
+  );
+  fireEvent.change(
+    await screen.findByDisplayValue('Improved a synthetic report by [X%].'),
+    { target: { value: 'Improved a synthetic report by 12%.' } },
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Done editing' }));
+  const save = screen.getByRole('button', {
+    name: 'Save draft with your wording for impact',
+  });
+  // Layout regression: not squeezed into the Alert action column.
+  expect(save.closest('.MuiAlert-action')).toBeNull();
+  expect(save).toHaveStyle({ whiteSpace: 'nowrap' });
+  expect(
+    screen.getByRole('alert', { name: 'Your wording for impact' }),
+  ).toHaveTextContent('Edited by you — not saved');
+  fireEvent.click(save);
+  const mine = await screen.findByText(/Saved — user-authored wording/);
+  expect(
+    screen
+      .getByRole('region', { name: /^AI claims not in your CV/ })
+      .contains(mine),
+  ).toBe(true);
+  expect(screen.getAllByText(/Original AI suggestion/)[0]).toBeInTheDocument();
+  expect(
+    screen.getByRole('region', { name: /^Needs your check/ }),
+  ).toHaveAccessibleName(/\(0 open of 1\)/);
 });

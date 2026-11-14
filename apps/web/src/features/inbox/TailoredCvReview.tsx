@@ -657,12 +657,12 @@ export function TailoredCvReview({
   const reducedMotion = () =>
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  // Suggestions in panel order: unproposed checks first, then the queue.
+  // Suggestions in panel order: decisions first, then optional AI warnings.
   const navIds = [
+    ...queueOrder.map((card) => card.fact.id),
     ...verificationCards
       .filter((card) => !card.fact.proposedWording)
       .map((card) => card.fact.id),
-    ...queueOrder.map((card) => card.fact.id),
   ];
   const openConflicts = new Set(
     blockingIssues
@@ -826,11 +826,22 @@ export function TailoredCvReview({
     saved?.document.review.factReviews[id]?.wording === 'user_edited';
   const unsavedNote = (fact: (typeof facts)[number]) =>
     unsavedEdit(fact.id) ? (
+      // Message and button wrap onto separate lines when space is tight; the
+      // Alert action slot squeezed the button into a narrow column.
       <Alert
         severity="info"
         variant="outlined"
-        sx={{ mt: 1 }}
-        action={
+        sx={{ mt: 1, '& .MuiAlert-message': { flex: 1, minWidth: 0 } }}
+      >
+        <Stack
+          direction="row"
+          useFlexGap
+          spacing={1}
+          sx={{ flexWrap: 'wrap', alignItems: 'center' }}
+        >
+          <Typography variant="body2" sx={{ flex: '1 1 12rem', minWidth: 0 }}>
+            Edited by you — not saved. Save the draft to keep this wording.
+          </Typography>
           <Button
             size="small"
             variant="contained"
@@ -838,12 +849,11 @@ export function TailoredCvReview({
             aria-label={`Save draft with your wording for ${fact.field}`}
             disabled={blocked || blank || operations.length > 384}
             onClick={saveDraft}
+            sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
           >
             Save draft
           </Button>
-        }
-      >
-        Edited by you — not saved. Save the draft to keep this wording.
+        </Stack>
       </Alert>
     ) : null;
   const contextualEdit = (fact: (typeof facts)[number], where: string) =>
@@ -1013,7 +1023,16 @@ export function TailoredCvReview({
       {docReview && contextualEdit(fact, where)}
     </Box>
   );
-  const position = activeId ? navIds.indexOf(activeId) + 1 : 0;
+  // Decisions and optional AI warnings are counted separately so the
+  // navigator matches "N of M suggestions decided".
+  const warningIds = navIds.filter(
+    (id) => !proposalCards.some((c) => c.fact.id === id),
+  );
+  const navLabel = !activeId
+    ? `${proposalCards.length} suggestion${proposalCards.length === 1 ? '' : 's'}${warningIds.length ? ` · ${warningIds.length} AI warning${warningIds.length === 1 ? '' : 's'}` : ''}`
+    : warningIds.includes(activeId)
+      ? `AI warning ${warningIds.indexOf(activeId) + 1} of ${warningIds.length}`
+      : `Suggestion ${queueOrder.findIndex((c) => c.fact.id === activeId) + 1} of ${proposalCards.length}`;
   const reviewNav = (
     <Stack
       direction="row"
@@ -1029,9 +1048,7 @@ export function TailoredCvReview({
     >
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Typography variant="body2" sx={{ fontWeight: 600 }}>
-          {position
-            ? `Suggestion ${position} of ${navIds.length}`
-            : `${navIds.length} suggestions`}
+          {navLabel}
         </Typography>
         <LinearProgress
           variant="determinate"
@@ -1124,7 +1141,7 @@ export function TailoredCvReview({
               variant="subtitle2"
               sx={{ flex: 1 }}
             >
-              Suggestion {position} of {navIds.length}
+              {navLabel}
             </Typography>
             <Button
               size="small"
@@ -1184,7 +1201,20 @@ export function TailoredCvReview({
       title: 'Recommended',
       hint: 'rewrites of your own CV wording for this job',
     },
+    {
+      key: 'warnings',
+      title: 'AI claims not in your CV',
+      hint: 'optional; not included or exported unless you use one as your own wording',
+    },
   ] as const;
+  // Pending decisions are the only open actions; AI claim warnings are
+  // informational history and never need a decision.
+  const groupHeading = (key: (typeof groups)[number]['key']) => {
+    if (key === 'warnings') return `${verificationCards.length}`;
+    const inGroup = proposalCards.filter((card) => card.group === key);
+    const open = inGroup.filter((c) => c.state.proposal === 'pending').length;
+    return `${open} open of ${inGroup.length}`;
+  };
   function approveSaved(id: string, revision: number) {
     void run(async (token) => {
       const value = await draftRequest(`/drafts/${id}/approve`, {
@@ -1838,7 +1868,7 @@ export function TailoredCvReview({
                             (card) => card.group === group.key,
                           );
                           const checks =
-                            group.key === 'check' ? verificationCards : [];
+                            group.key === 'warnings' ? verificationCards : [];
                           if (!proposals.length && !checks.length) return null;
                           return (
                             <Stack
@@ -1852,8 +1882,7 @@ export function TailoredCvReview({
                                 variant="h6"
                                 component="h3"
                               >
-                                {group.title} (
-                                {proposals.length + checks.length})
+                                {group.title} ({groupHeading(group.key)})
                                 <Typography
                                   component="span"
                                   variant="body2"
@@ -2074,7 +2103,7 @@ export function TailoredCvReview({
                       (card) => card.group === group.key,
                     );
                     const checks =
-                      group.key === 'check' ? verificationCards : [];
+                      group.key === 'warnings' ? verificationCards : [];
                     if (!proposals.length && !checks.length) return null;
                     return (
                       <Stack
@@ -2088,7 +2117,7 @@ export function TailoredCvReview({
                           variant="h6"
                           component="h3"
                         >
-                          {group.title} ({proposals.length + checks.length})
+                          {group.title} ({groupHeading(group.key)})
                           <Typography
                             component="span"
                             variant="body2"
