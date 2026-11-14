@@ -1358,6 +1358,96 @@ function statedDuration(label: string, text: string, years: number): boolean {
 
 // Simple requirements retain their established semantic model links, with narrow
 // vetoes for verifiable negatives and insufficient generic duration.
+// A named technology row: one token ("Docker"), or up to three tokens that
+// each carry a capital, digit or symbol ("REST APIs", "Spring Boot"). Mixed
+// descriptive labels ("CI/CD pipelines", "communication skills") are not.
+interface NamedTechnology {
+  label: string;
+  // "Experience with X", "Hands-on experience with X", "X experience".
+  experience: boolean;
+}
+function namedTechnology(
+  requirement: string,
+  category: string,
+): NamedTechnology | null {
+  if (category !== 'skill' || /^experience$/iu.test(requirement.trim()))
+    return null;
+  const text = requirement.trim().replace(/\.$/u, '');
+  const suffix = /^(.+?)\s+experience$/iu.exec(text);
+  const label = suffix ? suffix[1]!.trim() : simpleLabel(text);
+  const experience =
+    !!suffix ||
+    /^(?:(?:strong|solid|proven|hands-on)\s+)?experience (?:with|in|using)\s+/iu.test(
+      text,
+    );
+  const tokens = label.split(/\s+/u);
+  const named =
+    tokens.every((token) => /^[\w+#./-]+$/u.test(token)) &&
+    (tokens.length === 1 ||
+      (tokens.length <= 3 &&
+        tokens.every((token) => /[\p{Lu}+#./\d]/u.test(token))));
+  // CI/CD pipelines is the one approved lowercase-word capability (PO, PR68).
+  return named || ciCdPipelines.test(label) ? { label, experience } : null;
+}
+const ciCdPipelines = /^CI\/CD pipelines?$/iu;
+// Exact mention or approved alias; REST API and REST APIs are equivalent.
+function mentionsTechnology(label: string, text: string): boolean {
+  if (/^REST APIs?$/iu.test(label)) return /\bREST APIs?\b/iu.test(text);
+  // "CI/CD" or the existing CI/CD automation phrases; no wider DevOps terms.
+  if (ciCdPipelines.test(label))
+    return (
+      /\bci\s*\/\s*cd\b/iu.test(text) ||
+      new RegExp(ciCdAutomation, 'iu').test(text)
+    );
+  return mentions(label, text);
+}
+const passingMention =
+  /\b(?:attend(?:ed|ing|s)?|meetups?|workshops?|conferences?|webinars?|courses?|coursework|tutorials?|training|bootcamps?|certifications?|interested|interests?|learning|exploring|reading|curious)\b/iu;
+// Work related to the technology: a work verb in the same clause as the
+// mention, with no passing-mention marker in that clause.
+function relatedWork(label: string, passage: string): boolean {
+  return passage
+    .split(
+      /;|(?<=[.!?])\s+|\b(?:after|before|while|during|but|although|though)\b/iu,
+    )
+    .some(
+      (clause) =>
+        mentionsTechnology(label, clause) &&
+        (recoveryWork.test(clause) ||
+          // Existing CI/CD automation wording ("Automated build and test pipelines").
+          (ciCdPipelines.test(label) &&
+            /\bautomat(?:ed|ing)\b/iu.test(clause))) &&
+        !passingMention.test(clause),
+    );
+}
+function namedTechnologyStatus(
+  { label, experience }: NamedTechnology,
+  quote: string,
+  cv: string,
+): CoverageStatus {
+  // A wrapped bullet is one unit (PR67 boundaries); its lines are not judged alone.
+  const candidates = demonstratedPassages([quote], cv).filter(
+    (passage) =>
+      mentionsTechnology(label, passage) &&
+      !negative(passage) &&
+      !uncertain(passage),
+  );
+  const declaration = (passage: string) =>
+    skillsDeclaration.test(passage) || declarationLine.test(passage);
+  const supported = candidates.some(
+    (passage) =>
+      (!declaration(passage) && relatedWork(label, passage)) ||
+      // Skills declarations support bare and familiarity rows only (PR57).
+      (!experience && declaration(passage)),
+  );
+  if (!supported) return 'NOT_EVIDENCED';
+  return passages(cv).some(
+    (line) => mentionsTechnology(label, line) && negative(line),
+  )
+    ? 'CONFLICT'
+    : 'EVIDENCED';
+}
+
 export function simpleEvidenceStatus(
   requirement: string,
   quote: string,
@@ -1392,6 +1482,9 @@ export function simpleEvidenceStatus(
   const language = singleManagedLanguage.exec(
     requirement.trim().replace(/\.$/u, ''),
   )?.[1];
+  const named =
+    language === undefined && namedTechnology(requirement, category);
+  if (named) return namedTechnologyStatus(named, quote, cv);
   const label = language ?? simpleLabel(requirement);
   // Descriptive requirements keep the model's semantic link, but only to a
   // passage that names the requirement or states work/skills (not a name or contact line).
