@@ -181,7 +181,7 @@ test('complete CV supports explicit proposal acceptance, save, exact approval, r
     screen.queryByRole('checkbox', { name: /I checked this fact/ }),
   ).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
-  await screen.findByText('Draft saved.');
+  await screen.findByText(/^Draft saved as revision \d+\.$/);
   expect(state.saved().revision).toBe(2);
   fireEvent.click(
     screen.getByRole('checkbox', { name: /I reviewed the complete saved CV/ }),
@@ -205,7 +205,7 @@ test('complete CV supports explicit proposal acceptance, save, exact approval, r
     screen.getByText(/Unsaved changes — approval will be cleared/),
   ).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
-  await screen.findByText('Draft saved. Approval cleared.');
+  await screen.findByText(/^Draft saved as revision \d+\. Approval cleared\.$/);
   expect(state.saved().document.review.approval).toBeNull();
 });
 test('keep original, keyboard editing, unsaved navigation and conflicts retain local inputs', async () => {
@@ -335,7 +335,7 @@ test('downloads use exact saved approval, errors retain work, and inclusion chan
     screen.queryByRole('checkbox', { name: /I checked this fact/ }),
   ).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
-  await screen.findByText('Draft saved.');
+  await screen.findByText(/^Draft saved as revision \d+\.$/);
   fireEvent.click(
     screen.getByRole('checkbox', { name: /I reviewed the complete saved CV/ }),
   );
@@ -365,7 +365,7 @@ test('downloads use exact saved approval, errors retain work, and inclusion chan
   expect(input).toHaveValue('Local edit to preserve');
   expect(screen.getByRole('button', { name: 'Download PDF' })).toBeDisabled();
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
-  await screen.findByText('Draft saved. Approval cleared.');
+  await screen.findByText(/^Draft saved as revision \d+\. Approval cleared\.$/);
   expect(
     state.saved().document.review.factReviews.description!.exportIncluded,
   ).toBe(false);
@@ -492,7 +492,7 @@ test('bulk keep-original confirms pending-only decisions, retains inclusion and 
     screen.getByText(/Unsaved changes — approval will be cleared/),
   ).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
-  await screen.findByText('Draft saved.');
+  await screen.findByText(/^Draft saved as revision \d+\.$/);
   expect(state.saved().document.review.factReviews[accepted.id]!.proposal).toBe(
     'accepted',
   );
@@ -649,4 +649,92 @@ test('blocked approval explains remaining decisions and that keeping originals c
   expect(screen.getByText(/1 of 1 suggestions decided/)).toBeVisible();
   expect(needs).not.toHaveTextContent(/Decide/);
   expect(needs).toHaveTextContent('Save draft.');
+});
+
+test('an adopted verification draft is "not saved" until Save draft succeeds, then saved as user-authored wording with its AI provenance kept', async () => {
+  const initial = tailoredDraftFixture();
+  const fact = initial.document.sections
+    .flatMap((s) => s.entries.flatMap((e) => e.facts))
+    .find((f) => f.proposedWording)!;
+  fact.verification = {
+    text: 'Assisted a team prototype used by [X] staff.',
+    details: ['[X]'],
+    requirementIds: [],
+    explanation: 'Stronger framing.',
+  };
+  const state = setup(initial);
+  await open();
+  fireEvent.click(screen.getByRole('button', { name: 'Use as my draft' }));
+  const field = await screen.findByDisplayValue(
+    'Assisted a team prototype used by [X] staff.',
+  );
+  fireEvent.change(field, {
+    target: { value: 'Assisted a team prototype used by 12 staff.' },
+  });
+  const mine = screen.getByRole('alert', {
+    name: `Your wording for ${fact.field}`,
+  });
+  expect(mine).toHaveTextContent('Edited by you — not saved');
+  expect(mine).not.toHaveTextContent(/Confirmed by you/);
+  expect(mine).toHaveTextContent('not evidence from your original CV');
+  // Original AI provenance stays available as history; no repeat adopt action.
+  expect(within(mine).getByText(/Original AI suggestion/)).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Use as my draft' })).toBeNull();
+  expect(
+    state.fetch.mock.calls.some(([url]) => String(url).endsWith('/review')),
+  ).toBe(false);
+  // A failed save shows no confirmation and keeps the unsaved status.
+  state.conflict();
+  fireEvent.click(
+    within(mine).getByRole('button', { name: /Save draft with your wording/ }),
+  );
+  await waitFor(() =>
+    expect(
+      state.fetch.mock.calls.some(([url]) => String(url).endsWith('/review')),
+    ).toBe(true),
+  );
+  expect(screen.queryByText(/^Draft saved/)).toBeNull();
+  expect(
+    screen.getByRole('alert', { name: `Your wording for ${fact.field}` }),
+  ).toHaveTextContent('Edited by you — not saved');
+});
+
+test('saved user-authored wording survives reopen with its status and provenance', async () => {
+  const initial = tailoredDraftFixture();
+  const fact = initial.document.sections
+    .flatMap((s) => s.entries.flatMap((e) => e.facts))
+    .find((f) => f.proposedWording)!;
+  fact.verification = {
+    text: 'Assisted a team prototype used by [X] staff.',
+    details: ['[X]'],
+    requirementIds: [],
+    explanation: 'Stronger framing.',
+  };
+  const state = setup(initial);
+  await open();
+  fireEvent.click(screen.getByRole('button', { name: 'Use as my draft' }));
+  fireEvent.change(
+    await screen.findByDisplayValue(
+      'Assisted a team prototype used by [X] staff.',
+    ),
+    { target: { value: 'Assisted a team prototype used by 12 staff.' } },
+  );
+  fireEvent.click(
+    within(
+      screen.getByRole('alert', { name: `Your wording for ${fact.field}` }),
+    ).getByRole('button', { name: /Save draft with your wording/ }),
+  );
+  await screen.findByText('Draft saved as revision 2.');
+  expect(state.saved().document.review.factReviews[fact.id]).toMatchObject({
+    wording: 'user_edited',
+    proposal: 'rejected',
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Reload saved draft' }));
+  await waitFor(() =>
+    expect(
+      screen.getByRole('alert', { name: `Your wording for ${fact.field}` }),
+    ).toHaveTextContent('Saved — user-authored wording'),
+  );
+  expect(screen.getAllByText(/used by 12 staff/)[0]).toBeInTheDocument();
+  expect(screen.getByText(/Original AI suggestion/)).toBeInTheDocument();
 });

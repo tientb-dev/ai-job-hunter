@@ -25,6 +25,16 @@ export interface DraftReview {
   acknowledgedIssues: number[];
   approval: { revision: number; approvedAt: string } | null;
 }
+/** Bracketed tokens in changed wording that the reviewed source text lacks. */
+export function newPlaceholders(
+  text: string,
+  state: DraftReview['factReviews'][string] | undefined,
+) {
+  if (!state || state.wording === 'reviewed_profile') return [];
+  return [...text.matchAll(/\[[^\]\n]{1,40}\]/gu)]
+    .map((m) => m[0])
+    .filter((token) => !state.reviewedText.includes(token));
+}
 export function initialReview(document: TailoredDraftDocument): DraftReview {
   return {
     contractVersion: '1',
@@ -220,15 +230,17 @@ export function approveReview(
     )
   )
     throw new TailoredDraftError('CV_DRAFT_REVIEW_INCOMPLETE');
-  // An adopted verification draft must have every [placeholder] replaced by
-  // the user's own confirmed detail before approval.
+  // Adopted or edited wording must have every [placeholder] replaced by the
+  // user's own detail before approval. Brackets already in the source wording
+  // (e.g. "[Remote]") are the user's CV text, not placeholders.
   for (const section of next.sections)
     for (const entry of section.entries)
       for (const fact of entry.facts)
         if (
           fact.verification?.details.some(
             (d) => d.startsWith('[') && fact.acceptedText.includes(d),
-          )
+          ) ||
+          newPlaceholders(fact.acceptedText, review.factReviews[fact.id]).length
         )
           throw new TailoredDraftError('CV_DRAFT_REVIEW_INCOMPLETE');
   review.approval = { revision: nextRevision, approvedAt: now };
