@@ -118,8 +118,20 @@ describe('CV_MATCH_EVIDENCE_SUMMARY', () => {
             // Kafka has work evidence but recovery was blocked: UNKNOWN; the
             // recovery field above carries the cause.
             components: [
-              { position: 0, reason: 'UNKNOWN', modelQuote: 'PROVIDED' },
-              { position: 1, reason: 'SKILLS_ONLY', modelQuote: 'NONE' },
+              {
+                position: 0,
+                status: 'NOT_EVIDENCED',
+                accepted: false,
+                quote: 'AMBIGUOUS',
+                reason: 'UNKNOWN',
+              },
+              {
+                position: 1,
+                status: 'NOT_EVIDENCED',
+                accepted: false,
+                quote: 'MISSING',
+                reason: 'SKILLS_ONLY',
+              },
             ],
           },
           {
@@ -149,8 +161,20 @@ describe('CV_MATCH_EVIDENCE_SUMMARY', () => {
       status: 'NOT_EVIDENCED',
       recovery: 'BLOCKED_NO_CANDIDATE',
       components: [
-        { position: 0, reason: 'SKILLS_ONLY', modelQuote: 'PROVIDED' },
-        { position: 1, reason: 'SKILLS_ONLY', modelQuote: 'NONE' },
+        {
+          position: 0,
+          status: 'NOT_EVIDENCED',
+          accepted: false,
+          quote: 'AMBIGUOUS',
+          reason: 'SKILLS_ONLY',
+        },
+        {
+          position: 1,
+          status: 'NOT_EVIDENCED',
+          accepted: false,
+          quote: 'MISSING',
+          reason: 'SKILLS_ONLY',
+        },
       ],
     });
   });
@@ -212,8 +236,20 @@ test('wrapped work bullet: RabbitMQ reported EVIDENCED, no source text logged', 
     status: 'EVIDENCED',
     recovery: 'ALLOWED',
     components: [
-      { position: 0, reason: 'NO_MENTION', modelQuote: 'NONE' },
-      { position: 1, reason: 'EVIDENCED', modelQuote: 'NONE' },
+      {
+        position: 0,
+        status: 'NOT_EVIDENCED',
+        accepted: false,
+        quote: 'MISSING',
+        reason: 'NO_MENTION',
+      },
+      {
+        position: 1,
+        status: 'EVIDENCED',
+        accepted: true,
+        quote: 'MISSING',
+        reason: 'EVIDENCED',
+      },
     ],
   });
 });

@@ -1,4 +1,5 @@
 import {
+  declarationLine,
   demonstratedUseReason,
   evaluateCoverage,
   recoverSimpleQuote,
@@ -17,6 +18,51 @@ import {
 } from './cv-match.js';
 
 type QuoteClass = 'allowed' | 'widened' | 'ambiguous' | 'dropped';
+// Fixed codes for the model's component quote (diagnostics only):
+// MISSING            no quote supplied;
+// ALLOWED            an allowed CV passage (Ollama path: exact CV text);
+// WIDENED            a unique fragment widened to its allowed line(s);
+// SKILLS_DECLARATION resolves to CV text that is a skills/technology declaration;
+// AMBIGUOUS          a fragment found in several places (dropped, PR #65);
+// NOT_ALLOWED_PASSAGE exact CV text that is no allowed passage (e.g. > 3 lines);
+// NOT_IN_CV          not present in the CV.
+export type ComponentQuoteClass =
+  | 'MISSING'
+  | 'ALLOWED'
+  | 'WIDENED'
+  | 'SKILLS_DECLARATION'
+  | 'AMBIGUOUS'
+  | 'NOT_ALLOWED_PASSAGE'
+  | 'NOT_IN_CV';
+function componentQuoteClass(
+  quote: string,
+  cv: string,
+  allowed?: ReadonlySet<string>,
+): ComponentQuoteClass {
+  if (!quote.trim()) return 'MISSING';
+  const found = cvQuoteOccurrences(cv, quote);
+  const source = allowed
+    ? allowed.has(quote)
+      ? quote
+      : alignToPassage(cv, quote, allowed)
+    : found === 1 || cv.includes(quote)
+      ? resolveCvQuote(cv, quote)
+      : null;
+  if (source === null || source === undefined)
+    return found === 0
+      ? 'NOT_IN_CV'
+      : found === 2
+        ? 'AMBIGUOUS'
+        : 'NOT_ALLOWED_PASSAGE';
+  if (
+    source
+      .split(/\r\n|[\r\n\u2028\u2029]/u)
+      .filter((line) => line.trim())
+      .every((line) => declarationLine(line))
+  )
+    return 'SKILLS_DECLARATION';
+  return allowed && !allowed.has(quote) ? 'WIDENED' : 'ALLOWED';
+}
 const STATUSES = ['EVIDENCED', 'PARTIAL', 'NOT_EVIDENCED', 'CONFLICT'];
 const MODES = ['SINGLE', 'AND', 'OR', 'UNKNOWN'];
 
@@ -74,28 +120,37 @@ export function evidenceSummary(
       (row) => row.parentId === seed.parentId,
     );
     const status = scored?.status;
-    // Broker OR alternatives: position, fixed reason and whether the model quoted it.
-    const components = group.demonstratedUse
-      ? group.components.map((component, position) => ({
-          position,
-          reason: demonstratedUseReason(
-            component.label,
-            cv,
-            group,
-            scored?.coverage.components.find((c) => c.id === component.id)
-              ?.status ?? 'NOT_EVIDENCED',
-          ),
-          modelQuote: proposals.some(
-            (item) =>
-              linksCanonicalRequirement(item, seed) &&
-              item.components?.some(
-                (c) => c.componentId === component.id && c.cvQuote.trim(),
-              ),
-          )
-            ? 'PROVIDED'
-            : 'NONE',
-        }))
-      : undefined;
+    // AND/OR groups: per-component outcome. Broker OR rows add a fixed reason.
+    const components =
+      group.mode === 'AND' || group.mode === 'OR'
+        ? group.components.map((component, position) => {
+            const status =
+              scored?.coverage.components.find((c) => c.id === component.id)
+                ?.status ?? 'NOT_EVIDENCED';
+            const quote =
+              proposals
+                .filter((item) => linksCanonicalRequirement(item, seed))
+                .flatMap((item) => item.components ?? [])
+                .find((c) => c.componentId === component.id && c.cvQuote.trim())
+                ?.cvQuote ?? '';
+            return {
+              position,
+              status: STATUSES.includes(status) ? status : 'NOT_EVIDENCED',
+              accepted: status === 'EVIDENCED' || status === 'PARTIAL',
+              quote: componentQuoteClass(quote, cv, allowed),
+              ...(group.demonstratedUse
+                ? {
+                    reason: demonstratedUseReason(
+                      component.label,
+                      cv,
+                      group,
+                      status,
+                    ),
+                  }
+                : {}),
+            };
+          })
+        : undefined;
     return {
       index,
       mode: MODES.includes(group.mode) ? group.mode : 'UNKNOWN',
