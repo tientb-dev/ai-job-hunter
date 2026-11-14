@@ -47,6 +47,12 @@ export interface MatchInspection {
 }
 
 /** CV Match tab panel (id job-panel-1), shared by Job Detail and Tailored CV. */
+// A withheld score is either thin evidence or a requirement set the server could
+// not verify as complete; say which.
+const incompleteLabel = (result: MatchResult, fallback: string) =>
+  result.recommendation === 'Review requirements'
+    ? 'requirements may be incomplete'
+    : fallback;
 export function CvMatchSection({
   match,
   labelledBy,
@@ -372,7 +378,7 @@ function MatchOverview({
                 variant="h3"
                 component="p"
                 sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}
-                aria-label={`Fit score: ${result.score === null ? 'Not enough evidence' : `${result.score}/100`} (heuristic)`}
+                aria-label={`Fit score: ${result.score === null ? incompleteLabel(result, 'Not enough evidence') : `${result.score}/100`} (heuristic)`}
               >
                 {result.score === null ? '—' : result.score}
                 {result.score !== null && (
@@ -1116,9 +1122,9 @@ export function MatchGate({
             sx={{ alignItems: { sm: 'center' }, flexWrap: 'wrap' }}
           >
             <Chip
-              aria-label={`Fit score: ${result.score === null ? 'Not enough evidence' : `${result.score}/100`} (heuristic)`}
+              aria-label={`Fit score: ${result.score === null ? incompleteLabel(result, 'Not enough evidence') : `${result.score}/100`} (heuristic)`}
               color={result.recommendation === 'Apply' ? 'success' : 'default'}
-              label={`${result.recommendation} · ${result.score === null ? 'not enough evidence' : `${result.score}/100`}`}
+              label={`${result.recommendation} · ${result.score === null ? incompleteLabel(result, 'not enough evidence') : `${result.score}/100`}`}
               sx={{ alignSelf: 'flex-start' }}
             />
             <Typography
@@ -1197,11 +1203,11 @@ export function MatchGate({
                 sx={{ flexWrap: 'wrap', alignItems: 'center' }}
               >
                 <Chip
-                  aria-label={`Fit score: ${result.score === null ? 'Not enough evidence' : `${result.score}/100`} (heuristic)`}
+                  aria-label={`Fit score: ${result.score === null ? incompleteLabel(result, 'Not enough evidence') : `${result.score}/100`} (heuristic)`}
                   color={
                     result.recommendation === 'Apply' ? 'success' : 'default'
                   }
-                  label={`${result.recommendation} · ${result.score === null ? 'not enough evidence' : `${result.score}/100`}`}
+                  label={`${result.recommendation} · ${result.score === null ? incompleteLabel(result, 'not enough evidence') : `${result.score}/100`}`}
                 />
                 {counts && (
                   <Typography variant="body2" color="text.secondary">

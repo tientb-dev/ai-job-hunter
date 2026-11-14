@@ -3,6 +3,15 @@ import { resolveCvQuote } from './cv-match.evidence.js';
 import { normalize } from './matching.policy.js';
 import { HttpException } from '@nestjs/common';
 import { CvMatchError } from './cv-match.error.js';
+import { AsyncLocalStorage } from 'node:async_hooks';
+
+// Random per-analysis id so events from one attempt can be correlated. Never a
+// job, owner or CV identifier.
+export const matchAttempt = new AsyncLocalStorage<string>();
+const attempt = () => {
+  const id = matchAttempt.getStore();
+  return id ? { attempt: id } : {};
+};
 
 export type MatchEvidenceReason =
   | 'JD_QUOTE_EMPTY'
@@ -35,6 +44,7 @@ export function emitMatchEvidenceRejection(
     process.stderr.write(
       `${JSON.stringify({
         event: `CV_MATCH_EVIDENCE_${outcome}`,
+        ...attempt(),
         reason,
         requirementIndex,
         ...(['skill', 'experience', 'domain'].includes(category ?? '')
@@ -110,6 +120,7 @@ export function emitMatchIncomplete(
     process.stderr.write(
       `${JSON.stringify({
         event: 'CV_MATCH_INCOMPLETE',
+        ...attempt(),
         counts: {
           canonical: canonical.length,
           returned: proposals.length,
@@ -136,6 +147,7 @@ export function emitMatchCompletion(
     process.stderr.write(
       `${JSON.stringify({
         event: 'CV_MATCH_COMPLETION',
+        ...attempt(),
         outcome: /^[A-Z_]{1,40}$/u.test(outcome) ? outcome : 'OTHER',
         counts: { missing, returned },
       })}\n`,
@@ -202,6 +214,7 @@ export function emitMatchFailure(
     process.stderr.write(
       `${JSON.stringify({
         event: 'CV_MATCH_FAILURE',
+        ...attempt(),
         stage,
         errorCode: token(matchError?.errorCode, 'NONE'),
         reasonCode,
@@ -226,7 +239,7 @@ export function emitMatchEvidenceSummary(build: () => unknown): void {
   if (!incompleteDiagnostics) return;
   try {
     process.stderr.write(
-      `${JSON.stringify({ event: 'CV_MATCH_EVIDENCE_SUMMARY', ...(build() as object) })}\n`,
+      `${JSON.stringify({ event: 'CV_MATCH_EVIDENCE_SUMMARY', ...attempt(), ...(build() as object) })}\n`,
     );
   } catch {
     // Diagnostics must never alter a completed analysis.

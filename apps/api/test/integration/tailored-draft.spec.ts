@@ -1072,3 +1072,45 @@ test('reviewedFacts is read-only, owner-scoped and excludes contact details', as
   expect(facts!.join('\n')).not.toMatch(/example\.invalid|Synthetic Quinn/u);
   expect(await drafts.reviewedFacts(randomUUID())).toBeNull();
 });
+
+test('a draft made before a matching-policy change stays viewable, reviewable and exportable; a new draft needs a current match', async () => {
+  await ready();
+  const generated = await post().expect(201);
+  const id = generated.body.id as string;
+  const doc = generated.body
+    .document as import('../../src/tailored-cv/tailored-draft.contract.js').TailoredDraftDocument;
+  // Simulate a saved match from the previous policy version.
+  await db.query(
+    'UPDATE ai_job_hunter.cv_matches SET "policyVersion"=$1 WHERE "jobId"=$2',
+    ['qualification-d1/v5', current.job.id],
+  );
+  expect((await drafts.get(owner, id)).document).toEqual(doc);
+  const reviewed = await drafts.review(owner, id, {
+    ...v,
+    expectedRevision: 1,
+    operations: [
+      ...doc.sections
+        .flatMap((s) => s.entries.flatMap((e) => e.facts))
+        .filter((f) => f.proposedWording)
+        .map((f) => ({ action: 'reject', factId: f.id })),
+      ...doc.reviewIssues.flatMap((issue, i) =>
+        issue.code === 'SEMANTIC_REVIEW_REQUIRED'
+          ? []
+          : [{ action: 'acknowledge', issueIndex: i }],
+      ),
+    ],
+  });
+  const approved = await drafts.review(
+    owner,
+    id,
+    { ...v, expectedRevision: reviewed.revision, reviewedFactIds: [] },
+    true,
+  );
+  await request(app.getHttpServer())
+    .post(`${base}/drafts/${id}/export`)
+    .set(origin)
+    .send({ ...v, expectedRevision: approved.revision, format: 'pdf' })
+    .expect(200);
+  const blocked = await post().expect(409);
+  expect(blocked.body.errorCode).toBe('CV_DRAFT_STALE_MATCH');
+});

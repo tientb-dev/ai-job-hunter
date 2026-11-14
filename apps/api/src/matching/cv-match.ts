@@ -29,6 +29,7 @@ import {
   databaseAttributedQuoteChoices,
 } from './cv-match.evidence.js';
 import { normalize } from './matching.policy.js';
+import { requirementLines } from '../opportunities/job-import.sections.js';
 import type { Opportunity } from '../opportunities/opportunity.entity.js';
 
 export interface MatchRequirement {
@@ -226,8 +227,83 @@ function repairSplitClauses(
   }
   return result;
 }
+// Explicit qualification sections of the saved JD (e.g. ITviec "Your Skills and
+// Experience" / "Nice-to-have"). Only lines under a recognized heading count;
+// benefits, responsibilities, tags and source metadata never do.
+// shortcut: used only when no skills fields were saved (Fetch URL → Save, no AI
+// extraction). Saved/extracted skills fields stay authoritative because curated
+// golden cases depend on them; widen only with a reviewed golden-dataset update.
+// Discovery jobs keep their own JD path below.
+function jdSectionRequirements(job: Opportunity) {
+  if (job.discovery || job.skills.trim() || job.preferredSkills.trim())
+    return null;
+  for (const text of [job.jdText, job.description]) {
+    if (!text.trim()) continue;
+    const rows: MatchRequirement[] = [];
+    for (const item of requirementLines(text)) {
+      if (item.excluded || !item.structured || !item.kind) continue;
+      const line = item.line.trim();
+      const priority = item.kind === 'skills' ? 'required' : 'preferred';
+      // The same JD line repeated is one requirement; a required copy wins.
+      const twin = rows.find(
+        (row) => normalize(row.jdQuote) === normalize(line),
+      );
+      if (twin) {
+        if (priority === 'required') twin.priority = 'required';
+        continue;
+      }
+      rows.push({
+        requirement: requirementLabel(line),
+        priority,
+        category: 'skill',
+        jdQuote: line,
+        cvQuote: '',
+      });
+    }
+    if (rows.length) return rows;
+  }
+  return null;
+}
+// ITviec job-domain metadata copied into the domain field is a site taxonomy,
+// not a qualification.
+function itviecDomain(job: Opportunity) {
+  const block = /ITviec Job Domain:\n([\s\S]*?)\nEnd ITviec Job Domain/u.exec(
+    job.description,
+  );
+  return (
+    !!block &&
+    normalize(block[1]!.split('\n').join('; ')) === normalize(job.domain)
+  );
+}
+/**
+ * True when no skills fields were saved, the JD has no recognized qualification
+ * section, and the JD shows more requirement-like lines than were scored: the
+ * requirement set is likely incomplete, so its score must not read as a
+ * finished fit verdict. A genuine one-requirement job stays verified.
+ */
+export function canonicalRequirementsUnverified(job: Opportunity): boolean {
+  if (
+    job.discovery ||
+    job.skills.trim() ||
+    job.preferredSkills.trim() ||
+    jdSectionRequirements(job)
+  )
+    return false;
+  const candidates = Math.max(
+    ...[job.jdText, job.description].map(
+      (text) =>
+        requirementLines(text).filter((row) => !row.excluded && row.kind)
+          .length,
+    ),
+  );
+  return candidates > canonicalRequirements(job).length;
+}
 export function canonicalRequirements(job: Opportunity): MatchRequirement[] {
   const rows: MatchRequirement[] = [];
+  // JD-first when no skills fields were saved: JD qualification sections replace
+  // the experience/domain fields, which would otherwise restate or tag the JD.
+  const fromJd = jdSectionRequirements(job);
+  if (fromJd) rows.push(...fromJd);
   const description = job.description || job.jdText;
   const source =
     job.discovery && description.trim()
@@ -259,20 +335,28 @@ export function canonicalRequirements(job: Opportunity): MatchRequirement[] {
   const generatedPreferred = Boolean(
     source && job.preferredSkills === initial.preferred,
   );
-  for (const [value, priority, category] of [
-    [
-      generatedRequired ? source!.required.join('\n') : job.skills,
-      'required',
-      'skill',
-    ],
-    [
-      generatedPreferred ? source!.preferred.join('\n') : job.preferredSkills,
-      'preferred',
-      'skill',
-    ],
-    [job.experience, 'required', 'experience'],
-    [job.domain, 'preferred', 'domain'],
-  ] as const) {
+  for (const [value, priority, category] of (fromJd
+    ? []
+    : [
+        [
+          generatedRequired ? source!.required.join('\n') : job.skills,
+          'required',
+          'skill',
+        ],
+        [
+          generatedPreferred
+            ? source!.preferred.join('\n')
+            : job.preferredSkills,
+          'preferred',
+          'skill',
+        ],
+        [job.experience, 'required', 'experience'],
+        [itviecDomain(job) ? '' : job.domain, 'preferred', 'domain'],
+      ]) as readonly (readonly [
+    string,
+    'required' | 'preferred',
+    'skill' | 'experience' | 'domain',
+  ])[]) {
     for (const requirement of (category === 'skill'
       ? value
           .split(/\n/u)
@@ -680,6 +764,8 @@ export function scoreCvMatch(
   cv: string,
   jd: string,
   canonical: MatchRequirement[] = [],
+  // canonicalRequirementsUnverified(job): withhold the score and fit verdict.
+  unverified = false,
 ) {
   const seen = new Set<string>();
   const belongsTo = linksCanonicalRequirement;
@@ -809,12 +895,14 @@ export function scoreCvMatch(
     (sum, item) => sum + item.credit * weight(item),
     0,
   );
-  const score = total ? Math.round((100 * earned) / total) : null;
+  const score =
+    total && !unverified ? Math.round((100 * earned) / total) : null;
   const requiredGap = requirements.some(
     (item) => item.priority === 'required' && item.status !== 'EVIDENCED',
   );
-  const recommendation =
-    score === null
+  const recommendation = unverified
+    ? 'Review requirements'
+    : score === null
       ? 'Consider'
       : score >= 75 && !requiredGap
         ? 'Apply'
@@ -827,8 +915,9 @@ export function scoreCvMatch(
     requirements,
     explanation:
       'Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Unknown/conflict earns zero. AI links and requirement completeness need human review; this is not a hiring probability.',
-    advice:
-      score === null
+    advice: unverified
+      ? 'The saved JD has no recognizable requirements section, so these requirements may be incomplete and no fit score is given. Review the job requirements, then analyze again.'
+      : score === null
         ? 'No grounded requirements could be evaluated. Review the saved JD and retry.'
         : requiredGap
           ? 'Verify the required evidence gaps before applying. Add only accurate supporting experience to your CV.'

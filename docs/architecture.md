@@ -795,6 +795,18 @@ existing Nest behavior. No global queue, provider changes or new dependencies.
 The shared guard covers CV Match/suggestions, not unrelated extraction workflows.
 P6 scoring and evidence semantics remain unchanged; P7.4 UI and P8 remain deferred.
 
+### JD-first canonical requirements (policy `qualification-d1/v6`)
+
+An ITviec job saved via Fetch URL → Save (no AI extraction) stores the JD in `description`, ITviec domain metadata in `domain`, and no skills. Canonical requirements came only from structured fields, so such a job was scored on one row (the domain metadata) and saved as a valid 0/100 Low Fit.
+
+- When no skills fields are saved, `canonicalRequirements` reads the saved JD's explicit qualification sections with the existing import parser (`requirementLines`): "Your Skills and Experience", "Requirements", "Yêu cầu…" give required rows; "Nice-to-have", "Ưu tiên", "Điểm cộng" give preferred rows. Benefits, "The Job", "Top 3 Reasons To Join Us", supplemental skill tags and ITviec taxonomy are excluded. Each row keeps the exact JD line as its `jdQuote`; no AI call is added.
+- Saved or AI-extracted skills fields stay authoritative (curated golden cases depend on them). Using JD sections when fields exist is a deliberate follow-up that needs a reviewed golden-dataset update.
+- Duplicate removal is an exact normalized-line match only (a required copy wins); similar lines such as "Java" and "JavaScript" stay separate, and JD rows never merge with field rows.
+- ITviec domain metadata in `domain` is never scored; a manually entered domain is unchanged.
+- If no skills were saved, the JD has no recognizable section, and it shows more requirement-like lines than were scored, the result is saved with `score: null` and recommendation "Review requirements" instead of a Low Fit verdict. A genuine one-requirement job stays scored.
+- The policy bump expires saved matches (no deletion or migration). Existing Tailored CV drafts keep their own requirement snapshot and stay viewable, reviewable and exportable; a new draft requires a current match.
+- Match diagnostics carry a random per-analysis `attempt` id (AsyncLocalStorage), never job, owner or source text.
+
 ### P7.4 CV improvement suggestions in CV Match
 
 The existing CV Match document flow hosts a compact suggestions section between

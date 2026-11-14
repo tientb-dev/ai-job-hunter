@@ -79,7 +79,9 @@ export function requirementLines(text: string): {
         /^(?:benefits?|why .+|about .+|responsibilities|job description|job title|company|location|domain|source industry|salary|what we offer|your responsibilities|phúc lợi|supplemental skill tags)\s*[:：]/iu.test(
           clean,
         ) ||
-        /^(?:benefits?|responsibilities|what we offer|why .+|about .+|phúc lợi|quyền lợi(?: ứng viên)?|mô tả công việc|kinh nghiệm ứng dụng AI)$/iu.test(
+        // ITviec page sections: "Top 3 Reasons To Join Us", "The Job" and
+        // "Why You'll Love Working Here" are never qualification sections.
+        /^(?:benefits?|responsibilities|what we offer|why .+|about .+|phúc lợi|quyền lợi(?: ứng viên)?|mô tả công việc|kinh nghiệm ứng dụng AI|the job|job description|top \d+ reasons? to join us|what you(?:'|’)ll do)\s*[:：]?$/iu.test(
           clean,
         )
       ) {

@@ -701,3 +701,30 @@ test('partial response with malformed component evidence is rejected rather than
   await screen.findByText(/API returned an invalid matching result/);
   expect(screen.queryByLabelText(/Fit score:/)).toBeNull();
 });
+
+test('an unverified requirement set shows a review state, not a numeric Low Fit', async () => {
+  const review = {
+    ...result,
+    score: null,
+    recommendation: 'Review requirements',
+    advice:
+      'The saved JD has no recognizable requirements section, so these requirements may be incomplete and no fit score is given. Review the job requirements, then analyze again.',
+  };
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string) =>
+      Response.json(
+        url.endsWith('/cv/current') ? { fileName: 'synthetic.pdf' } : review,
+      ),
+    ),
+  );
+  render(<CvMatchPanel jobId="synthetic-job" revision="1" />);
+  await screen.findByText('Saved CV: synthetic.pdf');
+  fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
+  await screen.findByLabelText(
+    'Fit score: requirements may be incomplete (heuristic)',
+  );
+  expect(screen.getAllByText('Review requirements')[0]).toBeVisible();
+  expect(screen.queryByText('Low Fit')).toBeNull();
+  expect(screen.queryByText(/\/ 100/)).toBeNull();
+});
