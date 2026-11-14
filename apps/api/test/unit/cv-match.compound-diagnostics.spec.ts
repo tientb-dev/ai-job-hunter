@@ -157,7 +157,9 @@ describe('per-component AND/OR diagnostics', () => {
       },
     ]);
     expect(summary.requirements[2]!.components).toEqual([
-      { position: 0, ...NOT, quote: 'ALLOWED' }, // CI/CD line for Docker
+      // Model quoted the CI/CD line for Docker; Docker is recovered from the
+      // candidate's own work line (PR #74), so the component is accepted.
+      { position: 0, status: 'EVIDENCED', accepted: true, quote: 'ALLOWED' },
       { position: 1, ...NOT, quote: 'ALLOWED' }, // negated line
     ]);
   });

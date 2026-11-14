@@ -569,7 +569,9 @@ describe('Accepted beta limitations (characterization)', () => {
     ).toBe('NOT_EVIDENCED/0');
   });
 
-  test('L2 AND components are not recovered when the model omits their quotes', () => {
+  // L2 partly superseded (PO-approved PR #74): in plain experience AND groups,
+  // only Docker and CI/CD pipelines are recovered from the candidate's own work.
+  test('L2 (partly superseded) only Docker/CI/CD AND components recover without quotes', () => {
     expect(
       both(
         'Experience with Docker and Kubernetes',
@@ -579,7 +581,7 @@ describe('Accepted beta limitations (characterization)', () => {
         ),
         {},
       ),
-    ).toBe('NOT_EVIDENCED/0');
+    ).toBe('PARTIAL/0.5'); // Docker recovered; Kubernetes is not in scope
   });
 
   test('L3 conservative descriptive matching: different wording is not matched', () => {

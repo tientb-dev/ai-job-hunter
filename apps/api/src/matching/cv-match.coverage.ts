@@ -1053,6 +1053,54 @@ function educationPassages(cv: string): string[] {
   return result;
 }
 
+// Recovery-only, stricter than PR68's relatedWork: the clause must start with
+// the candidate's own work verb (after a bullet or "I"), name the technology,
+// and not attribute it to others ("teams that used Docker"). Only Docker and
+// the approved CI/CD pipelines are eligible; every other component is not.
+const thirdParty =
+  /\b(?:teams?|clients?|customers?|users?|colleagues|engineers|developers|partners|vendors|others|people|they)\s+(?:that|who|which)\b/iu;
+function recoverAndNamedComponent(
+  label: string,
+  cv: string,
+): string | undefined {
+  // PO-approved scope: Docker and the approved CI/CD pipelines only. No
+  // general named-technology classifier ("APIs" must not become eligible).
+  if (!/^docker$/iu.test(label) && !ciCdPipelines.test(label)) return undefined;
+  const ownWork = new RegExp(
+    String.raw`^(?:[-*•–▪●◦]\s*|\d{1,2}[.)]\s*)?(?:I\s+)?${recoveryWork.source}`,
+    'iu',
+  );
+  return demonstratedPassages([cv], cv).find(
+    (passage) =>
+      passage.length <= 2000 &&
+      !declarationLine(passage) &&
+      !negative(passage) &&
+      !uncertain(passage) &&
+      passage
+        .split(
+          /;|(?<=[.!?])\s+|\b(?:after|before|while|during|but|although|though)\b/iu,
+        )
+        .some((clause) => {
+          const text = clause.trim();
+          const mention = text.search(
+            new RegExp(
+              ciCdPipelines.test(label)
+                ? String.raw`\bci\s*\/\s*cd\b`
+                : escape(label),
+              'iu',
+            ),
+          );
+          return (
+            mention > 0 &&
+            ownWork.test(text) &&
+            mentionsTechnology(label, text) &&
+            !passingMention.test(text) &&
+            !thirdParty.test(text.slice(0, mention))
+          );
+        }),
+  );
+}
+
 export function evaluateCoverage(
   group: RequirementGroup,
   selected: string[],
@@ -1121,6 +1169,20 @@ export function evaluateCoverage(
               quote.length <= 2000 && supports(component.label, quote, group),
           )
         : undefined;
+    // Plain AND (experience): a named-technology component may be recovered
+    // from the candidate's own work clause; descriptive components never are.
+    const andNamedRecovery =
+      allowRecovery &&
+      group.mode === 'AND' &&
+      group.context === 'experience' &&
+      !group.managedLanguage &&
+      !group.demonstratedUse &&
+      !group.languageProficiency &&
+      !group.personalDelivery &&
+      !group.aiFamiliarityOrInterest &&
+      group.minimumYears === undefined
+        ? recoverAndNamedComponent(component.label, cv)
+        : undefined;
     // Only an explicit, non-negated proficiency declaration is recovered.
     const languageRecovery =
       allowRecovery && group.languageProficiency
@@ -1130,6 +1192,7 @@ export function evaluateCoverage(
           )
         : undefined;
     const recovered =
+      andNamedRecovery ??
       languageRecovery ??
       demonstratedRecovery ??
       managedRecovery ??
