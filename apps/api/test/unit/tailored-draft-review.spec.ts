@@ -238,3 +238,43 @@ test('only conflicting source evidence blocks approval; informational and resolv
     approveReview(resolved, [], 5, '2026-01-01').review!.approval!.revision,
   ).toBe(5);
 });
+test('approval rejects new [placeholders] in accepted or edited wording in any section, but keeps bracketed source text', () => {
+  const { doc, originals } = fixture();
+  const ack = (d: typeof doc) =>
+    d.reviewIssues.flatMap((r, i) =>
+      r.code === 'SEMANTIC_REVIEW_REQUIRED'
+        ? []
+        : [{ action: 'acknowledge' as const, issueIndex: i }],
+    );
+  // A non-bullet (skills) AI suggestion that carries a placeholder.
+  const risky = structuredClone(doc);
+  risky.sections
+    .flatMap((s) => s.entries.flatMap((e) => e.facts))
+    .find((f) => f.id === 'java')!.proposedWording!.text = 'Java [X%], Python';
+  let accepted = applyReview(
+    risky,
+    [{ action: 'accept', factId: 'java' }],
+    originals,
+  );
+  accepted = applyReview(accepted, ack(accepted), originals);
+  expect(() => approveReview(accepted, ['java'], 3, '2026-01-01')).toThrow();
+  for (const text of ['Java [X], Python', 'Java for [N users], Python']) {
+    const edited = applyReview(
+      accepted,
+      [{ action: 'edit', factId: 'java', text }],
+      originals,
+    );
+    expect(() => approveReview(edited, ['java'], 4, '2026-01-01')).toThrow();
+  }
+  // Brackets that were already in the reviewed source wording stay allowed.
+  const source = structuredClone(accepted);
+  source.review!.factReviews.java!.reviewedText = 'Python, Java [Remote]';
+  const kept = applyReview(
+    source,
+    [{ action: 'edit', factId: 'java', text: 'Java [Remote], Python' }],
+    originals,
+  );
+  expect(
+    approveReview(kept, ['java'], 5, '2026-01-01').review!.approval!.revision,
+  ).toBe(5);
+});
