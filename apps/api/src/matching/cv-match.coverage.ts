@@ -365,7 +365,22 @@ const passages = (text: string) =>
 // heading, blank line or declaration ("Skills: …"), and either starts in
 // lowercase or follows a comma/connector. At most 3 lines, like allowed passages.
 const bulletStart = /^\s*(?:[-*•–▪●◦]|\d{1,2}[.)])\s+\S/u;
-const declarationLine = /^\s*[\p{L}][\p{L} &/+-]{0,30}:\s/u;
+const declarationLabel = /^\s*[\p{L}][\p{L} &/+-]{0,30}:\s+/u;
+// Content-first: a "Label: …" line is a declaration unless its content reads
+// as a work sentence. A short-item list ("Backend: Java, REST APIs",
+// "Tools used: Git") is a declaration; "Example Platform: Developed REST APIs
+// for …" is project work. Anything in between fails closed as a declaration.
+function declarationLine(line: string): boolean {
+  if (skillsDeclaration.test(line)) return true;
+  const label = declarationLabel.exec(line);
+  if (!label) return false;
+  const content = line.slice(label[0].length).trim();
+  const workSentence =
+    new RegExp(String.raw`^(?:I\s+)?${recoveryWork.source}`, 'iu').test(
+      content,
+    ) && content.split(/\s+/u).length >= 4;
+  return !workSentence;
+}
 const headingLine = /^\s*[^\p{Ll}]*\p{Lu}[^\p{Ll}]*$/u;
 const sentenceEnd = /[.!?:;]\s*$/u;
 const connectorEnd =
@@ -389,7 +404,7 @@ export function bulletUnits(cv: string): string[] {
         !next.trim() ||
         bulletStart.test(next) ||
         headingLine.test(next) ||
-        declarationLine.test(next) ||
+        declarationLine(next) ||
         skillsDeclaration.test(next) ||
         sentenceEnd.test(previous) ||
         !(/^\s*\p{Ll}/u.test(next) || connectorEnd.test(previous))
@@ -449,9 +464,7 @@ export function demonstratedUseReason(
     units.some((unit) => componentMention(label, unit, group) && negative(unit))
   )
     return 'NEGATED';
-  const work = mentioned.filter(
-    ({ line }) => !skillsDeclaration.test(line) && !declarationLine.test(line),
-  );
+  const work = mentioned.filter(({ line }) => !declarationLine(line));
   if (!work.length) return 'SKILLS_ONLY';
   // A work verb only on an adjacent line that could not be joined safely.
   if (
@@ -1461,8 +1474,7 @@ function namedTechnologyStatus(
       !negative(passage) &&
       !uncertain(passage),
   );
-  const declaration = (passage: string) =>
-    skillsDeclaration.test(passage) || declarationLine.test(passage);
+  const declaration = (passage: string) => declarationLine(passage);
   const supported = candidates.some(
     (passage) =>
       (!declaration(passage) && relatedWork(label, passage)) ||
