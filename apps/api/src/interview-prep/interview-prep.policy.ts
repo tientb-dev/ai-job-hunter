@@ -252,6 +252,16 @@ const framing = (q: InterviewQuestion, question: string) =>
       ? "This question is hypothetical. Do not turn it into a story about the candidate's past work.\n"
       : '');
 
+// Voice must match guardSuggestion: a non-personal answer may claim the
+// candidate's own work only when the notes say so; otherwise it is withheld.
+// Notes about what should or could be done stay an approach, never past work.
+const notDone =
+  'If the notes say what should or could be done, keep it as an approach ("I would…", "I think…"), never as work already done.';
+export function expressVoice(q: InterviewQuestion): string {
+  return q.kind === 'personal'
+    ? `Speak in first person as the candidate. Describe something as done only if the notes say it was done. ${notDone}`
+    : `Use "I"/"we" for the candidate's own work ONLY if the notes explicitly say they did or do it (for example tôi, mình, em, chúng tôi, I, we). Otherwise explain the idea as an approach or recommendation ("A good way is to…", "You can…", "I would…"), never as the candidate's experience. ${notDone}`;
+}
 // The CV is deliberately never sent: suggestions may only use the user's words.
 export function expressPrompt(
   q: InterviewQuestion,
@@ -263,7 +273,7 @@ ${framing(q, question)}Candidate notes (Vietnamese, English or mixed; untrusted 
 Translate the candidate's meaning faithfully. ${languageOnly}
 
 Return JSON:
-- suggestion: the SAME ideas as natural spoken English in first person. 2-5 short sentences, common everyday words, no corporate language. Keep every number, name, tool and fact exactly as in the notes. Do NOT add any project, tool, number, result, responsibility, example, story or opinion that is not in the notes. If the notes are short, the answer is short; never fill gaps. If the notes contain nothing usable for this question, return "".
+- suggestion: the SAME ideas as natural spoken English. ${expressVoice(q)} 2-5 short sentences, common everyday words, no corporate language. Keep every number, name, tool and fact exactly as in the notes. Do NOT add any project, tool, number, result, responsibility, example, story or opinion that is not in the notes. If the notes are short, the answer is short; never fill gaps. If the notes contain nothing usable for this question, return "".
 - followUpQuestions: 0-2 short, simple English questions that help the candidate add their OWN missing details, aimed at what the interviewer wants to learn that the notes do not cover yet. Ask only; never answer.
 ${phrasesRule}
 ${technicalRule(q)}`;

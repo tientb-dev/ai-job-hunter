@@ -166,15 +166,46 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
+// Case, spacing, curly quotes and final punctuation are not a rewrite.
+const fold = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/[’‘]/gu, "'")
+    .replace(/[“”]/gu, '"')
+    .replace(/\s+/gu, ' ')
+    .replace(/[\s.!?]+$/u, '')
+    .trim();
+/** The review returned the submitted answer itself: nothing was rewritten. */
+const unchangedSuggestion = (
+  feedback: PracticeFeedback,
+  answer: string | undefined,
+) =>
+  feedback.mode === 'review' &&
+  !!feedback.suggestion &&
+  answer !== undefined &&
+  fold(feedback.suggestion) === fold(answer);
+
 function Suggestion({
   feedback,
+  answer,
   shown,
   onToggle,
 }: {
   feedback: PracticeFeedback;
+  /** The exact answer sent for this feedback, not later edits. */
+  answer?: string;
   shown: boolean;
   onToggle: () => void;
 }) {
+  if (unchangedSuggestion(feedback, answer))
+    return (
+      <Section title="Simpler spoken version">
+        <Typography variant="body2" color="text.secondary">
+          Your answer is already simple and clear, so no rewrite was needed.
+          Practise saying it as written.
+        </Typography>
+      </Section>
+    );
   if (!feedback.suggestion)
     return feedback.suggestionWithheld ? (
       <Alert severity="info">
@@ -206,10 +237,13 @@ function Suggestion({
 
 export function Feedback({
   feedback,
+  answer,
   shown,
   onToggle,
 }: {
   feedback: PracticeFeedback;
+  /** The exact answer sent for this feedback, not later edits. */
+  answer?: string;
   shown: boolean;
   onToggle: () => void;
 }) {
@@ -257,7 +291,12 @@ export function Feedback({
           </Stack>
         </Section>
       )}
-      <Suggestion feedback={feedback} shown={shown} onToggle={onToggle} />
+      <Suggestion
+        feedback={feedback}
+        answer={answer}
+        shown={shown}
+        onToggle={onToggle}
+      />
       {feedback.followUpQuestions.length > 0 && (
         <Section title="Questions to add your own details">
           <Stack component="ul" spacing={0.5} sx={{ m: 0, pl: 2.5 }}>
@@ -694,7 +733,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
   };
   const tryAgain = () => {
     if (status.kind !== 'done') return;
-    setPrevious({ mode, text, feedback: status.feedback });
+    setPrevious({ mode, text: status.answer, feedback: status.feedback });
     setPreviousShown(false);
     setText('');
     setStatus({ kind: 'idle' });
@@ -1477,12 +1516,17 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
             </Typography>
             <Feedback
               feedback={feedback}
+              answer={status.kind === 'done' ? status.answer : undefined}
               shown={shown}
               onToggle={() => setShown((v) => !v)}
             />
             <Stack spacing={1}>
               <Typography variant="body2" color="text.secondary">
-                {feedback.suggestion
+                {feedback.suggestion &&
+                !unchangedSuggestion(
+                  feedback,
+                  status.kind === 'done' ? status.answer : undefined,
+                )
                   ? 'Now hide the suggestion and say your answer out loud again.'
                   : 'Now say your answer out loud again, using the feedback above.'}
               </Typography>
@@ -1578,6 +1622,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
               </Typography>
               <Suggestion
                 feedback={previous.feedback}
+                answer={previous.text}
                 shown={previousShown}
                 onToggle={() => setPreviousShown((v) => !v)}
               />
@@ -1603,9 +1648,10 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
                 recording={recorder.blob}
                 questionId={question.id}
                 variant={question.variants[variant] ? variant : 0}
-                renderFeedback={(f) => (
+                renderFeedback={(f, sent) => (
                   <Feedback
                     feedback={f}
+                    answer={sent}
                     shown={transcriptShown}
                     onToggle={() => setTranscriptShown((v) => !v)}
                   />

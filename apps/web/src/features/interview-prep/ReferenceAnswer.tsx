@@ -202,11 +202,11 @@ export function UnsavedAnswerDialog({
       }
       text={
         transcript
-          ? "Your practice transcript isn't saved anywhere. Leaving this question clears it."
+          ? 'Practice transcripts are never saved. Leaving this question clears it. Copy the text first if you want to keep it.'
           : "You changed your reference answer but didn't save it. Your saved answer, if any, stays as it was."
       }
-      safeLabel="Stay and edit"
-      confirmLabel="Discard changes"
+      safeLabel={transcript ? 'Stay' : 'Stay and edit'}
+      confirmLabel={transcript ? 'Leave and clear' : 'Discard changes'}
       destructive
       onSafe={onStay}
       onConfirm={onDiscard}

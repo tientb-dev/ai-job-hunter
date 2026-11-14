@@ -25,7 +25,8 @@ export function TranscriptPanel({
   questionId: string;
   variant: number;
   /** The page's existing feedback view, so both paths look the same. */
-  renderFeedback: (feedback: PracticeFeedback) => ReactNode;
+  /** `answer`: the exact transcript text sent for this feedback. */
+  renderFeedback: (feedback: PracticeFeedback, answer: string) => ReactNode;
 }) {
   const count = t.text.length; // same count as the feedback field
   const over = count > MAX_ANSWER_CHARS;
@@ -155,7 +156,7 @@ export function TranscriptPanel({
               feedback again for the current text.
             </Alert>
           ) : (
-            renderFeedback(t.feedback.feedback)
+            renderFeedback(t.feedback.feedback, t.feedback.answer)
           )}
         </Stack>
       )}
