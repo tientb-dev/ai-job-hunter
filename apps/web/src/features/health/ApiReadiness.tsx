@@ -1,10 +1,12 @@
 import { RefreshIcon } from '../../components/icons';
 import { useEffect, useState } from 'react';
 import { Button, Chip, Stack } from '@mui/material';
+import { useI18n } from '../../app/i18n';
 
 type Status = 'loading' | 'ready' | 'unavailable';
 
 export function ApiReadiness() {
+  const { t } = useI18n();
   const [status, setStatus] = useState<Status>('loading');
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
@@ -70,10 +72,10 @@ export function ApiReadiness() {
           }
           label={
             status === 'ready'
-              ? 'API ready'
+              ? t('api.ready')
               : status === 'unavailable'
-                ? 'API unavailable'
-                : 'Checking API…'
+                ? t('api.unavailable')
+                : t('api.checking')
           }
         />
       </span>
@@ -88,7 +90,7 @@ export function ApiReadiness() {
           setAttempt((value) => value + 1);
         }}
       >
-        Check again
+        {t('api.checkAgain')}
       </Button>
     </Stack>
   );

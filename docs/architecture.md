@@ -2226,3 +2226,22 @@ Grounding decisions:
   `AI_UNAVAILABLE`). The web app shows one notice for these codes (`AiLimitNotices`).
 - Alternatives: a token or cost budget needs provider usage metadata and pricing, deferred; queueing
   instead of refusing at the concurrency cap would hold HTTP requests open.
+
+## Web beta PR5 i18n foundation
+
+- `apps/web/src/app/i18n.ts` holds `vi-VN` (default) and `en-US` interface
+  text as typed key maps; `en-US` must define every Vietnamese key, so a
+  missing translation fails typecheck. `useI18n()` reads a small external
+  store (`useSyncExternalStore`), so components need no provider and every
+  user re-renders on a language change.
+- The choice is saved in `localStorage` (`ajh.locale`, guarded for blocked
+  storage) and sets `<html lang>`. A server-side preference was not needed
+  for the beta.
+- No i18n library: about 70 strings with `{name}` interpolation do not need
+  one. Plurals, date/number formatting or lazy-loaded catalogs would justify
+  `react-i18next` or `FormatJS` later.
+- Auth API errors travel as codes and are translated at display time.
+- Never translated: CV/JD and other user data, AI output, and the English
+  interview questions and feedback.
+- Web tests run in `en-US` (feature screens are still English); `i18n.test.tsx`
+  and `auth.test.tsx` cover Vietnamese.

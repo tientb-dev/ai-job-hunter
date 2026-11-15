@@ -3,6 +3,7 @@ import { Alert, Button, CircularProgress, Stack } from '@mui/material';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { App } from '../../app/App';
 import { RefreshIcon } from '../../components/icons';
+import { useI18n } from '../../app/i18n';
 import { SessionContext } from './session-context';
 import { fetchCurrentUser, logout } from './auth-api';
 import type { CurrentUser } from './auth-api';
@@ -19,6 +20,7 @@ type State =
   | { status: 'ready'; user: CurrentUser | null };
 
 export function AuthGate() {
+  const { t } = useI18n();
   const [state, setState] = useState<State>({ status: 'loading' });
   const refresh = useCallback(async () => {
     try {
@@ -54,15 +56,15 @@ export function AuthGate() {
           justifyContent: 'center',
         }}
       >
-        <CircularProgress aria-label="Đang tải" />
+        <CircularProgress aria-label={t('common.loading')} />
       </Stack>
     );
   if (state.status === 'error')
     return (
-      <AuthLayout title="Không thể kết nối">
+      <AuthLayout title={t('connect.title')}>
         <Stack spacing={2} sx={{ alignItems: 'flex-start' }}>
           <Alert severity="error" sx={{ alignSelf: 'stretch' }}>
-            Không thể kết nối tới máy chủ. Vui lòng thử lại.
+            {t('auth.error.NETWORK')}
           </Alert>
           <Button
             variant="contained"
@@ -72,7 +74,7 @@ export function AuthGate() {
               void refresh();
             }}
           >
-            Thử lại
+            {t('common.retry')}
           </Button>
         </Stack>
       </AuthLayout>
