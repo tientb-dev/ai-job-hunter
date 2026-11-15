@@ -4,9 +4,31 @@ interface BaseAiConfig {
   readonly model: string;
   readonly timeoutMs: number;
 }
+/** Hosted (Gemini) usage limits; Ollama runs locally and is not limited. */
+export interface AiLimits {
+  readonly dailyPerUser: number;
+  readonly dailyGlobal: number;
+  readonly concurrent: number;
+}
 export type AiConfig =
   | (BaseAiConfig & { readonly provider: 'ollama' })
-  | (BaseAiConfig & { readonly provider: 'gemini'; readonly apiKey: string });
+  | (BaseAiConfig & {
+      readonly provider: 'gemini';
+      readonly apiKey: string;
+      readonly limits: AiLimits;
+    });
+
+function limit(
+  env: NodeJS.ProcessEnv,
+  name: string,
+  fallback: number,
+  max: number,
+): number {
+  const value = env[name] ?? String(fallback);
+  if (!/^\d+$/.test(value) || Number(value) < 1 || Number(value) > max)
+    throw new Error(`${name} must be an integer between 1 and ${max}`);
+  return Number(value);
+}
 
 // Pinned like the Ollama digest: prompts and guards are verified per model.
 export const GEMINI_MODEL = 'gemini-3.5-flash-lite';
@@ -37,6 +59,11 @@ function geminiConfig(env: NodeJS.ProcessEnv): AiConfig {
     baseUrl: GEMINI_BASE_URL,
     model: GEMINI_MODEL,
     timeoutMs: timeoutMs(env),
+    limits: {
+      dailyPerUser: limit(env, 'AI_DAILY_USER_LIMIT', 100, 100_000),
+      dailyGlobal: limit(env, 'AI_DAILY_GLOBAL_LIMIT', 500, 1_000_000),
+      concurrent: limit(env, 'AI_MAX_CONCURRENT', 4, 64),
+    },
   };
   // Non-enumerable so logging or serializing the config never includes the key.
   return Object.defineProperty(config, 'apiKey', { value: apiKey }) as AiConfig;

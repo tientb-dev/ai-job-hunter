@@ -29,6 +29,9 @@ Copy `.env.production.example` to `.env.production` on the server and
 | `DB_PASSWORD`                    | PostgreSQL password (long and random)                                                      |
 | `GEMINI_API_KEY`                 | Server-side Gemini key; never sent to browsers                                             |
 | `AI_REQUEST_TIMEOUT_MS`          | Optional, default 120000                                                                   |
+| `AI_DAILY_USER_LIMIT`            | Gemini requests per account per day, default 100                                           |
+| `AI_DAILY_GLOBAL_LIMIT`          | Gemini requests for the whole beta per day, default 500                                    |
+| `AI_MAX_CONCURRENT`              | Gemini requests in flight at once, default 4                                               |
 | `PUBLISH_HTTP` / `PUBLISH_HTTPS` | Optional host ports, default 80 / 443                                                      |
 
 Fixed in `compose.prod.yaml`: `NODE_ENV=production`, `AI_PROVIDER=gemini`, the
@@ -110,5 +113,7 @@ Replacing the live database is a deliberate, manual operation: stop `api` and
   import, paste or upload.
 - One API instance: login rate limits and the one-at-a-time CV Match/discovery
   runs are in memory.
-- Gemini usage quotas arrive in PR 4; until then, set a budget alert in Google
-  Cloud for the API key.
+- Gemini limits count requests, not tokens or money: keep a Google Cloud budget
+  alert on the API key as the backstop. Today's usage:
+  `$C exec -T postgres psql -U ai_job_hunter -d ai_job_hunter -c 'select * from ai_job_hunter.ai_usage order by day desc, requests desc'`
+  (the `00000000-…` row is the beta-wide total).

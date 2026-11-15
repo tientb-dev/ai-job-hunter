@@ -24,6 +24,7 @@ import {
   EXPRESS_SCHEMA,
   REVIEW_SCHEMA,
 } from '../../src/interview-prep/interview-prep.policy.js';
+import { AiUsageService } from '../../src/ai/ai-usage.js';
 import { MATCH_SCHEMA } from '../../src/matching/cv-match.js';
 import { IMPORT_SCHEMA } from '../../src/opportunities/job-import.contract.js';
 import {
@@ -62,7 +63,11 @@ test('Ollama stays the default provider and Gemini is selected explicitly', asyn
     try {
       const ref = await Test.createTestingModule({
         imports: [AiModule],
-      }).compile();
+      })
+        // Usage limits need PostgreSQL; this test only checks provider selection.
+        .overrideProvider(AiUsageService)
+        .useValue(null)
+        .compile();
       return ref.get(AI_PROVIDER);
     } finally {
       process.env = saved;
