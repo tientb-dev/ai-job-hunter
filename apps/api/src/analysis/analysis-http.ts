@@ -19,6 +19,8 @@ import {
 import type { AnalysisSecurity } from './analysis-security.js';
 import { checkUploadHeaders } from './analysis-upload.js';
 import { AnalysisService } from './analysis.service.js';
+import { aiRequest } from '../ai/ai-usage.js';
+import type { AuthRequest } from '../auth/auth.http.js';
 import type { AnalysisErrorDto } from './analysis.contracts.js';
 
 export interface AnalysisRequest extends IncomingMessage {
@@ -118,7 +120,10 @@ export function configureAnalysisHttp(
         req.analysis.cvOnly = query.get('mode') === 'cv-only';
         req.analysis.partialOnly = query.get('mode') === 'partial';
         checkUploadHeaders(req);
-        analysis.admit(req, res);
+        // Raw route: no Nest interceptor, so bind the owner's AI context here.
+        const ownerId = (req as AuthRequest).authUser?.id;
+        if (ownerId) aiRequest.run({ ownerId }, () => analysis.admit(req, res));
+        else analysis.admit(req, res);
         next();
       } catch (error: unknown) {
         sendAnalysisError(req, res, error);

@@ -1,3 +1,4 @@
+import { replyAiLimit } from '../ai/ai-usage.js';
 import { TailoredDraftError } from './tailored-draft.contract.js';
 import { SourceProfileError } from './source-profile-proposal.js';
 import { Catch, HttpException, Injectable } from '@nestjs/common';
@@ -65,6 +66,7 @@ export class FoundationLocalGuard implements CanActivate {
 @Catch()
 export class FoundationErrors implements ExceptionFilter {
   catch(error: unknown, host: ArgumentsHost) {
+    if (replyAiLimit(error, host)) return;
     const response = host.switchToHttp().getResponse<ServerResponse>();
     const safe = foundationError(error);
     response.statusCode = safe.statusCode;
@@ -80,6 +82,7 @@ export class FoundationRequestErrors extends CvSuggestionsRequestErrors {
     super(httpAdapter);
   }
   override catch(error: unknown, host: ArgumentsHost) {
+    if (replyAiLimit(error, host)) return;
     const req = host.switchToHttp().getRequest<IncomingMessage>();
     if (/^\/api\/v1\/tailored-cv(?:\/|\?|$)/u.test(req.url ?? '')) {
       const response = host.switchToHttp().getResponse();

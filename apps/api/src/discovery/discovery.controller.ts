@@ -1,3 +1,4 @@
+import { replyAiLimit } from '../ai/ai-usage.js';
 import {
   Body,
   Catch,
@@ -60,6 +61,7 @@ export function candidateDto(row: DiscoveryCandidate, detail = false) {
 @Catch()
 export class DiscoveryErrors implements ExceptionFilter {
   catch(error: unknown, host: ArgumentsHost) {
+    if (replyAiLimit(error, host)) return;
     const response = host.switchToHttp().getResponse<ServerResponse>();
     const status = error instanceof HttpException ? error.getStatus() : 503;
     response.statusCode = status;

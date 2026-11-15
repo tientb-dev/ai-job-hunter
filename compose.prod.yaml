@@ -40,6 +40,9 @@ services:
       AI_PROVIDER: gemini
       GEMINI_API_KEY: ${GEMINI_API_KEY:?Set GEMINI_API_KEY in .env.production}
       AI_REQUEST_TIMEOUT_MS: ${AI_REQUEST_TIMEOUT_MS:-120000}
+      AI_DAILY_USER_LIMIT: ${AI_DAILY_USER_LIMIT:-100}
+      AI_DAILY_GLOBAL_LIMIT: ${AI_DAILY_GLOBAL_LIMIT:-500}
+      AI_MAX_CONCURRENT: ${AI_MAX_CONCURRENT:-4}
 
   web:
     build: { context: ., target: web }

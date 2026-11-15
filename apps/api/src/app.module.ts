@@ -7,6 +7,8 @@ import { JobsModule } from './jobs/jobs.module.js';
 import { AnalysisModule } from './analysis/analysis.module.js';
 import { ExtractionModule } from './extraction/extraction.module.js';
 import { Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { AiRequestInterceptor } from './ai/ai-usage.js';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthModule } from './health/health.module.js';
 import { MatchingModule } from './matching/matching.module.js';
@@ -25,5 +27,6 @@ import { MatchingModule } from './matching/matching.module.js';
     AnalysisModule,
     InterviewPrepModule,
   ],
+  providers: [{ provide: APP_INTERCEPTOR, useClass: AiRequestInterceptor }],
 })
 export class AppModule {}

@@ -1,4 +1,5 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
+import { AiUsageService } from './ai-usage.js';
 import { AI_PROVIDER } from './ai-provider.js';
 import type {
   AiProvider,
@@ -11,7 +12,14 @@ import { compileOutputSchema } from './ai.schema.js';
 
 @Injectable()
 export class AiService {
-  constructor(@Inject(AI_PROVIDER) private readonly provider: AiProvider) {}
+  constructor(
+    @Inject(AI_PROVIDER) private readonly provider: AiProvider,
+    // Null for local Ollama; hosted Gemini requests always go through limits.
+    // Explicit token: a union type would make Nest look up `Object` and skip it.
+    @Optional()
+    @Inject(AiUsageService)
+    private readonly usage: AiUsageService | null = null,
+  ) {}
 
   async generateStructured(request: GenerationRequest): Promise<unknown> {
     return this.generate(request, request.schema);
@@ -39,11 +47,13 @@ export class AiService {
       runtimeSchema === request.schema
         ? validateModel
         : compileOutputSchema(runtimeSchema).validate;
-    const text = await this.provider.generate({
-      ...(request.partial ? { partial: request.partial } : {}),
-      prompt: request.prompt,
-      schema,
-    });
+    const send = () =>
+      this.provider.generate({
+        ...(request.partial ? { partial: request.partial } : {}),
+        prompt: request.prompt,
+        schema,
+      });
+    const text = await (this.usage ? this.usage.run(send) : send());
     let result: unknown;
     try {
       result = JSON.parse(text);

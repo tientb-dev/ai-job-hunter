@@ -2209,3 +2209,20 @@ Grounding decisions:
   in production.
 - Migrations are an explicit `docker compose run` step; backups are `pg_dump` custom-format files.
   See docs/deployment.md.
+
+## Web beta PR4 Gemini usage limits
+
+- Every model call goes through `AiService.generate`; with Gemini it first passes `AiUsageService`
+  (`src/ai/ai-usage.ts`): an in-process concurrency cap, then one atomic daily reservation per account
+  and for the beta (`ai_usage`, conditional upserts in one transaction; user row then global row, so no
+  deadlock; a refused global reservation rolls back the user increment). Ollama stays unlimited.
+- A request counts when it is sent, whatever the outcome; the provider's internal retries of 429/503
+  count once. Days end at midnight Asia/Ho_Chi_Minh.
+- The owner comes from an `AsyncLocalStorage` context set by a global interceptor (and explicitly for
+  the raw `/analyses` route), so feature services needed no new parameters. Without a context the call
+  fails closed (`AI_UNAVAILABLE`).
+- Features map AI failures to their own errors or partial results, so the interceptor re-raises a limit
+  hit as one `AI_*` error and every controller filter passes it through unchanged (429, or 503 for
+  `AI_UNAVAILABLE`). The web app shows one notice for these codes (`AiLimitNotices`).
+- Alternatives: a token or cost budget needs provider usage metadata and pricing, deferred; queueing
+  instead of refusing at the concurrency cap would hold HTTP requests open.

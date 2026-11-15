@@ -10,6 +10,13 @@ const messages = {
   INVALID_JSON: 'AI output is not valid JSON',
   SCHEMA_VALIDATION_FAILURE: 'AI output does not match the required schema',
   RESPONSE_TOO_LARGE: 'AI provider response exceeds the size limit',
+  // Hosted usage limits (ai-usage.ts); messages are shown to users as-is.
+  AI_DAILY_USER_LIMIT:
+    'You have used today’s AI requests. The limit resets at midnight (Vietnam time).',
+  AI_DAILY_GLOBAL_LIMIT:
+    'The beta has used today’s AI requests. The limit resets at midnight (Vietnam time).',
+  AI_BUSY: 'AI is busy with other requests. Try again in a minute.',
+  AI_UNAVAILABLE: 'AI is unavailable. Try again later.',
 } as const;
 
 export type AiDiagnostic =

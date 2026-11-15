@@ -1,3 +1,4 @@
+import { replyAiLimit } from '../ai/ai-usage.js';
 import {
   Body,
   Catch,
@@ -58,6 +59,7 @@ export function interviewPrepError(error: unknown) {
 @Catch()
 export class InterviewPrepErrors implements ExceptionFilter {
   catch(error: unknown, host: ArgumentsHost) {
+    if (replyAiLimit(error, host)) return;
     const response = host.switchToHttp().getResponse<ServerResponse>();
     const safe = interviewPrepError(error);
     response.statusCode = safe.statusCode;
