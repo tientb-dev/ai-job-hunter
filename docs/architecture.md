@@ -2193,3 +2193,19 @@ Grounding decisions:
   `test/integration/data-isolation.spec.ts` covers two accounts through real sessions.
 - Known limit: CV Match and discovery keep one in-process run at a time across all accounts
   (`active` flags), so concurrent users may see "already running" (409).
+
+## Web beta PR3 Production hosting
+
+- One VPS, Docker Compose (`compose.prod.yaml`): Caddy (TLS, SPA, `/api` proxy) → API → PostgreSQL 17.
+  Only Caddy publishes ports. Alternatives (managed DB, PaaS, Kubernetes) add cost or moving parts
+  without benefit for 5–10 testers.
+- `NODE_ENV=production` selects a third database target (`ai_job_hunter` on host `postgres`); dev and
+  test targets are unchanged and refuse production, and vice versa.
+- `PUBLIC_ORIGIN` replaces the local Host/Origin allow-list everywhere (`publicSecurity()`), so the
+  existing strict checks on analyses, opportunities, Tailored CV, interview and discovery stay in force.
+- Rate limiting keys on the last `X-Forwarded-For` entry only with `TRUST_PROXY=1` (production only);
+  Caddy overwrites client-supplied values and the API port is never published.
+- Hosted UI (`VITE_HOSTED=1`) hides local transcription and the bookmarklet; the API also refuses STT
+  in production.
+- Migrations are an explicit `docker compose run` step; backups are `pg_dump` custom-format files.
+  See docs/deployment.md.

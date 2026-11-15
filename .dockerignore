@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+**/.test-dist
+.git
+.env
+.env.*
+backups
+artifacts
+.screenshots
+.playwright-mcp
+.codegraph
+coverage

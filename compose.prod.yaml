@@ -1,0 +1,62 @@
+# Hosted beta: one VPS. Only Caddy publishes ports; the API and PostgreSQL stay
+# on the private network. See docs/deployment.md.
+name: ai-job-hunter-prod
+
+services:
+  postgres:
+    image: postgres:17.11-bookworm@sha256:858bb5e98eed02eb8cafbcdc007f9a65d1b613972028944a8ec2133ccaf80d27
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ai_job_hunter
+      POSTGRES_USER: ai_job_hunter
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env.production}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ai_job_hunter -d ai_job_hunter']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  api:
+    build: { context: ., target: api }
+    image: ai-job-hunter-api:beta
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      NODE_ENV: production
+      API_HOST: 0.0.0.0
+      API_PORT: '3000'
+      TRUST_PROXY: '1'
+      DB_ENV: production
+      DB_HOST: postgres
+      DB_PORT: '5432'
+      DB_NAME: ai_job_hunter
+      DB_USER: ai_job_hunter
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env.production}
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN in .env.production}
+      AI_PROVIDER: gemini
+      GEMINI_API_KEY: ${GEMINI_API_KEY:?Set GEMINI_API_KEY in .env.production}
+      AI_REQUEST_TIMEOUT_MS: ${AI_REQUEST_TIMEOUT_MS:-120000}
+
+  web:
+    build: { context: ., target: web }
+    image: ai-job-hunter-web:beta
+    restart: unless-stopped
+    depends_on:
+      api: { condition: service_healthy }
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?Set SITE_ADDRESS in .env.production}
+    ports:
+      - '${PUBLISH_HTTP:-80}:80'
+      - '${PUBLISH_HTTPS:-443}:443'
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  postgres-data:
+  caddy-data:
+  caddy-config:

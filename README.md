@@ -60,8 +60,8 @@ Tracking jobs and applications works without any AI.
 - With Ollama, AI processing stays on your computer. Other features, such as URL
   import and Discover, still contact the job websites.
 - Keep API keys only in your local `.env` file. Sign-in is required and each
-  account sees only its own data, but hosting (HTTPS, proxy, backups) is not set
-  up yet, so do not expose the app to a network.
+  account sees only its own data. To host it, use the
+  [deployment guide](docs/deployment.md), never the development setup.
 
 ### Sign-in (local)
 
@@ -91,6 +91,8 @@ an empty workspace of its own.
 
 - [Development](docs/development.md): commands, migrations, testing and optional
   speech-to-text.
+- [Hosted beta deployment](docs/deployment.md): production Docker stack,
+  HTTPS, migrations and backups.
 - [Architecture](docs/architecture.md): module boundaries, API contracts,
   security and design decisions.
 - [AGENTS.md](AGENTS.md): contributor and coding-agent workflow.

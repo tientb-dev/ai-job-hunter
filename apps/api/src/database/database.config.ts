@@ -28,7 +28,17 @@ import { CreateOpportunities1792800000000 } from './migrations/1792800000000-Cre
 import type { DataSourceOptions } from 'typeorm';
 import { CreateApplicationSchema1792598400000 } from './migrations/1792598400000-CreateApplicationSchema.js';
 
-type DatabaseTarget = 'development' | 'test';
+type DatabaseTarget = 'development' | 'test' | 'production';
+
+/** The database a process may use, from NODE_ENV only. */
+export const databaseTarget = (
+  env: NodeJS.ProcessEnv = process.env,
+): DatabaseTarget =>
+  env.NODE_ENV === 'test'
+    ? 'test'
+    : env.NODE_ENV === 'production'
+      ? 'production'
+      : 'development';
 
 export function databaseOptions(
   target: DatabaseTarget,
@@ -40,13 +50,21 @@ export function databaseOptions(
   if (env.NODE_ENV === 'test' && target !== 'test') {
     throw new Error('Test processes cannot use the development database');
   }
-  const identity =
-    target === 'test' ? 'ai_job_hunter_test' : 'ai_job_hunter_dev';
+  if ((env.NODE_ENV === 'production') !== (target === 'production')) {
+    throw new Error('Only NODE_ENV=production may use the production database');
+  }
+  const identity = {
+    test: 'ai_job_hunter_test',
+    development: 'ai_job_hunter_dev',
+    production: 'ai_job_hunter',
+  }[target];
   if (env.DB_NAME !== identity || env.DB_USER !== identity) {
     throw new Error(`Database name and role must both be ${identity}`);
   }
-  if (env.DB_HOST !== '127.0.0.1') {
-    throw new Error('Local database connections require DB_HOST=127.0.0.1');
+  // Production reaches PostgreSQL on the private Compose network by service name.
+  const host = target === 'production' ? 'postgres' : '127.0.0.1';
+  if (env.DB_HOST !== host) {
+    throw new Error(`This database target requires DB_HOST=${host}`);
   }
   const port = Number(env.DB_PORT);
   if (!env.DB_PORT || !Number.isInteger(port) || port < 1 || port > 65535) {
@@ -55,7 +73,7 @@ export function databaseOptions(
   if (target === 'test' && (port !== 5433 || env.NODE_ENV !== 'test')) {
     throw new Error('Test database requires port 5433 and NODE_ENV=test');
   }
-  if (target === 'development' && port === 5433) {
+  if (target !== 'test' && port === 5433) {
     throw new Error('Port 5433 is reserved for the isolated test database');
   }
   if (!env.DB_PASSWORD || env.DB_PASSWORD.startsWith('replace-with-')) {
