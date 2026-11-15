@@ -278,17 +278,27 @@ export async function draftRequest(
   return value;
 }
 
+// Mirrors CV_TEMPLATES in the API export (tailored-cv-export.ts).
+export const CV_TEMPLATES = ['classic', 'modern', 'compact'] as const;
+export type CvTemplate = (typeof CV_TEMPLATES)[number];
+
 export async function downloadDraft(
   id: string,
   expectedRevision: number,
   format: 'docx' | 'pdf',
   isCurrent: () => boolean = () => true,
+  template: CvTemplate = 'classic',
 ) {
   const response = await fetch(`/api/v1/tailored-cv/drafts/${id}/export`, {
     method: 'POST',
     cache: 'no-store',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ contractVersion: '1', expectedRevision, format }),
+    body: JSON.stringify({
+      contractVersion: '1',
+      expectedRevision,
+      format,
+      ...(format === 'pdf' ? { template } : {}),
+    }),
   }).catch(() => {
     throw new Error(
       tr(

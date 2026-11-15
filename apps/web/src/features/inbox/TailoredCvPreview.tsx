@@ -3,7 +3,7 @@ import type { Theme } from '@mui/material/styles';
 import { alpha } from '@mui/material/styles';
 import { createContext, useContext, type KeyboardEvent } from 'react';
 import { Box, Link, Paper, Stack, Typography } from '@mui/material';
-import type { DraftFact } from './tailored-cv.contract';
+import type { CvTemplate, DraftFact } from './tailored-cv.contract';
 import {
   displayEntries,
   reflow,
@@ -306,17 +306,62 @@ export function CvSectionView({
   );
 }
 
+// Approximates the PDF themes in tailored-cv-export.ts (THEMES).
+const templateSx: Record<CvTemplate, { paper: object; heading: object }> = {
+  classic: {
+    paper: cvPaper,
+    heading: { borderBottom: 1, borderColor: 'divider' },
+  },
+  modern: {
+    paper: {
+      ...cvPaper,
+      bgcolor: '#ffffff',
+      color: '#1e2329',
+      fontFamily: '"DejaVu Sans", Roboto, Arial, sans-serif',
+      '& .MuiTypography-h6': { color: '#1f4e79', fontSize: '1.5rem' },
+    },
+    heading: {
+      color: '#1f4e79',
+      textTransform: 'uppercase',
+      letterSpacing: '0.04em',
+      borderBottom: '2px solid #1f4e79',
+    },
+  },
+  compact: {
+    paper: {
+      ...cvPaper,
+      p: { xs: 1.5, sm: 3 },
+      bgcolor: '#ffffff',
+      color: '#222222',
+      fontFamily: '"DejaVu Sans", Roboto, Arial, sans-serif',
+      fontSize: '0.8125rem',
+      lineHeight: 1.4,
+      '& .MuiTypography-root:not(.MuiTypography-h6)': { fontSize: 'inherit' },
+      '& .MuiTypography-h6': { color: '#7a3e00', fontSize: '1.125rem' },
+    },
+    heading: {
+      color: '#7a3e00',
+      fontSize: '0.875rem',
+      textTransform: 'uppercase',
+      borderBottom: '1px solid #b9b2a8',
+    },
+  },
+};
+
 export function TailoredCvPreview({
   document,
   anchors = null,
+  template = 'classic',
 }: {
   document: Document;
   anchors?: FactAnchors | null;
+  template?: CvTemplate;
 }) {
+  const styles = templateSx[template];
   return (
     <AnchorContext.Provider value={anchors}>
-      <Paper variant="outlined" sx={cvPaper}>
-        <Stack spacing={3}>
+      <Paper variant="outlined" sx={styles.paper} data-template={template}>
+        <Stack spacing={template === 'compact' ? 2 : 3}>
           {sortSections(document.sections).map((section) =>
             displayEntries(document, section).length ? (
               <Box key={section.id}>
@@ -328,8 +373,7 @@ export function TailoredCvPreview({
                       fontWeight: 600,
                       pb: 0.5,
                       mb: 1,
-                      borderBottom: 1,
-                      borderColor: 'divider',
+                      ...styles.heading,
                     }}
                   >
                     {sectionTitle(section.kind)}

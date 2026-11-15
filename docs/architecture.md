@@ -2267,3 +2267,11 @@ Grounding decisions:
 - Text-as-key trade-off: changing English wording needs the catalog key
   updated too (the catalog test catches it); a typed key catalog would
   have meant rewriting ~1,400 call sites.
+
+## PR86 Multi-CV templates
+
+- The PDF export takes an optional `template` (`classic`, `modern`, `compact`; default `classic`, so older clients are unchanged). Templates live in one `THEMES` table in `tailored-cv-export.ts`: margins, font sizes, colours, heading rule and uppercase headings. The canonical export blocks, approval checks and pagination rules (keep-with-next headings, splittable paragraphs, 40-page cap) are shared, so every template carries the same approved content.
+- All templates use the bundled DejaVu Sans faces, which cover Vietnamese; uppercase headings use `vi-VN` case mapping. No new fonts or dependencies.
+- The web Final preview applies an approximate CSS version of the selected theme (`templateSx` in `TailoredCvPreview.tsx`). It is a content and style preview, not a page-exact rendering.
+- DOCX keeps the Classic layout. Per-template DOCX styling was deferred because Word users usually restyle the document themselves.
+- Alternative rejected: HTML-to-PDF rendering through a headless browser, which would add heavy infrastructure for three themes.

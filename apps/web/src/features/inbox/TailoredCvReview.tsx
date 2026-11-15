@@ -49,6 +49,7 @@ import {
   DialogActions,
   FormControlLabel,
   LinearProgress,
+  MenuItem,
   Paper,
   Stack,
   TextField,
@@ -58,13 +59,22 @@ import {
 } from '@mui/material';
 import {
   decodeDraft,
+  CV_TEMPLATES,
   downloadDraft,
   draftRequest,
+  type CvTemplate,
   issueBlocksApproval,
   type DraftOperation,
   type SavedDraft,
 } from './tailored-cv.contract';
 import { decodeCvProfile, decodeCvSource } from './source-cv-review.contract';
+
+const templateLabel = (t: CvTemplate) =>
+  t === 'modern'
+    ? tr('Modern — accent colour, bold headings')
+    : t === 'compact'
+      ? tr('Compact — denser, fits more per page')
+      : tr('Classic — the original layout');
 
 export function TailoredCvReview({
   jobId,
@@ -159,6 +169,7 @@ export function TailoredCvReview({
   const [cvOpen, setCvOpen] = useState(false);
   const [reviewed, setReviewed] = useState(false);
   const [exporting, setExporting] = useState<'docx' | 'pdf' | null>(null);
+  const [template, setTemplate] = useState<CvTemplate>('classic');
   const [recoverable, setRecoverable] = useState<string[] | null>(null);
   const [refresh, setRefresh] = useState(0);
   // Context without the recheck counter: a focus/timer recheck keeps the last
@@ -1827,6 +1838,23 @@ export function TailoredCvReview({
                 </Alert>
               )}
               {isWizard && renderApproval(document, saved)}
+              <TextField
+                select
+                size="small"
+                label={tr('PDF template')}
+                value={template}
+                onChange={(e) => setTemplate(e.target.value as CvTemplate)}
+                helperText={tr(
+                  'Changes the PDF layout and the preview. DOCX keeps the Classic layout.',
+                )}
+                sx={{ maxWidth: 360 }}
+              >
+                {CV_TEMPLATES.map((t) => (
+                  <MenuItem key={t} value={t}>
+                    {templateLabel(t)}
+                  </MenuItem>
+                ))}
+              </TextField>
               <Stack
                 direction={{ xs: 'column', sm: 'row' }}
                 spacing={1}
@@ -1853,6 +1881,7 @@ export function TailoredCvReview({
                             saved.revision,
                             format,
                             () => token === epoch.current,
+                            template,
                           );
                           if (token === epoch.current)
                             setMessage(
@@ -1890,7 +1919,7 @@ export function TailoredCvReview({
               <Typography id="final-preview-title" variant="h6" component="h3">
                 {tr('Final preview')}
               </Typography>
-              <TailoredCvPreview document={document} />
+              <TailoredCvPreview document={document} template={template} />
             </Stack>
           )}
           {!isWizard && (
@@ -1908,7 +1937,7 @@ export function TailoredCvReview({
                       'Content preview reflects your current wording and inclusion choices, including unsaved edits. Downloads require the saved, approved revision.',
                     )}
                   </Typography>
-                  <TailoredCvPreview document={document} />
+                  <TailoredCvPreview document={document} template={template} />
                 </Stack>
               )}
             </Box>

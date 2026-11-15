@@ -493,11 +493,75 @@ export function stackedLabel(label: string) {
   }
   return lines > 2;
 }
-export async function renderPdf(content: ExportDocument): Promise<Buffer> {
+export const CV_TEMPLATES = ['classic', 'modern', 'compact'] as const;
+export type CvTemplate = (typeof CV_TEMPLATES)[number];
+// PDF themes. Same blocks and pagination rules; only typography and colour differ.
+const THEMES: Record<
+  CvTemplate,
+  {
+    x: number;
+    y: number;
+    size: Record<ExportDocument['blocks'][number]['style'], number>;
+    ink: string;
+    muted: string;
+    accent: string;
+    rule: string;
+    ruleWidth: number;
+    upper: boolean;
+    headingGap: number;
+  }
+> = {
+  classic: {
+    x: 50,
+    y: 45,
+    size: { title: 18, heading: 12, body: 10.5, anchor: 10.5, detail: 9.5 },
+    ink: '#172B2A',
+    muted: '#4A5A55',
+    accent: '#172B2A',
+    rule: '#C9D3CF',
+    ruleWidth: 0.6,
+    upper: false,
+    headingGap: 12,
+  },
+  modern: {
+    x: 54,
+    y: 48,
+    size: { title: 22, heading: 11.5, body: 10.5, anchor: 10.5, detail: 9.5 },
+    ink: '#1E2329',
+    muted: '#56606B',
+    accent: '#1F4E79',
+    rule: '#1F4E79',
+    ruleWidth: 1.5,
+    upper: true,
+    headingGap: 14,
+  },
+  compact: {
+    x: 40,
+    y: 36,
+    size: { title: 16, heading: 10.5, body: 9.5, anchor: 9.5, detail: 8.5 },
+    ink: '#222222',
+    muted: '#555555',
+    accent: '#7A3E00',
+    rule: '#B9B2A8',
+    ruleWidth: 0.5,
+    upper: true,
+    headingGap: 9,
+  },
+};
+export async function renderPdf(
+  content: ExportDocument,
+  template: CvTemplate = 'classic',
+): Promise<Buffer> {
   validateGlyphs(content);
+  const theme = THEMES[template];
   const doc = new PDFDocument({
     size: 'A4',
-    margins: { top: 45, bottom: 45, left: 50, right: 50 },
+    margins: {
+      top: theme.y,
+      bottom: theme.y,
+      left: theme.x,
+      right: theme.x,
+    },
     bufferPages: true,
     info: { Title: 'Curriculum Vitae', Author: 'AI Job Hunter' },
   });
@@ -516,35 +580,35 @@ export async function renderPdf(content: ExportDocument): Promise<Buffer> {
       .registerFont('regular', font('DejaVuSans'))
       .registerFont('bold', font('DejaVuSans-Bold'));
     const left = doc.page.margins.left;
-    const width = doc.page.width - 100;
-    const ink = '#172B2A',
-      muted = '#4A5A55';
+    const width = doc.page.width - 2 * theme.x;
+    const { ink, muted, accent } = theme;
     const opts = { lineGap: 2, paragraphGap: 0 };
     const set = (style: ExportDocument['blocks'][number]['style']) => {
-      const size =
-        style === 'title'
-          ? 18
-          : style === 'heading'
-            ? 12
-            : style === 'detail'
-              ? 9.5
-              : 10.5;
       doc
         .font(style === 'body' || style === 'detail' ? 'regular' : 'bold')
-        .fontSize(size)
-        .fillColor(style === 'detail' ? muted : ink);
+        .fontSize(theme.size[style])
+        .fillColor(
+          style === 'detail'
+            ? muted
+            : style === 'title' || style === 'heading'
+              ? accent
+              : ink,
+        );
     };
     const gap = (block: ExportDocument['blocks'][number]) =>
-      block.style === 'heading' ? 12 : block.entryStart ? 6 : 1;
+      block.style === 'heading' ? theme.headingGap : block.entryStart ? 6 : 1;
     // Measure each row exactly as it will be drawn.
     const measured = content.blocks.map((block) => {
-      const text = layoutText(block);
+      const text =
+        block.style === 'heading' && theme.upper
+          ? layoutText(block).toLocaleUpperCase('vi-VN')
+          : layoutText(block);
       const stacked = !!block.label && stackedLabel(block.label);
       set(block.style);
       const line = doc.heightOfString('X', { width, ...opts });
       let asideWidth = 0;
       if (block.aside) {
-        doc.font('regular').fontSize(9.5);
+        doc.font('regular').fontSize(theme.size.detail);
         asideWidth = Math.min(
           doc.widthOfString(block.aside) + 12,
           width * 0.45,
@@ -556,7 +620,7 @@ export async function renderPdf(content: ExportDocument): Promise<Buffer> {
       let height = doc.heightOfString(text, { width: mainWidth, ...opts });
       let labelHeight = 0;
       if (block.label) {
-        doc.font('bold').fontSize(10.5);
+        doc.font('bold').fontSize(theme.size.body);
         labelHeight = doc.heightOfString(block.label, {
           width: stacked ? width : LABEL_PT - 12,
           ...opts,
@@ -608,7 +672,7 @@ export async function renderPdf(content: ExportDocument): Promise<Buffer> {
       const page = pages;
       let textTop = top;
       if (block.label) {
-        doc.font('bold').fontSize(10.5).fillColor(ink);
+        doc.font('bold').fontSize(theme.size.body).fillColor(ink);
         doc.text(block.label, left, top, {
           width: m.stacked ? width : LABEL_PT - 12,
           ...opts,
@@ -623,7 +687,7 @@ export async function renderPdf(content: ExportDocument): Promise<Buffer> {
       });
       const afterMain = doc.y;
       if (block.aside) {
-        doc.font('regular').fontSize(9.5).fillColor(muted);
+        doc.font('regular').fontSize(theme.size.detail).fillColor(muted);
         doc.text(block.aside, left + width - m.asideWidth, top + 1, {
           width: m.asideWidth,
           align: 'right',
@@ -638,8 +702,8 @@ export async function renderPdf(content: ExportDocument): Promise<Buffer> {
         doc
           .moveTo(left, doc.y + 2)
           .lineTo(left + width, doc.y + 2)
-          .lineWidth(0.6)
-          .strokeColor('#C9D3CF')
+          .lineWidth(theme.ruleWidth)
+          .strokeColor(theme.rule)
           .stroke();
         doc.y += 6;
       } else doc.y += content.blocks[index + 1]?.entryStart ? 2 : 3;
@@ -659,9 +723,18 @@ export async function renderPdf(content: ExportDocument): Promise<Buffer> {
 export class TailoredCvExportService {
   constructor(private readonly db: DataSource) {}
   async export(ownerId: string, id: string, body: unknown) {
-    let expectedRevision: number, format: 'docx' | 'pdf';
+    let expectedRevision: number, format: 'docx' | 'pdf', template: CvTemplate;
     try {
-      const request = version(body, ['expectedRevision', 'format']);
+      // `template` is optional so older clients keep working.
+      const request = version(body, [
+        'expectedRevision',
+        'format',
+        ...(body && typeof body === 'object' && 'template' in body
+          ? ['template']
+          : []),
+      ]);
+      template = (request.template ?? 'classic') as CvTemplate;
+      if (!CV_TEMPLATES.includes(template)) throw new Error();
       expectedRevision = revision(request.expectedRevision);
       id = uuid(id);
       if (request.format !== 'docx' && request.format !== 'pdf')
@@ -689,7 +762,7 @@ export class TailoredCvExportService {
     try {
       const buffer =
         format === 'pdf'
-          ? await renderPdf(snapshot)
+          ? await renderPdf(snapshot, template)
           : await renderDocx(snapshot);
       const current = await this.db.getRepository(TailoredCvDraft).findOne({
         where: { ownerId, id },

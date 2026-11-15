@@ -412,6 +412,14 @@ export const VI_TEXT: Record<string, string> = {
   'Done or Dismissed hides it from due follow-ups. Application status is unchanged.':
     'Xong hoặc Bỏ qua sẽ ẩn mục này khỏi danh sách cần theo dõi. Trạng thái ứng tuyển không thay đổi.',
   Download: 'Tải xuống',
+  'PDF template': 'Mẫu PDF',
+  'Changes the PDF layout and the preview. DOCX keeps the Classic layout.':
+    'Thay đổi bố cục PDF và bản xem trước. DOCX giữ bố cục Cổ điển.',
+  'Modern — accent colour, bold headings':
+    'Hiện đại — màu nhấn, tiêu đề nổi bật',
+  'Compact — denser, fits more per page':
+    'Gọn — dày hơn, nhiều nội dung mỗi trang',
+  'Classic — the original layout': 'Cổ điển — bố cục ban đầu',
   'Download approved CV': 'Tải CV đã duyệt',
   'Download failed. Your approved draft is unchanged; check the local API and retry.':
     'Tải xuống thất bại. Bản nháp đã duyệt không thay đổi; kiểm tra API cục bộ và thử lại.',
