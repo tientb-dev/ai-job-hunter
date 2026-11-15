@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import { useEffect, useRef, useState } from 'react';
 import { Box, Button, Chip, Stack, TextField, Typography } from '@mui/material';
 import type { PartialFact } from './partial.types';
@@ -36,21 +37,25 @@ export function FactReviewControls({
   const accepted =
     review?.status === 'confirmed' || review?.status === 'edited';
   return (
-    <Stack role="group" aria-label={`${label} review`} spacing={1}>
+    <Stack
+      role="group"
+      aria-label={tr('{label} review', { label: label })}
+      spacing={1}
+    >
       <Box role="status" aria-live="polite">
         {!review && (
           <Typography>
-            Not user-confirmed. Excluded from accepted user facts.
+            {tr('Not user-confirmed. Excluded from accepted user facts.')}
           </Typography>
         )}
         {review && (
           <Chip
             label={
               review.status === 'confirmed'
-                ? 'User confirmed'
+                ? tr('User confirmed')
                 : review.status === 'edited'
-                  ? 'User edited'
-                  : 'User rejected'
+                  ? tr('User edited')
+                  : tr('User rejected')
             }
             color={review.status === 'rejected' ? 'default' : 'primary'}
             size="small"
@@ -58,25 +63,28 @@ export function FactReviewControls({
         )}
         {accepted && (
           <Typography sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
-            Accepted value: {review.value}
+            {tr('Accepted value:')} {review.value}
           </Typography>
         )}
         {review?.status === 'edited' && (
           <Typography variant="body2">
-            Accepted by you. This edited value is not claimed to be supported by
-            the original AI quote.
+            {tr(
+              'Accepted by you. This edited value is not claimed to be supported by the original AI quote.',
+            )}
           </Typography>
         )}
         {review?.status === 'confirmed' && (
           <Typography variant="body2">
-            You accepted the original AI value. Its original validation and
-            evidence are unchanged.
+            {tr(
+              'You accepted the original AI value. Its original validation and evidence are unchanged.',
+            )}
           </Typography>
         )}
         {review?.status === 'rejected' && (
           <Typography variant="body2">
-            Excluded from accepted user facts. The original AI proposal and
-            evidence remain above.
+            {tr(
+              'Excluded from accepted user facts. The original AI proposal and evidence remain above.',
+            )}
           </Typography>
         )}
       </Box>
@@ -88,7 +96,7 @@ export function FactReviewControls({
               onReview({ status: 'confirmed', value: original.value });
           }}
         >
-          Confirm
+          {tr('Confirm')}
         </Button>
         <Button
           ref={editButton}
@@ -100,16 +108,16 @@ export function FactReviewControls({
             setEditing(true);
           }}
         >
-          Edit
+          {tr('Edit')}
         </Button>
         <Button
           disabled={editing || review?.status === 'rejected'}
           onClick={() => onReview({ status: 'rejected' })}
         >
-          Reject
+          {tr('Reject')}
         </Button>
         <Button disabled={editing || !canUndo} onClick={onUndo}>
-          Undo
+          {tr('Undo')}
         </Button>
       </Stack>
       {editing && (
@@ -119,11 +127,11 @@ export function FactReviewControls({
           onSubmit={(event) => {
             event.preventDefault();
             if (!draft.trim()) {
-              setError('Enter a nonempty value.');
+              setError(tr('Enter a nonempty value.'));
               return;
             }
             if (draft.length > MAX_VALUE_LENGTH) {
-              setError('Use at most 1,000 characters.');
+              setError(tr('Use at most 1,000 characters.'));
               return;
             }
             onReview({
@@ -138,12 +146,14 @@ export function FactReviewControls({
               autoFocus
               fullWidth
               multiline
-              label={`Value for ${label}`}
+              label={tr('Value for {label}', { label: label })}
               value={draft}
               error={Boolean(error)}
               helperText={
                 error ||
-                'Saving explicitly accepts your value. The original AI proposal and evidence are preserved.'
+                tr(
+                  'Saving explicitly accepts your value. The original AI proposal and evidence are preserved.',
+                )
               }
               onChange={(event) => {
                 setDraft(event.target.value);
@@ -152,10 +162,10 @@ export function FactReviewControls({
             />
             <Stack direction="row" spacing={1}>
               <Button type="submit" variant="contained">
-                Save
+                {tr('Save')}
               </Button>
               <Button type="button" onClick={() => setEditing(false)}>
-                Cancel
+                {tr('Cancel')}
               </Button>
             </Stack>
           </Stack>

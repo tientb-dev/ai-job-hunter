@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import {
   ArrowForwardIcon,
   AutoAwesomeIcon,
@@ -215,7 +216,7 @@ export function TailoredCvReview({
             error:
               error instanceof Error
                 ? error.message
-                : 'Readiness check failed. Retry.',
+                : tr('Readiness check failed. Retry.'),
             checking: false,
           });
       }
@@ -293,7 +294,7 @@ export function TailoredCvReview({
         setError(
           failure instanceof Error
             ? failure.message
-            : 'Request failed. Your edits are retained.',
+            : tr('Request failed. Your edits are retained.'),
         );
       }
     } finally {
@@ -368,14 +369,19 @@ export function TailoredCvReview({
         (typeof value.nextCursor !== 'string' ||
           !/^[0-9a-f-]{36}$/iu.test(value.nextCursor)))
     )
-      throw new Error('Invalid draft list.');
+      throw new Error(tr('Invalid draft list.'));
     if (token === epoch.current) {
       setItems((old) => (before ? [...old, ...value.items] : value.items));
       setCursor(value.nextCursor);
       setMessage(
         value.items.length
-          ? `Loaded ${value.items.length} saved draft${value.items.length === 1 ? '' : 's'}. Open a draft below.`
-          : 'No saved drafts for this job yet. Generate your first draft when ready.',
+          ? tr('Loaded {length} saved draft{v1}. Open a draft below.', {
+              length: value.items.length,
+              v1: value.items.length === 1 ? '' : 's',
+            })
+          : tr(
+              'No saved drafts for this job yet. Generate your first draft when ready.',
+            ),
         value.items.length ? 'success' : 'info',
       );
     }
@@ -401,7 +407,7 @@ export function TailoredCvReview({
               typeof item.updatedAt !== 'string',
           )
         )
-          throw Error('Invalid draft list.');
+          throw Error(tr('Invalid draft list.'));
         if (!cancelled) {
           setItems(result.items);
           setCursor(result.nextCursor);
@@ -416,7 +422,9 @@ export function TailoredCvReview({
         if (!cancelled) {
           onDraftDiscovery?.('error');
           setListFailed(true);
-          setError('Could not load saved drafts. Choose Retry loading drafts.');
+          setError(
+            tr('Could not load saved drafts. Choose Retry loading drafts.'),
+          );
         }
       });
     return () => {
@@ -539,7 +547,7 @@ export function TailoredCvReview({
   // presentation only; decisions still flow through the same queued operations.
   const humanize = (text: string) => {
     const value = text.replaceAll('_', ' ');
-    return value.charAt(0).toUpperCase() + value.slice(1);
+    return tr(value.charAt(0).toUpperCase() + value.slice(1));
   };
   const cards = document
     ? document.sections.flatMap((section) =>
@@ -583,7 +591,7 @@ export function TailoredCvReview({
   const evidenceFor = (fact: (typeof facts)[number]) =>
     fact.provenance.evidence.length ? (
       <Stack spacing={1}>
-        <Typography variant="subtitle2">From your source CV</Typography>
+        <Typography variant="subtitle2">{tr('From your source CV')}</Typography>
         {fact.provenance.evidence.map((ref) => (
           <Typography
             key={`${ref.start}:${ref.end}`}
@@ -603,7 +611,7 @@ export function TailoredCvReview({
       </Stack>
     ) : (
       <Typography variant="body2">
-        User-entered fact; no original-source evidence.
+        {tr('User-entered fact; no original-source evidence.')}
       </Typography>
     );
   const notes = indexedIssues
@@ -618,34 +626,53 @@ export function TailoredCvReview({
         kind: handled ? ('handled' as const) : ('job' as const),
         text:
           issue.code === 'CV_DRAFT_UNSAFE_REWRITE'
-            ? `${where ?? 'A fact'}: an unsafe AI rewrite was blocked; your original wording is kept.`
+            ? tr(
+                '{v0}: an unsafe AI rewrite was blocked; your original wording is kept.',
+                { v0: where ?? 'A fact' },
+              )
             : issue.code === 'SEMANTIC_REVIEW_REQUIRED'
               ? `${where ?? 'A fact'}: ${issue.reason}`
               : issue.code === 'SECTION_NOT_IN_PROFILE'
-                ? `${humanize(issue.sectionKind ?? 'section')}: not in your CV, so nothing was added.`
+                ? tr('{v0}: not in your CV, so nothing was added.', {
+                    v0: humanize(issue.sectionKind ?? 'section'),
+                  })
                 : issue.reason,
       };
     });
-  const decisionHint =
-    'Every suggestion needs a decision, but you do not have to accept any. “Keep original” is a complete decision that keeps your CV wording unchanged.';
+  const decisionHint = tr(
+    'Every suggestion needs a decision, but you do not have to accept any. “Keep original” is a complete decision that keeps your CV wording unchanged.',
+  );
   const approvalSteps = [
     ...(pending > 0
       ? [
-          `Decide ${pending} remaining suggestion${pending === 1 ? '' : 's'} (${decided} of ${proposalCards.length} decided). Accept or Keep original both count.`,
+          tr(
+            'Decide {pending} remaining suggestion{v1} ({decided} of {length} decided). Accept or Keep original both count.',
+            {
+              pending: pending,
+              v1: pending === 1 ? '' : 's',
+              decided: decided,
+              length: proposalCards.length,
+            },
+          ),
         ]
       : []),
     ...(openBlocking > 0
       ? [
-          `Confirm ${openBlocking} conflicting fact${openBlocking === 1 ? '' : 's'} above.`,
+          tr('Confirm {openBlocking} conflicting fact{v1} above.', {
+            openBlocking: openBlocking,
+            v1: openBlocking === 1 ? '' : 's',
+          }),
         ]
       : []),
     ...(openPlaceholders > 0
       ? [
-          'Replace every [placeholder] in your adopted wording with your own facts.',
+          tr(
+            'Replace every [placeholder] in your adopted wording with your own facts.',
+          ),
         ]
       : []),
-    ...(dirty ? ['Save draft.'] : []),
-    ...(!reviewed ? ['Tick “I reviewed the complete saved CV”.'] : []),
+    ...(dirty ? [tr('Save draft.')] : []),
+    ...(!reviewed ? [tr('Tick “I reviewed the complete saved CV”.')] : []),
   ];
   // Review queue: cards in display order (Needs your check, then Recommended).
   const queueOrder = ['check', 'recommended'].flatMap((key) =>
@@ -815,7 +842,9 @@ export function TailoredCvReview({
           text: e.target.value,
         })
       }
-      helperText="Edits are user-authored wording, not original-source evidence."
+      helperText={tr(
+        'Edits are user-authored wording, not original-source evidence.',
+      )}
     />
   );
   // Accurate wording status: an edit is the user's own wording, never a
@@ -840,18 +869,22 @@ export function TailoredCvReview({
           sx={{ flexWrap: 'wrap', alignItems: 'center' }}
         >
           <Typography variant="body2" sx={{ flex: '1 1 12rem', minWidth: 0 }}>
-            Edited by you — not saved. Save the draft to keep this wording.
+            {tr(
+              'Edited by you — not saved. Save the draft to keep this wording.',
+            )}
           </Typography>
           <Button
             size="small"
             variant="contained"
             startIcon={<SaveIcon />}
-            aria-label={`Save draft with your wording for ${fact.field}`}
+            aria-label={tr('Save draft with your wording for {field}', {
+              field: fact.field,
+            })}
             disabled={blocked || blank || operations.length > 384}
             onClick={saveDraft}
             sx={{ whiteSpace: 'nowrap', flexShrink: 0 }}
           >
-            Save draft
+            {tr('Save draft')}
           </Button>
         </Stack>
       </Alert>
@@ -859,10 +892,10 @@ export function TailoredCvReview({
   const contextualEdit = (fact: (typeof facts)[number], where: string) =>
     contextEdit === fact.id ? (
       <Stack spacing={1} sx={{ mt: 1.5 }}>
-        {factField(fact, `Your wording: ${where}`, true)}
+        {factField(fact, tr('Your wording: {where}', { where: where }), true)}
         <Box>
           <Button size="small" onClick={() => setContextEdit(null)}>
-            Done editing
+            {tr('Done editing')}
           </Button>
         </Box>
       </Stack>
@@ -872,19 +905,19 @@ export function TailoredCvReview({
         <Button
           size="small"
           disabled={blocked}
-          aria-label={`Edit wording for ${where}`}
+          aria-label={tr('Edit wording for {where}', { where: where })}
           onClick={() => setContextEdit(fact.id)}
         >
-          Edit wording
+          {tr('Edit wording')}
         </Button>
       </Box>
     );
   const renderCheck = (card: (typeof verificationCards)[number]) => {
     const { fact, where } = card;
     const adopted = unsavedEdit(fact.id)
-      ? 'Edited by you — not saved'
+      ? tr('Edited by you — not saved')
       : savedEdit(fact.id)
-        ? 'Saved — user-authored wording'
+        ? tr('Saved — user-authored wording')
         : null;
     if (!adopted) return renderVerify(card);
     // Already acted on: show the user's wording and status; the original AI
@@ -896,7 +929,7 @@ export function TailoredCvReview({
         tabIndex={-1}
         severity="info"
         variant="outlined"
-        aria-label={`Your wording for ${fact.field}`}
+        aria-label={tr('Your wording for {field}', { field: fact.field })}
       >
         <Stack spacing={1}>
           <Typography
@@ -910,12 +943,13 @@ export function TailoredCvReview({
             {fact.acceptedText}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Your own wording, not evidence from your original CV. Approval
-            records your review, not verification of this claim.
+            {tr(
+              'Your own wording, not evidence from your original CV. Approval records your review, not verification of this claim.',
+            )}
           </Typography>
           <Box component="details">
             <Typography component="summary" variant="body2">
-              Original AI suggestion (not in your CV:{' '}
+              {tr('Original AI suggestion (not in your CV:')}{' '}
               {fact.verification!.details.join(', ')})
             </Typography>
             <Typography
@@ -943,18 +977,22 @@ export function TailoredCvReview({
       tabIndex={-1}
       severity="warning"
       variant="outlined"
-      aria-label={`Needs your verification for ${fact.field}`}
+      aria-label={tr('Needs your verification for {field}', {
+        field: fact.field,
+      })}
     >
       <Stack spacing={1}>
         <Typography variant="subtitle1" component="h4" sx={{ fontWeight: 600 }}>
-          {where} · not in your CV: {fact.verification!.details.join(', ')}
+          {where} {tr('· not in your CV:')}{' '}
+          {fact.verification!.details.join(', ')}
         </Typography>
         <Typography sx={{ whiteSpace: 'pre-wrap' }}>
           {fact.verification!.text}
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Not included or exported. Use it only if you can confirm the details;
-          replace every [placeholder] with your own facts.
+          {tr(
+            'Not included or exported. Use it only if you can confirm the details; replace every [placeholder] with your own facts.',
+          )}
         </Typography>
         <Box>
           <Button
@@ -974,7 +1012,7 @@ export function TailoredCvReview({
               });
             }}
           >
-            Use as my draft
+            {tr('Use as my draft')}
           </Button>
         </Box>
         {docReview && contextEdit === fact.id && contextualEdit(fact, where)}
@@ -1029,10 +1067,25 @@ export function TailoredCvReview({
     (id) => !proposalCards.some((c) => c.fact.id === id),
   );
   const navLabel = !activeId
-    ? `${proposalCards.length} suggestion${proposalCards.length === 1 ? '' : 's'}${warningIds.length ? ` · ${warningIds.length} AI warning${warningIds.length === 1 ? '' : 's'}` : ''}`
+    ? tr('{length} suggestion{v1}{v2}', {
+        length: proposalCards.length,
+        v1: proposalCards.length === 1 ? '' : 's',
+        v2: warningIds.length
+          ? tr(' · {count} AI warning{s}', {
+              count: warningIds.length,
+              s: warningIds.length === 1 ? '' : 's',
+            })
+          : '',
+      })
     : warningIds.includes(activeId)
-      ? `AI warning ${warningIds.indexOf(activeId) + 1} of ${warningIds.length}`
-      : `Suggestion ${queueOrder.findIndex((c) => c.fact.id === activeId) + 1} of ${proposalCards.length}`;
+      ? tr('AI warning {v0} of {length}', {
+          v0: warningIds.indexOf(activeId) + 1,
+          length: warningIds.length,
+        })
+      : tr('Suggestion {v0} of {length}', {
+          v0: queueOrder.findIndex((c) => c.fact.id === activeId) + 1,
+          length: proposalCards.length,
+        });
   const reviewNav = (
     <Stack
       direction="row"
@@ -1055,25 +1108,25 @@ export function TailoredCvReview({
           value={
             proposalCards.length ? (decided / proposalCards.length) * 100 : 100
           }
-          aria-label="Suggestions decided"
+          aria-label={tr('Suggestions decided')}
           sx={{ mt: 0.5, height: 4, borderRadius: 2 }}
         />
       </Box>
       <Button
         size="small"
         variant="outlined"
-        aria-label="Previous suggestion"
+        aria-label={tr('Previous suggestion')}
         onClick={() => step(-1)}
       >
-        Previous
+        {tr('Previous')}
       </Button>
       <Button
         size="small"
         variant="outlined"
-        aria-label="Next suggestion"
+        aria-label={tr('Next suggestion')}
         onClick={() => step(1)}
       >
-        Next
+        {tr('Next')}
       </Button>
     </Stack>
   );
@@ -1081,10 +1134,12 @@ export function TailoredCvReview({
   const unanchoredNote =
     docReview && unanchored.length > 0 ? (
       <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-        {unanchored.length} suggestion
-        {unanchored.length === 1 ? ' is' : 's are'} not shown in the CV
-        (excluded from download or not placed). Review{' '}
-        {unanchored.length === 1 ? 'it' : 'them'} in this list.
+        {unanchored.length} {tr('suggestion')}
+        {unanchored.length === 1 ? tr(' is') : tr('s are')}{' '}
+        {tr(
+          'not shown in the CV (excluded from download or not placed). Review',
+        )}{' '}
+        {unanchored.length === 1 ? 'it' : 'them'} {tr('in this list.')}
       </Typography>
     ) : null;
   const activeProposal = proposalCards.find(
@@ -1097,7 +1152,8 @@ export function TailoredCvReview({
     <>
       {!activeId && (
         <Button variant="outlined" sx={{ mb: 2 }} onClick={() => step(1)}>
-          Review suggestions ({navIds.length})
+          {tr('Review suggestions (')}
+          {navIds.length})
         </Button>
       )}
       {activeId && (
@@ -1145,20 +1201,20 @@ export function TailoredCvReview({
             </Typography>
             <Button
               size="small"
-              aria-label="Previous suggestion"
+              aria-label={tr('Previous suggestion')}
               onClick={() => step(-1)}
             >
-              Previous
+              {tr('Previous')}
             </Button>
             <Button
               size="small"
-              aria-label="Next suggestion"
+              aria-label={tr('Next suggestion')}
               onClick={() => step(1)}
             >
-              Next
+              {tr('Next')}
             </Button>
             <Button size="small" onClick={closeSuggestion}>
-              Close
+              {tr('Close')}
             </Button>
           </Stack>
           {activeProposal
@@ -1184,7 +1240,10 @@ export function TailoredCvReview({
       if (token === epoch.current) {
         const draft = accept(value);
         setMessage(
-          `Draft saved as revision ${draft.revision}.${wasApproved ? ' Approval cleared.' : ''}`,
+          tr('Draft saved as revision {revision}.{v1}', {
+            revision: draft.revision,
+            v1: wasApproved ? tr(' Approval cleared.') : '',
+          }),
         );
         if (isWizard) focusContinue.current = true;
       }
@@ -1193,18 +1252,20 @@ export function TailoredCvReview({
   const groups = [
     {
       key: 'check',
-      title: 'Needs your check',
-      hint: 'claims that could not be confirmed from your CV',
+      title: tr('Needs your check'),
+      hint: tr('claims that could not be confirmed from your CV'),
     },
     {
       key: 'recommended',
-      title: 'Recommended',
-      hint: 'rewrites of your own CV wording for this job',
+      title: tr('Recommended'),
+      hint: tr('rewrites of your own CV wording for this job'),
     },
     {
       key: 'warnings',
-      title: 'AI claims not in your CV',
-      hint: 'optional; not included or exported unless you use one as your own wording',
+      title: tr('AI claims not in your CV'),
+      hint: tr(
+        'optional; not included or exported unless you use one as your own wording',
+      ),
     },
   ] as const;
   // Pending decisions are the only open actions; AI claim warnings are
@@ -1213,7 +1274,10 @@ export function TailoredCvReview({
     if (key === 'warnings') return `${verificationCards.length}`;
     const inGroup = proposalCards.filter((card) => card.group === key);
     const open = inGroup.filter((c) => c.state.proposal === 'pending').length;
-    return `${open} open of ${inGroup.length}`;
+    return tr('{open} open of {length}', {
+      open: open,
+      length: inGroup.length,
+    });
   };
   function approveSaved(id: string, revision: number) {
     void run(async (token) => {
@@ -1224,7 +1288,7 @@ export function TailoredCvReview({
       if (token === epoch.current) {
         accept(value);
         // In the wizard the export panel states approval.
-        if (!isWizard) setMessage('This saved draft revision is approved.');
+        if (!isWizard) setMessage(tr('This saved draft revision is approved.'));
       }
     });
   }
@@ -1242,7 +1306,9 @@ export function TailoredCvReview({
               onChange={(e) => setReviewed(e.target.checked)}
             />
           }
-          label="I reviewed the complete saved CV, including all user-entered and edited claims. Approval records my review, not independent verification."
+          label={tr(
+            'I reviewed the complete saved CV, including all user-entered and edited claims. Approval records my review, not independent verification.',
+          )}
         />
         <Box>
           <Button
@@ -1270,7 +1336,7 @@ export function TailoredCvReview({
             }
             onClick={() => approveSaved(s.id, s.revision)}
           >
-            Approve saved draft
+            {tr('Approve saved draft')}
           </Button>
         </Box>
         {approvalSteps.length > 0 && (
@@ -1281,7 +1347,7 @@ export function TailoredCvReview({
             sx={{ mt: 1 }}
           >
             <Typography variant="body2" sx={{ fontWeight: 600 }}>
-              To approve:
+              {tr('To approve:')}
             </Typography>
             <Box component="ul" sx={{ m: 0, pl: 3, typography: 'body2' }}>
               {approvalSteps.map((step) => (
@@ -1301,7 +1367,7 @@ export function TailoredCvReview({
                   sx={{ mt: 1 }}
                   onClick={() => setKeepOriginalOpen(true)}
                 >
-                  Keep all remaining originals
+                  {tr('Keep all remaining originals')}
                 </Button>
               </>
             )}
@@ -1330,13 +1396,14 @@ export function TailoredCvReview({
     >
       {isWizard && saved && (
         <Typography component="summary">
-          Generate a new draft instead
+          {tr('Generate a new draft instead')}
         </Typography>
       )}
       {isWizard && saved && (
         <Typography variant="body2" color="text.secondary">
-          Creates a separate draft from your current CV and match. The open
-          draft and its decisions stay unchanged.
+          {tr(
+            'Creates a separate draft from your current CV and match. The open draft and its decisions stay unchanged.',
+          )}
         </Typography>
       )}
       {/* In the workflow without a draft, the CV Match card above already
@@ -1353,12 +1420,12 @@ export function TailoredCvReview({
           disabled={blocked || dirty || !onRefreshMatch}
           onClick={onRefreshMatch}
         >
-          Refresh CV Match
+          {tr('Refresh CV Match')}
         </Button>
       )}
       {readiness.action === 'review' && onReviewSource && (
         <Button endIcon={<ArrowForwardIcon />} onClick={onReviewSource}>
-          Go to Source CV Review
+          {tr('Go to Source CV Review')}
         </Button>
       )}
       {readiness.action === 'check' && (
@@ -1367,7 +1434,7 @@ export function TailoredCvReview({
           disabled={blocked || dirty}
           onClick={() => setRefresh((n) => n + 1)}
         >
-          Check readiness again
+          {tr('Check readiness again')}
         </Button>
       )}
       {readiness.action === 'reload' && (
@@ -1376,7 +1443,7 @@ export function TailoredCvReview({
           disabled={blocked || dirty}
           onClick={() => window.location.reload()}
         >
-          Reload job
+          {tr('Reload job')}
         </Button>
       )}
       {readiness.action === 'match' && matchRefreshError && (
@@ -1395,7 +1462,7 @@ export function TailoredCvReview({
               })
             }
           >
-            {listFailed ? 'Retry loading drafts' : 'Load saved drafts'}
+            {listFailed ? tr('Retry loading drafts') : tr('Load saved drafts')}
           </Button>
         )}
         <Button
@@ -1421,13 +1488,15 @@ export function TailoredCvReview({
                 setGeneratedAfterSource(true);
                 setGenerateOpen(false);
                 setMessage(
-                  'New draft generated and opened. Existing drafts are unchanged.',
+                  tr(
+                    'New draft generated and opened. Existing drafts are unchanged.',
+                  ),
                 );
               }
             })
           }
         >
-          Generate new draft
+          {tr('Generate new draft')}
         </Button>
       </Stack>
     </Box>
@@ -1453,26 +1522,27 @@ export function TailoredCvReview({
             variant="h6"
             component="h2"
           >
-            Tailored CV
+            {tr('Tailored CV')}
           </Typography>
           <Typography color="text.secondary">
-            Review your complete CV, decide wording proposals, then save and
-            approve a specific revision. Approval means you reviewed the
-            content.
+            {tr(
+              'Review your complete CV, decide wording proposals, then save and approve a specific revision. Approval means you reviewed the content.',
+            )}
           </Typography>
         </>
       )}
       {error && <Alert severity="error">{error}</Alert>}
       {sourceJustSaved && (
         <Typography role="status">
-          Check readiness below, then choose Generate new draft. Existing drafts
-          can be loaded separately.
+          {tr(
+            'Check readiness below, then choose Generate new draft. Existing drafts can be loaded separately.',
+          )}
         </Typography>
       )}
       {!(isWizard && saved) && generateSection}
       {busy && exporting && (
         <Typography role="status">
-          Preparing {exporting.toUpperCase()} download…
+          {tr('Preparing')} {exporting.toUpperCase()} {tr('download…')}
         </Typography>
       )}
       {items.length > 0 && (
@@ -1499,7 +1569,11 @@ export function TailoredCvReview({
               const value = await draftRequest(`/drafts/${item.id}`);
               if (token === epoch.current) {
                 accept(value);
-                setMessage(`Opened ${label}. Showing its saved decisions.`);
+                setMessage(
+                  tr('Opened {label}. Showing its saved decisions.', {
+                    label: label,
+                  }),
+                );
               }
             }).finally(() => setOpening(null));
           }}
@@ -1512,7 +1586,7 @@ export function TailoredCvReview({
             <Paper
               variant="outlined"
               component="section"
-              aria-label="Review progress"
+              aria-label={tr('Review progress')}
               sx={{ p: { xs: 2, sm: 2.5 } }}
             >
               <Stack spacing={1.5}>
@@ -1529,8 +1603,11 @@ export function TailoredCvReview({
                     component="p"
                     sx={{ fontWeight: 600 }}
                   >
-                    {decided} of {proposalCards.length} suggestions decided
-                    {pending > 0 ? ` · ${pending} remaining` : ''}
+                    {decided} {tr('of')} {proposalCards.length}{' '}
+                    {tr('suggestions decided')}
+                    {pending > 0
+                      ? tr(' · {pending} remaining', { pending: pending })
+                      : ''}
                   </Typography>
                   <Typography
                     role="status"
@@ -1540,15 +1617,20 @@ export function TailoredCvReview({
                     {/* The draft card shows revision and approval; repeat them
                         only when the draft list (and so the card) is absent. */}
                     {dirty
-                      ? 'Unsaved changes — approval will be cleared'
+                      ? tr('Unsaved changes — approval will be cleared')
                       : items.length === 0
-                        ? `Saved revision ${saved.revision} · ${approvedUnchanged ? 'Approved' : 'Not approved'}`
+                        ? tr('Saved revision {revision} · {v1}', {
+                            revision: saved.revision,
+                            v1: approvedUnchanged
+                              ? tr('Approved')
+                              : tr('Not approved'),
+                          })
                         : ''}
                   </Typography>
                 </Stack>
                 <LinearProgress
                   variant="determinate"
-                  aria-label="Suggestions decided"
+                  aria-label={tr('Suggestions decided')}
                   value={
                     proposalCards.length
                       ? (decided / proposalCards.length) * 100
@@ -1557,7 +1639,8 @@ export function TailoredCvReview({
                   sx={{ height: 8, borderRadius: 4 }}
                 />
                 <Typography variant="body2" color="text.secondary">
-                  {decisionHint} Then read the full CV, save, and approve.
+                  {decisionHint}{' '}
+                  {tr('Then read the full CV, save, and approve.')}
                 </Typography>
                 {pending > 0 && !isWizard && (
                   <Button
@@ -1566,7 +1649,7 @@ export function TailoredCvReview({
                     sx={{ alignSelf: 'flex-start' }}
                     onClick={() => setKeepOriginalOpen(true)}
                   >
-                    Keep all remaining originals
+                    {tr('Keep all remaining originals')}
                   </Button>
                 )}
               </Stack>
@@ -1591,15 +1674,15 @@ export function TailoredCvReview({
           >
             <DialogCloseButton onClick={() => setKeepOriginalOpen(false)} />
             <DialogTitle id="keep-original-title" sx={{ pr: 7 }}>
-              Keep your original wording for the {pending} remaining suggestion
-              {pending === 1 ? '' : 's'}?
+              {tr('Keep your original wording for the')} {pending}{' '}
+              {tr('remaining suggestion')}
+              {pending === 1 ? '' : tr('s')}?
             </DialogTitle>
             <DialogContent>
               <Typography>
-                Each undecided suggestion will use your original CV wording.
-                Suggestions you already accepted or kept, content inclusion and
-                review issues stay unchanged. Nothing is saved or approved
-                automatically: save the draft, then review and approve it.
+                {tr(
+                  'Each undecided suggestion will use your original CV wording. Suggestions you already accepted or kept, content inclusion and review issues stay unchanged. Nothing is saved or approved automatically: save the draft, then review and approve it.',
+                )}
               </Typography>
             </DialogContent>
             <DialogActions>
@@ -1607,7 +1690,7 @@ export function TailoredCvReview({
                 ref={keepCancel}
                 onClick={() => setKeepOriginalOpen(false)}
               >
-                Cancel
+                {tr('Cancel')}
               </Button>
               <Button
                 variant="contained"
@@ -1624,26 +1707,27 @@ export function TailoredCvReview({
                   setKeepOriginalOpen(false);
                 }}
               >
-                Keep {pending} original{pending === 1 ? '' : 's'}
+                {tr('Keep')} {pending} {tr('original')}
+                {pending === 1 ? '' : tr('s')}
               </Button>
             </DialogActions>
           </Dialog>
           {approvedUnchanged && wizardStep === 2 && (
             <Alert severity="success" role="status">
               <Typography sx={{ fontWeight: 600 }}>
-                Approved — Ready to export
+                {tr('Approved — Ready to export')}
               </Typography>
               <Typography variant="body2">
-                Saved revision {saved.revision} is approved. Download it in
-                Approve &amp; Export.
+                {tr('Saved revision')} {saved.revision}{' '}
+                {tr('is approved. Download it in Approve & Export.')}
               </Typography>
             </Alert>
           )}
           {approvedRevision && dirty && (
             <Alert severity="warning">
-              Local edits are not approved. The approved saved revision remains
-              unchanged until you save. Save and approve the changed revision
-              before exporting.
+              {tr(
+                'Local edits are not approved. The approved saved revision remains unchanged until you save. Save and approve the changed revision before exporting.',
+              )}
             </Alert>
           )}
           {saved &&
@@ -1652,7 +1736,7 @@ export function TailoredCvReview({
               server.currentProfileRevisionId && (
               <Alert
                 severity="info"
-                aria-label="Earlier CV review"
+                aria-label={tr('Earlier CV review')}
                 action={
                   isWizard ? (
                     <Button
@@ -1668,33 +1752,35 @@ export function TailoredCvReview({
                         );
                       }}
                     >
-                      Generate a new draft
+                      {tr('Generate a new draft')}
                     </Button>
                   ) : undefined
                 }
               >
-                This draft uses an earlier review of your CV. Generate a new
-                draft to include your latest corrections.
+                {tr(
+                  'This draft uses an earlier review of your CV. Generate a new draft to include your latest corrections.',
+                )}
               </Alert>
             )}
           {document.pins.jobUpdatedAt !== jobRevision && (
             <Alert severity="warning">
-              This draft uses an older saved job snapshot. Reviewing it does not
-              update its pinned context. Generate a separate draft for the
-              current job.
+              {tr(
+                'This draft uses an older saved job snapshot. Reviewing it does not update its pinned context. Generate a separate draft for the current job.',
+              )}
             </Alert>
           )}
           <Paper
             variant="outlined"
             component="section"
-            aria-label="Download"
+            aria-label={tr('Download')}
             hidden={wizardStep !== undefined && wizardStep !== 3}
             sx={{ p: { xs: 2, sm: 2.5 } }}
           >
             <Stack spacing={1.5}>
               {approvedUnchanged ? (
                 <Alert severity="success" role="status">
-                  Revision {saved.revision} is approved and ready to download.
+                  {tr('Revision')} {saved.revision}{' '}
+                  {tr('is approved and ready to download.')}
                 </Alert>
               ) : (
                 <Alert
@@ -1707,7 +1793,7 @@ export function TailoredCvReview({
                       issuesRemaining ||
                       openPlaceholders > 0) ? (
                       <Button onClick={onContinueDraft}>
-                        Finish review in Tailor &amp; Review
+                        {tr('Finish review in Tailor & Review')}
                       </Button>
                     ) : undefined
                   }
@@ -1718,19 +1804,33 @@ export function TailoredCvReview({
                       issuesRemaining ||
                       openPlaceholders > 0
                       ? dirty
-                        ? 'You have unsaved review changes. They are kept: finish and save them in Tailor & Review, then approve the saved revision here.'
+                        ? tr(
+                            'You have unsaved review changes. They are kept: finish and save them in Tailor & Review, then approve the saved revision here.',
+                          )
                         : pending > 0
-                          ? `Approval is blocked: ${pending} of ${proposalCards.length} suggestions still need a decision in Tailor & Review. Accept or Keep original both count.`
-                          : 'Finish Tailor & Review first: confirm any conflicting facts and save.'
-                      : 'Confirm you reviewed the complete CV, then approve this revision to unlock downloads.'
-                    : 'Downloads unlock after you decide every suggestion, confirm any conflicting facts, save, and approve this draft.'}
+                          ? tr(
+                              'Approval is blocked: {pending} of {length} suggestions still need a decision in Tailor & Review. Accept or Keep original both count.',
+                              {
+                                pending: pending,
+                                length: proposalCards.length,
+                              },
+                            )
+                          : tr(
+                              'Finish Tailor & Review first: confirm any conflicting facts and save.',
+                            )
+                      : tr(
+                          'Confirm you reviewed the complete CV, then approve this revision to unlock downloads.',
+                        )
+                    : tr(
+                        'Downloads unlock after you decide every suggestion, confirm any conflicting facts, save, and approve this draft.',
+                      )}
                 </Alert>
               )}
               {isWizard && renderApproval(document, saved)}
               <Stack
                 direction={{ xs: 'column', sm: 'row' }}
                 spacing={1}
-                aria-label="Download approved CV"
+                aria-label={tr('Download approved CV')}
               >
                 {(['docx', 'pdf'] as const).map((format) => (
                   <Button
@@ -1756,7 +1856,13 @@ export function TailoredCvReview({
                           );
                           if (token === epoch.current)
                             setMessage(
-                              `${format.toUpperCase()} download prepared from approved revision ${saved.revision}.`,
+                              tr(
+                                '{v0} download prepared from approved revision {revision}.',
+                                {
+                                  v0: format.toUpperCase(),
+                                  revision: saved.revision,
+                                },
+                              ),
                             );
                         } finally {
                           if (token === epoch.current) setExporting(null);
@@ -1764,13 +1870,14 @@ export function TailoredCvReview({
                       })
                     }
                   >
-                    Download {format.toUpperCase()}
+                    {tr('Download')} {format.toUpperCase()}
                   </Button>
                 ))}
               </Stack>
               <Typography variant="body2" color="text.secondary">
-                Downloads contain only included, accepted wording. Any later
-                edit needs a new save and approval.
+                {tr(
+                  'Downloads contain only included, accepted wording. Any later edit needs a new save and approval.',
+                )}
               </Typography>
             </Stack>
           </Paper>
@@ -1781,7 +1888,7 @@ export function TailoredCvReview({
               aria-labelledby="final-preview-title"
             >
               <Typography id="final-preview-title" variant="h6" component="h3">
-                Final preview
+                {tr('Final preview')}
               </Typography>
               <TailoredCvPreview document={document} />
             </Stack>
@@ -1791,13 +1898,15 @@ export function TailoredCvReview({
               component="details"
               onToggle={(event) => setPreviewOpen(event.currentTarget.open)}
             >
-              <Typography component="summary">Preview assembled CV</Typography>
+              <Typography component="summary">
+                {tr('Preview assembled CV')}
+              </Typography>
               {previewOpen && (
                 <Stack spacing={1} sx={{ mt: 2 }}>
                   <Typography variant="body2">
-                    Content preview reflects your current wording and inclusion
-                    choices, including unsaved edits. Downloads require the
-                    saved, approved revision.
+                    {tr(
+                      'Content preview reflects your current wording and inclusion choices, including unsaved edits. Downloads require the saved, approved revision.',
+                    )}
                   </Typography>
                   <TailoredCvPreview document={document} />
                 </Stack>
@@ -1833,7 +1942,7 @@ export function TailoredCvReview({
                     <Box
                       id="review-panel"
                       component="aside"
-                      aria-label="Suggestions"
+                      aria-label={tr('Suggestions')}
                       onFocus={(event) => {
                         const id = (event.target as HTMLElement)
                           .closest<HTMLElement>('[id^="suggestion-"]')
@@ -1903,7 +2012,7 @@ export function TailoredCvReview({
                           id="review-action-bar"
                           tabIndex={-1}
                           component="section"
-                          aria-label="Review actions"
+                          aria-label={tr('Review actions')}
                           sx={{
                             // Sticky from sm up; on phones it stays in the page flow so it
                             // never covers suggestion text.
@@ -1935,8 +2044,9 @@ export function TailoredCvReview({
                             role="status"
                             sx={{ fontWeight: 600, mr: 'auto', minWidth: 0 }}
                           >
-                            {decided} of {proposalCards.length} decided
-                            {dirty ? ' · unsaved changes' : ''}
+                            {decided} {tr('of')} {proposalCards.length}{' '}
+                            {tr('decided')}
+                            {dirty ? tr(' · unsaved changes') : ''}
                           </Typography>
                           {pending > 0 && (
                             <>
@@ -1946,14 +2056,14 @@ export function TailoredCvReview({
                                 disabled={blocked}
                                 onClick={() => showSuggestion(undecidedIds[0]!)}
                               >
-                                Next undecided
+                                {tr('Next undecided')}
                               </Button>
                               <Button
                                 size="small"
                                 disabled={blocked}
                                 onClick={() => setKeepOriginalOpen(true)}
                               >
-                                Keep remaining originals
+                                {tr('Keep remaining originals')}
                               </Button>
                             </>
                           )}
@@ -1968,7 +2078,7 @@ export function TailoredCvReview({
                               }
                               onClick={saveDraft}
                             >
-                              Save draft
+                              {tr('Save draft')}
                             </Button>
                           )}
                           {!dirty &&
@@ -1987,7 +2097,7 @@ export function TailoredCvReview({
                                 disabled={blocked}
                                 onClick={onContinueToApproval}
                               >
-                                Continue to Approve &amp; Export
+                                {tr('Continue to Approve & Export')}
                               </Button>
                             )}
                         </Box>
@@ -2002,7 +2112,7 @@ export function TailoredCvReview({
                         id="review-action-bar"
                         tabIndex={-1}
                         component="section"
-                        aria-label="Review actions"
+                        aria-label={tr('Review actions')}
                         sx={{
                           // Sticky from sm up; on phones it stays in the page flow so it
                           // never covers suggestion text.
@@ -2034,8 +2144,9 @@ export function TailoredCvReview({
                           role="status"
                           sx={{ fontWeight: 600, mr: 'auto', minWidth: 0 }}
                         >
-                          {decided} of {proposalCards.length} decided
-                          {dirty ? ' · unsaved changes' : ''}
+                          {decided} {tr('of')} {proposalCards.length}{' '}
+                          {tr('decided')}
+                          {dirty ? tr(' · unsaved changes') : ''}
                         </Typography>
                         {pending > 0 && (
                           <>
@@ -2045,14 +2156,14 @@ export function TailoredCvReview({
                               disabled={blocked}
                               onClick={() => showSuggestion(undecidedIds[0]!)}
                             >
-                              Next undecided
+                              {tr('Next undecided')}
                             </Button>
                             <Button
                               size="small"
                               disabled={blocked}
                               onClick={() => setKeepOriginalOpen(true)}
                             >
-                              Keep remaining originals
+                              {tr('Keep remaining originals')}
                             </Button>
                           </>
                         )}
@@ -2067,7 +2178,7 @@ export function TailoredCvReview({
                             }
                             onClick={saveDraft}
                           >
-                            Save draft
+                            {tr('Save draft')}
                           </Button>
                         )}
                         {!dirty &&
@@ -2086,7 +2197,7 @@ export function TailoredCvReview({
                               disabled={blocked}
                               onClick={onContinueToApproval}
                             >
-                              Continue to Approve &amp; Export
+                              {tr('Continue to Approve & Export')}
                             </Button>
                           )}
                       </Box>
@@ -2138,7 +2249,7 @@ export function TailoredCvReview({
                     id="review-action-bar"
                     tabIndex={-1}
                     component="section"
-                    aria-label="Review actions"
+                    aria-label={tr('Review actions')}
                     sx={{
                       // Sticky from sm up; on phones it stays in the page flow so it
                       // never covers suggestion text.
@@ -2168,8 +2279,9 @@ export function TailoredCvReview({
                       role="status"
                       sx={{ fontWeight: 600, mr: 'auto', minWidth: 0 }}
                     >
-                      {decided} of {proposalCards.length} decided
-                      {dirty ? ' · unsaved changes' : ''}
+                      {decided} {tr('of')} {proposalCards.length}{' '}
+                      {tr('decided')}
+                      {dirty ? tr(' · unsaved changes') : ''}
                     </Typography>
                     {pending > 0 && (
                       <>
@@ -2179,14 +2291,14 @@ export function TailoredCvReview({
                           disabled={blocked}
                           onClick={() => showSuggestion(undecidedIds[0]!)}
                         >
-                          Next undecided
+                          {tr('Next undecided')}
                         </Button>
                         <Button
                           size="small"
                           disabled={blocked}
                           onClick={() => setKeepOriginalOpen(true)}
                         >
-                          Keep remaining originals
+                          {tr('Keep remaining originals')}
                         </Button>
                       </>
                     )}
@@ -2199,7 +2311,7 @@ export function TailoredCvReview({
                         disabled={blocked || blank || operations.length > 384}
                         onClick={saveDraft}
                       >
-                        Save draft
+                        {tr('Save draft')}
                       </Button>
                     )}
                     {!dirty &&
@@ -2218,7 +2330,7 @@ export function TailoredCvReview({
                           disabled={blocked}
                           onClick={onContinueToApproval}
                         >
-                          Continue to Approve &amp; Export
+                          {tr('Continue to Approve & Export')}
                         </Button>
                       )}
                   </Box>
@@ -2232,9 +2344,12 @@ export function TailoredCvReview({
               sx={{ mt: 2, '& > summary': { cursor: 'pointer', py: 1 } }}
             >
               <Typography component="summary">
-                Full CV: read your tailored CV
+                {tr('Full CV: read your tailored CV')}
                 {excluded > 0
-                  ? ` · ${excluded} item${excluded === 1 ? '' : 's'} hidden from download`
+                  ? tr(' · {excluded} item{v1} hidden from download', {
+                      excluded: excluded,
+                      v1: excluded === 1 ? '' : 's',
+                    })
                   : ''}
               </Typography>
               <Paper
@@ -2283,7 +2398,9 @@ export function TailoredCvReview({
                               )
                             }
                           >
-                            {editing === section.id ? 'Finish editing' : 'Edit'}{' '}
+                            {editing === section.id
+                              ? tr('Finish editing')
+                              : tr('Edit')}{' '}
                             {section.kind}
                           </Button>
                         </Stack>
@@ -2305,9 +2422,10 @@ export function TailoredCvReview({
                                   color="text.secondary"
                                   sx={{ mt: 1 }}
                                 >
-                                  {hidden} item{hidden === 1 ? '' : 's'} hidden
-                                  from download. Choose Edit {section.kind} to
-                                  change.
+                                  {hidden} {tr('item')}
+                                  {hidden === 1 ? '' : tr('s')}{' '}
+                                  {tr('hidden from download. Choose Edit')}{' '}
+                                  {section.kind} {tr('to change.')}
                                 </Typography>
                               ) : null;
                             })()}
@@ -2319,7 +2437,7 @@ export function TailoredCvReview({
                               <Stack key={entry.id} spacing={1} sx={{ pt: 1 }}>
                                 {section.entries.length > 1 && (
                                   <Typography variant="subtitle2">
-                                    Entry {index + 1}
+                                    {tr('Entry')} {index + 1}
                                   </Typography>
                                 )}
                                 {entry.facts.map((fact) => {
@@ -2344,15 +2462,19 @@ export function TailoredCvReview({
                                         color="text.secondary"
                                       >
                                         {state.wording === 'user_edited'
-                                          ? 'Manually edited'
+                                          ? tr('Manually edited')
                                           : state.wording === 'ai_accepted'
-                                            ? 'AI wording accepted by you'
+                                            ? tr('AI wording accepted by you')
                                             : fact.provenance.origin ===
                                                 'source'
-                                              ? 'Source-derived'
-                                              : 'User-entered confirmed fact'}
+                                              ? tr('Source-derived')
+                                              : tr(
+                                                  'User-entered confirmed fact',
+                                                )}
                                         {!fact.selected
-                                          ? ' · Retained, not AI-prioritized'
+                                          ? tr(
+                                              ' · Retained, not AI-prioritized',
+                                            )
                                           : ''}
                                       </Typography>
                                       <FormControlLabel
@@ -2371,12 +2493,20 @@ export function TailoredCvReview({
                                             }
                                           />
                                         }
-                                        label={`Include ${fact.field} in download (${section.kind}, entry ${index + 1}) · optional`}
+                                        label={tr(
+                                          'Include {field} in download ({kind}, entry {v2}) · optional',
+                                          {
+                                            field: fact.field,
+                                            kind: section.kind,
+                                            v2: index + 1,
+                                          },
+                                        )}
                                       />
                                       {state.exportIncluded === false && (
                                         <Typography variant="body2">
-                                          Excluded from downloads; retained in
-                                          this saved draft.
+                                          {tr(
+                                            'Excluded from downloads; retained in this saved draft.',
+                                          )}
                                         </Typography>
                                       )}
                                       <Box component="details">
@@ -2384,8 +2514,9 @@ export function TailoredCvReview({
                                           component="summary"
                                           variant="body2"
                                         >
-                                          Evidence and wording for {fact.field},
-                                          entry {index + 1}
+                                          {tr('Evidence and wording for')}{' '}
+                                          {fact.field}
+                                          {tr(', entry')} {index + 1}
                                         </Typography>
                                         {fact.provenance.evidence.length ? (
                                           fact.provenance.evidence.map(
@@ -2405,17 +2536,17 @@ export function TailoredCvReview({
                                           )
                                         ) : (
                                           <Typography variant="body2">
-                                            User-entered fact; no
-                                            original-source evidence.
+                                            {tr(
+                                              'User-entered fact; no original-source evidence.',
+                                            )}
                                           </Typography>
                                         )}
                                         {state.wording !==
                                           'reviewed_profile' && (
                                           <Typography variant="body2">
-                                            Evidence describes the pinned
-                                            profile fact. It does not
-                                            independently support your edited
-                                            wording.
+                                            {tr(
+                                              'Evidence describes the pinned profile fact. It does not independently support your edited wording.',
+                                            )}
                                           </Typography>
                                         )}
                                         {state.wording !==
@@ -2441,13 +2572,17 @@ export function TailoredCvReview({
                                                 if (token === epoch.current) {
                                                   accept(value);
                                                   setMessage(
-                                                    'Reviewed profile wording restored and saved. Approval cleared.',
+                                                    tr(
+                                                      'Reviewed profile wording restored and saved. Approval cleared.',
+                                                    ),
                                                   );
                                                 }
                                               })
                                             }
                                           >
-                                            Restore reviewed wording and save
+                                            {tr(
+                                              'Restore reviewed wording and save',
+                                            )}
                                           </Button>
                                         )}
                                       </Box>
@@ -2457,8 +2592,9 @@ export function TailoredCvReview({
                                             variant="body2"
                                             color="text.secondary"
                                           >
-                                            Suggestion waiting for your decision
-                                            above.
+                                            {tr(
+                                              'Suggestion waiting for your decision above.',
+                                            )}
                                           </Typography>
                                         )}
                                     </Stack>
@@ -2472,7 +2608,7 @@ export function TailoredCvReview({
                     ))}
                   {document.sections.some((s) => !s.entries.length) && (
                     <Typography variant="body2" color="text.secondary">
-                      Not in your source CV, so nothing was added:{' '}
+                      {tr('Not in your source CV, so nothing was added:')}{' '}
                       {document.sections
                         .filter((s) => !s.entries.length)
                         .map((s) => s.kind.replaceAll('_', ' '))
@@ -2486,7 +2622,7 @@ export function TailoredCvReview({
             <Paper
               variant="outlined"
               component="section"
-              aria-label="Save and approve"
+              aria-label={tr('Save and approve')}
               sx={{ p: { xs: 2, sm: 2.5 }, mt: 2 }}
             >
               <Stack spacing={1.5}>
@@ -2506,7 +2642,7 @@ export function TailoredCvReview({
                           }
                           onClick={saveDraft}
                         >
-                          Save draft
+                          {tr('Save draft')}
                         </Button>
                       )}
                       <Button
@@ -2518,7 +2654,7 @@ export function TailoredCvReview({
                           setError('');
                         }}
                       >
-                        Discard local draft edits
+                        {tr('Discard local draft edits')}
                       </Button>
                     </>
                   )}
@@ -2536,7 +2672,7 @@ export function TailoredCvReview({
                         })
                       }
                     >
-                      Reload saved draft
+                      {tr('Reload saved draft')}
                     </Button>
                   )}
                 </Stack>
@@ -2545,14 +2681,16 @@ export function TailoredCvReview({
                     severity="warning"
                     variant="outlined"
                     sx={{ mt: 2 }}
-                    aria-label="Conflicting facts to confirm"
+                    aria-label={tr('Conflicting facts to confirm')}
                   >
                     <Typography variant="subtitle2" component="h3">
-                      Confirm conflicting facts ({blockingIssues.length})
+                      {tr('Confirm conflicting facts (')}
+                      {blockingIssues.length})
                     </Typography>
                     <Typography variant="body2">
-                      Your source CV gives different versions of these facts.
-                      Check each one in the full CV below and edit it if needed.
+                      {tr(
+                        'Your source CV gives different versions of these facts. Check each one in the full CV below and edit it if needed.',
+                      )}
                     </Typography>
                     {blockingIssues.map(({ issue, index }) => (
                       <FormControlLabel
@@ -2575,10 +2713,11 @@ export function TailoredCvReview({
                             }
                           />
                         }
-                        label={`I checked this fact against my CV: ${
-                          cards.find((c) => c.fact.id === issue.factId)
-                            ?.where ?? 'unnamed fact'
-                        }`}
+                        label={tr('I checked this fact against my CV: {v0}', {
+                          v0:
+                            cards.find((c) => c.fact.id === issue.factId)
+                              ?.where ?? 'unnamed fact',
+                        })}
                       />
                     ))}
                   </Alert>
@@ -2589,7 +2728,9 @@ export function TailoredCvReview({
             {notes.length > 0 && (
               <Box component="details">
                 <Typography component="summary">
-                  Review notes ({notes.length}) · no action needed
+                  {tr('Review notes (')}
+                  {notes.length}
+                  {tr(') · no action needed')}
                 </Typography>
                 <Stack spacing={2} sx={{ mt: 1 }}>
                   {(
@@ -2603,7 +2744,7 @@ export function TailoredCvReview({
                     return (
                       <Box key={kind}>
                         <Typography variant="subtitle2" component="h3">
-                          {title} ({items.length})
+                          {tr(title)} ({items.length})
                         </Typography>
                         <Box
                           component="ul"
@@ -2621,12 +2762,12 @@ export function TailoredCvReview({
             )}
             <Box component="details">
               <Typography component="summary">
-                Recoverable source content
+                {tr('Recoverable source content')}
               </Typography>
               <Typography variant="body2">
-                All unselected eligible facts remain in the CV above.
-                Structural, superseded and excluded passages remain in the
-                pinned source profile.
+                {tr(
+                  'All unselected eligible facts remain in the CV above. Structural, superseded and excluded passages remain in the pinned source profile.',
+                )}
               </Typography>
               <Button
                 disabled={blocked}
@@ -2665,7 +2806,7 @@ export function TailoredCvReview({
                   })
                 }
               >
-                Show pinned recoverable passages
+                {tr('Show pinned recoverable passages')}
               </Button>
               {recoverable?.map((text, i) => (
                 <Typography key={i} sx={{ whiteSpace: 'pre-wrap', my: 1 }}>
@@ -2674,17 +2815,17 @@ export function TailoredCvReview({
               ))}
               {recoverable?.length === 0 && (
                 <Typography>
-                  No additional passages outside accepted content.
+                  {tr('No additional passages outside accepted content.')}
                 </Typography>
               )}
             </Box>
             <Box component="details">
-              <Typography component="summary">Draft details</Typography>
+              <Typography component="summary">{tr('Draft details')}</Typography>
               <Typography variant="body2" color="text.secondary">
-                Draft {saved.id.slice(0, 8)} · Pinned source{' '}
-                {document.pins.sourceRevisionId.slice(0, 8)} · Profile revision{' '}
-                {document.pins.profileRevision} · Job snapshot{' '}
-                {document.pins.jobUpdatedAt}
+                {tr('Draft')} {saved.id.slice(0, 8)} {tr('· Pinned source')}{' '}
+                {document.pins.sourceRevisionId.slice(0, 8)}{' '}
+                {tr('· Profile revision')} {document.pins.profileRevision}{' '}
+                {tr('· Job snapshot')} {document.pins.jobUpdatedAt}
               </Typography>
             </Box>
           </Box>

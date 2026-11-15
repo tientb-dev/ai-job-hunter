@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 export const cvFactFields = [
   'name',
   'headline',
@@ -104,14 +105,16 @@ export function decodeCvSource(value: unknown): CvSource {
     value.text.length > 12000
   )
     throw new Error(
-      'The API returned an invalid source CV. Retry loading the review.',
+      tr('The API returned an invalid source CV. Retry loading the review.'),
     );
   return value as unknown as CvSource;
 }
 export function decodeCvProfile(value: unknown, source: CvSource): CvProfile {
   const bad = () => {
     throw new Error(
-      'The API returned an invalid source profile. Your edits are retained.',
+      tr(
+        'The API returned an invalid source profile. Your edits are retained.',
+      ),
     );
   };
   if (
@@ -270,21 +273,31 @@ export async function sourceCvRequest(
         ? value.errorCode
         : '';
     const messages: Record<string, string> = {
-      CV_PROFILE_BUSY: 'A source proposal is already running. Retry shortly.',
-      CV_PROFILE_CONTEXT_LIMIT:
+      CV_PROFILE_BUSY: tr(
+        'A source proposal is already running. Retry shortly.',
+      ),
+      CV_PROFILE_CONTEXT_LIMIT: tr(
         'This CV exceeds the organizing limit. Upload a shorter CV in CV Match and organize it again. Your saved work is unchanged.',
-      CV_PROFILE_INVALID_OUTPUT:
+      ),
+      CV_PROFILE_INVALID_OUTPUT: tr(
         'The model could not organize this CV safely. Your saved review is unchanged. Choose Organize my CV to retry.',
-      CV_PROFILE_TIMEOUT:
+      ),
+      CV_PROFILE_TIMEOUT: tr(
         'Organizing took too long. Your saved review is unchanged. Choose Organize my CV to retry.',
-      CV_PROFILE_UNAVAILABLE:
+      ),
+      CV_PROFILE_UNAVAILABLE: tr(
         'The AI service is unavailable. Check it (start Ollama if you run AI locally), then choose Organize my CV to retry. Your saved review is unchanged.',
+      ),
     };
     throw new Error(
       messages[code] ??
         (response.status === 409
-          ? 'The CV or profile changed. Your edits are retained. Reload the saved review before retrying.'
-          : 'Could not load or save the source review. Your inputs are retained; check the local API and retry.'),
+          ? tr(
+              'The CV or profile changed. Your edits are retained. Reload the saved review before retrying.',
+            )
+          : tr(
+              'Could not load or save the source review. Your inputs are retained; check the local API and retry.',
+            )),
     );
   }
   return value;

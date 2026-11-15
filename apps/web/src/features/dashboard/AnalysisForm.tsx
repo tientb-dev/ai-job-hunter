@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import { AutoAwesomeIcon } from '../../components/icons';
 import { useId, useRef, useState } from 'react';
 import { Button, Paper, Stack, TextField, Typography } from '@mui/material';
@@ -33,7 +34,7 @@ export function AnalysisForm({
   return (
     <Paper
       component="form"
-      aria-label="Local analysis"
+      aria-label={tr('Local analysis')}
       variant="outlined"
       noValidate
       sx={{ p: { xs: 2, md: 3 } }}
@@ -61,9 +62,9 @@ export function AnalysisForm({
     >
       <Stack spacing={2}>
         <Typography component="h2" variant="h6">
-          Analyze a CV and job description
+          {tr('Analyze a CV and job description')}
         </Typography>
-        <label htmlFor={`${id}-cv`}>CV file (PDF or DOCX)</label>
+        <label htmlFor={`${id}-cv`}>{tr('CV file (PDF or DOCX)')}</label>
         <input
           ref={fileInput}
           id={`${id}-cv`}
@@ -89,10 +90,12 @@ export function AnalysisForm({
           color={errors.cv ? 'error' : 'text.secondary'}
         >
           {errors.cv ??
-            'Exactly one nonempty PDF or DOCX, maximum 5 MiB. File metadata must match its extension.'}
+            tr(
+              'Exactly one nonempty PDF or DOCX, maximum 5 MiB. File metadata must match its extension.',
+            )}
         </Typography>
         <TextField
-          label="Job description"
+          label={tr('Job description')}
           multiline
           minRows={6}
           fullWidth
@@ -102,7 +105,9 @@ export function AnalysisForm({
           error={Boolean(errors.jdText)}
           helperText={
             errors.jdText ??
-            'Paste the original JD. Whitespace is preserved; some characters count as two UTF-16 units.'
+            tr(
+              'Paste the original JD. Whitespace is preserved; some characters count as two UTF-16 units.',
+            )
           }
           slotProps={{
             htmlInput: {
@@ -120,14 +125,15 @@ export function AnalysisForm({
           }}
         />
         <Typography id={`${id}-counts`} variant="body2">
-          JD length: {jdText.length.toLocaleString('en-US')} /{' '}
-          {JD_UNITS.toLocaleString('en-US')} UTF-16 units;{' '}
+          {tr('JD length:')} {jdText.length.toLocaleString('en-US')} /{' '}
+          {JD_UNITS.toLocaleString('en-US')} {tr('UTF-16 units;')}{' '}
           {jdBytes(jdText).toLocaleString('en-US')} /{' '}
-          {JD_BYTES.toLocaleString('en-US')} UTF-8 bytes.
+          {JD_BYTES.toLocaleString('en-US')} {tr('UTF-8 bytes.')}
         </Typography>
         <Typography variant="body2">
-          Analyze runs AI for basic facts only. It does not generate a matching
-          score.
+          {tr(
+            'Analyze runs AI for basic facts only. It does not generate a matching score.',
+          )}
         </Typography>
         <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
           <Button
@@ -136,7 +142,7 @@ export function AnalysisForm({
             variant="outlined"
             disabled={busy}
           >
-            Parse without AI
+            {tr('Parse without AI')}
           </Button>
           <Button
             startIcon={<AutoAwesomeIcon />}
@@ -144,10 +150,10 @@ export function AnalysisForm({
             variant="contained"
             disabled={busy}
           >
-            Analyze
+            {tr('Analyze')}
           </Button>
           <Button type="button" disabled={!busy} onClick={onCancel}>
-            Cancel
+            {tr('Cancel')}
           </Button>
           <Button
             type="button"
@@ -160,7 +166,7 @@ export function AnalysisForm({
               onClear();
             }}
           >
-            Clear
+            {tr('Clear')}
           </Button>
         </Stack>
       </Stack>

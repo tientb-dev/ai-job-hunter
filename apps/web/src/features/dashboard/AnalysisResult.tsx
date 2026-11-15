@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import { PartialFacts } from './PartialFacts';
 import { useState } from 'react';
 import { Alert, Box, Paper, Stack, Typography } from '@mui/material';
@@ -13,17 +14,25 @@ import {
 } from './requirement-feedback';
 const plainText = { whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' } as const;
 const categoryNames: Record<Category, string> = {
-  technicalSkills: 'Technical skills',
+  get technicalSkills() {
+    return tr('Technical skills');
+  },
   experience: 'Experience',
   architecture: 'Architecture',
-  engineeringPractices: 'Engineering practices',
-  domainKnowledge: 'Domain knowledge',
+  get engineeringPractices() {
+    return tr('Engineering practices');
+  },
+  get domainKnowledge() {
+    return tr('Domain knowledge');
+  },
 };
 const score = (value: number | null) =>
-  value === null ? 'Not calculable' : `${value}%`;
+  value === null ? tr('Not calculable') : tr('{value}%', { value: value });
 function guidance(code: string): string {
   if (['ANALYSIS_BUSY', 'EXTRACTION_BUSY', 'PARSER_BUSY'].includes(code))
-    return 'The local backend is busy, possibly finishing a cancelled request. Retry manually later.';
+    return tr(
+      'The local backend is busy, possibly finishing a cancelled request. Retry manually later.',
+    );
   if (
     [
       'UPLOAD_TIMEOUT',
@@ -32,9 +41,11 @@ function guidance(code: string): string {
       'PARSING_TIMEOUT',
     ].includes(code)
   )
-    return 'The request timed out. Local work may still be finishing.';
+    return tr('The request timed out. Local work may still be finishing.');
   if (code === 'LOCAL_REQUEST_DENIED')
-    return 'Open the dashboard at http://127.0.0.1:5173 to use the local API.';
+    return tr(
+      'Open the dashboard at http://127.0.0.1:5173 to use the local API.',
+    );
   if (
     [
       'ANALYSIS_UNAVAILABLE',
@@ -45,8 +56,12 @@ function guidance(code: string): string {
       'UPSTREAM_HTTP_FAILURE',
     ].includes(code)
   )
-    return 'The local analysis service is unavailable. API readiness alone does not establish model availability.';
-  return 'The analysis could not complete. Review the input and retry only when ready.';
+    return tr(
+      'The local analysis service is unavailable. API readiness alone does not establish model availability.',
+    );
+  return tr(
+    'The analysis could not complete. Review the input and retry only when ready.',
+  );
 }
 export function AnalysisResult({ response }: { response: AnalysisResponse }) {
   return (
@@ -77,11 +92,11 @@ function DocumentSource({
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
       <Typography component="h2" variant="h6">
-        {label} source
+        {label} {tr('source')}
       </Typography>
       {!document ? (
         <Typography>
-          Source unavailable. Review the file and parse again.
+          {tr('Source unavailable. Review the file and parse again.')}
         </Typography>
       ) : (
         <Stack spacing={2}>
@@ -96,20 +111,24 @@ function DocumentSource({
           )}
           <Typography>
             {document.partial
-              ? 'Partial extraction only; matching is disabled.'
+              ? tr('Partial extraction only; matching is disabled.')
               : document.facts === null
-                ? 'Parsed source only. Facts are unverified; matching is disabled.'
-                : 'Evidence-validated facts. Completeness and semantic correctness still require review.'}
+                ? tr(
+                    'Parsed source only. Facts are unverified; matching is disabled.',
+                  )
+                : tr(
+                    'Evidence-validated facts. Completeness and semantic correctness still require review.',
+                  )}
           </Typography>
           {document.facts !== null && (
             <Box component="ul">
               {document.facts.map((fact) => (
                 <li key={fact.path}>
-                  {fact.path}: {fact.value ?? 'Not stated / review source'}
+                  {fact.path}: {fact.value ?? tr('Not stated / review source')}
                 </li>
               ))}
               {document.facts.length === 0 && (
-                <li>No validated facts available.</li>
+                <li>{tr('No validated facts available.')}</li>
               )}
             </Box>
           )}
@@ -126,17 +145,17 @@ function IncompleteAnalysis({
   if (response.outcome === 'PARTIAL')
     return (
       <Alert severity="info">
-        Partial extraction finished. Review each field and its evidence above.
-        Missing fields do not establish absence from the source. Matching is
-        disabled.
+        {tr(
+          'Partial extraction finished. Review each field and its evidence above. Missing fields do not establish absence from the source. Matching is disabled.',
+        )}
       </Alert>
     );
   if (response.outcome === 'PARSED')
     return (
       <Alert severity="info">
-        Parsed successfully without AI. No facts were validated and matching is
-        disabled. Review the source above. Choose Analyze only when you are
-        ready to run AI extraction.
+        {tr(
+          'Parsed successfully without AI. No facts were validated and matching is disabled. Review the source above. Choose Analyze only when you are ready to run AI extraction.',
+        )}
       </Alert>
     );
   if (response.outcome === 'INCOMPLETE')
@@ -144,20 +163,23 @@ function IncompleteAnalysis({
       <Stack spacing={2}>
         <Alert severity="warning">
           <Typography component="h2" variant="h6">
-            Analysis incomplete
+            {tr('Analysis incomplete')}
           </Typography>
           {guidance(response.error.code)}
         </Alert>
         <Typography>
-          Stage: {response.error.stage}. Error code: {response.error.code}.
+          {tr('Stage:')} {response.error.stage}
+          {tr('. Error code:')} {response.error.code}.
         </Typography>
         <Typography>
-          Extraction can fail even when the document contains valid information.
+          {tr(
+            'Extraction can fail even when the document contains valid information.',
+          )}
         </Typography>
         <Typography>
-          Matching is disabled. Review the retained source above, check local
-          services, then choose Analyze to retry manually. Parse without AI lets
-          you view source without running the model.
+          {tr(
+            'Matching is disabled. Review the retained source above, check local services, then choose Analyze to retry manually. Parse without AI lets you view source without running the model.',
+          )}
         </Typography>
         <Box component="ul">
           {Object.entries(response.stages).map(([stage, status]) => (
@@ -167,8 +189,10 @@ function IncompleteAnalysis({
           ))}
         </Box>
         <Box component="details">
-          <summary>Technical details</summary>
-          <Typography>Request ID: {response.requestId}</Typography>
+          <summary>{tr('Technical details')}</summary>
+          <Typography>
+            {tr('Request ID:')} {response.requestId}
+          </Typography>
           {response.error.diagnostic && (
             <Typography>
               {response.error.diagnostic.stage} /{' '}
@@ -196,24 +220,25 @@ function CompletedAnalysis({
     <Stack spacing={3}>
       <Box>
         <Typography component="h2" variant="h5">
-          Documented requirement support
+          {tr('Documented requirement support')}
         </Typography>
         <Typography
           variant="h3"
           component="p"
-          aria-label="Overall documented requirement support"
+          aria-label={tr('Overall documented requirement support')}
         >
           {score(result.overallScore)}
         </Typography>
       </Box>
       <Alert severity="warning">
-        Review required. This measures documented support, not candidate
-        suitability. Missing evidence does not establish lack of ability.
-        Extraction completeness and semantic correctness are not verified.
+        {tr(
+          'Review required. This measures documented support, not candidate suitability. Missing evidence does not establish lack of ability. Extraction completeness and semantic correctness are not verified.',
+        )}
       </Alert>
       <Alert severity="info">
-        Requirement feedback is local to this completed analysis. It is not
-        submitted, saved, or used to improve the model automatically.
+        {tr(
+          'Requirement feedback is local to this completed analysis. It is not submitted, saved, or used to improve the model automatically.',
+        )}
       </Alert>
       {result.scoreExplanation !== null && (
         <Typography sx={plainText}>{result.scoreExplanation}</Typography>
@@ -232,17 +257,17 @@ function CompletedAnalysis({
             </Typography>
             <Typography>{score(category.score)}</Typography>
             <Typography variant="body2">
-              Eligible: {category.eligibleRequirementCount}; excluded:{' '}
-              {category.excludedRequirementCount}; missing evidence:{' '}
-              {category.missingEvidenceCount}
+              {tr('Eligible:')} {category.eligibleRequirementCount}
+              {tr('; excluded:')} {category.excludedRequirementCount}
+              {tr('; missing evidence:')} {category.missingEvidenceCount}
             </Typography>
             <Box component="details">
-              <summary>Supplied score weights</summary>
+              <summary>{tr('Supplied score weights')}</summary>
               <Typography>
-                Configured weight: {category.configuredWeight}; effective
-                weight: {category.effectiveWeight}; earned weight:{' '}
-                {category.earnedWeight}; denominator weight:{' '}
-                {category.denominatorWeight}
+                {tr('Configured weight:')} {category.configuredWeight}
+                {tr('; effective weight:')} {category.effectiveWeight}
+                {tr('; earned weight:')} {category.earnedWeight}
+                {tr('; denominator weight:')} {category.denominatorWeight}
               </Typography>
             </Box>
           </Paper>
@@ -250,53 +275,56 @@ function CompletedAnalysis({
       </Box>
       <Box>
         <Typography component="h3" variant="h6">
-          Coverage
+          {tr('Coverage')}
         </Typography>
         <Typography>
-          Input requirements: {result.coverage.inputRequirementCount}; canonical
-          requirements: {result.coverage.canonicalRequirementCount}
+          {tr('Input requirements:')} {result.coverage.inputRequirementCount}
+          {tr('; canonical requirements:')}{' '}
+          {result.coverage.canonicalRequirementCount}
         </Typography>
         <Typography>
-          Evaluable: {result.coverage.evaluableRequirementCount}; excluded:{' '}
-          {result.coverage.excludedRequirementCount}; unclassified:{' '}
-          {result.coverage.unclassifiedRequirementCount}
+          {tr('Evaluable:')} {result.coverage.evaluableRequirementCount}
+          {tr('; excluded:')} {result.coverage.excludedRequirementCount}
+          {tr('; unclassified:')} {result.coverage.unclassifiedRequirementCount}
         </Typography>
         <Typography>
-          Active category weight: {result.coverage.activeCategoryWeight} / 100;
-          JD evaluability ratio:{' '}
-          {result.coverage.jdEvaluabilityRatio ?? 'Not calculable'}
+          {tr('Active category weight:')} {result.coverage.activeCategoryWeight}{' '}
+          {tr('/ 100; JD evaluability ratio:')}{' '}
+          {result.coverage.jdEvaluabilityRatio ?? tr('Not calculable')}
         </Typography>
       </Box>
       <Box>
         <Typography component="h3" variant="h6">
-          Warnings and uncertainty
+          {tr('Warnings and uncertainty')}
         </Typography>
         {result.extractionWarnings.map(({ document, warning }, index) => (
           <Typography key={index}>
             {document.toUpperCase()}: {warning.code}
             {warning.code === 'PAGE_WITHOUT_TEXT'
-              ? ` (page ${warning.page})`
+              ? tr(' (page {page})', { page: warning.page })
               : ''}
           </Typography>
         ))}
         {result.extractionWarnings.length === 0 && (
           <Typography>
-            No extraction warning codes returned. This does not establish
-            semantic correctness.
+            {tr(
+              'No extraction warning codes returned. This does not establish semantic correctness.',
+            )}
           </Typography>
         )}
         <Typography sx={plainText}>
           {result.uncertainty.join(', ') ||
-            'No additional uncertainty codes returned.'}
+            tr('No additional uncertainty codes returned.')}
         </Typography>
       </Box>
       <Typography component="h3" variant="h6">
-        Requirements
+        {tr('Requirements')}
       </Typography>
       {result.requirements.length === 0 && (
         <Typography>
-          No requirements were returned; there is no requirement-level result to
-          display.
+          {tr(
+            'No requirements were returned; there is no requirement-level result to display.',
+          )}
         </Typography>
       )}
       {result.requirements.map((item, index) => (
@@ -317,9 +345,10 @@ function CompletedAnalysis({
         />
       ))}
       <Typography variant="caption">
-        Contract: {response.contractVersion}; matching contract:{' '}
-        {result.contractVersion}; policy: {result.policyVersion}; request ID:{' '}
-        {response.requestId}
+        {tr('Contract:')} {response.contractVersion}
+        {tr('; matching contract:')} {result.contractVersion}
+        {tr('; policy:')} {result.policyVersion}
+        {tr('; request ID:')} {response.requestId}
       </Typography>
     </Stack>
   );

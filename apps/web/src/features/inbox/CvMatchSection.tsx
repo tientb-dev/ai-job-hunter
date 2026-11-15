@@ -1,3 +1,4 @@
+import { dateLocale, tr } from '../../app/i18n';
 import {
   AutoAwesomeIcon,
   RefreshIcon,
@@ -92,14 +93,16 @@ export function CvMatchSection({
           >
             <Box sx={{ minWidth: 0 }}>
               <Typography variant="h6" component="h2" sx={{ fontWeight: 600 }}>
-                CV–JD match
+                {tr('CV–JD match')}
               </Typography>
               <Typography
                 variant="body2"
                 color="text.secondary"
                 sx={{ mt: 0.5 }}
               >
-                Your documented experience, compared with this opportunity.
+                {tr(
+                  'Your documented experience, compared with this opportunity.',
+                )}
               </Typography>
             </Box>
             <Button
@@ -118,8 +121,8 @@ export function CvMatchSection({
             >
               {result ||
               ['EXPIRED', 'STALE_CV', 'STALE_JOB'].includes(matchStatus)
-                ? 'Reanalyze CV Match'
-                : 'Analyze CV Match'}
+                ? tr('Reanalyze CV Match')
+                : tr('Analyze CV Match')}
             </Button>
           </Stack>
           <Box>
@@ -134,7 +137,9 @@ export function CvMatchSection({
                 color="text.secondary"
                 sx={{ overflowWrap: 'anywhere', minWidth: 0 }}
               >
-                {cv ? `Saved CV: ${cv.fileName}` : 'No saved CV yet.'}
+                {cv
+                  ? tr('Saved CV: {fileName}', { fileName: cv.fileName })
+                  : tr('No saved CV yet.')}
               </Typography>
               <Button
                 startIcon={<UploadIcon />}
@@ -143,13 +148,13 @@ export function CvMatchSection({
                 disabled={busy || uploadBlocked}
                 sx={{ textTransform: 'none', flexShrink: 0 }}
               >
-                {cv ? 'Replace CV' : 'Save CV'}
+                {cv ? tr('Replace CV') : tr('Save CV')}
                 <input
                   disabled={busy || uploadBlocked}
                   hidden
                   type="file"
                   accept=".pdf,.docx"
-                  aria-label="Save CV for matching"
+                  aria-label={tr('Save CV for matching')}
                   onChange={(event) => {
                     const file = event.target.files?.[0];
                     event.target.value = '';
@@ -159,18 +164,23 @@ export function CvMatchSection({
               </Button>
             </Stack>
             <Typography variant="caption" color="text.secondary">
-              Uses the latest saved CV and job, not unsaved edits. Files parse
-              locally; analysis sends them to the configured AI provider.
+              {tr(
+                'Uses the latest saved CV and job, not unsaved edits. Files parse locally; analysis sends them to the configured AI provider.',
+              )}
             </Typography>
           </Box>
           {matchStatus === 'CHECKING' && (
-            <Typography role="status">Checking the saved CV Match…</Typography>
+            <Typography role="status">
+              {tr('Checking the saved CV Match…')}
+            </Typography>
           )}
           {!busy && matchStatusMessages[matchStatus] && (
             <Alert severity="info" role="status">
               {matchStatusMessages[matchStatus]}
               {result &&
-                ' The previous result below is retained for reference; it is not a current match.'}
+                tr(
+                  ' The previous result below is retained for reference; it is not a current match.',
+                )}
             </Alert>
           )}
           {matchReadError && (
@@ -181,35 +191,43 @@ export function CvMatchSection({
                 disabled={busy}
                 onClick={() => reload()}
               >
-                Retry loading match
+                {tr('Retry loading match')}
               </Button>
             </Alert>
           )}
           {!busy && matchStatus === 'VALID' && (
             <Typography role="status">
-              Saved match
+              {tr('Saved match')}
               {result && validSourceDate(result.analyzedAt)
-                ? ` from ${new Date(result.analyzedAt).toLocaleString()}`
+                ? tr(' from {v0}', {
+                    v0: new Date(result.analyzedAt).toLocaleString(
+                      dateLocale(),
+                    ),
+                  })
                 : ''}
-              . No new analysis is needed.
+              {tr('. No new analysis is needed.')}
             </Typography>
           )}
           {busy && (
             <Stack direction="row" spacing={1} role="status">
               <CircularProgress size={20} />
-              <Typography>Processing locally…</Typography>
+              <Typography>{tr('Processing locally…')}</Typography>
             </Stack>
           )}
           {error && (
             <Alert severity="error">
               {error}
               {result &&
-                ' The last successful result is retained below; it does not reflect this failed attempt.'}
+                tr(
+                  ' The last successful result is retained below; it does not reflect this failed attempt.',
+                )}
             </Alert>
           )}
           {busy && result && (
             <Typography variant="caption">
-              Previous successful result shown while reanalysis is running.
+              {tr(
+                'Previous successful result shown while reanalysis is running.',
+              )}
             </Typography>
           )}
           {result && (
@@ -283,8 +301,9 @@ function MatchContent({
       <MatchOverview result={result} onInspect={inspect} />
       <Box>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Not evidenced in this CV does not mean you do not possess the
-          qualification.
+          {tr(
+            'Not evidenced in this CV does not mean you do not possess the qualification.',
+          )}
         </Typography>
         <RequirementsList
           requirements={result.requirements}
@@ -310,14 +329,14 @@ function MatchContent({
           component="h3"
           sx={{ fontWeight: 600, mb: 1 }}
         >
-          Application advice
+          {tr('Application advice')}
         </Typography>
         <Typography variant="body2">{result.advice}</Typography>
       </Box>
       <Typography variant="caption" color="text.secondary">
-        This match is shared with Tailored CV while its server context remains
-        valid. Reanalyze after saving CV or job changes. Review all evidence
-        before relying on this advice.
+        {tr(
+          'This match is shared with Tailored CV while its server context remains valid. Reanalyze after saving CV or job changes. Review all evidence before relying on this advice.',
+        )}
       </Typography>
     </Stack>
   );
@@ -367,7 +386,7 @@ function MatchOverview({
               component="h3"
               sx={{ fontWeight: 600 }}
             >
-              Documented fit
+              {tr('Documented fit')}
             </Typography>
             <Stack
               direction="row"
@@ -378,7 +397,12 @@ function MatchOverview({
                 variant="h3"
                 component="p"
                 sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}
-                aria-label={`Fit score: ${result.score === null ? incompleteLabel(result, 'Not enough evidence') : `${result.score}/100`} (heuristic)`}
+                aria-label={tr('Fit score: {v0} (heuristic)', {
+                  v0:
+                    result.score === null
+                      ? incompleteLabel(result, 'Not enough evidence')
+                      : `${result.score}/100`,
+                })}
               >
                 {result.score === null ? '—' : result.score}
                 {result.score !== null && (
@@ -395,29 +419,29 @@ function MatchOverview({
               <Chip
                 size="small"
                 variant="outlined"
-                label={result.recommendation}
+                label={tr(result.recommendation)}
               />
             </Stack>
             <Typography variant="body2" color="text.secondary">
-              Heuristic evidence coverage · Not a hiring probability
+              {tr('Heuristic evidence coverage · Not a hiring probability')}
             </Typography>
           </Box>
           <Box>
             <Typography variant="subtitle2" sx={{ mb: 1 }}>
-              Requirement coverage
+              {tr('Requirement coverage')}
             </Typography>
             <Stack
               direction="row"
               spacing={1}
               useFlexGap
-              aria-label="Requirement counts"
+              aria-label={tr('Requirement counts')}
               sx={{ flexWrap: 'wrap', mb: 1.5 }}
             >
               <Typography
                 variant="body2"
                 sx={{ fontWeight: 600, color: requirementColors.EVIDENCED }}
               >
-                Matched: {matched.length}
+                {tr('Matched:')} {matched.length}
               </Typography>
               {(['PARTIAL', 'NOT_EVIDENCED', 'CONFLICT'] as const).map(
                 (status) => (
@@ -432,18 +456,18 @@ function MatchOverview({
                 ),
               )}
               <Typography variant="body2" color="text.secondary">
-                Total: {rows.length}
+                {tr('Total:')} {rows.length}
               </Typography>
             </Stack>
             {result.score === null ? (
               <Typography variant="body2" color="text.secondary">
-                Not enough evidence
+                {tr('Not enough evidence')}
               </Typography>
             ) : (
               <LinearProgress
                 variant="determinate"
                 value={result.score}
-                aria-label="Heuristic fit score"
+                aria-label={tr('Heuristic fit score')}
                 color="inherit"
                 sx={{
                   height: 6,
@@ -456,8 +480,9 @@ function MatchOverview({
           </Box>
         </Box>
         <Typography variant="body2" sx={{ mt: 1.5 }}>
-          This score reflects evidence in the saved CV, not the full extent of
-          your skills.
+          {tr(
+            'This score reflects evidence in the saved CV, not the full extent of your skills.',
+          )}
         </Typography>
         <Accordion
           disableGutters
@@ -484,7 +509,7 @@ function MatchOverview({
             }}
           >
             <Typography variant="body2" color="text.secondary">
-              How to read this analysis
+              {tr('How to read this analysis')}
             </Typography>
           </AccordionSummary>
           <AccordionDetails
@@ -508,22 +533,26 @@ function MatchOverview({
         }}
       >
         <RequirementPreview
-          title="Key strengths"
+          title={tr('Key strengths')}
           items={strengths}
-          empty="No verified matches yet."
-          hint="Verified in your CV"
+          empty={tr('No verified matches yet.')}
+          hint={tr('Verified in your CV')}
           onInspect={onInspect}
         />
         <RequirementPreview
-          title={requiredGaps.length ? 'Required gaps' : 'Preferred gaps'}
+          title={
+            requiredGaps.length ? tr('Required gaps') : tr('Preferred gaps')
+          }
           items={requiredGaps.length ? requiredGaps : preferredGaps}
-          empty="No unknown requirements reported."
+          empty={tr('No unknown requirements reported.')}
           hint={
             requiredGaps.length
               ? requiredGaps.some(({ item }) => item.status === 'PARTIAL')
-                ? 'Required qualifications needing more evidence'
-                : 'Required qualifications not evidenced in your CV'
-              : 'No required gaps reported. Preferred qualifications to review.'
+                ? tr('Required qualifications needing more evidence')
+                : tr('Required qualifications not evidenced in your CV')
+              : tr(
+                  'No required gaps reported. Preferred qualifications to review.',
+                )
           }
           onInspect={onInspect}
         />
@@ -560,7 +589,9 @@ function RequirementPreview({
               <Button
                 fullWidth
                 onClick={() => onInspect(index)}
-                aria-label={`View evidence: ${item.requirement}`}
+                aria-label={tr('View evidence: {requirement}', {
+                  requirement: item.requirement,
+                })}
                 sx={{
                   textTransform: 'none',
                   justifyContent: 'flex-start',
@@ -597,7 +628,7 @@ function RequirementPreview({
           color="text.secondary"
           sx={{ display: 'block', mt: 1 }}
         >
-          First 3 of {items.length} · Full evidence below
+          {tr('First 3 of')} {items.length} {tr('· Full evidence below')}
         </Typography>
       )}
     </Box>
@@ -647,23 +678,28 @@ function RequirementsList({
         a.index - b.index,
     );
   return (
-    <Box component="section" aria-label="Requirements" sx={{ minWidth: 0 }}>
+    <Box
+      component="section"
+      aria-label={tr('Requirements')}
+      sx={{ minWidth: 0 }}
+    >
       <Typography
         component="h3"
         variant="subtitle1"
         sx={{ fontWeight: 700, mb: 1 }}
       >
-        Requirements
+        {tr('Requirements')}
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-        Review every match and gap. Open a requirement to compare the original
-        CV and JD evidence.
+        {tr(
+          'Review every match and gap. Open a requirement to compare the original CV and JD evidence.',
+        )}
       </Typography>
       <ToggleButtonGroup
         size="small"
         exclusive
         value={filter}
-        aria-label="Filter requirements"
+        aria-label={tr('Filter requirements')}
         onChange={(_event, value: string | null) => {
           if (value) onFilter(value);
         }}
@@ -690,11 +726,12 @@ function RequirementsList({
           },
         }}
       >
-        <ToggleButton value="all" aria-label="All">
-          All ({requirements.length})
+        <ToggleButton value="all" aria-label={tr('All')}>
+          {tr('All (')}
+          {requirements.length})
         </ToggleButton>
-        <ToggleButton value="matched" aria-label="Matched">
-          Matched (
+        <ToggleButton value="matched" aria-label={tr('Matched')}>
+          {tr('Matched (')}
           {requirements.filter((item) => item.status === 'EVIDENCED').length})
         </ToggleButton>
         {(
@@ -716,7 +753,7 @@ function RequirementsList({
       </ToggleButtonGroup>
       {items.length === 0 && (
         <Typography variant="body2" color="text.secondary">
-          No {filter} requirements reported.
+          {tr('No')} {filter} {tr('requirements reported.')}
         </Typography>
       )}
       <Box sx={{ borderTop: 1, borderColor: 'divider' }}>
@@ -847,11 +884,16 @@ function RequirementCard({
               sx={{ flexWrap: 'wrap', alignItems: 'center', mt: 0.5 }}
             >
               <Typography variant="body2" color="text.secondary">
-                {item.priority === 'required' ? 'Required' : 'Preferred'}
+                {item.priority === 'required'
+                  ? tr('Required')
+                  : tr('Preferred')}
                 {item.category !== 'skill' && (
                   <>
                     {' '}
-                    · {item.category === 'experience' ? 'Experience' : 'Domain'}
+                    ·{' '}
+                    {item.category === 'experience'
+                      ? tr('Experience')
+                      : tr('Domain')}
                   </>
                 )}
               </Typography>
@@ -902,16 +944,17 @@ function RequirementCard({
               (component) => component.observations?.length,
             ) ? (
             <Typography variant="body2">
-              Relevant CV evidence is shown below; proficiency is not fully
-              verified.
+              {tr(
+                'Relevant CV evidence is shown below; proficiency is not fully verified.',
+              )}
             </Typography>
           ) : (
             <Box>
               <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                Your CV
+                {tr('Your CV')}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Not evidenced in CV
+                {tr('Not evidenced in CV')}
               </Typography>
             </Box>
           )}
@@ -919,7 +962,9 @@ function RequirementCard({
         {item.coverage && (
           <Box
             component="section"
-            aria-label={`Component coverage: ${item.requirement}`}
+            aria-label={tr('Component coverage: {requirement}', {
+              requirement: item.requirement,
+            })}
             sx={{ mt: 2 }}
           >
             <Typography variant="subtitle2">
@@ -933,11 +978,11 @@ function RequirementCard({
               {item.coverage.components.some(
                 (component) => component.status === 'PARTIAL',
               )
-                ? 'components fully supported'
-                : 'components supported'}
+                ? tr('components fully supported')
+                : tr('components supported')}
               {item.coverage.components.some(
                 (component) => component.status === 'PARTIAL',
-              ) && ' · Partial evidence available'}
+              ) && tr(' · Partial evidence available')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {item.coverage.reason}
@@ -958,7 +1003,7 @@ function RequirementCard({
                 </Typography>
                 <EvidenceQuote
                   source="JD evidence"
-                  label={`JD evidence: ${component.label}`}
+                  label={tr('JD evidence: {label}', { label: component.label })}
                   quote={component.jdQuote}
                 />
                 {component.qualificationReason && (
@@ -970,8 +1015,8 @@ function RequirementCard({
                   <Box key={index} sx={{ mt: 1 }}>
                     <Typography variant="body2">
                       {observation.kind === 'experience'
-                        ? 'Verified professional experience'
-                        : 'Verified technology mention'}
+                        ? tr('Verified professional experience')
+                        : tr('Verified technology mention')}
                     </Typography>
                     <EvidenceQuote
                       source="Original parsed CV passage"
@@ -986,19 +1031,23 @@ function RequirementCard({
                 ) ? (
                   <EvidenceQuote
                     source="CV evidence"
-                    label={`CV evidence: ${component.label}`}
+                    label={tr('CV evidence: {label}', {
+                      label: component.label,
+                    })}
                     quote={component.cvQuote}
                   />
                 ) : component.observations?.length ? null : (
                   <Typography variant="body2" color="text.secondary">
-                    Not evidenced in CV
+                    {tr('Not evidenced in CV')}
                   </Typography>
                 )}
                 {component.conflictingQuotes.map((quote, index) => (
                   <EvidenceQuote
                     key={index}
                     source="CV evidence"
-                    label={`Conflicting CV evidence: ${component.label}`}
+                    label={tr('Conflicting CV evidence: {label}', {
+                      label: component.label,
+                    })}
                     quote={quote}
                   />
                 ))}
@@ -1023,10 +1072,10 @@ function EvidenceQuote({
     <Box>
       <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
         {source === 'CV evidence'
-          ? 'Your CV'
+          ? tr('Your CV')
           : source === 'JD evidence'
-            ? 'Job description'
-            : source}
+            ? tr('Job description')
+            : tr(source)}
       </Typography>
       <Box
         component="blockquote"
@@ -1112,7 +1161,7 @@ export function MatchGate({
         <Paper
           variant="outlined"
           component="section"
-          aria-label="CV Match summary"
+          aria-label={tr('CV Match summary')}
           sx={{ px: { xs: 2, sm: 2.5 }, py: 1.5, minWidth: 0 }}
         >
           <Stack
@@ -1122,9 +1171,14 @@ export function MatchGate({
             sx={{ alignItems: { sm: 'center' }, flexWrap: 'wrap' }}
           >
             <Chip
-              aria-label={`Fit score: ${result.score === null ? incompleteLabel(result, 'Not enough evidence') : `${result.score}/100`} (heuristic)`}
+              aria-label={tr('Fit score: {v0} (heuristic)', {
+                v0:
+                  result.score === null
+                    ? incompleteLabel(result, 'Not enough evidence')
+                    : `${result.score}/100`,
+              })}
               color={result.recommendation === 'Apply' ? 'success' : 'default'}
-              label={`${result.recommendation} · ${result.score === null ? incompleteLabel(result, 'not enough evidence') : `${result.score}/100`}`}
+              label={`${tr(result.recommendation)} · ${result.score === null ? tr(incompleteLabel(result, 'not enough evidence')) : `${result.score}/100`}`}
               sx={{ alignSelf: 'flex-start' }}
             />
             <Typography
@@ -1133,11 +1187,15 @@ export function MatchGate({
               color="text.secondary"
               sx={{ flex: 1, minWidth: 0 }}
             >
-              Saved match
+              {tr('Saved match')}
               {validSourceDate(result.analyzedAt)
-                ? ` from ${new Date(result.analyzedAt).toLocaleString()}`
+                ? tr(' from {v0}', {
+                    v0: new Date(result.analyzedAt).toLocaleString(
+                      dateLocale(),
+                    ),
+                  })
                 : ''}
-              . No new analysis is needed.
+              {tr('. No new analysis is needed.')}
             </Typography>
             <Stack
               direction="row"
@@ -1145,14 +1203,14 @@ export function MatchGate({
               useFlexGap
               sx={{ flexWrap: 'wrap' }}
             >
-              <Button {...assessmentLink}>View full assessment</Button>
+              <Button {...assessmentLink}>{tr('View full assessment')}</Button>
               <Button
                 startIcon={<AutoAwesomeIcon />}
                 variant="outlined"
                 disabled={analyzeBlocked || !cv}
                 onClick={() => void match.analyze()}
               >
-                Reanalyze CV Match
+                {tr('Reanalyze CV Match')}
               </Button>
             </Stack>
           </Stack>
@@ -1169,32 +1227,39 @@ export function MatchGate({
       <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, minWidth: 0 }}>
         <Stack spacing={2}>
           <Typography variant="body2" color="text.secondary">
-            Tailoring uses the saved CV Match for this job. The full evidence
-            and advice stay on the job page.
+            {tr(
+              'Tailoring uses the saved CV Match for this job. The full evidence and advice stay on the job page.',
+            )}
           </Typography>
           <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
-            {cv ? `Saved CV: ${cv.fileName}` : 'No saved CV yet.'}
+            {cv
+              ? tr('Saved CV: {fileName}', { fileName: cv.fileName })
+              : tr('No saved CV yet.')}
           </Typography>
           {matchStatus === 'CHECKING' && (
             <Stack direction="row" spacing={1} role="status">
               <CircularProgress size={20} />
-              <Typography>Checking the saved CV Match…</Typography>
+              <Typography>{tr('Checking the saved CV Match…')}</Typography>
             </Stack>
           )}
           {busy && (
             <Stack direction="row" spacing={1} role="status">
               <CircularProgress size={20} />
-              <Typography>Processing locally…</Typography>
+              <Typography>{tr('Processing locally…')}</Typography>
             </Stack>
           )}
           {!busy && current && (
             <Stack spacing={1.5}>
               <Typography role="status">
-                Saved match
+                {tr('Saved match')}
                 {validSourceDate(result.analyzedAt)
-                  ? ` from ${new Date(result.analyzedAt).toLocaleString()}`
+                  ? tr(' from {v0}', {
+                      v0: new Date(result.analyzedAt).toLocaleString(
+                        dateLocale(),
+                      ),
+                    })
                   : ''}
-                . No new analysis is needed.
+                {tr('. No new analysis is needed.')}
               </Typography>
               <Stack
                 direction="row"
@@ -1203,16 +1268,21 @@ export function MatchGate({
                 sx={{ flexWrap: 'wrap', alignItems: 'center' }}
               >
                 <Chip
-                  aria-label={`Fit score: ${result.score === null ? incompleteLabel(result, 'Not enough evidence') : `${result.score}/100`} (heuristic)`}
+                  aria-label={tr('Fit score: {v0} (heuristic)', {
+                    v0:
+                      result.score === null
+                        ? incompleteLabel(result, 'Not enough evidence')
+                        : `${result.score}/100`,
+                  })}
                   color={
                     result.recommendation === 'Apply' ? 'success' : 'default'
                   }
-                  label={`${result.recommendation} · ${result.score === null ? incompleteLabel(result, 'not enough evidence') : `${result.score}/100`}`}
+                  label={`${tr(result.recommendation)} · ${result.score === null ? tr(incompleteLabel(result, 'not enough evidence')) : `${result.score}/100`}`}
                 />
                 {counts && (
                   <Typography variant="body2" color="text.secondary">
-                    {counts.matched} evidenced, {counts.partial} partial,{' '}
-                    {counts.missing} not evidenced
+                    {counts.matched} {tr('evidenced,')} {counts.partial}{' '}
+                    {tr('partial,')} {counts.missing} {tr('not evidenced')}
                   </Typography>
                 )}
               </Stack>
@@ -1222,7 +1292,9 @@ export function MatchGate({
             <Alert severity="info" role="status">
               {matchStatusMessages[matchStatus]}
               {hasDraft &&
-                ' Your saved draft below stays available; only a new draft needs a current match.'}
+                tr(
+                  ' Your saved draft below stays available; only a new draft needs a current match.',
+                )}
             </Alert>
           )}
           {matchReadError && (
@@ -1234,7 +1306,7 @@ export function MatchGate({
                   disabled={busy}
                   onClick={() => match.reload()}
                 >
-                  Retry loading match
+                  {tr('Retry loading match')}
                 </Button>
               }
             >
@@ -1256,7 +1328,7 @@ export function MatchGate({
               }
               onClick={() => void match.analyze()}
             >
-              {reanalyze ? 'Reanalyze CV Match' : 'Analyze CV Match'}
+              {reanalyze ? tr('Reanalyze CV Match') : tr('Analyze CV Match')}
             </Button>
             <Button
               {...(routing
@@ -1264,12 +1336,12 @@ export function MatchGate({
                 : { component: 'a', href: `/jobs/${jobId}/match` })}
               disabled={!result}
             >
-              View full assessment
+              {tr('View full assessment')}
             </Button>
           </Stack>
           {!cv && (
             <Typography variant="body2" color="text.secondary">
-              Save a source CV in step 1 before analyzing.
+              {tr('Save a source CV in step 1 before analyzing.')}
             </Typography>
           )}
         </Stack>

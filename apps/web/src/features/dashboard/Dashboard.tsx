@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import { PageHeader } from '../../components/PageHeader';
 import { useEffect, useRef } from 'react';
 import {
@@ -31,20 +32,19 @@ export function Dashboard() {
         variant="body2"
         sx={{ alignSelf: 'flex-start' }}
       >
-        Back to My CV
+        {tr('Back to My CV')}
       </MuiLink>
       <PageHeader
-        title="Quick CV and job analysis"
-        description="A one-off check of a CV against a job description. Nothing here changes your saved CV or jobs."
+        title={tr('Quick CV and job analysis')}
+        description={tr(
+          'A one-off check of a CV against a job description. Nothing here changes your saved CV or jobs.',
+        )}
       />
-      <Box role="region" aria-label="CV/JD analysis">
+      <Box role="region" aria-label={tr('CV/JD analysis')}>
         <Typography color="text.secondary">
-          Files parse locally and extraction uses the configured AI provider;
-          inputs and results stay in memory until cleared or you leave this
-          page. API readiness does not guarantee AI service availability or
-          extraction quality. Quote ambiguity, negation, uncertainty,
-          source-instruction contamination and sensitivity to evidence
-          annotations remain known limitations.
+          {tr(
+            'Files parse locally and extraction uses the configured AI provider; inputs and results stay in memory until cleared or you leave this page. API readiness does not guarantee AI service availability or extraction quality. Quote ambiguity, negation, uncertainty, source-instruction contamination and sensitivity to evidence annotations remain known limitations.',
+          )}
         </Typography>
         <AnalysisForm
           busy={state.status === 'processing'}
@@ -59,36 +59,48 @@ export function Dashboard() {
           <Box role="status" aria-live="polite">
             {state.status === 'idle' && (
               <Typography>
-                Choose a CV and enter a JD to start. No analysis results yet.
+                {tr(
+                  'Choose a CV and enter a JD to start. No analysis results yet.',
+                )}
               </Typography>
             )}
             {state.status === 'processing' && (
               <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
-                <CircularProgress size={24} aria-label="Analysis in progress" />
+                <CircularProgress
+                  size={24}
+                  aria-label={tr('Analysis in progress')}
+                />
                 <Typography>
-                  Processing locally… This can take several minutes. Cancel
-                  stops waiting, but may not immediately stop local extraction.
+                  {tr(
+                    'Processing locally… This can take several minutes. Cancel stops waiting, but may not immediately stop local extraction.',
+                  )}
                 </Typography>
               </Stack>
             )}
             {state.status === 'completed' && (
               <Typography>
-                Analysis completed. Review the evidence and limitations below.
+                {tr(
+                  'Analysis completed. Review the evidence and limitations below.',
+                )}
               </Typography>
             )}
             {state.status === 'cancelled' && (
               <Typography>
-                Stopped waiting for this analysis. Local extraction may still be
-                finishing; another request may temporarily return busy. Your
-                inputs were retained.
+                {tr(
+                  'Stopped waiting for this analysis. Local extraction may still be finishing; another request may temporarily return busy. Your inputs were retained.',
+                )}
               </Typography>
             )}
           </Box>
           {state.status === 'clientError' && (
             <Alert severity="error">
               {state.kind === 'network'
-                ? 'Could not reach the local analysis API. Check the local services and retry manually.'
-                : 'The API returned an invalid or incompatible analysis response. No result can be displayed.'}
+                ? tr(
+                    'Could not reach the local analysis API. Check the local services and retry manually.',
+                  )
+                : tr(
+                    'The API returned an invalid or incompatible analysis response. No result can be displayed.',
+                  )}
             </Alert>
           )}
           {(state.status === 'completed' || state.status === 'incomplete') && (

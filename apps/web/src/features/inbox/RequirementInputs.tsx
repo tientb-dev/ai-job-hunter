@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Stack, TextField } from '@mui/material';
 const categories = ['technical', 'education', 'language', 'other'] as const;
@@ -70,9 +71,11 @@ export function RequirementInputs({
   const prefix = label.startsWith('Preferred') ? 'Preferred' : 'Required';
   const labels: Record<Category, string> = {
     technical: label,
-    education: `${prefix} education requirements`,
-    language: `${prefix} language requirements`,
-    other: `${prefix} collaboration and soft-skill requirements`,
+    education: tr('{prefix} education requirements', { prefix: prefix }),
+    language: tr('{prefix} language requirements', { prefix: prefix }),
+    other: tr('{prefix} collaboration and soft-skill requirements', {
+      prefix: prefix,
+    }),
   };
   return (
     <Stack spacing={2}>
@@ -84,12 +87,14 @@ export function RequirementInputs({
           multiline
           minRows={2}
           maxRows={8}
-          placeholder="Unknown"
+          placeholder={tr('Unknown')}
           error={error}
           helperText={
             category === 'technical'
               ? helperText
-              : 'Preserved as a qualification, separately from technical skills.'
+              : tr(
+                  'Preserved as a qualification, separately from technical skills.',
+                )
           }
           slotProps={{
             htmlInput: {

@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 export type PracticeTopic = 'hr' | 'technical';
 export type PracticeMode = 'express' | 'review';
 export interface PracticeQuestion {
@@ -49,7 +50,7 @@ const nullable = (v: unknown) => v === null || str(v);
 const invalid = () =>
   new PracticeError(
     'INVALID_RESPONSE',
-    'The app received an unexpected response. Try again.',
+    tr('The app received an unexpected response. Try again.'),
   );
 
 export function decodeQuestions(value: unknown): PracticeQuestion[] {
@@ -106,7 +107,10 @@ export async function fetchQuestions(
     signal,
   });
   if (!response.ok)
-    throw new PracticeError('UNAVAILABLE', 'Questions could not be loaded.');
+    throw new PracticeError(
+      'UNAVAILABLE',
+      tr('Questions could not be loaded.'),
+    );
   return decodeQuestions(await response.json());
 }
 export async function requestFeedback(
@@ -131,7 +135,7 @@ export async function requestFeedback(
     if (signal.aborted) throw error;
     throw new PracticeError(
       'NETWORK',
-      'The app could not reach the API. Your text is kept — try again.',
+      tr('The app could not reach the API. Your text is kept — try again.'),
     );
   }
   const payload: unknown = await response.json().catch(() => null);
@@ -140,7 +144,7 @@ export async function requestFeedback(
       throw new PracticeError(payload.errorCode, payload.message);
     throw new PracticeError(
       'UNAVAILABLE',
-      'Feedback is unavailable right now. Your text is kept — try again.',
+      tr('Feedback is unavailable right now. Your text is kept — try again.'),
     );
   }
   return decodeFeedback(payload);
@@ -148,16 +152,32 @@ export async function requestFeedback(
 
 // ------------------------------------------------- PR16 local speech-to-text
 const STT_MESSAGES: Record<string, string> = {
-  STT_UNAVAILABLE:
-    "Local transcription isn't set up on this computer. You can type your answer instead.",
-  STT_INVALID_AUDIO:
-    "This recording couldn't be transcribed. Record again (at least half a second), or type your answer.",
-  STT_TOO_LARGE:
-    'This recording is longer than 3 minutes. Record a shorter answer, or type it.',
-  STT_BUSY:
-    'Another recording is being transcribed. Wait a moment, then try again.',
-  STT_TIMEOUT: 'Transcription took too long. Try again, or type your answer.',
-  STT_FAILED: 'Transcription failed. Try again, or type your answer.',
+  get STT_UNAVAILABLE() {
+    return tr(
+      "Local transcription isn't set up on this computer. You can type your answer instead.",
+    );
+  },
+  get STT_INVALID_AUDIO() {
+    return tr(
+      "This recording couldn't be transcribed. Record again (at least half a second), or type your answer.",
+    );
+  },
+  get STT_TOO_LARGE() {
+    return tr(
+      'This recording is longer than 3 minutes. Record a shorter answer, or type it.',
+    );
+  },
+  get STT_BUSY() {
+    return tr(
+      'Another recording is being transcribed. Wait a moment, then try again.',
+    );
+  },
+  get STT_TIMEOUT() {
+    return tr('Transcription took too long. Try again, or type your answer.');
+  },
+  get STT_FAILED() {
+    return tr('Transcription failed. Try again, or type your answer.');
+  },
 };
 /** Sends the WAV to this app's local API; audio and transcript are not stored. */
 export async function transcribe(
@@ -181,7 +201,7 @@ export async function transcribe(
     if (signal.aborted) throw error;
     throw new PracticeError(
       'NETWORK',
-      'The app could not reach the API. Try again, or type your answer.',
+      tr('The app could not reach the API. Try again, or type your answer.'),
     );
   }
   const payload: unknown = await response.json().catch(() => null);
@@ -242,7 +262,7 @@ async function answerRequest(url: string, init: RequestInit): Promise<unknown> {
     if (init.signal?.aborted) throw error;
     throw new PracticeError(
       'NETWORK',
-      'The app could not reach the API. Your text is kept — try again.',
+      tr('The app could not reach the API. Your text is kept — try again.'),
     );
   }
   if (response.status === 204) return null;
@@ -257,14 +277,14 @@ async function answerRequest(url: string, init: RequestInit): Promise<unknown> {
     throw new AnswerConflictError(
       str(payload.message)
         ? payload.message
-        : 'This answer was changed in another tab.',
+        : tr('This answer was changed in another tab.'),
       payload.current as SavedAnswer | null,
     );
   if (record(payload) && str(payload.errorCode) && str(payload.message))
     throw new PracticeError(payload.errorCode, payload.message);
   throw new PracticeError(
     'UNAVAILABLE',
-    'Saved answers are unavailable right now. Try again.',
+    tr('Saved answers are unavailable right now. Try again.'),
   );
 }
 export async function listAnswers(signal: AbortSignal): Promise<SavedAnswer[]> {

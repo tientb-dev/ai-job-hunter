@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import { importFields, type OpportunityInput } from './opportunities-api';
 
 export function canFetchJobUrl(value: string): boolean {
@@ -20,13 +21,19 @@ export function urlImportHelp(value: string): string {
   try {
     const host = new URL(value).hostname;
     if (host === 'vietnamworks.com' || host === 'www.vietnamworks.com')
-      return 'VietnamWorks URL fetching is disabled. Use the installed page-import bookmark or paste an authorized JD.';
+      return tr(
+        'VietnamWorks URL fetching is disabled. Use the installed page-import bookmark or paste an authorized JD.',
+      );
     if (host === 'topcv.vn' || host === 'www.topcv.vn')
-      return 'TopCV URL fetching is disabled due to published content-use restrictions. Use the installed page-import bookmark or paste an authorized JD.';
+      return tr(
+        'TopCV URL fetching is disabled due to published content-use restrictions. Use the installed page-import bookmark or paste an authorized JD.',
+      );
   } catch {
     /* Use the general guidance. */
   }
-  return 'Fetch supports individual HTTPS ITviec job URLs. Requests run only when clicked; manual paste and document upload remain available.';
+  return tr(
+    'Fetch supports individual HTTPS ITviec job URLs. Requests run only when clicked; manual paste and document upload remain available.',
+  );
 }
 export interface UrlJobPreview {
   originalLink: string;
@@ -68,7 +75,9 @@ export function applyUrlJobPreview(
   if (previous) {
     if (!retainedText.includes(previous.sourceText))
       throw new Error(
-        'The imported source text was edited. Keep your edits, or restore the previous source text before fetching again.',
+        tr(
+          'The imported source text was edited. Keep your edits, or restore the previous source text before fetching again.',
+        ),
       );
     retainedText = retainedText.replace(previous.sourceText, '').trim();
   }
@@ -77,7 +86,9 @@ export function applyUrlJobPreview(
     .join('\n\n');
   if (postText.length > 12000)
     throw new Error(
-      'Combined sources exceed the paste limit. Your existing inputs are unchanged; paste the relevant JD content manually.',
+      tr(
+        'Combined sources exceed the paste limit. Your existing inputs are unchanged; paste the relevant JD content manually.',
+      ),
     );
   const next = { ...form, postText, importReview: [] };
   const replacing = previous && previous.originalLink !== preview.originalLink;

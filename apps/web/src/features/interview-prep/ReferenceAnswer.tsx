@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import {
   CheckIcon,
   DeleteIcon,
@@ -67,7 +68,7 @@ export function Editor({
   return (
     <Stack spacing={2}>
       <TextField
-        label="Your English reference answer"
+        label={tr('Your English reference answer')}
         multiline
         minRows={5}
         autoFocus
@@ -83,13 +84,17 @@ export function Editor({
           <Stack spacing={1}>
             <Typography variant="body2">
               {conflict.current
-                ? 'This answer was changed in another tab. Your text below is kept.'
-                : 'This answer was removed in another tab. Your text below is kept.'}
+                ? tr(
+                    'This answer was changed in another tab. Your text below is kept.',
+                  )
+                : tr(
+                    'This answer was removed in another tab. Your text below is kept.',
+                  )}
             </Typography>
             {conflict.current && conflict.showSaved && (
               <Paper variant="outlined" sx={{ p: 1.5 }}>
                 <Typography variant="subtitle2" component="p">
-                  Saved version
+                  {tr('Saved version')}
                 </Typography>
                 <Typography variant="body2" sx={pre}>
                   {conflict.current.answer}
@@ -105,11 +110,11 @@ export function Editor({
                     aria-expanded={conflict.showSaved}
                   >
                     {conflict.showSaved
-                      ? 'Hide saved version'
-                      : 'Show saved version'}
+                      ? tr('Hide saved version')
+                      : tr('Show saved version')}
                   </Button>
                   <Button variant="outlined" onClick={onUseSaved}>
-                    Use saved version
+                    {tr('Use saved version')}
                   </Button>
                 </>
               )}
@@ -119,8 +124,8 @@ export function Editor({
                 disabled={editor.saving || !length || tooLong}
               >
                 {conflict.current
-                  ? 'Save mine instead'
-                  : 'Save mine as a new answer'}
+                  ? tr('Save mine instead')
+                  : tr('Save mine as a new answer')}
               </Button>
             </Stack>
           </Stack>
@@ -135,7 +140,7 @@ export function Editor({
               color="inherit"
               onClick={onSave}
             >
-              Retry
+              {tr('Retry')}
             </Button>
           }
         >
@@ -149,10 +154,10 @@ export function Editor({
           onClick={onSave}
           disabled={editor.saving || !!conflict || !length || tooLong}
         >
-          {editor.saving ? 'Saving…' : 'Save answer'}
+          {editor.saving ? tr('Saving…') : tr('Save answer')}
         </Button>
         <Button variant="outlined" onClick={onCancel} disabled={editor.saving}>
-          Cancel
+          {tr('Cancel')}
         </Button>
       </Stack>
     </Stack>
@@ -171,10 +176,12 @@ function RemoveDialog({
   return (
     <ConfirmDialog
       open={open}
-      title="Remove prepared answer?"
-      text="Your saved answer for this question will be removed. This can't be undone. The question stays in the list as Not prepared."
-      safeLabel="Keep answer"
-      confirmLabel="Remove"
+      title={tr('Remove prepared answer?')}
+      text={tr(
+        "Your saved answer for this question will be removed. This can't be undone. The question stays in the list as Not prepared.",
+      )}
+      safeLabel={tr('Keep answer')}
+      confirmLabel={tr('Remove')}
       destructive
       onSafe={onKeep}
       onConfirm={onRemove}
@@ -198,15 +205,21 @@ export function UnsavedAnswerDialog({
     <ConfirmDialog
       open={open}
       title={
-        transcript ? 'Discard your transcript?' : 'Discard your unsaved answer?'
+        transcript
+          ? tr('Discard your transcript?')
+          : tr('Discard your unsaved answer?')
       }
       text={
         transcript
-          ? 'Practice transcripts are never saved. Leaving this question clears it. Copy the text first if you want to keep it.'
-          : "You changed your reference answer but didn't save it. Your saved answer, if any, stays as it was."
+          ? tr(
+              'Practice transcripts are never saved. Leaving this question clears it. Copy the text first if you want to keep it.',
+            )
+          : tr(
+              "You changed your reference answer but didn't save it. Your saved answer, if any, stays as it was.",
+            )
       }
-      safeLabel={transcript ? 'Stay' : 'Stay and edit'}
-      confirmLabel={transcript ? 'Leave and clear' : 'Discard changes'}
+      safeLabel={transcript ? tr('Stay') : tr('Stay and edit')}
+      confirmLabel={transcript ? tr('Leave and clear') : tr('Discard changes')}
       destructive
       onSafe={onStay}
       onConfirm={onDiscard}
@@ -264,10 +277,9 @@ export function Step({
               tabIndex={-1}
               sx={{ '&:focus': { outline: 'none' }, scrollMarginTop: 16 }}
             >
-              <Box
-                component="span"
-                sx={{ position: 'absolute', left: -9999 }}
-              >{`Step ${n}: `}</Box>
+              <Box component="span" sx={{ position: 'absolute', left: -9999 }}>
+                {tr('Step {n}: ', { n: n })}
+              </Box>
               {title}
             </Typography>
             <Typography variant="body2" color="text.secondary">
@@ -314,7 +326,7 @@ export function ReferenceAnswer(props: {
   if (status === 'loading')
     body = (
       <Typography role="status" color="text.secondary">
-        Loading your saved answers…
+        {tr('Loading your saved answers…')}
       </Typography>
     );
   else if (status === 'error')
@@ -327,18 +339,19 @@ export function ReferenceAnswer(props: {
             color="inherit"
             onClick={props.onRetryLoad}
           >
-            Retry
+            {tr('Retry')}
           </Button>
         }
       >
-        Your saved answers couldn't be loaded, so saving is paused. AI help
-        above and speaking practice below still work.
+        {tr(
+          "Your saved answers couldn't be loaded, so saving is paused. AI help above and speaking practice below still work.",
+        )}
       </Alert>
     );
   else if (editor?.origin === 'feedback')
     body = (
       <Typography color="text.secondary" role="status">
-        You're editing your answer under Feedback above.
+        {tr("You're editing your answer under Feedback above.")}
       </Typography>
     );
   else if (editor)
@@ -357,15 +370,16 @@ export function ReferenceAnswer(props: {
     body = (
       <Stack spacing={1.5} sx={{ alignItems: 'flex-start' }}>
         <Typography color="text.secondary">
-          Start from your own words or the AI suggestion. Nothing is saved until
-          you choose Save.
+          {tr(
+            'Start from your own words or the AI suggestion. Nothing is saved until you choose Save.',
+          )}
         </Typography>
         <Button
           startIcon={<CheckIcon />}
           variant="contained"
           onClick={props.onFinalize}
         >
-          Finalize answer
+          {tr('Finalize answer')}
         </Button>
       </Stack>
     );
@@ -376,7 +390,7 @@ export function ReferenceAnswer(props: {
           <SavedPrompt onStart={props.onStartPractice} />
         ) : (
           <Typography color="text.secondary">
-            Saved. Practise it below, or edit it any time.
+            {tr('Saved. Practise it below, or edit it any time.')}
           </Typography>
         )}
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
@@ -385,7 +399,7 @@ export function ReferenceAnswer(props: {
             variant="outlined"
             onClick={props.onFinalize}
           >
-            Edit answer
+            {tr('Edit answer')}
           </Button>
           <Button
             startIcon={<DeleteIcon />}
@@ -393,7 +407,7 @@ export function ReferenceAnswer(props: {
             color="inherit"
             onClick={() => setConfirming(true)}
           >
-            Remove prepared answer
+            {tr('Remove prepared answer')}
           </Button>
         </Stack>
         <RemoveDialog
@@ -411,8 +425,8 @@ export function ReferenceAnswer(props: {
       <Step
         n={2}
         id="reference-answer"
-        title="Save your reference answer"
-        intro="Keep a version you feel comfortable saying."
+        title={tr('Save your reference answer')}
+        intro={tr('Keep a version you feel comfortable saying.')}
       >
         {props.notice && (
           <Alert severity="info" role="status">
@@ -424,8 +438,8 @@ export function ReferenceAnswer(props: {
       <Step
         n={3}
         id="speaking-practice"
-        title="Practice speaking"
-        intro="Read along first, then try without looking."
+        title={tr('Practice speaking')}
+        intro={tr('Read along first, then try without looking.')}
       >
         {practising ? (
           <Stack spacing={2}>
@@ -433,20 +447,20 @@ export function ReferenceAnswer(props: {
               exclusive
               value={props.view}
               onChange={(_e, v: PracticeView | null) => v && props.onView(v)}
-              aria-label="Practice mode"
+              aria-label={tr('Practice mode')}
               sx={{ flexWrap: 'wrap' }}
             >
               <ToggleButton
                 value="read"
                 sx={{ textTransform: 'none', minHeight: 44 }}
               >
-                Read Along
+                {tr('Read Along')}
               </ToggleButton>
               <ToggleButton
                 value="free"
                 sx={{ textTransform: 'none', minHeight: 44 }}
               >
-                Speak Freely
+                {tr('Speak Freely')}
               </ToggleButton>
             </ToggleButtonGroup>
             {props.view === 'read' || props.revealed ? (
@@ -457,8 +471,9 @@ export function ReferenceAnswer(props: {
               </Paper>
             ) : (
               <Typography color="text.secondary">
-                Your answer is hidden. Say it in your own words — paraphrasing
-                is fine.
+                {tr(
+                  'Your answer is hidden. Say it in your own words — paraphrasing is fine.',
+                )}
               </Typography>
             )}
             {props.view === 'free' && (
@@ -468,7 +483,7 @@ export function ReferenceAnswer(props: {
                   onClick={props.onReveal}
                   aria-expanded={props.revealed}
                 >
-                  {props.revealed ? 'Hide answer' : 'Show answer'}
+                  {props.revealed ? tr('Hide answer') : tr('Show answer')}
                 </Button>
               </Box>
             )}
@@ -479,15 +494,17 @@ export function ReferenceAnswer(props: {
           // No saved text is shown, so nothing stale can appear.
           <Stack spacing={2}>
             <Typography color="text.secondary">
-              Read Along is unavailable until your saved answers load. You can
-              still record, transcribe or type your answer, and get AI feedback.
+              {tr(
+                'Read Along is unavailable until your saved answers load. You can still record, transcribe or type your answer, and get AI feedback.',
+              )}
             </Typography>
             {props.recorder}
           </Stack>
         ) : (
           <Typography color="text.secondary">
-            Saving a reference answer unlocks Read Along and Speak Freely. You
-            can already try speaking in step 1.
+            {tr(
+              'Saving a reference answer unlocks Read Along and Speak Freely. You can already try speaking in step 1.',
+            )}
           </Typography>
         )}
       </Step>
@@ -502,7 +519,7 @@ export function SavedPrompt({ onStart }: { onStart: () => void }) {
   return (
     <Stack spacing={1.5} sx={{ alignItems: 'flex-start' }}>
       <Typography role="status" sx={{ fontWeight: 600 }}>
-        Answer saved. Ready to practise?
+        {tr('Answer saved. Ready to practise?')}
       </Typography>
       <Button
         startIcon={<MicIcon />}
@@ -510,7 +527,7 @@ export function SavedPrompt({ onStart }: { onStart: () => void }) {
         variant="contained"
         onClick={onStart}
       >
-        Start speaking practice
+        {tr('Start speaking practice')}
       </Button>
     </Stack>
   );

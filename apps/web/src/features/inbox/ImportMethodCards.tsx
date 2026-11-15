@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import { HOSTED } from '../../app/hosted';
 import { CheckIcon } from '../../components/icons';
 import {
@@ -12,8 +13,12 @@ export type ImportMethod = 'url' | 'bookmarklet' | 'paste' | 'upload';
 const methods = [
   {
     value: 'url',
-    title: 'Job URL',
-    subtitle: 'ITviec',
+    get title() {
+      return tr('Job URL');
+    },
+    get subtitle() {
+      return tr('ITviec');
+    },
     path: 'M3 3h7v2H5v14h14v-5h2v7H3V3zm10 0h8v8h-2V6.4l-8.3 8.3-1.4-1.4L17.6 5H13V3z',
   },
   {
@@ -24,14 +29,22 @@ const methods = [
   },
   {
     value: 'paste',
-    title: 'Paste JD',
-    subtitle: 'Recruiter post or text',
+    get title() {
+      return tr('Paste JD');
+    },
+    get subtitle() {
+      return tr('Recruiter post or text');
+    },
     path: 'M8 2h8v2h4v18H4V4h4V2zm2 2v2h4V4h-4zM6 6v14h12V6h-2v2H8V6H6zm2 5h8v2H8v-2zm0 4h8v2H8v-2z',
   },
   {
     value: 'upload',
-    title: 'Upload JD',
-    subtitle: 'PDF · DOCX',
+    get title() {
+      return tr('Upload JD');
+    },
+    get subtitle() {
+      return tr('PDF · DOCX');
+    },
     path: 'M11 16V7.8l-3.6 3.6L6 10l6-6 6 6-1.4 1.4L13 7.8V16h-2zM4 18h16v3H4v-3z',
   },
 ] as const;
@@ -49,7 +62,7 @@ export function ImportMethodCards({
   return (
     <Box
       role="group"
-      aria-label="Choose an import method"
+      aria-label={tr('Choose an import method')}
       sx={{
         display: 'grid',
         gridTemplateColumns: {

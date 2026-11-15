@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import { ArrowForwardIcon, AutoAwesomeIcon } from '../../components/icons';
 import { useEffect, useId, useRef, useState } from 'react';
 import { alpha } from '@mui/material/styles';
@@ -95,7 +96,9 @@ export function CvSuggestionsSection({
       const value: unknown = await response.json().catch(() => {
         if (request === generation.current) setData(null);
         throw new SuggestionRequestFailure(
-          'The API returned unreadable suggestions. Retry; no new wording is available.',
+          tr(
+            'The API returned unreadable suggestions. Retry; no new wording is available.',
+          ),
         );
       });
       if (request !== generation.current) return;
@@ -108,24 +111,32 @@ export function CvSuggestionsSection({
           onInvalidContext();
           setData(null);
           setError(
-            'This match has expired or its sources changed. Reanalyze CV Match before requesting suggestions.',
+            tr(
+              'This match has expired or its sources changed. Reanalyze CV Match before requesting suggestions.',
+            ),
           );
           return;
         }
         const messages: Record<string, string> = {
-          CV_SUGGESTIONS_BUSY:
+          CV_SUGGESTIONS_BUSY: tr(
             'A CV match or suggestions request is already running. Retry after it finishes.',
-          CV_SUGGESTIONS_TIMEOUT:
+          ),
+          CV_SUGGESTIONS_TIMEOUT: tr(
             'Suggestion selection timed out. Check the AI service and retry.',
-          CV_SUGGESTIONS_CONTEXT_LIMIT:
+          ),
+          CV_SUGGESTIONS_CONTEXT_LIMIT: tr(
             'Suggestion evidence exceeds the local context budget. Use concise saved sources and reanalyze.',
-          CV_SUGGESTIONS_JOB_NOT_FOUND:
+          ),
+          CV_SUGGESTIONS_JOB_NOT_FOUND: tr(
             'This saved job is unavailable. Reopen a saved job before requesting suggestions.',
+          ),
         };
         throw new SuggestionRequestFailure(
           typeof code === 'string' && messages[code]
             ? messages[code]
-            : 'Could not request suggestions. Check the local API and the AI service, then retry.',
+            : tr(
+                'Could not request suggestions. Check the local API and the AI service, then retry.',
+              ),
         );
       }
       if (
@@ -142,14 +153,18 @@ export function CvSuggestionsSection({
         onInvalidContext();
         setData(null);
         setError(
-          'The suggestions do not belong to this saved match. Reanalyze CV Match before requesting suggestions.',
+          tr(
+            'The suggestions do not belong to this saved match. Reanalyze CV Match before requesting suggestions.',
+          ),
         );
         return;
       }
       if (!isSuggestionsResponse(value, result)) {
         setData(null);
         throw new SuggestionRequestFailure(
-          'The API returned invalid suggestions. Retry; no new wording is available.',
+          tr(
+            'The API returned invalid suggestions. Retry; no new wording is available.',
+          ),
         );
       }
       setData(value);
@@ -159,7 +174,7 @@ export function CvSuggestionsSection({
         setError(
           error instanceof SuggestionRequestFailure
             ? error.message
-            : 'Could not read suggestions. Check the local API and retry.',
+            : tr('Could not read suggestions. Check the local API and retry.'),
         );
     } finally {
       if (request === generation.current) {
@@ -177,11 +192,11 @@ export function CvSuggestionsSection({
     try {
       await navigator.clipboard.writeText(wording);
       if (request === generation.current)
-        setCopyStatus('Wording copied. Review it before updating your CV.');
+        setCopyStatus(tr('Wording copied. Review it before updating your CV.'));
     } catch {
       if (request === generation.current)
         setCopyStatus(
-          'Could not copy. Select the wording and copy it manually.',
+          tr('Could not copy. Select the wording and copy it manually.'),
         );
     } finally {
       if (request === generation.current) setCopying(false);
@@ -189,15 +204,19 @@ export function CvSuggestionsSection({
   }
   const visible = stale ? null : data;
   const prerequisite = jobDirty
-    ? 'Save your job edits, then reanalyze in CV Match.'
+    ? tr('Save your job edits, then reanalyze in CV Match.')
     : disabled
-      ? 'CV analysis or upload is in progress. Wait for it to finish.'
+      ? tr('CV analysis or upload is in progress. Wait for it to finish.')
       : stale
-        ? 'Outdated. This match is no longer current. Reanalyze in CV Match before requesting suggestions.'
+        ? tr(
+            'Outdated. This match is no longer current. Reanalyze in CV Match before requesting suggestions.',
+          )
         : !cvSaved
-          ? 'Save a CV in CV Match, then analyze it against this job.'
+          ? tr('Save a CV in CV Match, then analyze it against this job.')
           : !ready
-            ? 'Not analyzed yet. Analyze your saved CV against this job first. Suggestions use the evidence from that analysis.'
+            ? tr(
+                'Not analyzed yet. Analyze your saved CV against this job first. Suggestions use the evidence from that analysis.',
+              )
             : '';
   return (
     <Box component="section" aria-labelledby={heading} sx={{ minWidth: 0 }}>
@@ -225,7 +244,7 @@ export function CvSuggestionsSection({
                 component="h2"
                 sx={{ fontWeight: 600 }}
               >
-                Improve your CV
+                {tr('Improve your CV')}
               </Typography>
               {visible && (
                 <Typography
@@ -233,13 +252,14 @@ export function CvSuggestionsSection({
                   color="text.secondary"
                   aria-hidden="true"
                 >
-                  {visible.suggestions.length} suggestions
+                  {visible.suggestions.length} {tr('suggestions')}
                 </Typography>
               )}
             </Stack>
             <Typography variant="body2" color="text.secondary">
-              Review practical edits backed by your CV–job match. Add only facts
-              you can substantiate.
+              {tr(
+                'Review practical edits backed by your CV–job match. Add only facts you can substantiate.',
+              )}
             </Typography>
           </Box>
           <Stack
@@ -256,12 +276,12 @@ export function CvSuggestionsSection({
               sx={{ minHeight: 44 }}
             >
               {loading
-                ? 'Requesting suggestions…'
+                ? tr('Requesting suggestions…')
                 : error && !stale
-                  ? 'Retry suggestions'
+                  ? tr('Retry suggestions')
                   : visible
-                    ? 'Regenerate suggestions'
-                    : 'Suggest improvements'}
+                    ? tr('Regenerate suggestions')
+                    : tr('Suggest improvements')}
             </Button>
             {(!ready || stale) && (
               <Button
@@ -269,7 +289,7 @@ export function CvSuggestionsSection({
                 onClick={onGoToMatch}
                 sx={{ minHeight: 44 }}
               >
-                Go to CV Match
+                {tr('Go to CV Match')}
               </Button>
             )}
           </Stack>
@@ -282,13 +302,17 @@ export function CvSuggestionsSection({
         {loading && (
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
             <CircularProgress size={20} />
-            <Typography variant="body2">Selecting suggestions…</Typography>
+            <Typography variant="body2">
+              {tr('Selecting suggestions…')}
+            </Typography>
           </Stack>
         )}
         {error && <Alert severity={stale ? 'warning' : 'error'}>{error}</Alert>}
         {visible && (loading || error) && (
           <Typography variant="body2">
-            Previous successful suggestions for this match are shown below.
+            {tr(
+              'Previous successful suggestions for this match are shown below.',
+            )}
           </Typography>
         )}
         <Typography
@@ -309,12 +333,16 @@ export function CvSuggestionsSection({
           }
         >
           {loading
-            ? 'Requesting suggestions. Your match is retained.'
+            ? tr('Requesting suggestions. Your match is retained.')
             : copyStatus ||
               (visible
                 ? visible.suggestions.length
-                  ? `${visible.suggestions.length} suggestions ready for review.`
-                  : 'No additional evidence-backed suggestions found. Review the requirement evidence.'
+                  ? tr('{length} suggestions ready for review.', {
+                      length: visible.suggestions.length,
+                    })
+                  : tr(
+                      'No additional evidence-backed suggestions found. Review the requirement evidence.',
+                    )
                 : '')}
         </Typography>
         {visible?.suggestions.slice(0, showAll ? undefined : 4).map((card) => {
@@ -325,7 +353,10 @@ export function CvSuggestionsSection({
           return (
             <Box
               component="article"
-              aria-label={`Suggestion ${card.rank}: ${card.requirement}`}
+              aria-label={tr('Suggestion {rank}: {requirement}', {
+                rank: card.rank,
+                requirement: card.requirement,
+              })}
               key={card.id}
               sx={{
                 borderTop: 1,
@@ -354,7 +385,9 @@ export function CvSuggestionsSection({
                       {summary.title}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      {card.priority === 'required' ? 'Required' : 'Preferred'}{' '}
+                      {card.priority === 'required'
+                        ? tr('Required')
+                        : tr('Preferred')}{' '}
                       · {statusLabel(card.status)}
                     </Typography>
                   </Box>
@@ -379,10 +412,10 @@ export function CvSuggestionsSection({
                     }}
                   >
                     {card.wording !== null
-                      ? 'CV wording available'
+                      ? tr('CV wording available')
                       : card.status === 'NOT_EVIDENCED'
-                        ? 'Missing CV evidence'
-                        : 'Confirmation needed'}
+                        ? tr('Missing CV evidence')
+                        : tr('Confirmation needed')}
                   </Typography>
                 </Stack>
                 <Typography
@@ -391,13 +424,13 @@ export function CvSuggestionsSection({
                   sx={{ lineHeight: 1.5 }}
                 >
                   <Box component="span" sx={{ fontWeight: 600 }}>
-                    JD coverage:{' '}
+                    {tr('JD coverage:')}{' '}
                   </Box>
                   {summary.gap}
                 </Typography>
                 <Typography variant="body2">
                   <Box component="span" sx={{ fontWeight: 600 }}>
-                    Next step:{' '}
+                    {tr('Next step:')}{' '}
                   </Box>
                   {summary.action}
                 </Typography>
@@ -407,10 +440,10 @@ export function CvSuggestionsSection({
                       variant="body2"
                       sx={{ fontWeight: 600, mb: 0.5 }}
                     >
-                      Verified CV wording
+                      {tr('Verified CV wording')}
                     </Typography>
                     <Quote
-                      label="Supported original wording"
+                      label={tr('Supported original wording')}
                       quote={card.wording}
                     />
                   </Box>
@@ -426,7 +459,7 @@ export function CvSuggestionsSection({
                     onClick={() => onInspect(card.parentId)}
                     sx={{ minHeight: 44 }}
                   >
-                    Review evidence
+                    {tr('Review evidence')}
                   </Button>
                   {card.wording !== null && (
                     <Button
@@ -437,7 +470,7 @@ export function CvSuggestionsSection({
                       onClick={() => void copy(card.wording!)}
                       sx={{ minHeight: 44 }}
                     >
-                      Copy wording
+                      {tr('Copy wording')}
                     </Button>
                   )}
                 </Stack>
@@ -450,7 +483,11 @@ export function CvSuggestionsSection({
             onClick={() => setShowAll((value) => !value)}
             sx={{ alignSelf: 'flex-start', minHeight: { xs: 44, sm: 36 } }}
           >
-            {showAll ? 'Show less' : `Show all (${visible.suggestions.length})`}
+            {showAll
+              ? tr('Show less')
+              : tr('Show all ({length})', {
+                  length: visible.suggestions.length,
+                })}
           </Button>
         )}
       </Stack>
@@ -492,11 +529,13 @@ function suggestionSummary(card: SuggestionCard, row: MatchRow) {
       row.requirement,
     );
   const title = educationAlternative
-    ? `Education or ${experienceDescription}`
+    ? tr('Education or {experienceDescription}', {
+        experienceDescription: experienceDescription,
+      })
     : professionalInternship
-      ? 'Professional internship experience'
+      ? tr('Professional internship experience')
       : proficiency
-        ? 'Database proficiency'
+        ? tr('Database proficiency')
         : components
             .slice(0, 3)
             .map(({ label }) =>
@@ -510,47 +549,61 @@ function suggestionSummary(card: SuggestionCard, row: MatchRow) {
   let gap: string;
   let action: string;
   if (card.status === 'CONFLICT') {
-    gap = 'The CV contains contradictory evidence for this requirement.';
-    action = 'Resolve the conflicting statements before updating your CV.';
+    gap = tr('The CV contains contradictory evidence for this requirement.');
+    action = tr('Resolve the conflicting statements before updating your CV.');
   } else if (card.status === 'EVIDENCED') {
-    gap = 'Verified CV evidence supports this requirement.';
+    gap = tr('Verified CV evidence supports this requirement.');
     action =
       card.wording !== null
-        ? 'Make this verified passage easier to find in your CV.'
-        : 'Review the existing passage before deciding how to present it.';
+        ? tr('Make this verified passage easier to find in your CV.')
+        : tr('Review the existing passage before deciding how to present it.');
   } else if (proficiency) {
     const work = components.filter(({ observations }) =>
       observations?.some(({ kind }) => kind === 'experience'),
     );
     gap = work.length
-      ? `Work with ${labels(work)} is evidenced; proficiency remains unverified.`
-      : 'Database mentions are present; the requested proficiency is not yet evidenced.';
-    action =
-      'If accurate, describe your own database design, tuning or troubleshooting responsibilities.';
+      ? tr('Work with {v0} is evidenced; proficiency remains unverified.', {
+          v0: labels(work),
+        })
+      : tr(
+          'Database mentions are present; the requested proficiency is not yet evidenced.',
+        );
+    action = tr(
+      'If accurate, describe your own database design, tuning or troubleshooting responsibilities.',
+    );
   } else if (educationAlternative) {
-    gap = `Neither a qualifying degree nor ${experienceDescription} is established by the CV.`;
-    action =
-      'If accurate, state your degree, field and completion status, or describe relevant work with dates, responsibilities and scope.';
+    gap = tr(
+      'Neither a qualifying degree nor {experienceDescription} is established by the CV.',
+      { experienceDescription: experienceDescription },
+    );
+    action = tr(
+      'If accurate, state your degree, field and completion status, or describe relevant work with dates, responsibilities and scope.',
+    );
   } else if (professionalInternship) {
-    gap =
-      'The required professional internship experience is not established by the CV.';
-    action =
-      'If you completed a relevant internship, include its actual dates, responsibilities and contributions.';
+    gap = tr(
+      'The required professional internship experience is not established by the CV.',
+    );
+    action = tr(
+      'If you completed a relevant internship, include its actual dates, responsibilities and contributions.',
+    );
   } else if (row.coverage!.mode === 'UNKNOWN') {
-    gap = 'The CV does not establish how this requirement is met.';
-    action =
-      'Check the JD’s scope, then add only verifiable details about the relevant qualification or work.';
+    gap = tr('The CV does not establish how this requirement is met.');
+    action = tr(
+      'Check the JD’s scope, then add only verifiable details about the relevant qualification or work.',
+    );
   } else if (row.coverage!.mode === 'OR') {
-    gap = 'The CV does not establish a qualifying alternative.';
-    action =
-      'If applicable, document one qualifying alternative with its scope, dates and supporting facts.';
+    gap = tr('The CV does not establish a qualifying alternative.');
+    action = tr(
+      'If applicable, document one qualifying alternative with its scope, dates and supporting facts.',
+    );
   } else {
     gap =
       card.status === 'PARTIAL'
-        ? `The CV does not yet establish: ${labels(pending)}.`
-        : 'This qualification is not established by the CV.';
-    action =
-      'If accurate, add supporting facts and dates; for work examples, state your role and what you did.';
+        ? tr('The CV does not yet establish: {v0}.', { v0: labels(pending) })
+        : tr('This qualification is not established by the CV.');
+    action = tr(
+      'If accurate, add supporting facts and dates; for work examples, state your role and what you did.',
+    );
   }
   // Preserve specific server questions; replace only the known generic prompt.
   if (

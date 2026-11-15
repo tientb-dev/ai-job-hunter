@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import type { AnalysisResponse } from './analysis.types';
 import { decodeAnalysis } from './analysis-api';
 import type { JobsResponse } from './jobs.types';
@@ -44,7 +45,7 @@ export function decodeJobs(value: unknown): JobsResponse {
     !Array.isArray(value.jobs) ||
     value.jobs.length > 1000
   )
-    throw Error('Invalid job response');
+    throw Error(tr('Invalid job response'));
   for (const job of value.jobs)
     if (
       !record(job) ||
@@ -62,7 +63,7 @@ export function decodeJobs(value: unknown): JobsResponse {
       !job.tags.every(string) ||
       !string(job.description)
     )
-      throw Error('Invalid job');
+      throw Error(tr('Invalid job'));
   return value as unknown as JobsResponse;
 }
 export async function loadJobs(signal: AbortSignal): Promise<JobsResponse> {
@@ -72,7 +73,7 @@ export async function loadJobs(signal: AbortSignal): Promise<JobsResponse> {
     credentials: 'omit',
     redirect: 'error',
   });
-  if (!response.ok) throw Error('Source unavailable');
+  if (!response.ok) throw Error(tr('Source unavailable'));
   return decodeJobs(await response.json());
 }
 export async function parseJobsCv(

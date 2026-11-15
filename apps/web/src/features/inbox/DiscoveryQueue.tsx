@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import { RefreshIcon } from '../../components/icons';
 import { StatusChip } from '../../components/StatusChip';
 import { useEffect, useMemo, useState } from 'react';
@@ -82,7 +83,7 @@ export function DiscoveryQueue({
             error:
               reason instanceof Error
                 ? reason.message
-                : 'Could not load the queue. Retry.',
+                : tr('Could not load the queue. Retry.'),
           });
       });
     return () => {
@@ -121,7 +122,7 @@ export function DiscoveryQueue({
           sx={{ alignItems: 'center', flexWrap: 'wrap' }}
         >
           <Typography id="discovery-queue-title" component="h2" variant="h6">
-            Discovery queue
+            {tr('Discovery queue')}
           </Typography>
           <Typography
             variant="body2"
@@ -130,15 +131,15 @@ export function DiscoveryQueue({
             sx={{ minHeight: 20 }}
           >
             {loading
-              ? 'Loading queue…'
+              ? tr('Loading queue…')
               : visible
-                ? `${visible.total} candidates`
+                ? tr('{total} candidates', { total: visible.total })
                 : ''}
           </Typography>
         </Stack>
         <Box
           role="group"
-          aria-label="Queue filter"
+          aria-label={tr('Queue filter')}
           sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}
         >
           {queueFilters.map(([value, label]) => (
@@ -173,7 +174,7 @@ export function DiscoveryQueue({
                 },
               })}
             >
-              {label}
+              {tr(label)}
             </Button>
           ))}
         </Box>
@@ -186,7 +187,7 @@ export function DiscoveryQueue({
                 variant="outlined"
                 onClick={() => setRefresh((value) => value + 1)}
               >
-                Retry queue
+                {tr('Retry queue')}
               </Button>
             }
           >
@@ -196,7 +197,7 @@ export function DiscoveryQueue({
       </Stack>
       <Box
         role="region"
-        aria-label="Discovery candidate rows"
+        aria-label={tr('Discovery candidate rows')}
         tabIndex={bounded ? 0 : undefined}
         sx={{
           flex: bounded ? 1 : undefined,
@@ -297,11 +298,13 @@ export function DiscoveryQueue({
                         return next;
                       })
                     }
-                    aria-label={`Review ${candidate.title}`}
+                    aria-label={tr('Review {title}', {
+                      title: candidate.title,
+                    })}
                     aria-haspopup="dialog"
                     sx={{ minHeight: { xs: 44, sm: 36 } }}
                   >
-                    Review
+                    {tr('Review')}
                   </Button>
                   {candidate.opportunityId && (
                     <Button
@@ -309,7 +312,7 @@ export function DiscoveryQueue({
                       to={`/jobs/${candidate.opportunityId}`}
                       variant="outlined"
                     >
-                      Open in Jobs
+                      {tr('Open in Jobs')}
                     </Button>
                   )}
                 </Stack>
@@ -320,15 +323,19 @@ export function DiscoveryQueue({
         {!loading && !error && visible?.total === 0 && (
           <Typography sx={{ py: 2 }}>
             {filter === 'to-review'
-              ? 'No candidates to review. Run discovery or choose another filter.'
-              : 'No candidates in this filter. Choose another filter or run discovery.'}
+              ? tr(
+                  'No candidates to review. Run discovery or choose another filter.',
+                )
+              : tr(
+                  'No candidates in this filter. Choose another filter or run discovery.',
+                )}
           </Typography>
         )}
       </Box>
       <TablePagination
         data-queue-chrome
         component="div"
-        aria-label="Discovery queue pagination"
+        aria-label={tr('Discovery queue pagination')}
         count={data?.value.total ?? 0}
         page={(visible?.page ?? data?.value.page ?? 1) - 1}
         rowsPerPage={10}

@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import {
   Box,
   Chip,
@@ -39,29 +40,33 @@ export function RequirementCard({
           <Chip label={item.evaluability} size="small" />
           <Chip
             label={
-              item.includedInScore ? 'Included in score' : 'Excluded from score'
+              item.includedInScore
+                ? tr('Included in score')
+                : tr('Excluded from score')
             }
             size="small"
           />
         </Stack>
-        <Typography>Priority: {item.priority}</Typography>
+        <Typography>
+          {tr('Priority:')} {item.priority}
+        </Typography>
         {item.status === 'MISSING_EVIDENCE' && (
           <Typography>
             {item.evaluability === 'EVALUABLE'
-              ? 'No usable supporting evidence found.'
-              : 'This requirement could not be evaluated.'}{' '}
-            This does not establish that the candidate lacks the skill.
+              ? tr('No usable supporting evidence found.')
+              : tr('This requirement could not be evaluated.')}{' '}
+            {tr('This does not establish that the candidate lacks the skill.')}
           </Typography>
         )}
         <Typography sx={plainText}>{item.explanation.text}</Typography>
         {item.uncertainty.length > 0 && (
           <Typography sx={plainText}>
-            Uncertainty: {item.uncertainty.join(', ')}
+            {tr('Uncertainty:')} {item.uncertainty.join(', ')}
           </Typography>
         )}
         <Box>
           <Typography id={feedbackLabelId} variant="body2" sx={{ mb: 1 }}>
-            Feedback for requirement {position}
+            {tr('Feedback for requirement')} {position}
           </Typography>
           <ToggleButtonGroup
             aria-labelledby={feedbackLabelId}
@@ -72,24 +77,26 @@ export function RequirementCard({
               onFeedbackChange(value);
             }}
           >
-            <ToggleButton value="CORRECT">Correct</ToggleButton>
-            <ToggleButton value="INCORRECT">Incorrect</ToggleButton>
-            <ToggleButton value="UNSURE">Unsure</ToggleButton>
+            <ToggleButton value="CORRECT">{tr('Correct')}</ToggleButton>
+            <ToggleButton value="INCORRECT">{tr('Incorrect')}</ToggleButton>
+            <ToggleButton value="UNSURE">{tr('Unsure')}</ToggleButton>
           </ToggleButtonGroup>
         </Box>
         <Box component="details">
           <Box component="summary" sx={{ cursor: 'pointer' }}>
-            Evidence ({item.evidence.length}) and matching details
+            {tr('Evidence (')}
+            {item.evidence.length}
+            {tr(') and matching details')}
           </Box>
           {item.evidence.length === 0 && (
             <Typography>
-              No evidence links returned for this requirement.
+              {tr('No evidence links returned for this requirement.')}
             </Typography>
           )}
           {item.evidence.map((link, index) => (
             <Box key={index} sx={{ my: 2 }}>
               <Typography>
-                {link.document.toUpperCase()} evidence — {link.role}
+                {link.document.toUpperCase()} {tr('evidence —')} {link.role}
               </Typography>
               <Box
                 component="blockquote"
@@ -104,30 +111,32 @@ export function RequirementCard({
                 {link.reference.quote}
               </Box>
               <Typography variant="caption" sx={plainText}>
-                Segment: {link.reference.segmentId}; UTF-16 offsets:{' '}
-                {link.reference.start}–{link.reference.end}; field:{' '}
-                {link.factPath}
+                {tr('Segment:')} {link.reference.segmentId}
+                {tr('; UTF-16 offsets:')} {link.reference.start}–
+                {link.reference.end}
+                {tr('; field:')} {link.factPath}
               </Typography>
             </Box>
           ))}
           <Typography sx={plainText}>
-            Requirement ID: {item.id || 'Not supplied'}; JD indexes:{' '}
-            {item.jdRequirementIndexes.join(', ')}; category:{' '}
-            {item.category ?? 'Unclassified'}; canonical term:{' '}
-            {item.canonicalTerm ?? 'Not available'}
+            {tr('Requirement ID:')} {item.id || tr('Not supplied')}
+            {tr('; JD indexes:')} {item.jdRequirementIndexes.join(', ')}
+            {tr('; category:')} {item.category ?? tr('Unclassified')}
+            {tr('; canonical term:')}{' '}
+            {item.canonicalTerm ?? tr('Not available')}
           </Typography>
           <Typography>
-            Predicate: {item.predicate}; minimum months:{' '}
-            {item.minimumMonths ?? 'Not stated'}; observed months:{' '}
-            {item.observedMonths ?? 'Unknown'}
+            {tr('Predicate:')} {item.predicate}
+            {tr('; minimum months:')} {item.minimumMonths ?? tr('Not stated')}
+            {tr('; observed months:')} {item.observedMonths ?? tr('Unknown')}
           </Typography>
           <Typography>
-            Importance weight: {item.importanceWeight}; credit:{' '}
-            {item.credit ?? 'Not calculable'}
+            {tr('Importance weight:')} {item.importanceWeight}
+            {tr('; credit:')} {item.credit ?? tr('Not calculable')}
           </Typography>
           <Typography sx={plainText}>
-            Rules: {item.ruleIds.join(', ') || 'None'}; explanation code:{' '}
-            {item.explanation.code}
+            {tr('Rules:')} {item.ruleIds.join(', ') || tr('None')}
+            {tr('; explanation code:')} {item.explanation.code}
           </Typography>
           {Object.entries(item.explanation.params).map(([key, value]) => (
             <Typography key={key} sx={plainText}>

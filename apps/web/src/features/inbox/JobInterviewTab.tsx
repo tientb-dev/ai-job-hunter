@@ -1,3 +1,4 @@
+import { dateLocale, tr } from '../../app/i18n';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   AutoAwesomeIcon,
@@ -49,7 +50,7 @@ const REFRESH_CODES = new Set([
 ]);
 
 const when = (iso: string) =>
-  new Date(iso).toLocaleString(undefined, {
+  new Date(iso).toLocaleString(dateLocale(), {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
@@ -63,7 +64,9 @@ function prepared(
   return set.questions.filter((q) => answers[q.id]).length;
 }
 function preparedText(n: number | null, total: number) {
-  return n === null ? `${total} questions` : `${n} of ${total} prepared`;
+  return n === null
+    ? tr('{total} questions', { total: total })
+    : tr('{n} of {total} prepared', { n: n, total: total });
 }
 
 function QuestionCard({
@@ -89,7 +92,8 @@ function QuestionCard({
           sx={{ alignItems: 'center', flexWrap: 'wrap' }}
         >
           <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
-            Question {question.position} · {CATEGORY_LABELS[question.category]}
+            {tr('Question')} {question.position} ·{' '}
+            {CATEGORY_LABELS[question.category]}
           </Typography>
           <StatusChip status={status} />
         </Stack>
@@ -102,7 +106,7 @@ function QuestionCard({
         </Typography>
         <Box>
           <Typography variant="subtitle2" component="p">
-            Why this question?
+            {tr('Why this question?')}
           </Typography>
           <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
             {question.why}
@@ -117,7 +121,7 @@ function QuestionCard({
             color="text.secondary"
             component="figcaption"
           >
-            From the job description
+            {tr('From the job description')}
           </Typography>
           <Typography
             variant="body2"
@@ -132,10 +136,12 @@ function QuestionCard({
             component={Link}
             to={href}
             variant="text"
-            aria-label={`Practise this question, question ${question.position}`}
+            aria-label={tr('Practise this question, question {position}', {
+              position: question.position,
+            })}
             sx={{ width: { xs: '100%', sm: 'auto' } }}
           >
-            Practise this question
+            {tr('Practise this question')}
           </Button>
         </Box>
       </Stack>
@@ -180,7 +186,10 @@ function QuestionList({
 
 const partialNote = (set: JobQuestionSet) =>
   set.partial
-    ? `Fewer questions than usual (${set.questions.length}). The job description may not have enough technical detail for more.`
+    ? tr(
+        'Fewer questions than usual ({length}). The job description may not have enough technical detail for more.',
+        { length: set.questions.length },
+      )
     : null;
 
 /**
@@ -252,7 +261,9 @@ export function JobInterviewTab({
       const set = await generateJobQuestionSet(jobId, data.sets[0]?.id ?? null);
       notify({
         severity: 'success',
-        text: `Generated ${set.questions.length} interview questions.`,
+        text: tr('Generated {length} interview questions.', {
+          length: set.questions.length,
+        }),
       });
       reload();
     } catch (error) {
@@ -260,11 +271,11 @@ export function JobInterviewTab({
       const text =
         error instanceof PracticeError
           ? error.message
-          : 'Questions could not be generated. Try again.';
+          : tr('Questions could not be generated. Try again.');
       if (REFRESH_CODES.has(code)) {
         setMessage({
           severity: 'info',
-          text: `${text} The list was refreshed.`,
+          text: tr('{text} The list was refreshed.', { text: text }),
         });
         reload();
       } else setMessage({ severity: 'error', text });
@@ -279,12 +290,12 @@ export function JobInterviewTab({
       <Stack spacing={3} sx={{ maxWidth: 840, minWidth: 0 }}>
         <Box>
           <Typography variant="h6" component="h2">
-            Interview questions
+            {tr('Interview questions')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Technical questions based on this job description. They ask about
-            the role&apos;s requirements and never assume you have used a
-            technology.
+            {tr(
+              "Technical questions based on this job description. They ask about the role's requirements and never assume you have used a technology.",
+            )}
           </Typography>
         </Box>
         {children}
@@ -303,17 +314,17 @@ export function JobInterviewTab({
               color="inherit"
               onClick={reload}
             >
-              Retry
+              {tr('Retry')}
             </Button>
           }
         >
-          Interview questions could not be loaded.
+          {tr('Interview questions could not be loaded.')}
         </Alert>
       ) : (
         <Stack spacing={1} role="status">
-          <LinearProgress aria-label="Loading interview questions" />
+          <LinearProgress aria-label={tr('Loading interview questions')} />
           <Typography variant="body2" color="text.secondary">
-            Loading interview questions…
+            {tr('Loading interview questions…')}
           </Typography>
         </Stack>
       ),
@@ -331,7 +342,7 @@ export function JobInterviewTab({
       to={`/jobs/${jobId}/edit`}
       color="inherit"
     >
-      Edit JD
+      {tr('Edit JD')}
     </Button>
   );
 
@@ -346,22 +357,24 @@ export function JobInterviewTab({
               color="inherit"
               onClick={reload}
             >
-              Retry
+              {tr('Retry')}
             </Button>
           }
         >
-          The latest questions could not be loaded. Showing the last loaded
-          list.
+          {tr(
+            'The latest questions could not be loaded. Showing the last loaded list.',
+          )}
         </Alert>
       )}
       {jobDirty ? (
         <Alert severity="info">
-          Save job changes in Edit JD before generating questions.
+          {tr('Save job changes in Edit JD before generating questions.')}
         </Alert>
       ) : data.jdEmpty ? (
         <Alert severity="info" action={editJd}>
-          This job doesn&apos;t have enough job description to generate
-          questions from. Add the requirements or responsibilities in Edit JD.
+          {tr(
+            "This job doesn't have enough job description to generate questions from. Add the requirements or responsibilities in Edit JD.",
+          )}
         </Alert>
       ) : (
         active &&
@@ -375,26 +388,30 @@ export function JobInterviewTab({
                 disabled={generating}
                 onClick={() => setConfirmOpen(true)}
               >
-                Generate new set
+                {tr('Generate new set')}
               </Button>
             }
           >
-            The job description changed after these questions were generated.
+            {tr(
+              'The job description changed after these questions were generated.',
+            )}
           </Alert>
         )
       )}
       {answersStatus === 'error' && (
         <Alert severity="warning">
-          Saved answers couldn&apos;t be loaded, so preparation status is
-          unknown.
+          {tr(
+            "Saved answers couldn't be loaded, so preparation status is unknown.",
+          )}
         </Alert>
       )}
 
       {!active ? (
         <Stack spacing={2} sx={{ alignItems: 'flex-start' }}>
           <Typography variant="body2" color="text.secondary">
-            Generate 5–8 technical questions grounded in this job description.
-            The AI usually takes under 30 seconds.
+            {tr(
+              'Generate 5–8 technical questions grounded in this job description. The AI usually takes under 30 seconds.',
+            )}
           </Typography>
           <Button
             startIcon={<AutoAwesomeIcon />}
@@ -403,7 +420,7 @@ export function JobInterviewTab({
             disabled={blocked || generating}
             sx={{ width: { xs: '100%', sm: 'auto' } }}
           >
-            Generate interview questions
+            {tr('Generate interview questions')}
           </Button>
         </Stack>
       ) : (
@@ -418,7 +435,7 @@ export function JobInterviewTab({
               component="h3"
               sx={{ fontWeight: 600 }}
             >
-              Current set
+              {tr('Current set')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {when(active.createdAt)} ·{' '}
@@ -430,8 +447,9 @@ export function JobInterviewTab({
               variant="caption"
               color="text.secondary"
             >
-              New question sets may revisit the same job requirements from
-              different angles.
+              {tr(
+                'New question sets may revisit the same job requirements from different angles.',
+              )}
             </Typography>
           </Box>
           <Stack
@@ -448,7 +466,7 @@ export function JobInterviewTab({
               variant="outlined"
               sx={{ width: { xs: '100%', sm: 'auto' } }}
             >
-              Mock interview
+              {tr('Mock interview')}
             </Button>
             <Button
               startIcon={<AutoAwesomeIcon />}
@@ -458,7 +476,7 @@ export function JobInterviewTab({
               aria-describedby="regenerate-note"
               sx={{ width: { xs: '100%', sm: 'auto' } }}
             >
-              Generate new set
+              {tr('Generate new set')}
             </Button>
           </Stack>
         </Stack>
@@ -466,9 +484,9 @@ export function JobInterviewTab({
 
       {generating && (
         <Stack spacing={1} role="status">
-          <LinearProgress aria-label="Generating interview questions" />
+          <LinearProgress aria-label={tr('Generating interview questions')} />
           <Typography variant="body2" color="text.secondary">
-            Generating questions from this job description with the AI…
+            {tr('Generating questions from this job description with the AI…')}
           </Typography>
         </Stack>
       )}
@@ -490,7 +508,7 @@ export function JobInterviewTab({
             set={active}
             answers={answers}
             status={answersStatus}
-            label="Current interview questions"
+            label={tr('Current interview questions')}
           />
         </>
       )}
@@ -507,13 +525,14 @@ export function JobInterviewTab({
               component="h3"
               sx={{ fontWeight: 600 }}
             >
-              Previous question sets ({previous.length})
+              {tr('Previous question sets (')}
+              {previous.length})
             </Typography>
           </AccordionSummary>
           <AccordionDetails id="previous-sets">
             <Stack spacing={1.5}>
               <Typography variant="body2" color="text.secondary">
-                Earlier sets and their saved answers stay available.
+                {tr('Earlier sets and their saved answers stay available.')}
               </Typography>
               {previous.map((set) => (
                 <Accordion key={set.id} disableGutters variant="outlined">
@@ -545,7 +564,9 @@ export function JobInterviewTab({
                         set={set}
                         answers={answers}
                         status={answersStatus}
-                        label={`Questions from ${when(set.createdAt)}`}
+                        label={tr('Questions from {v0}', {
+                          v0: when(set.createdAt),
+                        })}
                       />
                     </Stack>
                   </AccordionDetails>
@@ -566,13 +587,13 @@ export function JobInterviewTab({
       >
         <DialogCloseButton onClick={() => setConfirmOpen(false)} />
         <DialogTitle id="regenerate-title" sx={{ pr: 7 }}>
-          Generate a new question set?
+          {tr('Generate a new question set?')}
         </DialogTitle>
         <DialogContent>
           <DialogContentText id="regenerate-description">
-            The new set becomes the current one. Your current questions and
-            saved answers stay available under Previous question sets — nothing
-            is deleted.
+            {tr(
+              'The new set becomes the current one. Your current questions and saved answers stay available under Previous question sets — nothing is deleted.',
+            )}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -581,7 +602,7 @@ export function JobInterviewTab({
             startIcon={<AutoAwesomeIcon />}
             onClick={() => void generate()}
           >
-            Generate new set
+            {tr('Generate new set')}
           </Button>
         </DialogActions>
       </Dialog>

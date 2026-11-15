@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import { PracticeError } from './interview-prep-api';
 
 export type JobQuestionCategory =
@@ -27,10 +28,16 @@ export interface JobQuestionSets {
 }
 
 export const CATEGORY_LABELS: Record<JobQuestionCategory, string> = {
-  skill: 'Technical skill',
-  architecture: 'Architecture and design',
+  get skill() {
+    return tr('Technical skill');
+  },
+  get architecture() {
+    return tr('Architecture and design');
+  },
   troubleshooting: 'Troubleshooting',
-  experience: 'Technical experience',
+  get experience() {
+    return tr('Technical experience');
+  },
 };
 
 const record = (v: unknown): v is Record<string, unknown> =>
@@ -39,7 +46,7 @@ const str = (v: unknown): v is string => typeof v === 'string';
 const invalid = () =>
   new PracticeError(
     'INVALID_RESPONSE',
-    'The app received an unexpected response. Try again.',
+    tr('The app received an unexpected response. Try again.'),
   );
 const question = (q: unknown): q is JobQuestion =>
   record(q) &&
@@ -104,7 +111,7 @@ async function post(url: string, body: unknown, signal?: AbortSignal) {
     if (signal?.aborted) throw error;
     throw new PracticeError(
       'NETWORK',
-      'The app could not reach the API. Try again.',
+      tr('The app could not reach the API. Try again.'),
     );
   }
   const payload: unknown = await response.json().catch(() => null);
@@ -113,7 +120,7 @@ async function post(url: string, body: unknown, signal?: AbortSignal) {
     throw new PracticeError(payload.errorCode, payload.message);
   throw new PracticeError(
     'UNAVAILABLE',
-    'Interview questions are unavailable right now. Try again.',
+    tr('Interview questions are unavailable right now. Try again.'),
   );
 }
 const base = (jobId: string) =>

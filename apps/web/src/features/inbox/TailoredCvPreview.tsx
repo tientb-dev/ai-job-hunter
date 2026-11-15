@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import type { Theme } from '@mui/material/styles';
 import { alpha } from '@mui/material/styles';
 import { createContext, useContext, type KeyboardEvent } from 'react';
@@ -293,7 +294,7 @@ export function CvSectionView({
   if (!entries.length)
     return section.kind === 'links' && promotedLinks(document).length ? (
       <Typography variant="body2" color="text.secondary">
-        Profile links are shown in the contact header.
+        {tr('Profile links are shown in the contact header.')}
       </Typography>
     ) : null;
   return (

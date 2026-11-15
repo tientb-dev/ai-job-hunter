@@ -1,3 +1,4 @@
+import { dateLocale, tr } from '../../app/i18n';
 import {
   ArrowForwardIcon,
   CheckIcon,
@@ -137,7 +138,7 @@ export function SourceCvReview({
         setError(
           failure instanceof Error
             ? failure.message
-            : 'Source review failed. Your inputs are retained.',
+            : tr('Source review failed. Your inputs are retained.'),
         );
     } finally {
       if (request === epoch.current) {
@@ -168,7 +169,7 @@ export function SourceCvReview({
       typeof captured.id !== 'string' ||
       !/^[0-9a-f-]{36}$/iu.test(captured.id)
     )
-      throw new Error('Invalid captured source identity. Retry.');
+      throw new Error(tr('Invalid captured source identity. Retry.'));
     const pinned = decodeCvSource(
       await sourceCvRequest(`/sources/${captured.id}/content`),
     );
@@ -219,8 +220,10 @@ export function SourceCvReview({
       accept(next, offer.source);
       setMessage(
         reuseId
-          ? 'Your earlier review was carried over. Checked details stay checked.'
-          : 'A fresh review was started. Your earlier review is unchanged.',
+          ? tr(
+              'Your earlier review was carried over. Checked details stay checked.',
+            )
+          : tr('A fresh review was started. Your earlier review is unchanged.'),
       );
     });
   }
@@ -378,7 +381,10 @@ export function SourceCvReview({
             if (items.length)
               return items.map((fact) => ({
                 key: fact.id,
-                label: `Check ${fieldTitle(fact.field)} in ${sectionTitles[section.kind]}`,
+                label: tr('Check {v0} in {v1}', {
+                  v0: fieldTitle(fact.field),
+                  v1: sectionTitles[section.kind],
+                }),
                 go: () => {
                   setEditing(section.id);
                   setFocusField({ id: fact.id });
@@ -389,7 +395,9 @@ export function SourceCvReview({
               : [
                   {
                     key: `section-${section.id}`,
-                    label: `Mark ${sectionTitles[section.kind]} as checked`,
+                    label: tr('Mark {v0} as checked', {
+                      v0: sectionTitles[section.kind],
+                    }),
                     go: () => focusById(`source-section-${section.id}`),
                   },
                 ];
@@ -398,7 +406,13 @@ export function SourceCvReview({
             ? [
                 {
                   key: 'unassigned',
-                  label: `Assign or exclude ${unresolved.length} unassigned passage${unresolved.length === 1 ? '' : 's'}`,
+                  label: tr(
+                    'Assign or exclude {length} unassigned passage{v1}',
+                    {
+                      length: unresolved.length,
+                      v1: unresolved.length === 1 ? '' : 's',
+                    },
+                  ),
                   go: () => {
                     setIssuesOpen(true);
                     focusById('unassigned-source-content');
@@ -407,13 +421,18 @@ export function SourceCvReview({
               ]
             : []),
           ...(blank
-            ? [{ key: 'blank', label: 'Fill in or remove empty details' }]
+            ? [
+                {
+                  key: 'blank',
+                  label: tr('Fill in or remove empty details'),
+                },
+              ]
             : []),
           ...(newValue || reason
             ? [
                 {
                   key: 'adding',
-                  label: 'Finish or clear the content you are adding',
+                  label: tr('Finish or clear the content you are adding'),
                 },
               ]
             : []),
@@ -458,36 +477,45 @@ export function SourceCvReview({
         variant="h6"
         component="h2"
       >
-        Source CV review
+        {tr('Source CV review')}
       </Typography>
       <Typography>
         {legacy
-          ? 'Organize your saved CV first. Then check highlighted details and mark each section as checked.'
+          ? tr(
+              'Organize your saved CV first. Then check highlighted details and mark each section as checked.',
+            )
           : !myCv
-            ? 'Check that your CV is organized correctly and mark each section as checked. Save draft keeps unfinished work; Complete review saves and continues to your tailored CV.'
-            : 'Check and correct your CV details before using them to tailor applications. Your review is shared across jobs.'}
+            ? tr(
+                'Check that your CV is organized correctly and mark each section as checked. Save draft keeps unfinished work; Complete review saves and continues to your tailored CV.',
+              )
+            : tr(
+                'Check and correct your CV details before using them to tailor applications. Your review is shared across jobs.',
+              )}
       </Typography>
       {/* My CV keeps this safeguard inside the opened review; the job flow always shows it. */}
       {(!myCv || profile) && (
         <Typography variant="body2" color="text.secondary">
-          Confirmation records your review, not independent verification.
-          Original text and evidence are kept when you make corrections.
+          {tr(
+            'Confirmation records your review, not independent verification. Original text and evidence are kept when you make corrections.',
+          )}
         </Typography>
       )}
       {!profile && reuseOffer && (
-        <Alert severity="info" aria-label="Earlier review found">
+        <Alert severity="info" aria-label={tr('Earlier review found')}>
           <Stack spacing={1.5}>
             <Typography sx={{ fontWeight: 600 }}>
-              You already reviewed this exact CV
+              {tr('You already reviewed this exact CV')}
             </Typography>
             <Typography variant="body2">
-              Saved{' '}
+              {tr('Saved')}{' '}
               {reuseOffer.savedAt
-                ? new Date(reuseOffer.savedAt).toLocaleString()
+                ? new Date(reuseOffer.savedAt).toLocaleString(dateLocale())
                 : 'earlier'}{' '}
-              · {reuseOffer.checkedSections} of {reuseOffer.totalSections}{' '}
-              sections checked. The text is identical, so your checks and
-              corrections can carry over.
+              · {reuseOffer.checkedSections} {tr('of')}{' '}
+              {reuseOffer.totalSections}{' '}
+              {tr(
+                'sections checked. The text is identical, so your checks and corrections can carry over.',
+              )}
             </Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
               <Button
@@ -496,14 +524,14 @@ export function SourceCvReview({
                 disabled={blocked}
                 onClick={() => startReview(reuseOffer.profileRevisionId)}
               >
-                Continue earlier review
+                {tr('Continue earlier review')}
               </Button>
               <Button
                 variant="outlined"
                 disabled={blocked}
                 onClick={() => startReview(null)}
               >
-                Start a fresh review
+                {tr('Start a fresh review')}
               </Button>
             </Stack>
           </Stack>
@@ -526,7 +554,7 @@ export function SourceCvReview({
           disabled={blocked || !cv}
           onClick={() => void run(openReview)}
         >
-          Open review
+          {tr('Open review')}
         </Button>
       )}
       {!profile && !reuseOffer && !entryState && (
@@ -537,29 +565,36 @@ export function SourceCvReview({
           disabled={blocked || !cv}
           onClick={() => void run(openReview)}
         >
-          {myCv && !wizardEntry ? 'View / Edit review' : 'Review source CV'}
+          {myCv && !wizardEntry
+            ? tr('View / Edit review')
+            : tr('Review source CV')}
         </Button>
       )}
       {!cv && (
-        <Typography>Save a source CV to begin reviewing its facts.</Typography>
+        <Typography>
+          {tr('Save a source CV to begin reviewing its facts.')}
+        </Typography>
       )}
       {disabled && (
         <Typography role="status">
-          Save or discard your job changes to enable CV review actions.
+          {tr('Save or discard your job changes to enable CV review actions.')}
         </Typography>
       )}
       {busy && (
         <Typography role="status">
           {legacy
-            ? 'Organizing your CV in small steps. Your previous work is safe…'
-            : 'Preparing source review…'}
+            ? tr(
+                'Organizing your CV in small steps. Your previous work is safe…',
+              )
+            : tr('Preparing source review…')}
         </Typography>
       )}
       {error && <Alert severity="error">{error}</Alert>}
       {profile && source && document && (
         <>
           <Typography variant="body2">
-            Source: {source.fileName} · Profile revision {profile.revision}
+            {tr('Source:')} {source.fileName} {tr('· Profile revision')}{' '}
+            {profile.revision}
           </Typography>
           {!legacy && (
             <>
@@ -570,26 +605,30 @@ export function SourceCvReview({
                     ? (100 * reviewed) / document.sections.length
                     : 0
                 }
-                aria-label="Source review progress"
+                aria-label={tr('Source review progress')}
               />
               <Typography role="status">
-                {reviewed} of {document.sections.length} sections reviewed ·{' '}
-                {attention} details need attention · {unresolved.length}{' '}
-                unassigned passages{dirty ? ' · Unsaved review changes' : ''}
+                {reviewed} {tr('of')} {document.sections.length}{' '}
+                {tr('sections reviewed ·')} {attention}{' '}
+                {tr('details need attention ·')} {unresolved.length}{' '}
+                {tr('unassigned passages')}
+                {dirty ? tr(' · Unsaved review changes') : ''}
               </Typography>
             </>
           )}
           {cv?.updatedAt !== source.savedCvUpdatedAt && (
             <Alert severity="warning">
-              The current CV changed. This review still uses its captured
-              source. Save or discard edits before reopening the current CV.
+              {tr(
+                'The current CV changed. This review still uses its captured source. Save or discard edits before reopening the current CV.',
+              )}
             </Alert>
           )}
           {!legacy && contactFragments.length > 0 && (
             <Alert severity="warning" variant="outlined">
               <Typography>
-                Some contact text needs review. Recognized details are kept
-                separate from unreadable symbols and unassigned text.
+                {tr(
+                  'Some contact text needs review. Recognized details are kept separate from unreadable symbols and unassigned text.',
+                )}
               </Typography>
               {contactFragments.map((row) => (
                 <Typography
@@ -602,8 +641,9 @@ export function SourceCvReview({
               ))}
               {!!separatorFragments.length && (
                 <Typography variant="body2">
-                  Icon-only fragments, including email icons, can be excluded
-                  separately from their contact values.
+                  {tr(
+                    'Icon-only fragments, including email icons, can be excluded separately from their contact values.',
+                  )}
                 </Typography>
               )}
               {!!separatorFragments.length && (
@@ -625,7 +665,7 @@ export function SourceCvReview({
                     })
                   }
                 >
-                  Exclude reviewed separator symbols
+                  {tr('Exclude reviewed separator symbols')}
                 </Button>
               )}
               <Button
@@ -639,17 +679,15 @@ export function SourceCvReview({
                   );
                 }}
               >
-                Review unassigned contact text
+                {tr('Review unassigned contact text')}
               </Button>
             </Alert>
           )}
           {legacy && (
             <Alert severity="info">
-              Choose Organize my CV to group your work history and contact
-              details. This creates a new review to check and confirm. Your
-              previous reviews, corrections and tailored CVs are preserved.
-              Editing and confirmation become available after organizing
-              succeeds.
+              {tr(
+                'Choose Organize my CV to group your work history and contact details. This creates a new review to check and confirm. Your previous reviews, corrections and tailored CVs are preserved. Editing and confirmation become available after organizing succeeds.',
+              )}
             </Alert>
           )}
           {!document.sections.length ? (
@@ -671,13 +709,15 @@ export function SourceCvReview({
                   if (token === epoch.current) {
                     accept(value, source);
                     setMessage(
-                      'Your organized CV is ready to review. Start with highlighted details, then confirm each section.',
+                      tr(
+                        'Your organized CV is ready to review. Start with highlighted details, then confirm each section.',
+                      ),
                     );
                   }
                 })
               }
             >
-              Organize my CV
+              {tr('Organize my CV')}
             </Button>
           ) : (
             <Box>
@@ -688,7 +728,7 @@ export function SourceCvReview({
                 }
                 onClick={() => setRebuildOpen(true)}
               >
-                {legacy ? 'Organize my CV' : 'Reorganize from source'}
+                {legacy ? tr('Organize my CV') : tr('Reorganize from source')}
               </Button>
             </Box>
           )}
@@ -698,7 +738,7 @@ export function SourceCvReview({
               disabled={blocked}
               onClick={() => void run(openReview)}
             >
-              Reload saved review
+              {tr('Reload saved review')}
             </Button>
           )}
           <Dialog
@@ -711,14 +751,13 @@ export function SourceCvReview({
               onClick={() => setRebuildOpen(false)}
             />
             <DialogTitle id="rebuild-source-title" sx={{ pr: 7 }}>
-              Organize your CV?
+              {tr('Organize your CV?')}
             </DialogTitle>
             <DialogContent>
               <Typography>
-                Your saved CV text will be organized into a new review. Previous
-                reviews, corrections and tailored CVs remain unchanged. Check
-                highlighted details and confirm the new sections before
-                continuing.
+                {tr(
+                  'Your saved CV text will be organized into a new review. Previous reviews, corrections and tailored CVs remain unchanged. Check highlighted details and confirm the new sections before continuing.',
+                )}
               </Typography>
             </DialogContent>
             <DialogActions>
@@ -727,7 +766,7 @@ export function SourceCvReview({
                 disabled={busy}
                 onClick={() => setRebuildOpen(false)}
               >
-                Cancel
+                {tr('Cancel')}
               </Button>
               <Button
                 variant="contained"
@@ -746,20 +785,22 @@ export function SourceCvReview({
                     if (token === epoch.current) {
                       accept(value, source);
                       setMessage(
-                        'Your CV is organized. Review highlighted details, confirm each section, then save. Earlier reviews and corrections are preserved.',
+                        tr(
+                          'Your CV is organized. Review highlighted details, confirm each section, then save. Earlier reviews and corrections are preserved.',
+                        ),
                       );
                     }
                   });
                 }}
               >
-                Organize as new review
+                {tr('Organize as new review')}
               </Button>
             </DialogActions>
           </Dialog>
           {legacy && (
             <Box component="details">
               <Typography component="summary">
-                View previous saved review
+                {tr('View previous saved review')}
               </Typography>
               {document.sections.map((section) => (
                 <Box key={section.id} sx={{ my: 2 }}>
@@ -799,7 +840,9 @@ export function SourceCvReview({
                     component="section"
                     id={`source-section-${section.id}`}
                     tabIndex={-1}
-                    aria-label={`${sectionTitles[section.kind]} section`}
+                    aria-label={tr('{v0} section', {
+                      v0: sectionTitles[section.kind],
+                    })}
                     key={section.id}
                     variant="outlined"
                     sx={{ p: { xs: 2, sm: 3 }, minWidth: 0 }}
@@ -825,10 +868,12 @@ export function SourceCvReview({
                           size="small"
                           label={
                             section.review === 'confirmed'
-                              ? 'Reviewed'
+                              ? tr('Reviewed')
                               : issues.length
-                                ? `${issues.length} details to check`
-                                : 'Ready to review'
+                                ? tr('{length} details to check', {
+                                    length: issues.length,
+                                  })
+                                : tr('Ready to review')
                           }
                         />
                       </Stack>
@@ -862,11 +907,12 @@ export function SourceCvReview({
                                         (f) => f.replacesFactId === shared.id,
                                       ) ?? shared,
                                   ).trim()} (shared)`
-                                : 'Check employer attribution'))
+                                : tr('Check employer attribution')))
                             : section.kind === 'projects'
                               ? (value('project') ?? 'Project')
                               : section.kind === 'education'
-                                ? (value('institution') ?? 'Education record')
+                                ? (value('institution') ??
+                                  tr('Education record'))
                                 : section.kind === 'skills'
                                   ? (value('skill_category')?.replace(
                                       /:\s*$/u,
@@ -883,7 +929,10 @@ export function SourceCvReview({
                             component="article"
                             aria-label={
                               title ??
-                              `${sectionTitles[section.kind]} details ${index + 1}`
+                              tr('{v0} details {v1}', {
+                                v0: sectionTitles[section.kind],
+                                v1: index + 1,
+                              })
                             }
                             sx={{
                               borderTop: index ? '1px solid' : 'none',
@@ -918,10 +967,11 @@ export function SourceCvReview({
                                       variant="outlined"
                                     >
                                       <Typography variant="body2">
-                                        This line also contains dates (
-                                        {split.dates}). You can keep it as is or
-                                        split it. Your original text is kept
-                                        either way.
+                                        {tr('This line also contains dates (')}
+                                        {split.dates}
+                                        {tr(
+                                          '). You can keep it as is or split it. Your original text is kept either way.',
+                                        )}
                                       </Typography>
                                       <Button
                                         size="small"
@@ -952,7 +1002,7 @@ export function SourceCvReview({
                                           );
                                         }}
                                       >
-                                        Split into institution and dates
+                                        {tr('Split into institution and dates')}
                                       </Button>
                                     </Alert>
                                   );
@@ -963,7 +1013,7 @@ export function SourceCvReview({
                                   needs(original) || needs(shown),
                               ) && (
                                 <Alert severity="warning" variant="outlined">
-                                  Check{' '}
+                                  {tr('Check')}{' '}
                                   {fields
                                     .filter(
                                       ({ original, shown }) =>
@@ -971,7 +1021,7 @@ export function SourceCvReview({
                                     )
                                     .map(({ shown }) => fieldTitle(shown.field))
                                     .join(', ')}{' '}
-                                  before confirming this section.
+                                  {tr('before confirming this section.')}
                                 </Alert>
                               )}
                             {editing === section.id && !legacy
@@ -995,9 +1045,13 @@ export function SourceCvReview({
                                       }
                                       helperText={
                                         needs(original)
-                                          ? 'Check this detail and its attribution against the source, then confirm it.'
+                                          ? tr(
+                                              'Check this detail and its attribution against the source, then confirm it.',
+                                            )
                                           : shown.origin === 'user_entered'
-                                            ? 'Your correction; it does not become original-source evidence.'
+                                            ? tr(
+                                                'Your correction; it does not become original-source evidence.',
+                                              )
                                             : undefined
                                       }
                                       slotProps={{
@@ -1014,7 +1068,8 @@ export function SourceCvReview({
                                           confirm(section.id, original.id)
                                         }
                                       >
-                                        Confirm {fieldTitle(shown.field)}
+                                        {tr('Confirm')}{' '}
+                                        {fieldTitle(shown.field)}
                                       </Button>
                                     )}
                                   </Stack>
@@ -1050,7 +1105,7 @@ export function SourceCvReview({
                                           variant="body2"
                                           color="text.secondary"
                                         >
-                                          Needs your review:{' '}
+                                          {tr('Needs your review:')}{' '}
                                           {fieldTitle(shown.field)}
                                         </Typography>
                                       )}
@@ -1059,16 +1114,19 @@ export function SourceCvReview({
                                           variant="body2"
                                           color="text.secondary"
                                         >
-                                          Your correction — separate from
-                                          original wording
+                                          {tr(
+                                            'Your correction — separate from original wording',
+                                          )}
                                         </Typography>
                                       )}
                                     </Box>
                                   ))}
                             <Box component="details">
                               <Typography component="summary" variant="body2">
-                                View source evidence
-                                {title ? ` for ${title}` : ''}
+                                {tr('View source evidence')}
+                                {title
+                                  ? tr(' for {title}', { title: title })
+                                  : ''}
                               </Typography>
                               <Stack spacing={1} sx={{ mt: 1 }}>
                                 {entry.facts
@@ -1077,8 +1135,8 @@ export function SourceCvReview({
                                   .map((ref, i) => (
                                     <Box key={i}>
                                       <Typography variant="caption">
-                                        Original text · offsets {ref.start}–
-                                        {ref.end}
+                                        {tr('Original text · offsets')}{' '}
+                                        {ref.start}–{ref.end}
                                       </Typography>
                                       <Typography
                                         component="blockquote"
@@ -1111,8 +1169,12 @@ export function SourceCvReview({
                         section.review === 'confirmed') && (
                         <Typography variant="body2" color="text.secondary">
                           {issues.length
-                            ? 'Review and confirm the highlighted details to enable section confirmation. Editing is available below.'
-                            : 'This section is confirmed. Edit it if you need to make a correction.'}
+                            ? tr(
+                                'Review and confirm the highlighted details to enable section confirmation. Editing is available below.',
+                              )
+                            : tr(
+                                'This section is confirmed. Edit it if you need to make a correction.',
+                              )}
                         </Typography>
                       )}
                       <Stack
@@ -1123,7 +1185,9 @@ export function SourceCvReview({
                           <Button
                             variant="outlined"
                             disabled={!canConfirm}
-                            aria-label={`Mark ${sectionTitles[section.kind]} section as checked`}
+                            aria-label={tr('Mark {v0} section as checked', {
+                              v0: sectionTitles[section.kind],
+                            })}
                             onClick={() =>
                               change((next) => {
                                 next.sections.find(
@@ -1132,7 +1196,7 @@ export function SourceCvReview({
                               })
                             }
                           >
-                            Mark section as checked
+                            {tr('Mark section as checked')}
                           </Button>
                         )}
                         <Button
@@ -1143,7 +1207,9 @@ export function SourceCvReview({
                             )
                           }
                         >
-                          {editing === section.id ? 'Finish editing' : 'Edit'}{' '}
+                          {editing === section.id
+                            ? tr('Finish editing')
+                            : tr('Edit')}{' '}
                           {sectionTitles[section.kind]}
                         </Button>
                         {!!issues.length && (
@@ -1156,7 +1222,8 @@ export function SourceCvReview({
                               });
                             }}
                           >
-                            Review issues in {sectionTitles[section.kind]}
+                            {tr('Review issues in')}{' '}
+                            {sectionTitles[section.kind]}
                           </Button>
                         )}
                       </Stack>
@@ -1171,13 +1238,15 @@ export function SourceCvReview({
                   component="h3"
                   variant="subtitle1"
                 >
-                  Unassigned source content
+                  {tr('Unassigned source content')}
                 </Typography>
                 {first ? (
                   <Stack spacing={1}>
                     <Typography>
-                      {unresolved.length} passages still need a decision.
-                      Nothing has been dropped.
+                      {unresolved.length}{' '}
+                      {tr(
+                        'passages still need a decision. Nothing has been dropped.',
+                      )}
                     </Typography>
                     <Button
                       variant="outlined"
@@ -1185,8 +1254,8 @@ export function SourceCvReview({
                       onClick={() => setIssuesOpen(!issuesOpen)}
                     >
                       {issuesOpen
-                        ? 'Hide unassigned content'
-                        : 'Review unassigned content'}
+                        ? tr('Hide unassigned content')
+                        : tr('Review unassigned content')}
                     </Button>
                     {issuesOpen && (
                       <>
@@ -1201,19 +1270,20 @@ export function SourceCvReview({
                         >
                           {selectedText.trim()
                             ? selectedText
-                            : '(Whitespace separator)'}
+                            : tr('(Whitespace separator)')}
                         </Typography>
                         <Typography variant="body2">
                           {first.reason ??
-                            'Choose where this content belongs, or explicitly exclude it.'}
+                            tr(
+                              'Choose where this content belongs, or explicitly exclude it.',
+                            )}
                         </Typography>
                         {possibleProfile && (
                           <Stack spacing={1}>
                             <Typography variant="body2">
-                              Possible LinkedIn profile reference. Keep the
-                              original text using the Link detail type, or
-                              confirm the platform to create a URL. The URL will
-                              be user-entered wording, not a verified PDF link.
+                              {tr(
+                                'Possible LinkedIn profile reference. Keep the original text using the Link detail type, or confirm the platform to create a URL. The URL will be user-entered wording, not a verified PDF link.',
+                              )}
                             </Typography>
                             <FormControlLabel
                               control={
@@ -1227,7 +1297,9 @@ export function SourceCvReview({
                                   }
                                 />
                               }
-                              label="I confirm this is my LinkedIn profile reference"
+                              label={tr(
+                                'I confirm this is my LinkedIn profile reference',
+                              )}
                             />
                             <Button
                               disabled={blocked || !linkedinConfirmed}
@@ -1283,13 +1355,13 @@ export function SourceCvReview({
                                 })
                               }
                             >
-                              Confirm LinkedIn and use URL
+                              {tr('Confirm LinkedIn and use URL')}
                             </Button>
                           </Stack>
                         )}
                         <TextField
                           select
-                          label="Detail type for this content"
+                          label={tr('Detail type for this content')}
                           value={retainedField}
                           disabled={blocked}
                           onChange={(event) =>
@@ -1314,7 +1386,7 @@ export function SourceCvReview({
                         </TextField>
                         <TextField
                           select
-                          label="Section for this content"
+                          label={tr('Section for this content')}
                           value={targetKind}
                           disabled={blocked}
                           onChange={(event) => {
@@ -1330,7 +1402,7 @@ export function SourceCvReview({
                         </TextField>
                         <TextField
                           select
-                          label="Record for this content"
+                          label={tr('Record for this content')}
                           value={targetRecord}
                           disabled={blocked}
                           onChange={(event) =>
@@ -1338,7 +1410,7 @@ export function SourceCvReview({
                           }
                         >
                           <MenuItem value="">
-                            New record — attribution requires review
+                            {tr('New record — attribution requires review')}
                           </MenuItem>
                           {document.sections
                             .filter((s) => s.kind === targetKind)
@@ -1395,10 +1467,10 @@ export function SourceCvReview({
                             })
                           }
                         >
-                          Keep in {sectionTitles[targetKind]}
+                          {tr('Keep in')} {sectionTitles[targetKind]}
                         </Button>
                         <TextField
-                          label="Reason for excluding this content"
+                          label={tr('Reason for excluding this content')}
                           value={reason}
                           disabled={blocked}
                           onChange={(event) => setReason(event.target.value)}
@@ -1429,11 +1501,11 @@ export function SourceCvReview({
                             setReason('');
                           }}
                         >
-                          Exclude with reason
+                          {tr('Exclude with reason')}
                         </Button>
                         <Box component="details">
                           <Typography component="summary">
-                            All remaining unassigned content
+                            {tr('All remaining unassigned content')}
                           </Typography>
                           {unresolved.map((row) => (
                             <Typography
@@ -1441,7 +1513,7 @@ export function SourceCvReview({
                               sx={{ whiteSpace: 'pre-wrap', my: 1 }}
                             >
                               {source.text.slice(row.start, row.end) ||
-                                '(Whitespace separator)'}
+                                tr('(Whitespace separator)')}
                             </Typography>
                           ))}
                         </Box>
@@ -1449,19 +1521,24 @@ export function SourceCvReview({
                     )}
                   </Stack>
                 ) : (
-                  <Typography>All source content is accounted for.</Typography>
+                  <Typography>
+                    {tr('All source content is accounted for.')}
+                  </Typography>
                 )}
               </Box>
               <Box component="details">
-                <Typography component="summary">Add missing details</Typography>
+                <Typography component="summary">
+                  {tr('Add missing details')}
+                </Typography>
                 <Stack spacing={1} sx={{ mt: 1 }}>
                   <Typography variant="body2">
-                    New details are user-entered facts and need your explicit
-                    confirmation.
+                    {tr(
+                      'New details are user-entered facts and need your explicit confirmation.',
+                    )}
                   </Typography>
                   <TextField
                     select
-                    label="Section for new detail"
+                    label={tr('Section for new detail')}
                     value={targetKind}
                     disabled={blocked || legacy}
                     onChange={(event) => {
@@ -1477,7 +1554,7 @@ export function SourceCvReview({
                   </TextField>
                   <TextField
                     select
-                    label="Type of detail"
+                    label={tr('Type of detail')}
                     value={newField}
                     disabled={blocked || legacy}
                     onChange={(event) => setNewField(event.target.value)}
@@ -1491,7 +1568,7 @@ export function SourceCvReview({
                       ))}
                   </TextField>
                   <TextField
-                    label="New detail"
+                    label={tr('New detail')}
                     multiline
                     value={newValue}
                     disabled={blocked || legacy}
@@ -1515,13 +1592,13 @@ export function SourceCvReview({
                       setNewValue('');
                     }}
                   >
-                    Add detail for review
+                    {tr('Add detail for review')}
                   </Button>
                 </Stack>
               </Box>
               <Box component="details">
                 <Typography component="summary">
-                  Excluded source content
+                  {tr('Excluded source content')}
                 </Typography>
                 {document.coverage
                   .filter((row) => row.disposition === 'excluded')
@@ -1537,7 +1614,7 @@ export function SourceCvReview({
               {document.reconstruction?.previousRevisionId && (
                 <Box component="details">
                   <Typography component="summary">
-                    Earlier review and corrections
+                    {tr('Earlier review and corrections')}
                   </Typography>
                   <Button
                     disabled={blocked}
@@ -1554,13 +1631,13 @@ export function SourceCvReview({
                       })
                     }
                   >
-                    Load earlier review
+                    {tr('Load earlier review')}
                   </Button>
                   {previous && (
                     <Stack spacing={1}>
                       <Typography>
-                        Earlier revision {previous.revision}; preserved without
-                        changes.
+                        {tr('Earlier revision')} {previous.revision}
+                        {tr('; preserved without changes.')}
                       </Typography>
                       {previous.document.sections.flatMap((s) =>
                         s.entries.flatMap((e) =>
@@ -1569,7 +1646,7 @@ export function SourceCvReview({
                             .map((f) => (
                               <Typography key={f.id}>
                                 {f.origin === 'user_entered'
-                                  ? 'Your earlier correction: '
+                                  ? tr('Your earlier correction: ')
                                   : ''}
                                 {f.value}
                               </Typography>
@@ -1585,7 +1662,7 @@ export function SourceCvReview({
                   id="source-review-blockers"
                   tabIndex={-1}
                   component="section"
-                  aria-label="Before you can complete the review"
+                  aria-label={tr('Before you can complete the review')}
                   sx={{
                     p: 2,
                     borderRadius: 1,
@@ -1594,7 +1671,7 @@ export function SourceCvReview({
                   }}
                 >
                   <Typography variant="subtitle2" component="h3">
-                    Before you can complete the review
+                    {tr('Before you can complete the review')}
                   </Typography>
                   <Box component="ul" sx={{ m: 0, pl: 3 }}>
                     {blockers.map((item) => (
@@ -1642,20 +1719,24 @@ export function SourceCvReview({
                       // The app-level toast outlives the step change.
                       setMessage(
                         onContinue
-                          ? 'Source CV review complete.'
-                          : 'Source review complete. Tailored CVs will use this review.',
+                          ? tr('Source CV review complete.')
+                          : tr(
+                              'Source review complete. Tailored CVs will use this review.',
+                            ),
                       );
                       onContinue?.();
                     });
                   }}
                 >
-                  Complete review
+                  {tr('Complete review')}
                 </Button>
                 {completeAttempted && blockers.length > 0 && (
                   <Alert severity="warning" role="alert" sx={{ flex: 1 }}>
-                    Not ready yet: {blockers.length} item
-                    {blockers.length === 1 ? '' : 's'} left. Choose an item in
-                    the list above to go straight to it.
+                    {tr('Not ready yet:')} {blockers.length} {tr('item')}
+                    {blockers.length === 1 ? '' : tr('s')}{' '}
+                    {tr(
+                      'left. Choose an item in the list above to go straight to it.',
+                    )}
                   </Alert>
                 )}
                 <Button
@@ -1677,23 +1758,25 @@ export function SourceCvReview({
                       if (token === epoch.current) {
                         accept(value, source);
                         setMessage(
-                          'Draft saved. You can finish the review later.',
+                          tr('Draft saved. You can finish the review later.'),
                         );
                       }
                     })
                   }
                 >
-                  Save draft
+                  {tr('Save draft')}
                 </Button>
               </Stack>
               <Typography variant="body2" color="text.secondary">
                 {dirty
-                  ? 'You have unsaved changes. Save draft keeps them; Complete review saves and continues when everything is checked.'
-                  : 'All changes saved.'}
+                  ? tr(
+                      'You have unsaved changes. Save draft keeps them; Complete review saves and continues when everything is checked.',
+                    )
+                  : tr('All changes saved.')}
               </Typography>
               <Box component="details">
                 <Typography component="summary" variant="body2">
-                  More actions
+                  {tr('More actions')}
                 </Typography>
                 <Stack
                   direction={{ xs: 'column', sm: 'row' }}
@@ -1710,14 +1793,14 @@ export function SourceCvReview({
                       setEditing(null);
                     }}
                   >
-                    Discard unsaved changes
+                    {tr('Discard unsaved changes')}
                   </Button>
                   <Button
                     startIcon={<RefreshIcon />}
                     disabled={blocked || dirty}
                     onClick={() => void run(openReview)}
                   >
-                    Reload saved review
+                    {tr('Reload saved review')}
                   </Button>
                 </Stack>
               </Box>
@@ -1737,38 +1820,98 @@ const displayText = (fact: CvFact) =>
     )
     .trim();
 const sectionTitles: Record<CvSectionKind, string> = {
-  contact: 'Personal details',
-  summary: 'Professional summary',
-  skills: 'Skills',
-  experience: 'Experience',
-  projects: 'Projects',
-  education: 'Education',
-  certifications: 'Certifications',
-  languages: 'Languages',
-  links: 'Links',
-  additional: 'Other information',
+  get contact() {
+    return tr('Personal details');
+  },
+  get summary() {
+    return tr('Professional summary');
+  },
+  get skills() {
+    return tr('Skills');
+  },
+  get experience() {
+    return tr('Experience');
+  },
+  get projects() {
+    return tr('Projects');
+  },
+  get education() {
+    return tr('Education');
+  },
+  get certifications() {
+    return tr('Certifications');
+  },
+  get languages() {
+    return tr('Languages');
+  },
+  get links() {
+    return tr('Links');
+  },
+  get additional() {
+    return tr('Other information');
+  },
 };
 const fieldTitles: Record<string, string> = {
-  name: 'Full name',
-  headline: 'Professional headline',
-  email: 'Email',
-  phone: 'Phone',
-  location: 'Location',
-  link: 'Link',
-  summary: 'Professional summary',
-  skill: 'Skills',
-  skill_category: 'Skill category',
-  employer: 'Employer',
-  role: 'Role',
-  dates: 'Dates',
-  qualification: 'Qualification',
-  institution: 'Institution',
-  project: 'Project',
-  certification: 'Certification',
-  language: 'Language',
-  description: 'Contribution or description',
-  text: 'Content',
-  source_passage: 'Content',
+  get name() {
+    return tr('Full name');
+  },
+  get headline() {
+    return tr('Professional headline');
+  },
+  get email() {
+    return tr('Email');
+  },
+  get phone() {
+    return tr('Phone');
+  },
+  get location() {
+    return tr('Location');
+  },
+  get link() {
+    return tr('Link');
+  },
+  get summary() {
+    return tr('Professional summary');
+  },
+  get skill() {
+    return tr('Skills');
+  },
+  get skill_category() {
+    return tr('Skill category');
+  },
+  get employer() {
+    return tr('Employer');
+  },
+  get role() {
+    return tr('Role');
+  },
+  get dates() {
+    return tr('Dates');
+  },
+  get qualification() {
+    return tr('Qualification');
+  },
+  get institution() {
+    return tr('Institution');
+  },
+  get project() {
+    return tr('Project');
+  },
+  get certification() {
+    return tr('Certification');
+  },
+  get language() {
+    return tr('Language');
+  },
+  get description() {
+    return tr('Contribution or description');
+  },
+  get text() {
+    return tr('Content');
+  },
+  get source_passage() {
+    return tr('Content');
+  },
 };
 const fieldTitle = (field: string) => fieldTitles[field] ?? 'Content';
 const recordTitle = (facts: CvFact[]) =>
@@ -1780,7 +1923,7 @@ const recordTitle = (facts: CvFact[]) =>
     )
     ?.value.trim() ??
   facts.find((f) => f.field !== 'heading')?.value.slice(0, 90) ??
-  'New record';
+  tr('New record');
 function RecordAdjustments({
   sectionId,
   entryId,
@@ -1806,17 +1949,17 @@ function RecordAdjustments({
   return (
     <Box component="details">
       <Typography component="summary" variant="body2">
-        Adjust field type or record grouping
+        {tr('Adjust field type or record grouping')}
       </Typography>
       <Stack spacing={1} sx={{ mt: 1 }}>
         <TextField
           select
-          label="Detail to adjust"
+          label={tr('Detail to adjust')}
           value={selected}
           disabled={blocked}
           onChange={(e) => setSelected(e.target.value)}
         >
-          <MenuItem value="">Choose a detail</MenuItem>
+          <MenuItem value="">{tr('Choose a detail')}</MenuItem>
           {facts.map((f) => (
             <MenuItem key={f.id} value={f.id}>
               {fieldTitle(f.field)}: {f.value.slice(0, 70)}
@@ -1825,7 +1968,7 @@ function RecordAdjustments({
         </TextField>
         <TextField
           select
-          label="Correct detail type"
+          label={tr('Correct detail type')}
           value={field}
           disabled={blocked}
           onChange={(e) => setField(e.target.value)}
@@ -1854,20 +1997,22 @@ function RecordAdjustments({
             })
           }
         >
-          Apply detail type
+          {tr('Apply detail type')}
         </Button>
         <TextField
           select
-          label="Move detail to record"
+          label={tr('Move detail to record')}
           value={destination}
           disabled={blocked}
           onChange={(e) => setDestination(e.target.value)}
         >
-          <MenuItem value="">Choose a record</MenuItem>
-          <MenuItem value="new">Start a new record in this section</MenuItem>
+          <MenuItem value="">{tr('Choose a record')}</MenuItem>
+          <MenuItem value="new">
+            {tr('Start a new record in this section')}
+          </MenuItem>
           {cvSectionKinds.map((kind) => (
             <MenuItem key={`section:${kind}`} value={`section:${kind}`}>
-              {sectionTitles[kind]} — new record
+              {sectionTitles[kind]} {tr('— new record')}
             </MenuItem>
           ))}
           {document.sections.flatMap((s) =>
@@ -1927,7 +2072,7 @@ function RecordAdjustments({
             })
           }
         >
-          Move detail for review
+          {tr('Move detail for review')}
         </Button>
       </Stack>
     </Box>

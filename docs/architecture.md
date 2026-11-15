@@ -2245,3 +2245,25 @@ Grounding decisions:
   interview questions and feedback.
 - Web tests run in `en-US` (feature screens are still English); `i18n.test.tsx`
   and `auth.test.tsx` cover Vietnamese.
+
+## Web beta PR6 Feature-screen translation
+
+- Feature screens use `tr(englishText, values?)` from `apps/web/src/app/i18n.ts`;
+  the English source text is the key and `i18n-vi.ts` holds the Vietnamese.
+  English output stays byte-for-byte unchanged, so existing tests and
+  English-only fallbacks keep working. Text without an entry (user data, AI
+  output, server messages) passes through untranslated.
+- `tr` reads the current locale at call time. `AuthGate` subscribes to the
+  locale, so a language switch re-renders the tree (no `React.memo` is used).
+  Module-level label maps use getters so each read is translated.
+- Values compared in code (follow-up urgency, recommendation, statuses) stay
+  English internally and are translated only where they are displayed.
+- `{name}` placeholders replace template literals; English plural suffixes are
+  separate keys whose Vietnamese value is empty.
+- Dates use `dateLocale()`; MUI component labels use its bundled `viVN`
+  locale via `LocalizedTheme`.
+- `test/i18n-catalog.test.tsx` fails if any literal `tr()` key lacks a
+  Vietnamese entry or a translation invents a placeholder.
+- Text-as-key trade-off: changing English wording needs the catalog key
+  updated too (the catalog test catches it); a typed key catalog would
+  have meant rewriting ~1,400 call sites.

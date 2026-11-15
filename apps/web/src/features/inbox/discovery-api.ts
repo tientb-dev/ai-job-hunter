@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 export const queueFilters = [
   ['to-review', 'To review'],
   ['new', 'New'],
@@ -101,12 +102,13 @@ export async function discoveryRequest<T>(
   } catch (error) {
     if (init?.signal?.aborted) throw error;
     throw new DiscoveryRequestError(
-      'Could not reach the local API. Check it is running, then retry.',
+      tr('Could not reach the local API. Check it is running, then retry.'),
     );
   }
   if (!response.ok) {
-    let message =
-      'Could not load or update the discovery queue. Retry shortly.';
+    let message = tr(
+      'Could not load or update the discovery queue. Retry shortly.',
+    );
     let code: string | undefined;
     let matches: DuplicateMatch[] = [];
     if (response.status < 500) {

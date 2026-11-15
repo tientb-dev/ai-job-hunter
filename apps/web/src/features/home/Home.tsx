@@ -1,3 +1,4 @@
+import { dateLocale, tr } from '../../app/i18n';
 import { AddIcon, ExploreIcon, RefreshIcon } from '../../components/icons';
 import { useEffect, useState } from 'react';
 import {
@@ -29,59 +30,139 @@ import type { HomeSections, JobProgress } from './home-sections';
 
 // All visible text in one place so it can move to a locale file later.
 const copy = {
-  title: 'Dashboard',
-  description: 'Your job search at a glance.',
-  addJob: 'Add job',
-  discover: 'Discover jobs',
-  loadError: 'Jobs could not be loaded. Retry, or open Jobs later.',
-  retry: 'Retry',
-  emptyTitle: 'No jobs yet',
-  emptyBody: 'Add a job you found, or discover new ones to review.',
-  summary: 'Job search summary',
-  active: 'Active jobs',
-  activeHint: 'Not rejected or closed',
-  inProgress: 'In progress',
-  inProgressHint: 'Contacted through offer',
-  interview: 'Interview',
-  currentStatus: 'Current status',
-  due: 'Follow-ups due',
-  dueHint: 'Today or overdue',
-  overdue: (count: number) => `${count} overdue`,
-  byStatus: 'Jobs by status',
-  followUps: 'Follow-ups',
-  followUpsEmpty: 'No follow-ups are due today or overdue.',
-  openApplication: 'Open application',
-  openApplicationFor: (title: string) => `Open application for ${title}`,
-  done: 'Done',
-  dismiss: 'Dismiss',
-  doneFor: (title: string) => `Mark follow-up done for ${title}`,
-  dismissFor: (title: string) => `Dismiss follow-up for ${title}`,
+  get title() {
+    return tr('Dashboard');
+  },
+  get description() {
+    return tr('Your job search at a glance.');
+  },
+  get addJob() {
+    return tr('Add job');
+  },
+  get discover() {
+    return tr('Discover jobs');
+  },
+  get loadError() {
+    return tr('Jobs could not be loaded. Retry, or open Jobs later.');
+  },
+  get retry() {
+    return tr('Retry');
+  },
+  get emptyTitle() {
+    return tr('No jobs yet');
+  },
+  get emptyBody() {
+    return tr('Add a job you found, or discover new ones to review.');
+  },
+  get summary() {
+    return tr('Job search summary');
+  },
+  get active() {
+    return tr('Active jobs');
+  },
+  get activeHint() {
+    return tr('Not rejected or closed');
+  },
+  get inProgress() {
+    return tr('In progress');
+  },
+  get inProgressHint() {
+    return tr('Contacted through offer');
+  },
+  get interview() {
+    return tr('Interview');
+  },
+  get currentStatus() {
+    return tr('Current status');
+  },
+  get due() {
+    return tr('Follow-ups due');
+  },
+  get dueHint() {
+    return tr('Today or overdue');
+  },
+  overdue: (count: number) => tr('{count} overdue', { count }),
+  get byStatus() {
+    return tr('Jobs by status');
+  },
+  get followUps() {
+    return tr('Follow-ups');
+  },
+  get followUpsEmpty() {
+    return tr('No follow-ups are due today or overdue.');
+  },
+  get openApplication() {
+    return tr('Open application');
+  },
+  openApplicationFor: (title: string) =>
+    tr('Open application for {title}', { title: title }),
+  get done() {
+    return tr('Done');
+  },
+  get dismiss() {
+    return tr('Dismiss');
+  },
+  doneFor: (title: string) =>
+    tr('Mark follow-up done for {title}', { title: title }),
+  dismissFor: (title: string) =>
+    tr('Dismiss follow-up for {title}', { title: title }),
   resolved: (title: string, status: Resolution) =>
-    `Follow-up ${status === 'DONE' ? 'marked done' : 'dismissed'}: ${title}`,
+    tr(
+      status === 'DONE'
+        ? 'Follow-up marked done: {title}'
+        : 'Follow-up dismissed: {title}',
+      { title },
+    ),
   changedElsewhere: (title: string) =>
-    `Follow-up for ${title} changed elsewhere; showing the latest.`,
-  showMore: (count: number) => `Show ${count} more`,
-  showFewer: 'Show fewer',
-  continueTitle: 'Continue where you left off',
-  continueEmpty: 'Nothing to continue right now.',
-  continueError: 'Next steps could not be loaded.',
+    tr('Follow-up for {title} changed elsewhere; showing the latest.', {
+      title: title,
+    }),
+  showMore: (count: number) => tr('Show {count} more', { count: count }),
+  get showFewer() {
+    return tr('Show fewer');
+  },
+  get continueTitle() {
+    return tr('Continue where you left off');
+  },
+  get continueEmpty() {
+    return tr('Nothing to continue right now.');
+  },
+  get continueError() {
+    return tr('Next steps could not be loaded.');
+  },
   actionFor: (label: string, title: string) => `${label}: ${title}`,
-  viewAll: 'View all jobs',
-  cvTitle: 'Save your CV',
-  cvBody:
-    'Add your CV once in My CV. Every job then uses it for matching and tailoring.',
-  cvAction: 'Open My CV',
-  cvReviewTitle: 'Review your CV',
-  cvReviewBody:
-    'Review your CV once in My CV. Every job then uses it for tailoring.',
-  cvReviewAction: 'Review in My CV',
+  get viewAll() {
+    return tr('View all jobs');
+  },
+  get cvTitle() {
+    return tr('Save your CV');
+  },
+  get cvBody() {
+    return tr(
+      'Add your CV once in My CV. Every job then uses it for matching and tailoring.',
+    );
+  },
+  get cvAction() {
+    return tr('Open My CV');
+  },
+  get cvReviewTitle() {
+    return tr('Review your CV');
+  },
+  get cvReviewBody() {
+    return tr(
+      'Review your CV once in My CV. Every job then uses it for tailoring.',
+    );
+  },
+  get cvReviewAction() {
+    return tr('Review in My CV');
+  },
 };
 const FOLLOW_UP_PREVIEW = 3;
 
 // Persisted dates are local YYYY-MM-DD values; never parse them as UTC.
 const shortDate = (value: string) => {
   const [year = 0, month = 1, day = 1] = value.split('-').map(Number);
-  return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+  return new Date(year, month - 1, day).toLocaleDateString(dateLocale(), {
     day: 'numeric',
     month: 'short',
   });
@@ -265,7 +346,7 @@ function FollowUpDate({ label, date }: { label: string; date: string }) {
       color={label === 'Overdue' ? 'error' : 'text.primary'}
       sx={{ whiteSpace: 'nowrap' }}
     >
-      {label}{' '}
+      {tr(label)}{' '}
       <Box component="time" dateTime={date} title={date}>
         {shortDate(date)}
       </Box>
@@ -627,7 +708,11 @@ export function Home() {
           {copy.loadError}
         </Alert>
       ) : !sections ? (
-        <Stack spacing={3} aria-busy="true" aria-label="Loading dashboard">
+        <Stack
+          spacing={3}
+          aria-busy="true"
+          aria-label={tr('Loading dashboard')}
+        >
           <Skeleton variant="rounded" height={140} />
           <Box sx={layout}>
             <Skeleton variant="rounded" height={240} />

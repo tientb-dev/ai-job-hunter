@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 export interface DraftPins {
   profileRevisionId: string;
   expectedProfileRevision: number;
@@ -30,7 +31,9 @@ export function decodeReadiness(value: unknown): DraftReadiness {
     (value.currentProfileRevisionId != null &&
       !uuid(value.currentProfileRevisionId))
   )
-    throw Error('Invalid draft readiness response. Retry checking readiness.');
+    throw Error(
+      tr('Invalid draft readiness response. Retry checking readiness.'),
+    );
   if (value.ready) {
     const p = value.pins;
     if (
@@ -47,14 +50,18 @@ export function decodeReadiness(value: unknown): DraftReadiness {
         p.expectedJobUpdatedAt ||
       Number(value.matchValidForMs) <= 0
     )
-      throw Error('Invalid draft readiness pins. Retry checking readiness.');
+      throw Error(
+        tr('Invalid draft readiness pins. Retry checking readiness.'),
+      );
   } else if (
     typeof value.reason !== 'string' ||
     !Object.hasOwn(readinessReasons, value.reason) ||
     value.pins !== null ||
     value.matchValidForMs !== 0
   )
-    throw Error('Invalid draft readiness reason. Retry checking readiness.');
+    throw Error(
+      tr('Invalid draft readiness reason. Retry checking readiness.'),
+    );
   return value as unknown as DraftReadiness;
 }
 export const readinessReasons: Record<
@@ -62,47 +69,87 @@ export const readinessReasons: Record<
   { text: string; action: 'match' | 'review' | 'reload' | 'check' | 'none' }
 > = {
   CV_DRAFT_CONTEXT_LIMIT: {
-    text: 'The reviewed CV exceeds the local draft generation budget. Your review is preserved; use a more concise source for generation.',
+    get text() {
+      return tr(
+        'The reviewed CV exceeds the local draft generation budget. Your review is preserved; use a more concise source for generation.',
+      );
+    },
     action: 'none',
   },
   CV_DRAFT_CV_UNAVAILABLE: {
-    text: 'No saved CV is available. Upload a CV in CV Match.',
+    get text() {
+      return tr('No saved CV is available. Upload a CV in CV Match.');
+    },
     action: 'none',
   },
   CV_DRAFT_STALE_CV: {
-    text: 'Saved CV details changed. Reload this job to use the current CV; saved reviews remain available.',
+    get text() {
+      return tr(
+        'Saved CV details changed. Reload this job to use the current CV; saved reviews remain available.',
+      );
+    },
     action: 'reload',
   },
   CV_DRAFT_PROFILE_NOT_FOUND: {
-    text: 'Open Source CV Review and save a reviewed profile for the current CV.',
+    get text() {
+      return tr(
+        'Open Source CV Review and save a reviewed profile for the current CV.',
+      );
+    },
     action: 'review',
   },
   CV_DRAFT_PROFILE_INCOMPLETE: {
-    text: 'Finish and save Source CV Review, including highlighted details and unassigned content.',
+    get text() {
+      return tr(
+        'Finish and save Source CV Review, including highlighted details and unassigned content.',
+      );
+    },
     action: 'review',
   },
   CV_DRAFT_STALE_PROFILE: {
-    text: 'The reviewed profile changed. Check readiness again to use its latest saved revision.',
+    get text() {
+      return tr(
+        'The reviewed profile changed. Check readiness again to use its latest saved revision.',
+      );
+    },
     action: 'check',
   },
   CV_DRAFT_STALE_JOB: {
-    text: 'The saved job changed. Reload the job, then refresh CV Match. Your source review is preserved.',
+    get text() {
+      return tr(
+        'The saved job changed. Reload the job, then refresh CV Match. Your source review is preserved.',
+      );
+    },
     action: 'reload',
   },
   CV_DRAFT_JOB_REQUIREMENTS_REQUIRED: {
-    text: 'Add job requirements in Edit JD, save the job, then refresh CV Match. Your source review is preserved.',
+    get text() {
+      return tr(
+        'Add job requirements in Edit JD, save the job, then refresh CV Match. Your source review is preserved.',
+      );
+    },
     action: 'none',
   },
   CV_DRAFT_JOB_NOT_FOUND: {
-    text: 'This saved job is unavailable. Reopen it from Jobs.',
+    get text() {
+      return tr('This saved job is unavailable. Reopen it from Jobs.');
+    },
     action: 'none',
   },
   CV_DRAFT_MATCH_REQUIRED: {
-    text: 'Analyze CV Match for this saved CV and job. Your completed source review will be reused.',
+    get text() {
+      return tr(
+        'Analyze CV Match for this saved CV and job. Your completed source review will be reused.',
+      );
+    },
     action: 'match',
   },
   CV_DRAFT_STALE_MATCH: {
-    text: 'CV Match expired, was replaced, or belongs to different CV/job revisions. Refresh it here; no upload or source review is needed.',
+    get text() {
+      return tr(
+        'CV Match expired, was replaced, or belongs to different CV/job revisions. Refresh it here; no upload or source review is needed.',
+      );
+    },
     action: 'match',
   },
 };
@@ -119,7 +166,9 @@ export function generationReadiness(input: {
   if (input.dirty)
     return {
       ready: false,
-      text: 'Save or discard draft edits before generating a separate draft.',
+      text: tr(
+        'Save or discard draft edits before generating a separate draft.',
+      ),
       action: 'none' as const,
     };
   if (input.disabled)
@@ -127,7 +176,9 @@ export function generationReadiness(input: {
       ready: false,
       text:
         input.blockedReason ??
-        'Wait for the current operation or save pending source/job changes.',
+        tr(
+          'Wait for the current operation or save pending source/job changes.',
+        ),
       action: 'none' as const,
     };
   if (!input.cv)
@@ -135,13 +186,13 @@ export function generationReadiness(input: {
   if (!input.jobRevision)
     return {
       ready: false,
-      text: 'Save or reload this job before generating a draft.',
+      text: tr('Save or reload this job before generating a draft.'),
       action: 'none' as const,
     };
   if (input.checking)
     return {
       ready: false,
-      text: 'Checking draft generation readiness…',
+      text: tr('Checking draft generation readiness…'),
       action: 'none' as const,
     };
   if (input.error)
@@ -149,14 +200,16 @@ export function generationReadiness(input: {
   if (!input.server)
     return {
       ready: false,
-      text: 'Check draft generation readiness.',
+      text: tr('Check draft generation readiness.'),
       action: 'check' as const,
     };
   if (!input.server.ready)
     return { ready: false, ...readinessReasons[input.server.reason!]! };
   return {
     ready: true,
-    text: 'Ready to generate from your saved reviewed profile and fresh CV Match.',
+    text: tr(
+      'Ready to generate from your saved reviewed profile and fresh CV Match.',
+    ),
     action: 'none' as const,
   };
 }

@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useContext, useEffect, useRef, type RefObject } from 'react';
 import { Alert } from '@mui/material';
@@ -88,16 +89,20 @@ function RouteGuard({
   return (
     <ConfirmDialog
       open={blocker.state === 'blocked'}
-      title="Leave unsaved changes?"
+      title={tr('Leave unsaved changes?')}
       text={
         <Alert severity="warning">
           {sourceCvDirty
-            ? 'Your CV review changes have not been saved. Stay to review and save them, or discard them and leave.'
-            : 'Your job changes have not been saved. Stay to review and save them, or discard them and leave.'}
+            ? tr(
+                'Your CV review changes have not been saved. Stay to review and save them, or discard them and leave.',
+              )
+            : tr(
+                'Your job changes have not been saved. Stay to review and save them, or discard them and leave.',
+              )}
         </Alert>
       }
-      safeLabel="Stay and edit"
-      confirmLabel="Discard and leave"
+      safeLabel={tr('Stay and edit')}
+      confirmLabel={tr('Discard and leave')}
       destructive
       // Escape and X behave like Stay and edit: navigation stays blocked, nothing is discarded.
       onSafe={stayHere}
