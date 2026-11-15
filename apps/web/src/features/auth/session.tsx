@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { Button } from '@mui/material';
 import { LogoutIcon } from '../../components/icons';
 import { useSession } from './session-context';
+import { useI18n } from '../../app/i18n';
 
 export function SignOutButton() {
   const session = useSession();
+  const { t } = useI18n();
   const [pending, setPending] = useState(false);
   if (!session) return null;
   return (
@@ -17,7 +19,7 @@ export function SignOutButton() {
       }}
       sx={{ justifyContent: 'flex-start', color: 'text.secondary' }}
     >
-      Đăng xuất
+      {t('common.signOut')}
     </Button>
   );
 }

@@ -20,6 +20,11 @@ import {
   resetPassword,
   validEmail,
 } from './auth-api';
+import type { AuthErrorCode } from './auth-api';
+import { useI18n, type MessageKey } from '../../app/i18n';
+import { LanguageSwitcher } from '../../app/LanguageSwitcher';
+
+type T = ReturnType<typeof useI18n>['t'];
 
 /** Signed-out shell: no workspace navigation, one centered card. */
 export function AuthLayout({
@@ -29,6 +34,7 @@ export function AuthLayout({
   title: string;
   children: ReactNode;
 }) {
+  const { t } = useI18n();
   return (
     <Box
       component="main"
@@ -41,12 +47,23 @@ export function AuthLayout({
       }}
     >
       <Box sx={{ width: '100%', maxWidth: 420 }}>
-        <Typography
-          variant="subtitle1"
-          sx={{ fontWeight: 600, letterSpacing: '-0.01em', mb: 2 }}
+        <Stack
+          direction="row"
+          sx={{
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 2,
+            mb: 2,
+          }}
         >
-          AI Job Hunter
-        </Typography>
+          <Typography
+            variant="subtitle1"
+            sx={{ fontWeight: 600, letterSpacing: '-0.01em' }}
+          >
+            {t('app.name')}
+          </Typography>
+          <LanguageSwitcher />
+        </Stack>
         <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
           <Typography variant="h4" component="h1" sx={{ mb: 3 }}>
             {title}
@@ -69,6 +86,7 @@ interface Field {
 }
 
 function PasswordInput(props: Omit<Parameters<typeof TextField>[0], 'type'>) {
+  const { t } = useI18n();
   const [visible, setVisible] = useState(false);
   return (
     <TextField
@@ -82,9 +100,11 @@ function PasswordInput(props: Omit<Parameters<typeof TextField>[0], 'type'>) {
                 size="small"
                 onClick={() => setVisible((v) => !v)}
                 aria-pressed={visible}
-                aria-label={visible ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                aria-label={t(
+                  visible ? 'auth.hidePassword' : 'auth.showPassword',
+                )}
               >
-                {visible ? 'Ẩn' : 'Hiện'}
+                {t(visible ? 'auth.hide' : 'auth.show')}
               </Button>
             </InputAdornment>
           ),
@@ -111,7 +131,10 @@ function AuthForm({
     Object.fromEntries(fields.map((f) => [f.name, ''])),
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [formError, setFormError] = useState('');
+  const { t } = useI18n();
+  const [formError, setFormError] = useState<AuthErrorCode | 'UNEXPECTED' | ''>(
+    '',
+  );
   const [pending, setPending] = useState(false);
 
   async function submit(event: FormEvent) {
@@ -132,9 +155,7 @@ function AuthForm({
       await onSubmit(values);
     } catch (error) {
       setFormError(
-        error instanceof AuthRequestError
-          ? error.message
-          : 'Đã có lỗi xảy ra. Vui lòng thử lại.',
+        error instanceof AuthRequestError ? error.code : 'UNEXPECTED',
       );
       setPending(false);
     }
@@ -144,7 +165,9 @@ function AuthForm({
     <Box component="form" noValidate onSubmit={submit}>
       <Stack spacing={2}>
         {notice}
-        {formError && <Alert severity="error">{formError}</Alert>}
+        {formError && (
+          <Alert severity="error">{t(`auth.error.${formError}`)}</Alert>
+        )}
         {fields.map((field, index) => {
           const shared = {
             id: `auth-${field.name}`,
@@ -180,34 +203,34 @@ function AuthForm({
   );
 }
 
-const emailField: Field = {
+const emailField = (t: T): Field => ({
   name: 'email',
-  label: 'Email',
+  label: t('auth.email'),
   type: 'email',
   autoComplete: 'email',
-  check: (v) => (validEmail(v) ? '' : 'Nhập địa chỉ email hợp lệ.'),
-};
-const newPasswordFields: Field[] = [
+  check: (v) => (validEmail(v) ? '' : t('auth.invalidEmail')),
+});
+const newPasswordFields = (t: T, label: MessageKey): Field[] => [
   {
     name: 'password',
-    label: 'Mật khẩu',
+    label: t(label),
     type: 'password',
     autoComplete: 'new-password',
-    helper: `Ít nhất ${PASSWORD_MIN} ký tự.`,
+    helper: t('auth.passwordHelper', { min: PASSWORD_MIN }),
     check: (v) =>
       v.length >= PASSWORD_MIN
         ? v.length <= 128
           ? ''
-          : 'Mật khẩu tối đa 128 ký tự.'
-        : `Mật khẩu cần ít nhất ${PASSWORD_MIN} ký tự.`,
+          : t('auth.passwordTooLong')
+        : t('auth.passwordTooShort', { min: PASSWORD_MIN }),
   },
   {
     name: 'confirm',
-    label: 'Xác nhận mật khẩu',
+    label: t('auth.confirmPassword'),
     type: 'password',
     autoComplete: 'new-password',
     check: (v, all) =>
-      v && v === all.password ? '' : 'Mật khẩu xác nhận không khớp.',
+      v && v === all.password ? '' : t('auth.passwordMismatch'),
   },
 ];
 const required = (message: string) => (v: string) => (v.trim() ? '' : message);
@@ -221,23 +244,25 @@ function FooterLinks({ children }: { children: ReactNode }) {
 }
 
 export function LoginPage({ onSignedIn }: { onSignedIn: () => Promise<void> }) {
-  const notice = (useLocation().state as { notice?: string } | null)?.notice;
+  const { t } = useI18n();
+  const notice = (useLocation().state as { notice?: MessageKey } | null)
+    ?.notice;
   return (
-    <AuthLayout title="Đăng nhập">
+    <AuthLayout title={t('auth.signIn')}>
       <AuthForm
-        notice={notice && <Alert severity="success">{notice}</Alert>}
+        notice={notice && <Alert severity="success">{t(notice)}</Alert>}
         fields={[
-          emailField,
+          emailField(t),
           {
             name: 'password',
-            label: 'Mật khẩu',
+            label: t('auth.password'),
             type: 'password',
             autoComplete: 'current-password',
-            check: required('Nhập mật khẩu.'),
+            check: required(t('auth.enterPassword')),
           },
         ]}
-        submitLabel="Đăng nhập"
-        pendingLabel="Đang đăng nhập…"
+        submitLabel={t('auth.signIn')}
+        pendingLabel={t('auth.signingIn')}
         onSubmit={async ({ email, password }) => {
           await login(email!, password!);
           await onSignedIn();
@@ -245,14 +270,14 @@ export function LoginPage({ onSignedIn }: { onSignedIn: () => Promise<void> }) {
       />
       <FooterLinks>
         <Typography variant="body2">
-          Chưa có tài khoản?{' '}
+          {t('auth.noAccount')}{' '}
           <Link component={RouterLink} to="/register">
-            Đăng ký bằng mã mời
+            {t('auth.registerWithCode')}
           </Link>
         </Typography>
         <Typography variant="body2">
           <Link component={RouterLink} to="/reset-password">
-            Quên mật khẩu?
+            {t('auth.forgotPassword')}
           </Link>
         </Typography>
       </FooterLinks>
@@ -265,23 +290,24 @@ export function RegisterPage({
 }: {
   onSignedIn: () => Promise<void>;
 }) {
+  const { t } = useI18n();
   return (
-    <AuthLayout title="Tạo tài khoản">
+    <AuthLayout title={t('auth.register')}>
       <AuthForm
         fields={[
-          emailField,
-          ...newPasswordFields,
+          emailField(t),
+          ...newPasswordFields(t, 'auth.password'),
           {
             name: 'invitationCode',
-            label: 'Mã mời',
+            label: t('auth.invitationCode'),
             type: 'text',
             autoComplete: 'off',
-            helper: 'Mã do quản trị viên gửi cho bạn.',
-            check: required('Nhập mã mời.'),
+            helper: t('auth.invitationHelper'),
+            check: required(t('auth.enterInvitation')),
           },
         ]}
-        submitLabel="Tạo tài khoản"
-        pendingLabel="Đang tạo tài khoản…"
+        submitLabel={t('auth.register')}
+        pendingLabel={t('auth.registering')}
         onSubmit={async ({ email, password, invitationCode }) => {
           await register(email!, password!, invitationCode!);
           await onSignedIn();
@@ -289,9 +315,9 @@ export function RegisterPage({
       />
       <FooterLinks>
         <Typography variant="body2">
-          Đã có tài khoản?{' '}
+          {t('auth.haveAccount')}{' '}
           <Link component={RouterLink} to="/login">
-            Đăng nhập
+            {t('auth.signIn')}
           </Link>
         </Typography>
       </FooterLinks>
@@ -300,40 +326,38 @@ export function RegisterPage({
 }
 
 export function ResetPasswordPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   return (
-    <AuthLayout title="Đặt lại mật khẩu">
+    <AuthLayout title={t('auth.reset')}>
       <Typography color="text.secondary" sx={{ mb: 2 }}>
-        Liên hệ quản trị viên để nhận mã đặt lại mật khẩu, sau đó nhập mã và mật
-        khẩu mới bên dưới.
+        {t('auth.resetIntro')}
       </Typography>
       <AuthForm
         fields={[
           {
             name: 'resetCode',
-            label: 'Mã đặt lại mật khẩu',
+            label: t('auth.resetCode'),
             type: 'text',
             autoComplete: 'one-time-code',
-            check: required('Nhập mã đặt lại mật khẩu.'),
+            check: required(t('auth.enterResetCode')),
           },
-          ...newPasswordFields.map((f) =>
-            f.name === 'password' ? { ...f, label: 'Mật khẩu mới' } : f,
-          ),
+          ...newPasswordFields(t, 'auth.newPassword'),
         ]}
-        submitLabel="Đặt lại mật khẩu"
-        pendingLabel="Đang đặt lại…"
+        submitLabel={t('auth.reset')}
+        pendingLabel={t('auth.resetting')}
         onSubmit={async ({ resetCode, password }) => {
           await resetPassword(resetCode!, password!);
           void navigate('/login', {
             replace: true,
-            state: { notice: 'Đã đặt lại mật khẩu. Vui lòng đăng nhập.' },
+            state: { notice: 'auth.resetDone' satisfies MessageKey },
           });
         }}
       />
       <FooterLinks>
         <Typography variant="body2">
           <Link component={RouterLink} to="/login">
-            Quay lại đăng nhập
+            {t('auth.backToSignIn')}
           </Link>
         </Typography>
       </FooterLinks>

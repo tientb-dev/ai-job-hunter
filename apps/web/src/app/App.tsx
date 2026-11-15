@@ -40,19 +40,26 @@ import { JobPractice } from '../features/interview-prep/JobPractice';
 import { MockInterview } from '../features/interview-prep/MockInterview';
 import { ApiReadiness } from '../features/health/ApiReadiness';
 import { SignOutButton } from '../features/auth/session';
+import { useI18n, type MessageKey } from './i18n';
+import { LanguageSwitcher } from './LanguageSwitcher';
 
 const UiAcceptancePreview = import.meta.env.DEV
   ? lazy(() => import('../features/dashboard/UiAcceptancePreview'))
   : null;
 
-const navigation = [
-  { label: 'Dashboard', path: '/dashboard', Icon: DashboardIcon },
-  { label: 'Jobs', path: '/jobs', Icon: WorkIcon },
-  { label: 'Discover', path: '/discover', Icon: ExploreIcon },
-  { label: 'My CV', path: '/cv', Icon: DescriptionIcon },
-  { label: 'Interview Prep', path: '/interview-prep', Icon: ForumIcon },
+const navigation: {
+  label: MessageKey;
+  path: string;
+  Icon: typeof DashboardIcon;
+}[] = [
+  { label: 'nav.dashboard', path: '/dashboard', Icon: DashboardIcon },
+  { label: 'nav.jobs', path: '/jobs', Icon: WorkIcon },
+  { label: 'nav.discover', path: '/discover', Icon: ExploreIcon },
+  { label: 'nav.cv', path: '/cv', Icon: DescriptionIcon },
+  { label: 'nav.interview', path: '/interview-prep', Icon: ForumIcon },
 ];
 export function App() {
+  const { t } = useI18n();
   const [navigationOpen, setNavigationOpen] = useState(false);
   const desktop = useMediaQuery(theme.breakpoints.up('md'), {
     defaultMatches: true,
@@ -72,7 +79,7 @@ export function App() {
         </Typography>
         {!desktop && (
           <IconButton
-            aria-label="Close navigation"
+            aria-label={t('nav.close')}
             onClick={() => setNavigationOpen(false)}
             sx={{ width: 44, height: 44 }}
           >
@@ -83,7 +90,7 @@ export function App() {
       <Stack
         component="nav"
         id="workspace-navigation"
-        aria-label="Main navigation"
+        aria-label={t('nav.main')}
         spacing={0.5}
       >
         {navigation.map(({ label, path, Icon }) => (
@@ -109,11 +116,12 @@ export function App() {
               },
             }}
           >
-            {label}
+            {t(label)}
           </Button>
         ))}
       </Stack>
       <Stack spacing={1} sx={{ mt: 'auto', pt: 2, alignItems: 'flex-start' }}>
+        <LanguageSwitcher />
         <SignOutButton />
         {desktop && <ApiReadiness />}
       </Stack>
@@ -162,7 +170,7 @@ export function App() {
               borderRadius: 0,
             },
             role: 'dialog',
-            'aria-label': 'Workspace navigation',
+            'aria-label': t('nav.workspace'),
           },
         }}
       >
@@ -201,7 +209,7 @@ export function App() {
           >
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
               <IconButton
-                aria-label="Open navigation"
+                aria-label={t('nav.open')}
                 aria-expanded={navigationOpen && !desktop}
                 aria-controls={
                   navigationOpen && !desktop
@@ -288,10 +296,10 @@ export function App() {
               element={
                 <Stack spacing={2} sx={{ alignItems: 'flex-start' }}>
                   <Typography variant="h4" component="h1">
-                    Page not found
+                    {t('notFound.title')}
                   </Typography>
                   <Typography color="text.secondary">
-                    This page does not exist in your workspace.
+                    {t('notFound.text')}
                   </Typography>
                   <Button
                     startIcon={<ArrowBackIcon />}
@@ -299,7 +307,7 @@ export function App() {
                     to="/jobs"
                     variant="contained"
                   >
-                    Back to Jobs
+                    {t('notFound.back')}
                   </Button>
                 </Stack>
               }

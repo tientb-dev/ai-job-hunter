@@ -4,19 +4,22 @@ export interface CurrentUser {
 
 export const PASSWORD_MIN = 10;
 
-const MESSAGES: Record<string, string> = {
-  INVALID_CREDENTIALS: 'Email hoặc mật khẩu không đúng.',
-  REGISTRATION_FAILED:
-    'Không thể tạo tài khoản. Mã mời có thể không hợp lệ, đã hết hạn hoặc đã được sử dụng, hoặc email này không dùng được.',
-  RESET_FAILED:
-    'Mã đặt lại mật khẩu không hợp lệ, đã hết hạn hoặc đã được sử dụng.',
-  INVALID_INPUT: 'Vui lòng kiểm tra lại thông tin đã nhập.',
-  TOO_MANY_ATTEMPTS:
-    'Bạn đã thử quá nhiều lần. Vui lòng đợi vài phút rồi thử lại.',
-};
-const FALLBACK = 'Không thể kết nối tới máy chủ. Vui lòng thử lại.';
+const KNOWN = [
+  'INVALID_CREDENTIALS',
+  'REGISTRATION_FAILED',
+  'RESET_FAILED',
+  'INVALID_INPUT',
+  'TOO_MANY_ATTEMPTS',
+] as const;
+export type AuthErrorCode = (typeof KNOWN)[number] | 'NETWORK';
+const FALLBACK: AuthErrorCode = 'NETWORK';
 
-export class AuthRequestError extends Error {}
+/** Carries a code; the UI shows the message in the current language. */
+export class AuthRequestError extends Error {
+  constructor(readonly code: AuthErrorCode) {
+    super(code);
+  }
+}
 
 async function send(path: string, body?: object): Promise<Response> {
   let response: Response;
@@ -35,7 +38,11 @@ async function send(path: string, body?: object): Promise<Response> {
       typeof payload === 'object' && payload !== null && 'errorCode' in payload
         ? String(payload.errorCode)
         : '';
-    throw new AuthRequestError(MESSAGES[code] ?? FALLBACK);
+    throw new AuthRequestError(
+      (KNOWN as readonly string[]).includes(code)
+        ? (code as AuthErrorCode)
+        : FALLBACK,
+    );
   }
   return response;
 }

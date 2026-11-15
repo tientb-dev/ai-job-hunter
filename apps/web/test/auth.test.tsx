@@ -1,9 +1,12 @@
-import { expect, test, vi } from 'vitest';
+import { beforeEach, expect, test, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 import { render, screen } from './render';
 import { theme } from '../src/app/theme';
+import { setLocale } from '../src/app/i18n';
+
+beforeEach(() => setLocale('vi-VN'));
 import { AuthGate } from '../src/features/auth/AuthGate';
 
 const json = (status: number, body: unknown) =>
