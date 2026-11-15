@@ -307,26 +307,52 @@ export function CvSectionView({
 }
 
 // Approximates the PDF themes in tailored-cv-export.ts (THEMES).
-const templateSx: Record<CvTemplate, { paper: object; heading: object }> = {
+const templateSx: Record<
+  CvTemplate,
+  { paper: object; heading: object; section: object; contact: object }
+> = {
   classic: {
     paper: cvPaper,
-    heading: { borderBottom: 1, borderColor: 'divider' },
+    heading: { borderBottom: 1, borderColor: 'divider', pb: 0.5, mb: 1 },
+    section: {},
+    contact: {},
   },
+  // Header band and headings in a left column, as in the PDF.
   modern: {
     paper: {
       ...cvPaper,
+      overflow: 'hidden',
       bgcolor: '#ffffff',
       color: '#1e2329',
       fontFamily: '"DejaVu Sans", Roboto, Arial, sans-serif',
-      '& .MuiTypography-h6': { color: '#1f4e79', fontSize: '1.5rem' },
     },
     heading: {
       color: '#1f4e79',
       textTransform: 'uppercase',
       letterSpacing: '0.04em',
-      borderBottom: '2px solid #1f4e79',
+      mb: { xs: 1, sm: 0 },
+    },
+    section: {
+      display: 'grid',
+      gridTemplateColumns: { xs: '1fr', sm: '150px minmax(0, 1fr)' },
+      columnGap: 2,
+      borderTop: '2px solid #1f4e79',
+      pt: 1,
+    },
+    contact: {
+      // Stack resets child margins, so the bleed to the paper edge needs !important.
+      margin: {
+        xs: '-16px -16px 0 !important',
+        sm: '-32px -32px 0 !important',
+      },
+      px: { xs: 2, sm: 4 },
+      py: 3,
+      bgcolor: '#1f4e79',
+      '&, & *': { color: '#ffffff !important' },
+      '& .MuiTypography-h6': { fontSize: '1.5rem' },
     },
   },
+  // Centred header and headings on a tinted bar, as in the PDF.
   compact: {
     paper: {
       ...cvPaper,
@@ -341,10 +367,15 @@ const templateSx: Record<CvTemplate, { paper: object; heading: object }> = {
     },
     heading: {
       color: '#7a3e00',
-      fontSize: '0.875rem',
+      fontSize: '0.875rem !important',
       textTransform: 'uppercase',
-      borderBottom: '1px solid #b9b2a8',
+      bgcolor: '#f3ece4',
+      px: 1,
+      py: 0.25,
+      mb: 1,
     },
+    section: {},
+    contact: { textAlign: 'center' },
   },
 };
 
@@ -364,17 +395,17 @@ export function TailoredCvPreview({
         <Stack spacing={template === 'compact' ? 2 : 3}>
           {sortSections(document.sections).map((section) =>
             displayEntries(document, section).length ? (
-              <Box key={section.id}>
+              <Box
+                key={section.id}
+                sx={
+                  section.kind === 'contact' ? styles.contact : styles.section
+                }
+              >
                 {section.kind !== 'contact' && (
                   <Typography
                     variant="subtitle1"
                     component="h3"
-                    sx={{
-                      fontWeight: 600,
-                      pb: 0.5,
-                      mb: 1,
-                      ...styles.heading,
-                    }}
+                    sx={{ fontWeight: 600, ...styles.heading }}
                   >
                     {sectionTitle(section.kind)}
                   </Typography>

@@ -509,6 +509,14 @@ const THEMES: Record<
     ruleWidth: number;
     upper: boolean;
     headingGap: number;
+    /** Width of a left column holding section headings (0: headings above). */
+    side: number;
+    /** Contact rows on a full-width accent band. */
+    band: boolean;
+    /** Centre the contact rows. */
+    center: boolean;
+    /** Headings on a tinted bar instead of above a rule. */
+    shade: string | null;
   }
 > = {
   classic: {
@@ -522,6 +530,10 @@ const THEMES: Record<
     ruleWidth: 0.6,
     upper: false,
     headingGap: 12,
+    side: 0,
+    band: false,
+    center: false,
+    shade: null,
   },
   modern: {
     x: 54,
@@ -534,6 +546,10 @@ const THEMES: Record<
     ruleWidth: 1.5,
     upper: true,
     headingGap: 14,
+    side: 118,
+    band: true,
+    center: false,
+    shade: null,
   },
   compact: {
     x: 40,
@@ -546,6 +562,10 @@ const THEMES: Record<
     ruleWidth: 0.5,
     upper: true,
     headingGap: 9,
+    side: 0,
+    band: false,
+    center: true,
+    shade: '#F3ECE4',
   },
 };
 export async function renderPdf(
@@ -583,55 +603,73 @@ export async function renderPdf(
     const width = doc.page.width - 2 * theme.x;
     const { ink, muted, accent } = theme;
     const opts = { lineGap: 2, paragraphGap: 0 };
-    const set = (style: ExportDocument['blocks'][number]['style']) => {
+    type Block = ExportDocument['blocks'][number];
+    const blocks = content.blocks;
+    const contact = (b: Block) => b.section === 'contact';
+    const side = (b: Block) => theme.side > 0 && b.style === 'heading';
+    const set = (block: Block) => {
+      const { style } = block;
+      const onBand = theme.band && contact(block);
       doc
         .font(style === 'body' || style === 'detail' ? 'regular' : 'bold')
         .fontSize(theme.size[style])
         .fillColor(
-          style === 'detail'
-            ? muted
-            : style === 'title' || style === 'heading'
-              ? accent
-              : ink,
+          onBand
+            ? style === 'detail'
+              ? '#DCE6F0'
+              : '#FFFFFF'
+            : style === 'detail'
+              ? muted
+              : style === 'title' || style === 'heading'
+                ? accent
+                : ink,
         );
     };
-    const gap = (block: ExportDocument['blocks'][number]) =>
-      block.style === 'heading' ? theme.headingGap : block.entryStart ? 6 : 1;
+    // In a side-heading layout the first row of a section sits beside its heading.
+    const gap = (i: number) =>
+      theme.side && blocks[i - 1]?.style === 'heading'
+        ? 0
+        : blocks[i]!.style === 'heading'
+          ? theme.headingGap
+          : blocks[i]!.entryStart
+            ? 6
+            : 1;
     // Measure each row exactly as it will be drawn.
-    const measured = content.blocks.map((block) => {
+    const measured = blocks.map((block) => {
       const text =
         block.style === 'heading' && theme.upper
           ? layoutText(block).toLocaleUpperCase('vi-VN')
           : layoutText(block);
       const stacked = !!block.label && stackedLabel(block.label);
-      set(block.style);
-      const line = doc.heightOfString('X', { width, ...opts });
+      const off = contact(block) || side(block) ? 0 : theme.side;
+      const w = side(block) ? theme.side - 12 : width - off;
+      set(block);
+      const line = doc.heightOfString('X', { width: w, ...opts });
       let asideWidth = 0;
       if (block.aside) {
         doc.font('regular').fontSize(theme.size.detail);
-        asideWidth = Math.min(
-          doc.widthOfString(block.aside) + 12,
-          width * 0.45,
-        );
-        set(block.style);
+        asideWidth = Math.min(doc.widthOfString(block.aside) + 12, w * 0.45);
+        set(block);
       }
       const column = block.label && !stacked ? LABEL_PT : 0;
-      const mainWidth = width - column - asideWidth;
+      const mainWidth = w - column - asideWidth;
       let height = doc.heightOfString(text, { width: mainWidth, ...opts });
       let labelHeight = 0;
       if (block.label) {
         doc.font('bold').fontSize(theme.size.body);
         labelHeight = doc.heightOfString(block.label, {
-          width: stacked ? width : LABEL_PT - 12,
+          width: stacked ? w : LABEL_PT - 12,
           ...opts,
         });
         height = stacked ? labelHeight + height : Math.max(height, labelHeight);
-        set(block.style);
+        set(block);
       }
       return {
         text,
         stacked,
         line,
+        off,
+        w,
         asideWidth,
         column,
         mainWidth,
@@ -640,65 +678,102 @@ export async function renderPdf(
       };
     });
     const pageMax = doc.page.height - 100;
-    const keeps = (block: ExportDocument['blocks'][number]) =>
+    const keeps = (block: Block) =>
       block.style === 'heading' || block.style === 'anchor';
     // Plain paragraphs may continue on the next page; other rows never split.
     const splittable = (i: number) =>
-      content.blocks[i]!.style === 'body' && !content.blocks[i]!.label;
+      blocks[i]!.style === 'body' && !blocks[i]!.label;
     const start = (i: number) =>
       splittable(i)
         ? Math.min(measured[i]!.height, measured[i]!.line * 2)
         : Math.min(measured[i]!.height, pageMax);
-    for (const [index, block] of content.blocks.entries()) {
+    // The contact band is drawn first so the contact text sits on top of it.
+    let bandBottom = 0;
+    if (theme.band && blocks[0] && contact(blocks[0])) {
+      let y = doc.page.margins.top;
+      for (let i = 0; i < blocks.length && contact(blocks[i]!); i++)
+        y += gap(i) + measured[i]!.height + 3;
+      bandBottom = y + 14;
+      doc.rect(0, 0, doc.page.width, bandBottom).fill(accent);
+    }
+    let headingBottom = 0;
+    for (const [index, block] of blocks.entries()) {
       const m = measured[index]!;
+      if (block.style === 'heading') doc.y = Math.max(doc.y, headingBottom);
       // A heading stays with the headings after it and the first two lines
       // of the content they introduce, so no heading ends a page alone.
-      let need = gap(block) + start(index);
+      let need = gap(index) + start(index);
       if (keeps(block))
-        for (let j = index + 1; j < content.blocks.length; j++) {
-          const next = content.blocks[j]!;
-          need += gap(next) + start(j);
-          if (!keeps(next)) break;
+        for (let j = index + 1; j < blocks.length; j++) {
+          need += gap(j) + start(j);
+          if (!keeps(blocks[j]!)) break;
         }
       if (
         doc.y + Math.min(need, pageMax) >
           doc.page.height - doc.page.margins.bottom &&
         doc.y > doc.page.margins.top + 1
-      )
+      ) {
         doc.addPage();
-      doc.y += gap(block);
-      set(block.style);
+        headingBottom = 0;
+      }
+      doc.y += gap(index);
+      set(block);
       const top = doc.y;
       const page = pages;
+      const x = left + m.off;
       let textTop = top;
+      if (side(block))
+        doc
+          .moveTo(left, top - 5)
+          .lineTo(left + width, top - 5)
+          .lineWidth(theme.ruleWidth)
+          .strokeColor(theme.rule)
+          .stroke();
+      if (theme.shade && block.style === 'heading') {
+        doc.rect(left, top - 3, width, m.height + 5).fill(theme.shade);
+        set(block);
+      }
       if (block.label) {
         doc.font('bold').fontSize(theme.size.body).fillColor(ink);
-        doc.text(block.label, left, top, {
-          width: m.stacked ? width : LABEL_PT - 12,
+        doc.text(block.label, x, top, {
+          width: m.stacked ? m.w : LABEL_PT - 12,
           ...opts,
         });
         if (m.stacked) textTop = top + m.labelHeight;
-        set(block.style);
+        set(block);
       }
-      doc.text(m.text, left + m.column, textTop, {
-        width: m.mainWidth,
-        ...opts,
-        ...(block.href ? { link: block.href, underline: true } : {}),
-      });
+      doc.text(
+        m.text,
+        x + m.column + (theme.shade && block.style === 'heading' ? 6 : 0),
+        textTop,
+        {
+          width: m.mainWidth,
+          ...opts,
+          ...(theme.center && contact(block) && !block.aside
+            ? { align: 'center' as const }
+            : {}),
+          ...(block.href ? { link: block.href, underline: true } : {}),
+        },
+      );
       const afterMain = doc.y;
       if (block.aside) {
         doc.font('regular').fontSize(theme.size.detail).fillColor(muted);
-        doc.text(block.aside, left + width - m.asideWidth, top + 1, {
+        doc.text(block.aside, x + m.w - m.asideWidth, top + 1, {
           width: m.asideWidth,
           align: 'right',
           ...opts,
         });
-        set(block.style);
+        set(block);
         doc.y = afterMain;
       }
       // A paragraph that continued on a new page already ends at doc.y.
       if (pages === page) doc.y = Math.max(doc.y, top + m.height);
-      if (block.style === 'heading') {
+      if (side(block)) {
+        // The section's first row starts level with the heading.
+        headingBottom = doc.y + 6;
+        doc.y = top;
+      } else if (block.style === 'heading' && theme.shade) doc.y += 6;
+      else if (block.style === 'heading') {
         doc
           .moveTo(left, doc.y + 2)
           .lineTo(left + width, doc.y + 2)
@@ -706,7 +781,9 @@ export async function renderPdf(
           .strokeColor(theme.rule)
           .stroke();
         doc.y += 6;
-      } else doc.y += content.blocks[index + 1]?.entryStart ? 2 : 3;
+      } else doc.y += blocks[index + 1]?.entryStart ? 2 : 3;
+      if (bandBottom && contact(block) && !contact(blocks[index + 1] ?? block))
+        doc.y = Math.max(doc.y, bandBottom + 4);
       doc.x = left;
     }
     if (doc.bufferedPageRange().count > 40)

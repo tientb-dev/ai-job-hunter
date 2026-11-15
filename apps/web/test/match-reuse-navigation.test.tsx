@@ -529,6 +529,10 @@ test('editing approved content retains saved approval, exposes save/discard and 
   });
   fireEvent.click(screen.getByRole('tab', { name: /Tailor & Review/ }));
   await screen.findByText('Approved — Ready to export');
+  // Step 3 previews the approved PDF; the edit below must not export again.
+  const exports = () =>
+    state.fetch.mock.calls.filter(([url]) => url.endsWith('/export')).length;
+  const exportsBeforeEdit = exports();
   fireEvent.click(screen.getByRole('button', { name: 'Edit experience' }));
   fireEvent.change(
     screen.getByRole('textbox', { name: /description \(experience/ }),
@@ -550,9 +554,7 @@ test('editing approved content retains saved approval, exposes save/discard and 
   expect(state.draft.document.review.approval?.revision).toBe(
     state.draft.revision,
   );
-  expect(state.fetch.mock.calls.some(([url]) => url.endsWith('/export'))).toBe(
-    false,
-  );
+  expect(exports()).toBe(exportsBeforeEdit);
   fireEvent.click(
     screen.getByRole('button', { name: 'Discard local draft edits' }),
   );

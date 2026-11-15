@@ -2270,8 +2270,10 @@ Grounding decisions:
 
 ## PR86 Multi-CV templates
 
-- The PDF export takes an optional `template` (`classic`, `modern`, `compact`; default `classic`, so older clients are unchanged). Templates live in one `THEMES` table in `tailored-cv-export.ts`: margins, font sizes, colours, heading rule and uppercase headings. The canonical export blocks, approval checks and pagination rules (keep-with-next headings, splittable paragraphs, 40-page cap) are shared, so every template carries the same approved content.
+- The PDF export takes an optional `template` (`classic`, `modern`, `compact`; default `classic`, so older clients are unchanged). Templates live in one `THEMES` table in `tailored-cv-export.ts`. Beyond type and colour, each sets layout: Modern puts contact rows on a full-width header band and section headings in a left column beside their content; Compact centres the header and puts headings on a tinted bar. Canonical blocks, approval checks and pagination rules (keep-with-next headings, splittable paragraphs, 40-page cap) are shared, so every template carries the same approved content.
 - All templates use the bundled DejaVu Sans faces, which cover Vietnamese; uppercase headings use `vi-VN` case mapping. No new fonts or dependencies.
-- The web Final preview applies an approximate CSS version of the selected theme (`templateSx` in `TailoredCvPreview.tsx`). It is a content and style preview, not a page-exact rendering.
-- DOCX keeps the Classic layout. Per-template DOCX styling was deferred because Word users usually restyle the document themselves.
+- Template is chosen in Step 2 (Customize & Review) and kept through Step 3 (same `TailoredCvReview` instance). Step 2's live preview applies a CSS version of the theme (`templateSx` in `TailoredCvPreview.tsx`) and updates on every edit or accepted suggestion.
+- Step 3 previews the exact approved export: it fetches the PDF from the export endpoint for the saved, approved revision and the selected template, and shows it in the browser's PDF viewer. Before approval, the HTML preview is shown with a note, because the export endpoint requires approval. An unapproved preview endpoint was rejected to keep the approval gate on every rendered file.
+- DOCX keeps the Classic layout.
 - Alternative rejected: HTML-to-PDF rendering through a headless browser, which would add heavy infrastructure for three themes.
+- Scrollbar shift: `html` reserves the scrollbar gutter, so MUI's scroll-lock `padding-right` on `body` (added when a menu or dialog opens) is neutralised in `CssBaseline`. Scroll lock itself still applies.

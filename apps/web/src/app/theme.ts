@@ -29,7 +29,12 @@ export const theme = createTheme({
       styleOverrides: {
         // Reserve the page scrollbar's space so content doesn't shift when it appears.
         html: { scrollbarGutter: 'stable' },
-        body: { fontVariantNumeric: 'tabular-nums' },
+        // The gutter above already holds the scrollbar's space, so MUI's scroll
+        // lock padding (added when a menu or dialog opens) would shift the page.
+        body: {
+          fontVariantNumeric: 'tabular-nums',
+          paddingRight: '0 !important',
+        },
       },
     },
     MuiButton: {
