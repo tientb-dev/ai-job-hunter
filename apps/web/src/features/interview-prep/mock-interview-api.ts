@@ -90,7 +90,6 @@ async function call(
     response = await fetch(url, {
       method,
       cache: 'no-store',
-      credentials: 'omit',
       headers: { 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal,
