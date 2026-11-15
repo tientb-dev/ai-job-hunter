@@ -1,3 +1,4 @@
+import { replyAiLimit } from '../ai/ai-usage.js';
 import { Catch, HttpException } from '@nestjs/common';
 import type { ArgumentsHost, HttpServer } from '@nestjs/common';
 import { BaseExceptionFilter } from '@nestjs/core';
@@ -12,6 +13,7 @@ export class CvSuggestionsRequestErrors extends BaseExceptionFilter {
     super(adapter);
   }
   override catch(error: unknown, host: ArgumentsHost): void {
+    if (replyAiLimit(error, host)) return;
     const http = host.switchToHttp();
     const req = http.getRequest<IncomingMessage>();
     const path = (req.url ?? '').split('?')[0]!;

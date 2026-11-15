@@ -4,6 +4,7 @@ import '@fontsource/ibm-plex-sans/600.css';
 import '@fontsource/source-serif-4/400.css';
 import '@fontsource/source-serif-4/600.css';
 import { NotificationProvider } from './components/Notifications';
+import { AiLimitNotices } from './features/ai/AiLimitNotices';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
@@ -21,6 +22,7 @@ createRoot(root).render(
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <NotificationProvider>
+        <AiLimitNotices />
         <RouterProvider router={router} />
       </NotificationProvider>
     </ThemeProvider>

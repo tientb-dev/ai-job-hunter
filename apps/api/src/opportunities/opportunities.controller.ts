@@ -1,3 +1,4 @@
+import { replyAiLimit } from '../ai/ai-usage.js';
 import { CurrentOwner } from '../auth/current-owner.js';
 import { CvSuggestionsError } from '../matching/cv-suggestions.error.js';
 import { importTopcvPage } from './topcv-page-import.js';
@@ -34,6 +35,7 @@ import { EXTRACTION_LIMITS } from '../extraction/extraction.limits.js';
 @Catch()
 export class OpportunityErrors implements ExceptionFilter {
   catch(error: unknown, host: ArgumentsHost): void {
+    if (replyAiLimit(error, host)) return;
     const response = host.switchToHttp().getResponse<ServerResponse>();
     const status = error instanceof HttpException ? error.getStatus() : 503;
     response.statusCode = status;

@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { DataSource } from 'typeorm';
+import { AiUsageService } from './ai-usage.js';
 import { AI_PROVIDER } from './ai-provider.js';
 import { AI_CONFIG, aiConfig } from './ai.config.js';
 import { AiService } from './ai.service.js';
@@ -16,6 +18,16 @@ import { OllamaProvider } from './ollama.provider.js';
         config.provider === 'gemini'
           ? new GeminiProvider(config)
           : new OllamaProvider(config),
+    },
+    {
+      provide: AiUsageService,
+      inject: [AI_CONFIG, { token: DataSource, optional: true }],
+      useFactory: (config: AiConfig, db?: DataSource) => {
+        if (config.provider !== 'gemini') return null;
+        // Hosted AI must be metered; refuse to start without the database.
+        if (!db) throw new Error('Gemini usage limits require the database');
+        return new AiUsageService(db, config.limits);
+      },
     },
     AiService,
   ],
