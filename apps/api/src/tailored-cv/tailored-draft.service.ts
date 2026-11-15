@@ -190,6 +190,7 @@ export class TailoredDraftService {
         };
         await this.context(manager, ownerId, jobId, request);
         const matchValidForMs = await this.matches.remainingSnapshotMs(
+          ownerId,
           jobId,
           matchId,
         );
@@ -416,7 +417,11 @@ export class TailoredDraftService {
       );
       if (current.text !== source.text || current.fileName !== source.fileName)
         throw new Error();
-      match = await this.matches.requireSnapshot(jobId, request.matchId);
+      match = await this.matches.requireSnapshot(
+        ownerId,
+        jobId,
+        request.matchId,
+      );
     } catch {
       throw new TailoredDraftError('CV_DRAFT_STALE_MATCH');
     }

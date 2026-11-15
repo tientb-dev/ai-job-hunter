@@ -18,7 +18,7 @@ import {
 } from '@nestjs/common';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { localWrite } from '../opportunities/opportunities.security.js';
-import { LOCAL_OWNER_ID } from '../opportunities/opportunities.service.js';
+import { CurrentOwner } from '../auth/current-owner.js';
 import { DiscoveryQueueService } from './discovery-queue.service.js';
 import { DiscoveryQueueActionsService } from './discovery-queue-actions.service.js';
 import { DiscoveryConflict } from './discovery-conflict.js';
@@ -89,43 +89,49 @@ export class DiscoveryController {
   @Post('runs')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
-  run(@Req() req: IncomingMessage, @Body() body: unknown) {
+  run(
+    @CurrentOwner() owner: string,
+    @Req() req: IncomingMessage,
+    @Body() body: unknown,
+  ) {
     localWrite(req);
-    return this.actions.run(LOCAL_OWNER_ID, body);
+    return this.actions.run(owner, body);
   }
   @Get('candidates')
   @Header('Cache-Control', 'no-store')
-  async list(@Query() query: unknown) {
-    const result = await this.queue.list(LOCAL_OWNER_ID, query);
+  async list(@CurrentOwner() owner: string, @Query() query: unknown) {
+    const result = await this.queue.list(owner, query);
     return { ...result, items: result.items.map((row) => candidateDto(row)) };
   }
   @Get('candidates/:id')
   @Header('Cache-Control', 'no-store')
-  async get(@Param('id', new ParseUUIDPipe()) id: string) {
-    return candidateDto(await this.queue.get(LOCAL_OWNER_ID, id), true);
+  async get(
+    @CurrentOwner() owner: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return candidateDto(await this.queue.get(owner, id), true);
   }
   @Patch('candidates/:id/status')
   @Header('Cache-Control', 'no-store')
   async status(
+    @CurrentOwner() owner: string,
     @Req() req: IncomingMessage,
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: unknown,
   ) {
     localWrite(req);
-    return candidateDto(
-      await this.actions.status(LOCAL_OWNER_ID, id, body),
-      true,
-    );
+    return candidateDto(await this.actions.status(owner, id, body), true);
   }
   @Post('candidates/:id/save')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
   save(
+    @CurrentOwner() owner: string,
     @Req() req: IncomingMessage,
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: unknown,
   ) {
     localWrite(req);
-    return this.actions.save(LOCAL_OWNER_ID, id, body);
+    return this.actions.save(owner, id, body);
   }
 }

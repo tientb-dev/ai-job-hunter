@@ -1,3 +1,4 @@
+import { asLocalOwner } from '../support/as-local-owner.js';
 import 'reflect-metadata';
 import { expect, test, jest } from '@jest/globals';
 import { Test } from '@nestjs/testing';
@@ -35,7 +36,10 @@ function setup() {
 test('lookup reuses Save normalization, scopes the query to the owner and returns only link metadata', async () => {
   const { service, find, save } = setup();
   expect(
-    await service.duplicateUrl('http://example.com/job/?b=2&a=1&ref=mail'),
+    await service.duplicateUrl(
+      LOCAL_OWNER_ID,
+      'http://example.com/job/?b=2&a=1&ref=mail',
+    ),
   ).toEqual({
     match: {
       id: existing.id,
@@ -52,7 +56,9 @@ test('lookup reuses Save normalization, scopes the query to the owner and return
 });
 test('a different URL never matches merely because title and company could match', async () => {
   const { service } = setup();
-  expect(await service.duplicateUrl('https://example.com/new-job')).toEqual({
+  expect(
+    await service.duplicateUrl(LOCAL_OWNER_ID, 'https://example.com/new-job'),
+  ).toEqual({
     match: null,
   });
 });
@@ -68,14 +74,16 @@ test.each([
   'invalid lookup input is rejected before reading jobs: %s',
   async (value) => {
     const { service, find } = setup();
-    await expect(service.duplicateUrl(value)).rejects.toThrow('HTTP(S)');
+    await expect(service.duplicateUrl(LOCAL_OWNER_ID, value)).rejects.toThrow(
+      'HTTP(S)',
+    );
     expect(find).not.toHaveBeenCalled();
   },
 );
 test('Save still rejects an exact URL even if no early lookup occurred', async () => {
   const { service, save } = setup();
   await expect(
-    service.create({
+    service.create(LOCAL_OWNER_ID, {
       title: 'Different title',
       company: 'Different company',
       source: 'Website',
@@ -101,6 +109,7 @@ test('read-only HTTP contract returns JSON match/null and no-store; invalid quer
     ],
   }).compile();
   const app = module.createNestApplication();
+  asLocalOwner(app);
   app.setGlobalPrefix('api/v1');
   await app.init();
   try {

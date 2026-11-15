@@ -1,3 +1,5 @@
+import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js';
+import { asLocalOwner } from '../support/as-local-owner.js';
 import { SavedCvSourceService } from '../../src/matching/saved-cv-source.service.js';
 import { OpportunitiesService } from '../../src/opportunities/opportunities.service.js';
 import { TailoredDraftGenerator } from '../../src/tailored-cv/tailored-draft.generator.js';
@@ -141,7 +143,8 @@ async function generate(req: GenerationRequest): Promise<string> {
         updatedAt: new Date('2030-01-01T00:00:00.000Z'),
       },
     );
-  if (mode === 'stale-match') await matches.analyze(current.job.id);
+  if (mode === 'stale-match')
+    await matches.analyze(LOCAL_OWNER_ID, current.job.id);
   const facts = data.facts!;
   return JSON.stringify({
     selectedFactIds: facts.map((f) => f.id).reverse(),
@@ -169,6 +172,7 @@ beforeAll(async () => {
     .useValue({ generate })
     .compile();
   app = module.createNestApplication();
+  asLocalOwner(app);
   app.setGlobalPrefix('api/v1');
   app.useGlobalFilters(new FoundationRequestErrors(app.getHttpAdapter()));
   await app.init();
@@ -337,6 +341,7 @@ test('durably generates a complete source-default draft, lists metadata and retr
     })
     .compile();
   const freshApp = freshModule.createNestApplication();
+  asLocalOwner(freshApp);
   freshApp.setGlobalPrefix('api/v1');
   await freshApp.init();
   try {
@@ -987,7 +992,7 @@ test('source reconstruction rebuild leaves approved draft and pinned historical 
 
 test('P8 readiness reuses authoritative pins, rejects replaced/mismatched context and preserves reviewed profile and drafts', async () => {
   const state = await ready(),
-    cv = await matches.cv();
+    cv = await matches.cv(LOCAL_OWNER_ID);
   const body = {
     ...v,
     expectedJobUpdatedAt: state.body.expectedJobUpdatedAt,

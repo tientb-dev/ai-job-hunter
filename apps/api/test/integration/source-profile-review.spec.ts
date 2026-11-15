@@ -1,3 +1,4 @@
+import { asLocalOwner } from '../support/as-local-owner.js';
 import {
   contactSkillsSource,
   skillGroups,
@@ -135,6 +136,7 @@ beforeAll(async () => {
     })
     .compile();
   app = module.createNestApplication();
+  asLocalOwner(app);
   app.setGlobalPrefix('api/v1');
   app.useGlobalFilters(new FoundationRequestErrors(app.getHttpAdapter()));
   await app.init();

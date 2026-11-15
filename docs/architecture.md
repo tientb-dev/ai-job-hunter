@@ -2172,8 +2172,24 @@ Grounding decisions:
   so it also covers the raw `POST /analyses` middleware that Nest guards would not see. Public: health,
   login, register, reset-password, logout. State-changing requests require exactly one allowed `Origin`
   (CSRF). Login/register/reset are rate limited in memory per client address.
-- Transitional: existing modules still use `LOCAL_OWNER_ID`. Only the account created with
-  `auth invite --local-owner` (whose id is `LOCAL_OWNER_ID`) may use data endpoints; others get 403
-  `DATA_ACCESS_PENDING`. PR 2 replaces this with per-account ownership.
+- PR 1 shipped a transitional local-owner-only gate; PR 2 (below) replaced it.
 - Existing integration tests build `AppModule` without `main.ts` wiring, so they do not exercise auth;
   `test/integration/auth.spec.ts` does.
+
+## Web beta PR2 Per-account data isolation
+
+- Every data handler takes `@CurrentOwner()` (`src/auth/current-owner.ts`), the id the session middleware
+  attached to the request. It is never read from request input; strict validation rejects a body `ownerId`.
+  Without a session the decorator fails closed with 401, even if the middleware were not installed.
+- Services already scoped queries by `ownerId`; PR 2 removed the remaining hard-coded `LOCAL_OWNER_ID` from
+  `OpportunitiesService` and `JobMatchService` (including the match snapshot Tailored CV drafts rely on) and
+  from the opportunities, tailored-cv, interview-prep and discovery controllers. Cross-table reads join on
+  `"ownerId"`, so linking another account's job, source or profile resolves as not found.
+- No migration: every user-data table already has `"ownerId"`. Rows created before accounts stay under
+  `LOCAL_OWNER_ID`, the id the `auth invite --local-owner` account receives, so no backfill is needed.
+- Stateless routes (`/analyses`, URL/page import previews, parse/extract, the question catalog, the public
+  jobs feed) only require a session.
+- Feature specs act as the local owner via `test/support/as-local-owner.ts`;
+  `test/integration/data-isolation.spec.ts` covers two accounts through real sessions.
+- Known limit: CV Match and discovery keep one in-process run at a time across all accounts
+  (`active` flags), so concurrent users may see "already running" (409).

@@ -1,3 +1,4 @@
+import { asLocalOwner } from '../support/as-local-owner.js';
 import 'reflect-metadata';
 import {
   afterAll,
@@ -21,6 +22,7 @@ beforeAll(async () => {
     providers: [{ provide: HealthService, useValue: { isReady } }],
   }).compile();
   app = module.createNestApplication();
+  asLocalOwner(app);
   app.setGlobalPrefix('api/v1');
   await app.init();
 });

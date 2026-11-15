@@ -1,3 +1,4 @@
+import { asLocalOwner } from '../support/as-local-owner.js';
 import { CompleteJobImportFields1793490000000 } from '../../src/database/migrations/1793490000000-CompleteJobImportFields.js';
 import 'reflect-metadata';
 import { afterAll, beforeAll, expect, test } from '@jest/globals';
@@ -26,6 +27,7 @@ beforeAll(async () => {
     imports: [AppModule],
   }).compile();
   app = module.createNestApplication();
+  asLocalOwner(app);
   app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(createValidationPipe());
   await app.init();

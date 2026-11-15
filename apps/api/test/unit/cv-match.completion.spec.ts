@@ -1,3 +1,4 @@
+import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js';
 import 'reflect-metadata';
 import { afterEach, describe, expect, jest, test } from '@jest/globals';
 import type { Repository } from 'typeorm';
@@ -108,7 +109,7 @@ test('omitted requirements are completed by exactly one extra call', async () =>
     () => reply(initial()),
     () => reply(completion()),
   ]);
-  const result = await service.analyze('synthetic');
+  const result = await service.analyze(LOCAL_OWNER_ID, 'synthetic');
   expect(generate).toHaveBeenCalledTimes(2);
   expect(
     result.requirements.map((row) => [row.requirement, row.status]),
@@ -146,13 +147,15 @@ test('omitted requirements are completed by exactly one extra call', async () =>
 test('a complete first response makes exactly one call', async () => {
   const all = [...initial(), ...completion()];
   const { service, generate } = setup([() => reply(all)]);
-  await service.analyze('synthetic');
+  await service.analyze(LOCAL_OWNER_ID, 'synthetic');
   expect(generate).toHaveBeenCalledTimes(1);
 });
 
 test('Ollama keeps the existing behavior: no completion call', async () => {
   const { service, generate } = setup([() => reply(initial())], 'ollama');
-  expect(await code(service.analyze('synthetic'))).toBe('CV_MATCH_INCOMPLETE');
+  expect(await code(service.analyze(LOCAL_OWNER_ID, 'synthetic'))).toBe(
+    'CV_MATCH_INCOMPLETE',
+  );
   expect(generate).toHaveBeenCalledTimes(1);
 });
 
@@ -190,7 +193,9 @@ describe('invalid completions are rejected with no saved score', () => {
       () => reply(initial()),
       () => reply(items),
     ]);
-    expect(await code(service.analyze('synthetic'))).toBe(expected);
+    expect(await code(service.analyze(LOCAL_OWNER_ID, 'synthetic'))).toBe(
+      expected,
+    );
     expect(generate).toHaveBeenCalledTimes(2);
     expect(saved()).toBe(0);
   });
@@ -201,7 +206,7 @@ describe('invalid completions are rejected with no saved score', () => {
       () => reply([docker, { ...kafka!, cvQuote: 'Fabricated Kafka passage' }]),
     ]);
     // Gemini schemas carry no passage enum; the server drops the quote instead.
-    const result = await service.analyze('synthetic');
+    const result = await service.analyze(LOCAL_OWNER_ID, 'synthetic');
     const row = result.requirements.find(
       (item) => item.requirement === 'Kafka',
     );
@@ -228,7 +233,9 @@ describe('error classification', () => {
     ['invalid JSON', () => '{', 'CV_MATCH_INVALID_OUTPUT'],
   ])('initial %s: no completion call', async (_, first, expected) => {
     const { service, generate } = setup([first]);
-    expect(await code(service.analyze('synthetic'))).toBe(expected);
+    expect(await code(service.analyze(LOCAL_OWNER_ID, 'synthetic'))).toBe(
+      expected,
+    );
     expect(generate).toHaveBeenCalledTimes(1);
   });
   test.each([
@@ -259,7 +266,9 @@ describe('error classification', () => {
         () => reply(initial()),
         second,
       ]);
-      expect(await code(service.analyze('synthetic'))).toBe(expected);
+      expect(await code(service.analyze(LOCAL_OWNER_ID, 'synthetic'))).toBe(
+        expected,
+      );
       expect(generate).toHaveBeenCalledTimes(2);
       expect(saved()).toBe(0);
     },
@@ -273,7 +282,7 @@ test('diagnostics: completion outcome line holds no source text', async () => {
     () => reply(initial()),
     () => reply(completion()),
   ]);
-  await service.analyze('synthetic');
+  await service.analyze(LOCAL_OWNER_ID, 'synthetic');
   const lines = write.mock.calls.map(([line]) => String(line));
   const parsed = lines.map(
     (line) => JSON.parse(line) as { event: string; attempt?: string },
@@ -313,13 +322,13 @@ test('diagnostics: completion outcome line holds no source text', async () => {
 test('Gemini prompts ask for complete CV lines; Ollama prompts are unchanged', async () => {
   const rule = /copy one complete CV line, or up to three consecutive lines/u;
   const gemini = setup([() => reply(initial()), () => reply(completion())]);
-  await gemini.service.analyze('synthetic');
+  await gemini.service.analyze(LOCAL_OWNER_ID, 'synthetic');
   for (const [request] of gemini.generate.mock.calls)
     expect(request.prompt).toMatch(rule);
   const ollama = setup(
     [() => reply([...initial(), ...completion()])],
     'ollama',
   );
-  await ollama.service.analyze('synthetic');
+  await ollama.service.analyze(LOCAL_OWNER_ID, 'synthetic');
   expect(ollama.generate.mock.calls[0]![0].prompt).not.toMatch(rule);
 });

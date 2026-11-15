@@ -292,7 +292,10 @@ test('manual creation and queue Save share the identity write lock', async () =>
     .update(row!.id, { ownerId: LOCAL_OWNER_ID });
   try {
     const results = await Promise.allSettled([
-      env.ops.create(discoveredOpportunityFields(row!.snapshot)),
+      env.ops.create(
+        LOCAL_OWNER_ID,
+        discoveredOpportunityFields(row!.snapshot),
+      ),
       env.actions.save(LOCAL_OWNER_ID, row!.id, {}),
     ]);
     expect(results[1]!.status).toBe('fulfilled');

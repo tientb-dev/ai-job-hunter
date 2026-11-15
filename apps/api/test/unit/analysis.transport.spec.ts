@@ -1,3 +1,4 @@
+import { asLocalOwner } from '../support/as-local-owner.js';
 import 'reflect-metadata';
 import { afterAll, beforeAll, expect, jest, test } from '@jest/globals';
 import { Test } from '@nestjs/testing';
@@ -86,6 +87,7 @@ beforeAll(async () => {
     ],
   }).compile();
   app = module.createNestApplication({ logger: false });
+  asLocalOwner(app);
   configureAnalysisHttp(app);
   app.setGlobalPrefix('api/v1');
   await app.listen(0, '127.0.0.1');

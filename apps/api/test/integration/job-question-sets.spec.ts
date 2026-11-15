@@ -1,3 +1,4 @@
+import { asLocalOwner } from '../support/as-local-owner.js';
 import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
 import {
@@ -163,6 +164,7 @@ beforeAll(async () => {
     .useValue({ generateStructured })
     .compile();
   app = module.createNestApplication();
+  asLocalOwner(app);
   app.setGlobalPrefix('api/v1');
   await app.init();
   service = app.get(JobQuestionsService);

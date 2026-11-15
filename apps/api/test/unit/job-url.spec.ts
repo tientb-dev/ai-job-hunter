@@ -1,3 +1,4 @@
+import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js';
 import { transactionalRepository } from '../support/transactional-repository.mock.js';
 import 'reflect-metadata';
 import { expect, jest, test } from '@jest/globals';
@@ -30,7 +31,9 @@ test('duplicate URL create preserves every existing field and never saves', asyn
     transactionalRepository(rows) as unknown as Repository<Opportunity>,
     {} as JobImportService,
   );
-  await expect(service.create(fields)).rejects.toThrow('already saved');
+  await expect(service.create(LOCAL_OWNER_ID, fields)).rejects.toThrow(
+    'already saved',
+  );
   expect(save).not.toHaveBeenCalled();
   expect(existing).toEqual(before);
 });
@@ -54,13 +57,16 @@ test.each([
     transactionalRepository(rows) as unknown as Repository<Opportunity>,
     {} as JobImportService,
   );
-  const created = await service.create({ ...fields, originalLink: url });
+  const created = await service.create(LOCAL_OWNER_ID, {
+    ...fields,
+    originalLink: url,
+  });
   expect(created).toMatchObject({
     originalLink: url,
     source: 'Website',
     contactNotes: fields.contactNotes,
   });
-  const edited = await service.update('synthetic', {
+  const edited = await service.update(LOCAL_OWNER_ID, 'synthetic', {
     ...fields,
     originalLink: url,
     title: 'Edited role',

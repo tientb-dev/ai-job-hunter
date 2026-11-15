@@ -1,3 +1,4 @@
+import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js';
 import 'reflect-metadata';
 import { memoryMatchRows } from '../support/memory-match-rows.js';
 import { readFileSync } from 'node:fs';
@@ -78,7 +79,7 @@ test('captured P6.3 omission replays through the matching service as 44 / Consid
     { get: async () => job } as unknown as OpportunitiesService,
     memoryMatchRows(),
   );
-  const result = await service.analyze(job.id);
+  const result = await service.analyze(LOCAL_OWNER_ID, job.id);
   expect(result).toMatchObject({
     score: 44,
     recommendation: 'Consider',

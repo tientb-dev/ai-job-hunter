@@ -1,7 +1,5 @@
 export interface CurrentUser {
   email: string;
-  /** False until per-account data ownership ships (web beta PR 2). */
-  dataAccess: boolean;
 }
 
 export const PASSWORD_MIN = 10;

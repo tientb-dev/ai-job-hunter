@@ -1,3 +1,4 @@
+import { asLocalOwner } from '../support/as-local-owner.js';
 import 'reflect-metadata';
 import { afterAll, beforeAll, expect, test } from '@jest/globals';
 import { Test } from '@nestjs/testing';
@@ -34,6 +35,7 @@ beforeAll(async () => {
     })
     .compile();
   app = module.createNestApplication();
+  asLocalOwner(app);
   app.setGlobalPrefix('api/v1');
   await app.init();
 });

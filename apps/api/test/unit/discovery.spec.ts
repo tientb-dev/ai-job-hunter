@@ -1,3 +1,4 @@
+import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js';
 import { expect, jest, test } from '@jest/globals';
 import {
   duplicateJob,
@@ -162,7 +163,7 @@ test('source failure is reported while the other feed can still import', async (
   };
   const jobs = {
     importDiscovered: jest
-      .fn<(rows: DiscoveredJob[]) => Promise<unknown>>()
+      .fn<(ownerId: string, rows: DiscoveredJob[]) => Promise<unknown>>()
       .mockResolvedValue({
         imported: 1,
         duplicatesSkipped: 0,
@@ -173,11 +174,11 @@ test('source failure is reported while the other feed can still import', async (
   const result = await new DiscoveryService(
     source as unknown as GreenhouseSource,
     jobs as unknown as OpportunitiesService,
-  ).discover(filters);
+  ).discover(LOCAL_OWNER_ID, filters);
   expect(result).toMatchObject({ found: 1, imported: 1 });
   expect(result.errors[0]).toContain('feed unavailable');
   expect(result.errors.join()).not.toContain('private internal error');
-  expect(jobs.importDiscovered.mock.calls[0]![0][0]!.discovery.sourceName).toBe(
+  expect(jobs.importDiscovered.mock.calls[0]![1][0]!.discovery.sourceName).toBe(
     DISCOVERY_SOURCES[1].name,
   );
 });

@@ -1,3 +1,4 @@
+import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js';
 import 'reflect-metadata';
 import { memoryMatchRows } from '../support/memory-match-rows.js';
 import { readFileSync } from 'node:fs';
@@ -136,11 +137,15 @@ test('real synthetic PDF replacement stores new degree text and analysis uses it
     educationRequirement,
     (cv) => cv.split('\n').find((line) => /Bachelor/u.test(line)) ?? '',
   );
-  expect((await run.service.analyze(run.job.id)).requirements[0]!.status).toBe(
-    'NOT_EVIDENCED',
-  );
+  expect(
+    (await run.service.analyze(LOCAL_OWNER_ID, run.job.id)).requirements[0]!
+      .status,
+  ).toBe('NOT_EVIDENCED');
   const oldRevision = run.saved().updatedAt;
-  const metadata = await run.service.saveCv(syntheticPdf(education));
+  const metadata = await run.service.saveCv(
+    LOCAL_OWNER_ID,
+    syntheticPdf(education),
+  );
   expect(metadata).toMatchObject({ fileName: 'synthetic-updated.pdf' });
   expect(metadata).not.toHaveProperty('text');
   expect(run.saved().text).toMatch(
@@ -150,7 +155,7 @@ test('real synthetic PDF replacement stores new degree text and analysis uses it
   expect(run.saved().updatedAt.getTime()).toBeGreaterThan(
     oldRevision.getTime(),
   );
-  const result = await run.service.analyze(run.job.id);
+  const result = await run.service.analyze(LOCAL_OWNER_ID, run.job.id);
   expect(run.prompts.at(-1)).toBe(run.saved().text);
   expect(run.prompts.at(-1)).not.toContain('Old synthetic CV');
   expect(result.cvUpdatedAt).toEqual(metadata!.updatedAt);
@@ -171,11 +176,11 @@ test('real synthetic PDF replacement stores new degree text and analysis uses it
 
 test('the fresh parsed degree is recovered when the controlled model omits its selection', async () => {
   const run = setup();
-  await run.service.saveCv(syntheticPdf(education));
+  await run.service.saveCv(LOCAL_OWNER_ID, syntheticPdf(education));
   expect(run.saved().text).toMatch(
     /Bachelor['’]s Degree in Information Technology/u,
   );
-  const result = await run.service.analyze(run.job.id);
+  const result = await run.service.analyze(LOCAL_OWNER_ID, run.job.id);
   expect(run.prompts[0]).toBe(run.saved().text);
   expect(result.requirements[0]).toMatchObject({
     status: 'EVIDENCED',
@@ -196,12 +201,13 @@ test('fresh full public JD with omitted selections recovers education: 17 / 2 Ma
     domain: fields.domain,
   });
   await run.service.saveCv(
+    LOCAL_OWNER_ID,
     syntheticPdf([
       ...education,
       'Professional Summary: 6 years of experience building software systems.',
     ]),
   );
-  const result = await run.service.analyze(run.job.id);
+  const result = await run.service.analyze(LOCAL_OWNER_ID, run.job.id);
   expect(run.prompts[0]).toMatch(
     /Bachelor['’]s Degree in Information Technology/u,
   );
@@ -226,6 +232,7 @@ test('degree and field separated by a PDF line break retain bounded original con
   const quote = 'Bachelor’s Degree in\nInformation Technology';
   const run = setup(educationRequirement, () => quote);
   await run.service.saveCv(
+    LOCAL_OWNER_ID,
     syntheticPdf([
       'EDUCATION',
       'Nong Lam University',
@@ -235,7 +242,7 @@ test('degree and field separated by a PDF line break retain bounded original con
     ]),
   );
   expect(run.saved().text).toContain(quote);
-  const result = await run.service.analyze(run.job.id);
+  const result = await run.service.analyze(LOCAL_OWNER_ID, run.job.id);
   expect(result.requirements[0]!).toMatchObject({
     status: 'EVIDENCED',
     cvQuote: `${quote}\nGraduated: 2019`,
@@ -266,8 +273,8 @@ test.each([
   async (lines, score, supported) => {
     const quote = lines.join('\n');
     const run = setup(architectureRequirement, () => quote);
-    await run.service.saveCv(syntheticPdf([...lines]));
-    const result = await run.service.analyze(run.job.id);
+    await run.service.saveCv(LOCAL_OWNER_ID, syntheticPdf([...lines]));
+    const result = await run.service.analyze(LOCAL_OWNER_ID, run.job.id);
     const row = result.requirements[0]!;
     expect(result.score).toBe(score);
     expect(row.status).toBe('PARTIAL');
@@ -290,13 +297,14 @@ test.each([
 test('explicit architecture design evidence recovers only supported AND components when selections are omitted', async () => {
   const run = setup(architectureRequirement);
   await run.service.saveCv(
+    LOCAL_OWNER_ID,
     syntheticPdf([
       'Designed REST APIs and microservices.',
       'Designed integrations using RabbitMQ.',
       'Designed GitLab CI/CD pipelines.',
     ]),
   );
-  const result = await run.service.analyze(run.job.id);
+  const result = await run.service.analyze(LOCAL_OWNER_ID, run.job.id);
   expect(result.requirements[0]).toMatchObject({
     status: 'PARTIAL',
     credit: 0.6,
@@ -308,8 +316,10 @@ test('fabricated education quotation causes a typed failure rather than a succes
     educationRequirement,
     () => "Bachelor's Degree in Computer Science",
   );
-  await run.service.saveCv(syntheticPdf(education));
-  await expect(run.service.analyze(run.job.id)).rejects.toMatchObject({
+  await run.service.saveCv(LOCAL_OWNER_ID, syntheticPdf(education));
+  await expect(
+    run.service.analyze(LOCAL_OWNER_ID, run.job.id),
+  ).rejects.toMatchObject({
     errorCode: 'CV_MATCH_INVALID_OUTPUT',
   });
 });

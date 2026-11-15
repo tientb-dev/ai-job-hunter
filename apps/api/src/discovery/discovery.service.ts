@@ -29,7 +29,7 @@ export class DiscoveryService {
     private readonly source: GreenhouseSource,
     private readonly jobs: OpportunitiesService,
   ) {}
-  async discover(input: unknown) {
+  async discover(ownerId: string, input: unknown) {
     validateFilters(input);
     if (this.active)
       throw new ConflictException(
@@ -38,7 +38,7 @@ export class DiscoveryService {
     this.active = true;
     try {
       const { jobs, errors, scannedAt } = await this.scan(input);
-      const saved = await this.jobs.importDiscovered(jobs);
+      const saved = await this.jobs.importDiscovered(ownerId, jobs);
       return {
         found: jobs.length,
         ...saved,

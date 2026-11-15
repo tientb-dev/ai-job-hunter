@@ -1,3 +1,4 @@
+import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js';
 import 'reflect-metadata';
 import { afterEach, describe, expect, jest, test } from '@jest/globals';
 import type { Repository } from 'typeorm';
@@ -96,7 +97,7 @@ async function run(quotes: Quotes, diagnostics: boolean) {
   configureCvMatchDiagnostics(diagnostics);
   const write = jest.spyOn(process.stderr, 'write').mockReturnValue(true);
   const result = await service(quotes)
-    .analyze('synthetic')
+    .analyze(LOCAL_OWNER_ID, 'synthetic')
     .catch((e: { errorCode?: string }) => ({
       error: e.errorCode,
     }));

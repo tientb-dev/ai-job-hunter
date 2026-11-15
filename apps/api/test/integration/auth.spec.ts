@@ -10,7 +10,6 @@ import { AuthService } from '../../src/auth/auth.service.js';
 import { configureAuth } from '../../src/auth/auth.http.js';
 import type { AuthHttpOptions } from '../../src/auth/auth.http.js';
 import { databaseOptions } from '../../src/database/database.config.js';
-import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js';
 import { revertThrough } from '../support/migration-revert.js';
 
 const S = 'ai_job_hunter';
@@ -22,7 +21,6 @@ let db: DataSource;
 let auth: AuthService;
 let app: INestApplication;
 let limited: INestApplication;
-let createdLocalOwner = false;
 
 async function startApp(options: AuthHttpOptions) {
   const module = await Test.createTestingModule({
@@ -74,8 +72,6 @@ afterAll(async () => {
     await db.query(`DELETE FROM ${S}.users WHERE email LIKE $1`, [
       `%-${run}@example.test`,
     ]);
-    if (createdLocalOwner)
-      await db.query(`DELETE FROM ${S}.users WHERE id = $1`, [LOCAL_OWNER_ID]);
     await db.query(
       `DELETE FROM ${S}.auth_codes WHERE "createdAt" > now() - interval '1 hour'`,
     );
@@ -99,7 +95,7 @@ test('a valid code registers once, stores only hashes, and starts a session', as
   const cookie = cookieOf(res);
   expect(res.headers['set-cookie']?.[0]).toMatch(/HttpOnly; SameSite=Lax/);
   const me = await get('/auth/me', cookie).expect(200);
-  expect(me.body).toEqual({ email: email('valid'), dataAccess: false });
+  expect(me.body).toEqual({ email: email('valid') });
   const [user] = await db.query(
     `SELECT "passwordHash" FROM ${S}.users WHERE email = $1`,
     [email('valid')],
@@ -214,26 +210,6 @@ test('unauthenticated requests are denied; health stays public', async () => {
     .post('/api/v1/analyses')
     .set('Origin', ORIGIN)
     .expect(401);
-});
-
-test('non-owner accounts cannot reach local-owner data until PR 2; the local owner can', async () => {
-  const cookie = cookieOf(await register('other', await auth.issueInvite(7)));
-  expect((await get('/opportunities', cookie).expect(403)).body).toEqual({
-    errorCode: 'DATA_ACCESS_PENDING',
-  });
-  const [owner] = await db.query(`SELECT 1 FROM ${S}.users WHERE id = $1`, [
-    LOCAL_OWNER_ID,
-  ]);
-  if (owner) return; // a pre-existing local owner in the disposable test DB
-  const res = await register(
-    'owner',
-    await auth.issueInvite(7, LOCAL_OWNER_ID),
-  );
-  createdLocalOwner = res.status === 201;
-  expect(res.status).toBe(201);
-  const ownerCookie = cookieOf(res);
-  expect((await get('/auth/me', ownerCookie)).body.dataAccess).toBe(true);
-  await get('/opportunities', ownerCookie).expect(200);
 });
 
 test('state-changing requests need exactly one allowed Origin', async () => {

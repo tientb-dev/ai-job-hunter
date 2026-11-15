@@ -76,24 +76,3 @@ test('registration validates password length, confirmation and invitation code',
   expect(screen.getByText('Nhập mã mời.')).toBeVisible();
   expect(fetchMock).toHaveBeenCalledTimes(1);
 });
-
-test('an account without data access sees the pending notice and can sign out', async () => {
-  const fetchMock = vi
-    .fn()
-    .mockResolvedValueOnce(
-      json(200, { email: 'b@example.test', dataAccess: false }),
-    )
-    .mockResolvedValueOnce(json(204, null));
-  renderAt('/jobs', fetchMock);
-  expect(
-    await screen.findByRole('heading', { name: 'Tài khoản đã sẵn sàng' }),
-  ).toBeVisible();
-  expect(
-    screen.queryByRole('navigation', { name: 'Main navigation' }),
-  ).toBeNull();
-  await userEvent.click(screen.getByRole('button', { name: 'Đăng xuất' }));
-  expect(
-    await screen.findByRole('heading', { name: 'Đăng nhập' }),
-  ).toBeVisible();
-  expect(fetchMock.mock.calls[1]![0]).toBe('/api/v1/auth/logout');
-});

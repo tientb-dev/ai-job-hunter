@@ -1,3 +1,4 @@
+import { asLocalOwner } from '../support/as-local-owner.js';
 import { compileOutputSchema } from '../../src/ai/ai.schema.js';
 import type { OutputSchema } from '../../src/ai/ai-provider.js';
 import 'reflect-metadata';
@@ -109,6 +110,7 @@ beforeEach(async () => {
     ],
   }).compile();
   app = module.createNestApplication({ logger: false });
+  asLocalOwner(app);
   app.setGlobalPrefix('api/v1');
   configureAnalysisHttp(app);
   await app.init();

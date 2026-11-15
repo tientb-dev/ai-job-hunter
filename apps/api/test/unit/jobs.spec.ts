@@ -1,3 +1,4 @@
+import { asLocalOwner } from '../support/as-local-owner.js';
 import 'reflect-metadata';
 import { afterEach, expect, jest, test } from '@jest/globals';
 import { Test } from '@nestjs/testing';
@@ -105,6 +106,7 @@ test('production jobs controller serves real-source projection, without an AI pr
     imports: [JobsModule],
   }).compile();
   const app = module.createNestApplication({ logger: false });
+  asLocalOwner(app);
   app.setGlobalPrefix('api/v1');
   await app.init();
   try {

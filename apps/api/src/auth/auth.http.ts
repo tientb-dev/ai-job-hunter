@@ -1,6 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { INestApplication } from '@nestjs/common';
-import { LOCAL_OWNER_ID } from '../opportunities/opportunities.service.js';
 import { SESSION_DAYS, AuthService } from './auth.service.js';
 import { AUTH_SECURE_COOKIES } from './auth.tokens.js';
 import type { SessionUser } from './auth.service.js';
@@ -43,7 +42,6 @@ function readCookie(req: IncomingMessage, name: string): string | undefined {
 
 const PUBLIC =
   /^\/api\/v1\/(?:health(?:\/|\?|$)|auth\/(?:login|register|reset-password|logout)(?:\?|$))/;
-const ACCOUNT = /^\/api\/v1\/auth\/me(?:\?|$)/;
 const LIMITED = /^\/api\/v1\/auth\/(?:login|register|reset-password)(?:\?|$)/;
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
@@ -114,13 +112,7 @@ export function configureAuth(
         }
         if (PUBLIC.test(path)) return next();
         if (!req.authUser) return deny(res, 401, 'UNAUTHENTICATED');
-        if (ACCOUNT.test(path)) return next();
-        // Transitional (until PR 2 adds per-user ownership): existing data
-        // endpoints still read and write LOCAL_OWNER_ID, so only the account
-        // that owns that id may use them. Other accounts are refused rather
-        // than sharing one person's data.
-        if (req.authUser.id !== LOCAL_OWNER_ID)
-          return deny(res, 403, 'DATA_ACCESS_PENDING');
+        // Data access is scoped per account by @CurrentOwner() in each handler.
         next();
       } catch (error: unknown) {
         next(error);

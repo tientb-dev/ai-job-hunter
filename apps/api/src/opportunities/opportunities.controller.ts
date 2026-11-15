@@ -1,3 +1,4 @@
+import { CurrentOwner } from '../auth/current-owner.js';
 import { CvSuggestionsError } from '../matching/cv-suggestions.error.js';
 import { importTopcvPage } from './topcv-page-import.js';
 import { PinnedJobPageTransport } from './job-url.transport.js';
@@ -70,13 +71,15 @@ export class OpportunitiesController {
     private readonly imports: JobImportService,
     private readonly matches: JobMatchService,
   ) {}
-  @Get() @Header('Cache-Control', 'no-store') list() {
-    return this.opportunities.list();
+  @Get() @Header('Cache-Control', 'no-store') list(
+    @CurrentOwner() owner: string,
+  ) {
+    return this.opportunities.list(owner);
   }
   @Get('duplicate-url')
   @Header('Cache-Control', 'no-store')
-  duplicateUrl(@Query('url') url: unknown) {
-    return this.opportunities.duplicateUrl(url);
+  duplicateUrl(@CurrentOwner() owner: string, @Query('url') url: unknown) {
+    return this.opportunities.duplicateUrl(owner, url);
   }
   @Post('import-url')
   @HttpCode(200)
@@ -107,56 +110,67 @@ export class OpportunitiesController {
   }
   @Get('cv/current')
   @Header('Cache-Control', 'no-store')
-  cv() {
-    return this.matches.cv();
+  cv(@CurrentOwner() owner: string) {
+    return this.matches.cv(owner);
   }
   @Post('cv/current')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
-  async saveCv(@Req() req: IncomingMessage) {
+  async saveCv(@CurrentOwner() owner: string, @Req() req: IncomingMessage) {
     localWrite(req);
-    return this.matches.saveCv((await readJobUpload(req)).document);
+    return this.matches.saveCv(owner, (await readJobUpload(req)).document);
   }
   @Get(':id/match')
   @Header('Cache-Control', 'no-store')
-  currentMatch(@Param('id', new ParseUUIDPipe()) id: string) {
-    return this.matches.currentMatch(id);
+  currentMatch(
+    @CurrentOwner() owner: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.matches.currentMatch(owner, id);
   }
   @Post(':id/match')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
   match(
+    @CurrentOwner() owner: string,
     @Req() req: IncomingMessage,
     @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     localWrite(req);
-    return this.matches.analyze(id);
+    return this.matches.analyze(owner, id);
   }
   @Post(':id/cv-improvement-suggestions')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
   suggest(
+    @CurrentOwner() owner: string,
     @Req() req: IncomingMessage,
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: unknown,
   ) {
     localWrite(req);
-    return this.matches.suggest(id, body);
+    return this.matches.suggest(owner, id, body);
   }
   @Get(':id') @Header('Cache-Control', 'no-store') get(
+    @CurrentOwner() owner: string,
     @Param('id', new ParseUUIDPipe()) id: string,
   ) {
-    return this.opportunities.get(id);
+    return this.opportunities.get(owner, id);
   }
-  @Post() async create(@Req() req: IncomingMessage, @Body() body: unknown) {
+  @Post() async create(
+    @CurrentOwner() owner: string,
+    @Req() req: IncomingMessage,
+    @Body() body: unknown,
+  ) {
     localWrite(req);
     if (req.headers['content-type']?.startsWith('multipart/form-data')) {
       const upload = await readJobUpload(req);
-      return this.opportunities.create(upload.record, upload.document);
+      return this.opportunities.create(owner, upload.record, upload.document);
     }
-    return this.opportunities.create(body);
+    return this.opportunities.create(owner, body);
   }
   @Put(':id') async update(
+    @CurrentOwner() owner: string,
     @Req() req: IncomingMessage,
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: unknown,
@@ -164,9 +178,14 @@ export class OpportunitiesController {
     localWrite(req);
     if (req.headers['content-type']?.startsWith('multipart/form-data')) {
       const upload = await readJobUpload(req);
-      return this.opportunities.update(id, upload.record, upload.document);
+      return this.opportunities.update(
+        owner,
+        id,
+        upload.record,
+        upload.document,
+      );
     }
-    return this.opportunities.update(id, body);
+    return this.opportunities.update(owner, id, body);
   }
   @Post('extract')
   @HttpCode(200)
@@ -179,25 +198,27 @@ export class OpportunitiesController {
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
   async extractExisting(
+    @CurrentOwner() owner: string,
     @Req() req: IncomingMessage,
     @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     localWrite(req);
-    const row = await this.opportunities.get(id);
+    const row = await this.opportunities.get(owner, id);
     const upload = await readJobUpload(req);
     if (row.documentName) {
       if (upload.document)
         throw new BadRequestException('The original JD is preserved.');
-      upload.document = await this.opportunities.document(id);
+      upload.document = await this.opportunities.document(owner, id);
     }
     return this.imports.extract(upload);
   }
   @Get(':id/document')
   async download(
+    @CurrentOwner() owner: string,
     @Param('id', new ParseUUIDPipe()) id: string,
     @Res() res: ServerResponse,
   ) {
-    const document = await this.opportunities.document(id);
+    const document = await this.opportunities.document(owner, id);
     res.setHeader('Content-Type', 'application/octet-stream');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Cache-Control', 'no-store');
