@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import { useEffect, useState } from 'react';
 import { Alert, Link } from '@mui/material';
 import { jobUrlInfo, opportunityRequest } from './opportunities-api';
@@ -42,14 +43,15 @@ export function DuplicateJobNotice({ url }: { url: string }) {
   if (result.failed)
     return (
       <Alert severity="info">
-        Could not check for an existing job. You can continue; Save will still
-        check for a duplicate URL.
+        {tr(
+          'Could not check for an existing job. You can continue; Save will still check for a duplicate URL.',
+        )}
       </Alert>
     );
   if (!result.match) return null;
   return (
     <Alert severity="warning" sx={{ overflowWrap: 'anywhere' }}>
-      This URL is already saved in Jobs
+      {tr('This URL is already saved in Jobs')}
       {result.match.title || result.match.company
         ? `: ${[result.match.title, result.match.company].filter(Boolean).join(' · ')}`
         : ''}
@@ -59,10 +61,11 @@ export function DuplicateJobNotice({ url }: { url: string }) {
         target="_blank"
         rel="noopener noreferrer"
       >
-        Open existing job
+        {tr('Open existing job')}
       </Link>{' '}
-      in a new tab to keep this draft. You can continue reviewing; Save still
-      checks for duplicates.
+      {tr(
+        'in a new tab to keep this draft. You can continue reviewing; Save still checks for duplicates.',
+      )}
     </Alert>
   );
 }

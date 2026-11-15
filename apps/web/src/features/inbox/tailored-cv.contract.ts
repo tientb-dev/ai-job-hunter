@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 export interface DraftFact {
   id: string;
   field: string;
@@ -100,7 +101,9 @@ export function decodeDraft(value: unknown, jobId: string): SavedDraft {
     typeof value.updatedAt !== 'string' ||
     !object(value.document)
   )
-    throw new Error('Invalid saved draft response. Your edits are retained.');
+    throw new Error(
+      tr('Invalid saved draft response. Your edits are retained.'),
+    );
   const doc = value.document;
   if (
     doc.kind !== 'tailored_cv' ||
@@ -120,7 +123,7 @@ export function decodeDraft(value: unknown, jobId: string): SavedDraft {
     !Number.isSafeInteger(doc.pins.profileRevision) ||
     doc.sections.length > 16
   )
-    throw new Error('Invalid saved draft document.');
+    throw new Error(tr('Invalid saved draft document.'));
   const issues = doc.reviewIssues;
   const ids = new Set<string>();
   for (const s of doc.sections) {
@@ -130,10 +133,10 @@ export function decodeDraft(value: unknown, jobId: string): SavedDraft {
       typeof s.kind !== 'string' ||
       !Array.isArray(s.entries)
     )
-      throw new Error('Invalid draft section.');
+      throw new Error(tr('Invalid draft section.'));
     for (const e of s.entries) {
       if (!object(e) || !Array.isArray(e.facts))
-        throw new Error('Invalid draft entry.');
+        throw new Error(tr('Invalid draft entry.'));
       for (const f of e.facts) {
         if (
           !object(f) ||
@@ -145,7 +148,7 @@ export function decodeDraft(value: unknown, jobId: string): SavedDraft {
           !Array.isArray(f.provenance.evidence) ||
           !object(doc.review.factReviews[f.id])
         )
-          throw new Error('Invalid draft fact.');
+          throw new Error(tr('Invalid draft fact.'));
         const state = doc.review.factReviews[f.id];
         if (
           !object(state) ||
@@ -175,7 +178,7 @@ export function decodeDraft(value: unknown, jobId: string): SavedDraft {
                 typeof f.proposedWording.explanation !== 'string'))) ||
           (state.proposal === 'pending' && f.proposedWording === null)
         )
-          throw new Error('Invalid draft review state.');
+          throw new Error(tr('Invalid draft review state.'));
         ids.add(f.id);
       }
     }
@@ -200,7 +203,7 @@ export function decodeDraft(value: unknown, jobId: string): SavedDraft {
         doc.review.approval.revision !== value.revision ||
         typeof doc.review.approval.approvedAt !== 'string'))
   )
-    throw new Error('Invalid saved draft review state.');
+    throw new Error(tr('Invalid saved draft review state.'));
   return structuredClone(value) as unknown as SavedDraft;
 }
 export async function draftRequest(
@@ -227,34 +230,49 @@ export async function draftRequest(
         ? value.errorCode
         : '';
     const messages: Record<string, string> = {
-      CV_DRAFT_CONTEXT_LIMIT:
+      CV_DRAFT_CONTEXT_LIMIT: tr(
         'This CV exceeds the local document budget. Shorten or split overly long fields in source review, then generate a separate draft. Your saved work is unchanged.',
-      CV_DRAFT_INVALID_OUTPUT:
+      ),
+      CV_DRAFT_INVALID_OUTPUT: tr(
         'The AI returned an invalid proposal. Your existing drafts are unchanged. Retry generation.',
-      CV_DRAFT_UNSUPPORTED_REFERENCE:
+      ),
+      CV_DRAFT_UNSUPPORTED_REFERENCE: tr(
         'The AI referenced unsupported content. Your existing drafts are unchanged. Retry generation.',
-      CV_DRAFT_UNAVAILABLE:
+      ),
+      CV_DRAFT_UNAVAILABLE: tr(
         'The AI service is unavailable. Check it (start Ollama if you run AI locally) and retry. Saved drafts can still be reviewed and downloaded.',
-      CV_DRAFT_PROFILE_NOT_FOUND:
+      ),
+      CV_DRAFT_PROFILE_NOT_FOUND: tr(
         'Review and save your source CV profile before generating a draft.',
-      CV_DRAFT_SAVE_CONFLICT:
+      ),
+      CV_DRAFT_SAVE_CONFLICT: tr(
         'This draft changed in another window. Your edits are retained. Discard local edits and reload before retrying.',
-      CV_DRAFT_PROFILE_INCOMPLETE:
+      ),
+      CV_DRAFT_PROFILE_INCOMPLETE: tr(
         'Finish source CV review and resolve every ambiguous fact before generation.',
-      CV_DRAFT_REVIEW_INCOMPLETE:
+      ),
+      CV_DRAFT_REVIEW_INCOMPLETE: tr(
         'Decide every proposal, acknowledge issues and review all edited wording before approval.',
-      CV_DRAFT_STALE_MATCH:
+      ),
+      CV_DRAFT_STALE_MATCH: tr(
         'Reanalyze CV Match for the current source CV before generation.',
-      CV_DRAFT_STALE_JOB: 'The job changed. Save it and reanalyze CV Match.',
-      CV_DRAFT_STALE_PROFILE:
+      ),
+      CV_DRAFT_STALE_JOB: tr(
+        'The job changed. Save it and reanalyze CV Match.',
+      ),
+      CV_DRAFT_STALE_PROFILE: tr(
         'The pinned profile is unavailable or changed. Reload its source review.',
-      CV_DRAFT_BUSY:
+      ),
+      CV_DRAFT_BUSY: tr(
         'Draft generation is already running. Retry after it finishes.',
-      CV_DRAFT_TIMEOUT: 'The AI timed out. Existing drafts are unchanged.',
+      ),
+      CV_DRAFT_TIMEOUT: tr('The AI timed out. Existing drafts are unchanged.'),
     };
     throw new Error(
       messages[code] ??
-        'The tailored CV request failed. Your saved work and local edits are retained. Retry when the local service is available.',
+        tr(
+          'The tailored CV request failed. Your saved work and local edits are retained. Retry when the local service is available.',
+        ),
     );
   }
   return value;
@@ -273,7 +291,9 @@ export async function downloadDraft(
     body: JSON.stringify({ contractVersion: '1', expectedRevision, format }),
   }).catch(() => {
     throw new Error(
-      'Download failed. Your approved draft is unchanged; check the local API and retry.',
+      tr(
+        'Download failed. Your approved draft is unchanged; check the local API and retry.',
+      ),
     );
   });
   if (!response.ok) {
@@ -281,12 +301,18 @@ export async function downloadDraft(
     const code = object(value) ? value.errorCode : null;
     throw new Error(
       code === 'CV_EXPORT_UNSUPPORTED_TEXT'
-        ? 'Some characters are unsupported by the export font. Review the CV wording and approve again.'
+        ? tr(
+            'Some characters are unsupported by the export font. Review the CV wording and approve again.',
+          )
         : code === 'CV_EXPORT_EMPTY'
-          ? 'Include at least one reviewed fact, save and approve again.'
+          ? tr('Include at least one reviewed fact, save and approve again.')
           : response.status === 409
-            ? 'The saved revision or approval changed. Reload, review and approve the saved draft before downloading.'
-            : 'Download failed. Your approved draft is unchanged; check the local API and retry.',
+            ? tr(
+                'The saved revision or approval changed. Reload, review and approve the saved draft before downloading.',
+              )
+            : tr(
+                'Download failed. Your approved draft is unchanged; check the local API and retry.',
+              ),
     );
   }
   const mime =
@@ -295,12 +321,12 @@ export async function downloadDraft(
       : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
   if (response.headers.get('Content-Type')?.split(';')[0] !== mime)
     throw new Error(
-      'The API did not return a valid CV file. Retry the download.',
+      tr('The API did not return a valid CV file. Retry the download.'),
     );
   const blob = await response.blob();
   if (!blob.size || blob.size > 10 * 1024 * 1024)
     throw new Error(
-      'The returned CV file is empty or exceeds the download limit.',
+      tr('The returned CV file is empty or exceeds the download limit.'),
     );
   const filename =
     response.headers

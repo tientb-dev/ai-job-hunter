@@ -1,3 +1,4 @@
+import { dateLocale, tr } from '../../app/i18n';
 import { RefreshIcon, UploadIcon } from '../../components/icons';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -64,7 +65,7 @@ export function MyCv() {
       () => {
         if (!active) return;
         setLoaded(true);
-        setError('Could not load your saved CV. Check the local API.');
+        setError(tr('Could not load your saved CV. Check the local API.'));
       },
     );
     return () => {
@@ -88,7 +89,7 @@ export function MyCv() {
       setCv(next);
     } catch (failure) {
       setError(
-        failure instanceof Error ? failure.message : 'CV upload failed.',
+        failure instanceof Error ? failure.message : tr('CV upload failed.'),
       );
     } finally {
       setUploading(false);
@@ -108,8 +109,10 @@ export function MyCv() {
         savedNavigation={saved}
       />
       <PageHeader
-        title="My CV"
-        description="Every job uses this CV. Review it once; tailored CVs are built from the reviewed version."
+        title={tr('My CV')}
+        description={tr(
+          'Every job uses this CV. Review it once; tailored CVs are built from the reviewed version.',
+        )}
       />
       <Paper
         component="section"
@@ -119,11 +122,15 @@ export function MyCv() {
       >
         <Stack spacing={1.5}>
           <Typography id="saved-cv-title" variant="h6" component="h2">
-            Source CV
+            {tr('Source CV')}
           </Typography>
           {!loaded ? (
             // Reserves the file, date, status, button and note rows of a saved CV.
-            <Stack spacing={1.5} role="status" aria-label="Loading your CV">
+            <Stack
+              spacing={1.5}
+              role="status"
+              aria-label={tr('Loading your CV')}
+            >
               <Box>
                 <Skeleton width="45%" />
                 <Skeleton
@@ -154,7 +161,8 @@ export function MyCv() {
             <Box sx={{ overflowWrap: 'anywhere' }}>
               <Typography sx={{ fontWeight: 600 }}>{cv.fileName}</Typography>
               <Typography variant="body2" color="text.secondary">
-                Saved {new Date(cv.updatedAt).toLocaleString()}
+                {tr('Saved')}{' '}
+                {new Date(cv.updatedAt).toLocaleString(dateLocale())}
               </Typography>
               <Typography
                 variant="body2"
@@ -163,10 +171,13 @@ export function MyCv() {
                 sx={{ mt: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}
               >
                 {progress === undefined ? (
-                  <Skeleton width={170} aria-label="Loading review status" />
+                  <Skeleton
+                    width={170}
+                    aria-label={tr('Loading review status')}
+                  />
                 ) : progress === 'error' ? (
                   <>
-                    Review status unavailable.
+                    {tr('Review status unavailable.')}
                     <Button
                       startIcon={<RefreshIcon />}
                       size="small"
@@ -175,22 +186,28 @@ export function MyCv() {
                         refreshProgress();
                       }}
                     >
-                      Retry
+                      {tr('Retry')}
                     </Button>
                   </>
                 ) : !progress ? (
-                  'Not reviewed yet'
+                  tr('Not reviewed yet')
                 ) : reviewed ? (
-                  `Reviewed · ${progress.total} of ${progress.total} sections`
+                  tr('Reviewed · {total} of {total} sections', {
+                    total: progress.total,
+                  })
                 ) : (
-                  `${progress.reviewed} of ${progress.total} sections reviewed`
+                  tr('{reviewed} of {total} sections reviewed', {
+                    reviewed: progress.reviewed,
+                    total: progress.total,
+                  })
                 )}
               </Typography>
             </Box>
           ) : (
             <Typography>
-              No CV saved yet. Save a PDF or DOCX to review it and tailor it for
-              jobs.
+              {tr(
+                'No CV saved yet. Save a PDF or DOCX to review it and tailor it for jobs.',
+              )}
             </Typography>
           )}
           {loaded && (
@@ -201,12 +218,12 @@ export function MyCv() {
               disabled={locked}
               sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
             >
-              {cv ? 'Replace source CV' : 'Save source CV'}
+              {cv ? tr('Replace source CV') : tr('Save source CV')}
               <input
                 hidden
                 type="file"
                 accept=".pdf,.docx"
-                aria-label={cv ? 'Replace source CV' : 'Save source CV'}
+                aria-label={cv ? tr('Replace source CV') : tr('Save source CV')}
                 disabled={locked}
                 onChange={(event) => {
                   const file = event.target.files?.[0];
@@ -218,16 +235,22 @@ export function MyCv() {
           )}
           {cv && reviewDirty && (
             <Typography variant="body2" color="text.secondary">
-              Save or discard your review changes before replacing the CV.
+              {tr(
+                'Save or discard your review changes before replacing the CV.',
+              )}
             </Typography>
           )}
           {uploading && (
-            <Typography role="status">Saving your CV locally…</Typography>
+            <Typography role="status">
+              {tr('Saving your CV locally…')}
+            </Typography>
           )}
           {error && <Alert severity="error">{error}</Alert>}
           {cv && (
             <Typography variant="body2" color="text.secondary">
-              Replacing the CV never changes tailored CVs you already saved.
+              {tr(
+                'Replacing the CV never changes tailored CVs you already saved.',
+              )}
             </Typography>
           )}
         </Stack>
@@ -254,9 +277,9 @@ export function MyCv() {
         </Paper>
       )}
       <Typography variant="body2" color="text.secondary">
-        Need a one-off check against a job description?{' '}
+        {tr('Need a one-off check against a job description?')}{' '}
         <MuiLink component={Link} to="/cv/analyze">
-          Quick CV and job analysis
+          {tr('Quick CV and job analysis')}
         </MuiLink>
       </Typography>
     </Stack>

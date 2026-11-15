@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import { PageHeader } from '../../components/PageHeader';
 import {
   AddIcon,
@@ -32,7 +33,9 @@ import { Link } from 'react-router-dom';
 import { jobUrlInfo, opportunityRequest } from './opportunities-api';
 import type { Opportunity } from './opportunities-api';
 const message = (error: unknown) =>
-  error instanceof Error ? error.message : 'Request failed. Retry manually.';
+  error instanceof Error
+    ? error.message
+    : tr('Request failed. Retry manually.');
 export function JobInbox() {
   const today = useLocalCalendarDate();
   const [dueOnly, setDueOnly] = useState(false);
@@ -78,8 +81,8 @@ export function JobInbox() {
       sx={{ flex: 1, minHeight: 0, minWidth: 0, overflowY: 'auto' }}
     >
       <PageHeader
-        title="Jobs"
-        description="Your opportunities, conversations, and next steps."
+        title={tr('Jobs')}
+        description={tr('Your opportunities, conversations, and next steps.')}
         actions={
           <Button
             component={Link}
@@ -87,7 +90,7 @@ export function JobInbox() {
             variant="contained"
             startIcon={<AddIcon />}
           >
-            Add job
+            {tr('Add job')}
           </Button>
         }
       />
@@ -121,7 +124,8 @@ export function JobInbox() {
             }}
           >
             <Typography id="saved-jobs-heading" component="h2" variant="h6">
-              Saved jobs{!loading && !error ? ` (${rows.length})` : ''}
+              {tr('Saved jobs')}
+              {!loading && !error ? ` (${rows.length})` : ''}
             </Typography>
             <ToggleButtonGroup
               sx={{
@@ -141,15 +145,15 @@ export function JobInbox() {
               exclusive
               size="small"
               value={dueOnly ? 'due' : 'all'}
-              aria-label="Saved jobs filter"
+              aria-label={tr('Saved jobs filter')}
               onChange={(_, value: string | null) => {
                 if (value === null) return;
                 setDueOnly(value === 'due');
                 setPage(0);
               }}
             >
-              <ToggleButton value="all">All jobs</ToggleButton>
-              <ToggleButton value="due">Due follow-ups</ToggleButton>
+              <ToggleButton value="all">{tr('All jobs')}</ToggleButton>
+              <ToggleButton value="due">{tr('Due follow-ups')}</ToggleButton>
             </ToggleButtonGroup>
           </Stack>
         </Stack>
@@ -164,7 +168,7 @@ export function JobInbox() {
                   setAttempt((value) => value + 1);
                 }}
               >
-                Retry
+                {tr('Retry')}
               </Button>
             }
           >
@@ -173,15 +177,18 @@ export function JobInbox() {
         )}
         {loading ? (
           <Stack direction="row" spacing={1} sx={{ p: 3 }} role="status">
-            <CircularProgress size={20} aria-label="Loading opportunities" />
-            <Typography variant="body2">Loading jobs…</Typography>
+            <CircularProgress
+              size={20}
+              aria-label={tr('Loading opportunities')}
+            />
+            <Typography variant="body2">{tr('Loading jobs…')}</Typography>
           </Stack>
         ) : (
           !error && (
             <TableContainer
               tabIndex={0}
               role="region"
-              aria-label="Scrollable saved jobs"
+              aria-label={tr('Scrollable saved jobs')}
               sx={{
                 flex: '0 1 auto',
                 minHeight: 0,
@@ -191,7 +198,7 @@ export function JobInbox() {
             >
               <Table
                 size="small"
-                aria-label="Saved opportunities"
+                aria-label={tr('Saved opportunities')}
                 sx={{
                   tableLayout: 'fixed',
                   '& tr:last-child td': { borderBottom: 0 },
@@ -273,7 +280,7 @@ export function JobInbox() {
                                     fontWeight: 500,
                                   }}
                                 >
-                                  {row.company || 'Unknown company'}
+                                  {row.company || tr('Unknown company')}
                                 </Box>
                                 {' · '}
                                 <Box component="span">{source}</Box>
@@ -298,7 +305,13 @@ export function JobInbox() {
                                   <MuiLink
                                     component={Link}
                                     to={`/jobs/${row.id}/application`}
-                                    aria-label={`${urgency}: open Application for ${row.title}`}
+                                    aria-label={tr(
+                                      '{urgency}: open Application for {title}',
+                                      {
+                                        urgency: tr(urgency),
+                                        title: row.title,
+                                      },
+                                    )}
                                     title={row.followUpDate}
                                     color="text.primary"
                                     underline="hover"
@@ -310,13 +323,15 @@ export function JobInbox() {
                                       minHeight: { xs: 44, sm: 24 },
                                     }}
                                   >
-                                    {urgency}
+                                    {tr(urgency)}
                                   </MuiLink>
                                 ) : (
                                   <Typography
                                     variant="caption"
                                     color="text.secondary"
-                                    aria-label={`Follow-up ${row.followUpDate}`}
+                                    aria-label={tr('Follow-up {followUpDate}', {
+                                      followUpDate: row.followUpDate,
+                                    })}
                                   >
                                     {row.followUpDate}
                                   </Typography>
@@ -324,13 +339,18 @@ export function JobInbox() {
                             </Stack>
                             {row.originalLink &&
                               jobUrlInfo(row.originalLink).valid && (
-                                <Tooltip title="Open original job / apply">
+                                <Tooltip
+                                  title={tr('Open original job / apply')}
+                                >
                                   <IconButton
                                     component="a"
                                     href={row.originalLink}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    aria-label={`Original job / apply for ${row.title}`}
+                                    aria-label={tr(
+                                      'Original job / apply for {title}',
+                                      { title: row.title },
+                                    )}
                                     size="small"
                                     sx={{
                                       width: 44,
@@ -358,16 +378,20 @@ export function JobInbox() {
                           sx={{ fontWeight: 600, mb: 0.5 }}
                         >
                           {dueOnly
-                            ? 'No due follow-ups'
-                            : 'No saved opportunities yet'}
+                            ? tr('No due follow-ups')
+                            : tr('No saved opportunities yet')}
                         </Typography>
                         <Typography
                           color="text.secondary"
                           sx={{ maxWidth: '52ch', mb: 2 }}
                         >
                           {dueOnly
-                            ? 'No active jobs have a follow-up due today or earlier. Clear the filter to see all jobs.'
-                            : 'Add a job from a website, recruiter conversation, or email to start tracking it.'}
+                            ? tr(
+                                'No active jobs have a follow-up due today or earlier. Clear the filter to see all jobs.',
+                              )
+                            : tr(
+                                'Add a job from a website, recruiter conversation, or email to start tracking it.',
+                              )}
                         </Typography>
                         {dueOnly ? (
                           <Button
@@ -376,7 +400,7 @@ export function JobInbox() {
                               setPage(0);
                             }}
                           >
-                            Clear filter
+                            {tr('Clear filter')}
                           </Button>
                         ) : (
                           <Stack
@@ -391,7 +415,7 @@ export function JobInbox() {
                               to="/discover"
                               variant="outlined"
                             >
-                              Discover jobs
+                              {tr('Discover jobs')}
                             </Button>
                             <Button
                               startIcon={<AddIcon />}
@@ -399,7 +423,7 @@ export function JobInbox() {
                               to="/jobs/new"
                               variant="outlined"
                             >
-                              Add job
+                              {tr('Add job')}
                             </Button>
                           </Stack>
                         )}
@@ -414,14 +438,18 @@ export function JobInbox() {
         {!loading && !error && (
           <TablePagination
             component="div"
-            aria-label="Jobs pagination"
+            aria-label={tr('Jobs pagination')}
             count={visibleRows.length}
             page={currentPage}
             rowsPerPage={10}
             rowsPerPageOptions={[]}
             onPageChange={(_, nextPage) => setPage(nextPage)}
             labelDisplayedRows={({ from, to, count }) =>
-              `${from}–${to} of ${count} jobs`
+              tr('{from}–{to} of {count} jobs', {
+                from: from,
+                to: to,
+                count: count,
+              })
             }
             sx={{
               flexShrink: 0,

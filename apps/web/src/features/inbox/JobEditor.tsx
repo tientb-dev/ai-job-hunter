@@ -1,3 +1,4 @@
+import { dateLocale, tr } from '../../app/i18n';
 import { DuplicateJobNotice } from './DuplicateJobNotice';
 import {
   ArrowBackIcon,
@@ -84,7 +85,7 @@ import type {
 const message = (error: unknown) =>
   error instanceof Error
     ? error.message
-    : 'Request failed. Retry or enter fields manually.';
+    : tr('Request failed. Retry or enter fields manually.');
 /** Tab labels with badges derived only from loaded data; absent data shows none. */
 function workspaceTabs({
   summary,
@@ -114,7 +115,7 @@ function workspaceTabs({
             : null,
     },
     {
-      label: 'Tailored CV',
+      label: tr('Tailored CV'),
       value: 'tailored-cv',
       // Revision numbers say nothing about review state, so only staleness shows.
       badge:
@@ -126,13 +127,16 @@ function workspaceTabs({
       label: 'Application',
       value: 'application',
       badge: followUp
-        ? badge(followUp, true)
+        ? badge(tr(followUp), true)
         : followUpDate
           ? badge(
-              new Date(`${followUpDate}T00:00`).toLocaleDateString(undefined, {
-                month: 'short',
-                day: 'numeric',
-              }),
+              new Date(`${followUpDate}T00:00`).toLocaleDateString(
+                dateLocale(),
+                {
+                  month: 'short',
+                  day: 'numeric',
+                },
+              ),
             )
           : null,
     },
@@ -303,7 +307,11 @@ export function JobEditor() {
             setImportMethod('bookmarklet');
             setForm(next);
             setNotice(
-              `${result.expired ? 'This listing is expired. ' : ''}JD loaded from ${result.platform}. ${(result.importWarnings ?? []).join(' ')}`,
+              tr('{v0}JD loaded from {platform}. {v2}', {
+                v0: result.expired ? tr('This listing is expired. ') : '',
+                platform: result.platform,
+                v2: (result.importWarnings ?? []).join(' '),
+              }),
             );
           })
           .catch((error) => {
@@ -337,7 +345,9 @@ export function JobEditor() {
   const sourcesChanged = () => {
     setForm((row) => ({ ...row, importReview: [] }));
     setNotice(
-      'Sources changed. Extract again or review the current fields manually before saving.',
+      tr(
+        'Sources changed. Extract again or review the current fields manually before saving.',
+      ),
     );
   };
   const conflicts = form.importReview.filter(
@@ -348,7 +358,9 @@ export function JobEditor() {
     if (
       form.importReview.length &&
       !window.confirm(
-        'Refresh the AI suggestions? Your manually edited values will be kept.',
+        tr(
+          'Refresh the AI suggestions? Your manually edited values will be kept.',
+        ),
       )
     )
       return;
@@ -429,14 +441,25 @@ export function JobEditor() {
           importReview: result.fields,
         }));
         setNotice(
-          `Review every suggestion before saving. Manually edited values are kept.${result.rejected ? ` ${result.rejected} unsupported proposal(s) were discarded.` : ''}`,
+          tr(
+            'Review every suggestion before saving. Manually edited values are kept.{v0}',
+            {
+              v0: result.rejected
+                ? tr(' {rejected} unsupported proposal(s) were discarded.', {
+                    rejected: result.rejected,
+                  })
+                : '',
+            },
+          ),
         );
       }
       setStep(1);
       if (result.warnings.length)
-        setNotice(
-          (previous) =>
-            `${previous} Document warnings: ${result.warnings.join(', ')}. Check the original for missing content.`,
+        setNotice((previous) =>
+          tr(
+            '{previous} Document warnings: {v1}. Check the original for missing content.',
+            { previous: previous, v1: result.warnings.join(', ') },
+          ),
         );
     } catch (error) {
       setError(message(error));
@@ -456,7 +479,9 @@ export function JobEditor() {
       fetchedJob.current &&
       fetchedJob.current.originalLink !== form.originalLink &&
       !window.confirm(
-        'Replace the previously fetched job with this URL? Manually edited fields and separately entered text will be kept.',
+        tr(
+          'Replace the previously fetched job with this URL? Manually edited fields and separately entered text will be kept.',
+        ),
       )
     )
       return;
@@ -486,7 +511,13 @@ export function JobEditor() {
       fetchedJob.current = result;
       setForm(next);
       setNotice(
-        `${result.expired ? 'This listing is expired. ' : ''}JD loaded from ${result.platform}. Review it, then use Extract with AI when ready.`,
+        tr(
+          '{v0}JD loaded from {platform}. Review it, then use Extract with AI when ready.',
+          {
+            v0: result.expired ? tr('This listing is expired. ') : '',
+            platform: result.platform,
+          },
+        ),
       );
     } catch (error) {
       if (generation !== sourceGeneration.current) return;
@@ -505,26 +536,31 @@ export function JobEditor() {
       if (id) {
         notify({
           severity: 'error',
-          text: `${text} Your inputs are retained; you can edit fields manually.`,
+          text: tr(
+            '{text} Your inputs are retained; you can edit fields manually.',
+            { text: text },
+          ),
         });
       } else {
         setError(text);
       }
     };
     if (!form.title.trim()) {
-      reportSaveError('Enter a job title before saving.');
+      reportSaveError(tr('Enter a job title before saving.'));
       if (id) setView('edit');
       else setStep(1);
       return;
     }
     if (!jobUrlInfo(form.originalLink).valid) {
       reportSaveError(
-        'Enter a full HTTP(S) job URL without credentials, or leave it blank.',
+        tr(
+          'Enter a full HTTP(S) job URL without credentials, or leave it blank.',
+        ),
       );
       return;
     }
     if (conflicts.length) {
-      reportSaveError('Review every conflicting field before saving.');
+      reportSaveError(tr('Review every conflicting field before saving.'));
       return;
     }
     saving.current = true;
@@ -562,7 +598,7 @@ export function JobEditor() {
         setForm((current) => ({ ...current, contactDates: row.contactDates }));
         setContactDate(latestContactDate(row.contactDates));
         setFile(undefined);
-        notify({ severity: 'success', text: 'Changes saved' });
+        notify({ severity: 'success', text: tr('Changes saved') });
       } else {
         savedNavigation.current = true;
         navigate(`/jobs/${row.id}`, { replace: true });
@@ -583,7 +619,7 @@ export function JobEditor() {
       !document.size ||
       document.size > 5 * 1024 * 1024
     ) {
-      setError('Use a PDF or DOCX up to 5 MiB, or paste text instead.');
+      setError(tr('Use a PDF or DOCX up to 5 MiB, or paste text instead.'));
       return;
     }
     setError('');
@@ -610,13 +646,17 @@ export function JobEditor() {
       if (generation !== parseGeneration.current) return;
       if (typeof parsed.text !== 'string' || !parsed.text.trim())
         throw new Error(
-          'No readable document text found. Paste the JD or choose another supported document.',
+          tr(
+            'No readable document text found. Paste the JD or choose another supported document.',
+          ),
         );
       setFile(document);
       setJdText(parsed.text);
       if (parsed.warnings?.length)
         setNotice(
-          `Document warnings: ${parsed.warnings.map((warning) => warning.code).join(', ')}. Check the original document.`,
+          tr('Document warnings: {v0}. Check the original document.', {
+            v0: parsed.warnings.map((warning) => warning.code).join(', '),
+          }),
         );
     } catch (error) {
       if (generation === parseGeneration.current)
@@ -724,14 +764,14 @@ export function JobEditor() {
       window.removeEventListener('resize', measure);
     };
   }, [id, view, loading, theme.breakpoints.values.md]);
-  if (loading) return <CircularProgress aria-label="Loading job" />;
+  if (loading) return <CircularProgress aria-label={tr('Loading job')} />;
   const importSources = (
     <Box hidden={!id && step !== 0}>
       <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
         <Stack spacing={2}>
           {!id && (
             <Typography variant="h6" component="h2">
-              How would you like to add this job?
+              {tr('How would you like to add this job?')}
             </Typography>
           )}
           <ImportMethodCards
@@ -760,13 +800,13 @@ export function JobEditor() {
           <Box
             id="job-import-panel"
             role="region"
-            aria-label="Import method input"
+            aria-label={tr('Import method input')}
             sx={{ minWidth: 0 }}
           >
             {importMethod === 'url' && (
               <Stack spacing={1.5}>
                 <TextField
-                  label="Original Job URL (optional)"
+                  label={tr('Original Job URL (optional)')}
                   type="url"
                   value={form.originalLink}
                   onChange={(e) => change('originalLink', e.target.value)}
@@ -774,9 +814,14 @@ export function JobEditor() {
                   slotProps={{ htmlInput: { maxLength: 2048 } }}
                   helperText={
                     !jobUrlInfo(form.originalLink).valid
-                      ? 'Enter a full HTTP(S) URL without credentials, or leave it blank.'
+                      ? tr(
+                          'Enter a full HTTP(S) URL without credentials, or leave it blank.',
+                        )
                       : jobUrlInfo(form.originalLink).platform &&
-                        `Platform: ${jobUrlInfo(form.originalLink).platform}.`
+                        tr('Platform: {platform}.', {
+                          platform:
+                            jobUrlInfo(form.originalLink).platform ?? '',
+                        })
                   }
                 />
                 <Button
@@ -787,7 +832,9 @@ export function JobEditor() {
                   onClick={() => void fetchFromUrl()}
                   aria-describedby="url-import-help"
                 >
-                  {urlFetchRunning.current ? 'Fetching JD…' : 'Fetch from URL'}
+                  {urlFetchRunning.current
+                    ? tr('Fetching JD…')
+                    : tr('Fetch from URL')}
                 </Button>
                 <Typography
                   id="url-import-help"
@@ -795,7 +842,9 @@ export function JobEditor() {
                   color="text.secondary"
                 >
                   {!form.originalLink || canFetchJobUrl(form.originalLink)
-                    ? 'Direct fetch supports ITviec only and runs when you click Fetch from URL.'
+                    ? tr(
+                        'Direct fetch supports ITviec only and runs when you click Fetch from URL.',
+                      )
                     : urlImportHelp(form.originalLink)}
                 </Typography>
               </Stack>
@@ -804,7 +853,7 @@ export function JobEditor() {
             {importMethod === 'paste' && (
               <Stack spacing={1.5}>
                 <TextField
-                  label="Recruitment post"
+                  label={tr('Recruitment post')}
                   multiline
                   minRows={4}
                   maxRows={12}
@@ -814,7 +863,9 @@ export function JobEditor() {
                     sourcesChanged();
                   }}
                   slotProps={{ htmlInput: { maxLength: 12000 } }}
-                  helperText="Paste the entire post, including contact details and links. Up to 12,000 characters. The original text is preserved when saved."
+                  helperText={tr(
+                    'Paste the entire post, including contact details and links. Up to 12,000 characters. The original text is preserved when saved.',
+                  )}
                 />
               </Stack>
             )}
@@ -822,7 +873,7 @@ export function JobEditor() {
               <Stack spacing={1.5}>
                 <Box>
                   <Typography component="label" htmlFor="jd-document">
-                    Upload JD document (PDF or DOCX)
+                    {tr('Upload JD document (PDF or DOCX)')}
                   </Typography>
                   <input
                     id="jd-document"
@@ -854,15 +905,15 @@ export function JobEditor() {
                           sourcesChanged();
                         }}
                       >
-                        Remove selected document
+                        {tr('Remove selected document')}
                       </Button>
                     </Stack>
                   )}
                 </Box>
                 <Typography variant="body2" color="text.secondary">
-                  Optional PDF/DOCX up to 5 MiB and 20 PDF pages. Original
-                  document is preserved on save. Scans/OCR, images and legacy
-                  DOC are unsupported; paste text instead.
+                  {tr(
+                    'Optional PDF/DOCX up to 5 MiB and 20 PDF pages. Original document is preserved on save. Scans/OCR, images and legacy DOC are unsupported; paste text instead.',
+                  )}
                 </Typography>
               </Stack>
             )}
@@ -877,7 +928,7 @@ export function JobEditor() {
                     jobUrlInfo(form.originalLink).platform ??
                     (importMethod === 'bookmarklet'
                       ? 'Bookmarklet'
-                      : 'Job URL'))
+                      : tr('Job URL')))
               }
               loading={
                 importMethod === 'upload' ? parsing : urlFetchRunning.current
@@ -885,19 +936,23 @@ export function JobEditor() {
               error={
                 sourceErrors[importMethod] &&
                 sourceErrors[importMethod] === error
-                  ? 'Loading this source failed. See the request error above, or use Paste JD.'
+                  ? tr(
+                      'Loading this source failed. See the request error above, or use Paste JD.',
+                    )
                   : sourceErrors[importMethod]
               }
             />
           )}
           <TextField
             select
-            label="Source"
+            label={tr('Source')}
             value={form.source}
             onChange={(e) =>
               change('source', e.target.value as OpportunityInput['source'])
             }
-            helperText="Choose the platform yourself; AI does not infer it. Use Other for LinkedIn or another platform."
+            helperText={tr(
+              'Choose the platform yourself; AI does not infer it. Use Other for LinkedIn or another platform.',
+            )}
           >
             {sources.map((value) => (
               <MenuItem key={value} value={value}>
@@ -907,8 +962,9 @@ export function JobEditor() {
           </TextField>
           {(form.postText.trim() || file) && (
             <Typography variant="body2" color="text.secondary">
-              Source text is retained when switching methods. Leaving Upload JD
-              removes the selected document.
+              {tr(
+                'Source text is retained when switching methods. Leaving Upload JD removes the selected document.',
+              )}
             </Typography>
           )}
           <Button
@@ -919,16 +975,18 @@ export function JobEditor() {
             disabled={disabled || (!form.postText.trim() && !file)}
             onClick={() => void extract()}
           >
-            {extracting ? 'Extracting…' : 'Extract with AI'}
+            {extracting ? tr('Extracting…') : tr('Extract with AI')}
           </Button>
           <Typography variant="body2" color="text.secondary">
-            Uses the configured AI provider only when you click Extract. You can
-            also enter fields manually and save without AI.
+            {tr(
+              'Uses the configured AI provider only when you click Extract. You can also enter fields manually and save without AI.',
+            )}
           </Typography>
           {extracting && (
             <Typography role="status">
-              Reading sources and extracting suggestions… This may take up to 90
-              seconds after document parsing.
+              {tr(
+                'Reading sources and extracting suggestions… This may take up to 90 seconds after document parsing.',
+              )}
             </Typography>
           )}
           {notice && <Alert severity="info">{notice}</Alert>}
@@ -941,7 +999,7 @@ export function JobEditor() {
           variant="contained"
           onClick={() => setStep(1)}
         >
-          Continue to Review &amp; Save
+          {tr('Continue to Review & Save')}
         </Button>
       )}
     </Box>
@@ -974,7 +1032,7 @@ export function JobEditor() {
           disabled={disabled}
           onClick={() => setStep(0)}
         >
-          Back to Import sources
+          {tr('Back to Import sources')}
         </Button>
       )}
       <Button
@@ -985,7 +1043,11 @@ export function JobEditor() {
         disabled={disabled || conflicts.length > 0}
         sx={id ? { minHeight: { xs: 44, sm: 36 } } : undefined}
       >
-        {busy ? 'Saving…' : id ? 'Save changes' : 'Confirm and save job'}
+        {busy
+          ? tr('Saving…')
+          : id
+            ? tr('Save changes')
+            : tr('Confirm and save job')}
       </Button>
     </Stack>
   );
@@ -1023,13 +1085,13 @@ export function JobEditor() {
         <Stack spacing={id ? 1.5 : 3} sx={{ minWidth: 0 }}>
           {id ? (
             <Breadcrumbs
-              aria-label="Job breadcrumb"
+              aria-label={tr('Job breadcrumb')}
               sx={{ alignSelf: 'flex-start', minWidth: 0, maxWidth: '100%' }}
             >
               <MuiLink
                 component={Link}
                 to="/jobs"
-                aria-label="Back to Jobs"
+                aria-label={tr('Back to Jobs')}
                 color="text.secondary"
                 underline="hover"
                 variant="body2"
@@ -1047,14 +1109,14 @@ export function JobEditor() {
                 }}
               >
                 <ArrowBackIcon sx={{ fontSize: 20 }} />
-                Jobs
+                {tr('Jobs')}
               </MuiLink>
               <Typography
                 variant="body2"
                 color="text.secondary"
                 aria-current="page"
               >
-                Job details
+                {tr('Job details')}
               </Typography>
             </Breadcrumbs>
           ) : (
@@ -1065,12 +1127,12 @@ export function JobEditor() {
               startIcon={<ArrowBackIcon sx={{ fontSize: 20 }} />}
               sx={{ alignSelf: 'flex-start', minHeight: { xs: 44, sm: 36 } }}
             >
-              Back to Jobs
+              {tr('Back to Jobs')}
             </Button>
           )}
           <Box sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>
             <Typography variant="h4" component="h1">
-              {id ? form.title || 'Job details' : 'Add job'}
+              {id ? form.title || tr('Job details') : tr('Add job')}
             </Typography>
             <Typography variant={id ? 'body2' : 'body1'} color="text.secondary">
               {id ? (
@@ -1085,7 +1147,9 @@ export function JobEditor() {
                   {form.location}
                 </>
               ) : (
-                'Import your sources, then review and save. You can also enter a job manually.'
+                tr(
+                  'Import your sources, then review and save. You can also enter a job manually.',
+                )
               )}
             </Typography>
             {id && (
@@ -1111,7 +1175,7 @@ export function JobEditor() {
                     </Typography>
                   ))}
                 <Chip
-                  label="Unsaved changes"
+                  label={tr('Unsaved changes')}
                   size="small"
                   color="warning"
                   aria-hidden={!dirty}
@@ -1121,7 +1185,7 @@ export function JobEditor() {
             )}
             {!id && dirty && (
               <Chip
-                label="Unsaved changes"
+                label={tr('Unsaved changes')}
                 size="small"
                 color="warning"
                 sx={{ mt: 1 }}
@@ -1135,12 +1199,19 @@ export function JobEditor() {
                   spacing={1}
                   useFlexGap
                   sx={{ flexWrap: 'wrap', alignItems: 'center', mt: 0.5 }}
-                  aria-label={discovery ? 'Discovery provenance' : 'Job source'}
+                  aria-label={
+                    discovery ? tr('Discovery provenance') : tr('Job source')
+                  }
                 >
                   <Typography variant="body2" color="text.secondary">
                     {discovery
-                      ? `Source: ${discovery.sourceName} · ${new Date(discovery.discoveredAt).toLocaleDateString()}`
-                      : `Source: ${form.source}`}
+                      ? tr('Source: {sourceName} · {v1}', {
+                          sourceName: discovery.sourceName,
+                          v1: new Date(
+                            discovery.discoveredAt,
+                          ).toLocaleDateString(),
+                        })
+                      : tr('Source: {source}', { source: form.source })}
                   </Typography>
                   {form.originalLink && jobUrlInfo(form.originalLink).valid && (
                     <MuiLink
@@ -1154,7 +1225,7 @@ export function JobEditor() {
                         typography: 'body2',
                       }}
                     >
-                      Open original job
+                      {tr('Open original job')}
                     </MuiLink>
                   )}
                 </Stack>
@@ -1241,7 +1312,7 @@ export function JobEditor() {
                     },
                   }),
                 }}
-                aria-label="Job sections"
+                aria-label={tr('Job sections')}
               >
                 {workspaceTabs({
                   summary,
@@ -1265,7 +1336,7 @@ export function JobEditor() {
                         spacing={1}
                         sx={{ alignItems: 'center' }}
                       >
-                        <span>{label}</span>
+                        <span>{tr(label)}</span>
                         {badge && (
                           <Typography
                             component="span"
@@ -1303,7 +1374,7 @@ export function JobEditor() {
                   },
                 }}
               >
-                Edit JD
+                {tr('Edit JD')}
               </Button>
             </Stack>
           ) : (
@@ -1311,7 +1382,7 @@ export function JobEditor() {
               activeStep={step}
               alternativeLabel
               ref={stepper}
-              aria-label="Add job steps"
+              aria-label={tr('Add job steps')}
               sx={workflowStepperSx}
             >
               {['Import sources', 'Review & Save'].map((label, index) => {
@@ -1328,14 +1399,14 @@ export function JobEditor() {
                       optional={
                         <Typography component="span" variant="caption">
                           {state === 'current'
-                            ? 'Current'
+                            ? tr('Current')
                             : state === 'completed'
-                              ? 'Complete'
-                              : 'Next'}
+                              ? tr('Complete')
+                              : tr('Next')}
                         </Typography>
                       }
                     >
-                      {label}
+                      {tr(label)}
                     </StepLabel>
                   </Step>
                 );
@@ -1372,7 +1443,7 @@ export function JobEditor() {
                       variant="subtitle2"
                       component="h2"
                     >
-                      Next suggested action
+                      {tr('Next suggested action')}
                     </Typography>
                     <Typography>{nextAction.text}</Typography>
                   </Box>
@@ -1400,7 +1471,7 @@ export function JobEditor() {
                     component="h2"
                     sx={{ fontWeight: 600 }}
                   >
-                    Job overview
+                    {tr('Job overview')}
                   </Typography>
                   <Box
                     sx={{
@@ -1434,12 +1505,13 @@ export function JobEditor() {
                         >
                           {form[field]
                             ? form[field].split('\n').slice(0, 5).join('\n')
-                            : 'Unknown'}
+                            : tr('Unknown')}
                         </Typography>
                         {form[field].split('\n').length > 5 && (
                           <Box component="details">
                             <Typography component="summary" variant="body2">
-                              Show all {fieldLabels[field].toLowerCase()}
+                              {tr('Show all')}{' '}
+                              {fieldLabels[field].toLowerCase()}
                             </Typography>
                             <Typography
                               sx={{
@@ -1460,12 +1532,12 @@ export function JobEditor() {
                       variant="subtitle1"
                       sx={{ fontWeight: 600 }}
                     >
-                      Full job description
+                      {tr('Full job description')}
                     </Typography>
                     <Typography
                       sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}
                     >
-                      {form.description || 'Unknown'}
+                      {form.description || tr('Unknown')}
                     </Typography>
                   </Box>
                 </Stack>
@@ -1476,7 +1548,8 @@ export function JobEditor() {
           {!id && <DuplicateJobNotice url={form.originalLink} />}
           {error && (
             <Alert severity="error">
-              {error} Your inputs are retained; you can edit fields manually.
+              {error}{' '}
+              {tr('Your inputs are retained; you can edit fields manually.')}
             </Alert>
           )}
           {id && !loading && !loadFailed && (
@@ -1502,7 +1575,9 @@ export function JobEditor() {
             <Box role="tabpanel" id="job-panel-2" aria-labelledby="job-tab-2">
               {dirty ? (
                 <Alert severity="info">
-                  Save job changes in Edit JD before opening Tailored CV.
+                  {tr(
+                    'Save job changes in Edit JD before opening Tailored CV.',
+                  )}
                 </Alert>
               ) : (
                 <CvMatchPanel
@@ -1548,7 +1623,7 @@ export function JobEditor() {
                 ref={editPanel}
                 role={id ? 'tabpanel' : undefined}
                 id="job-panel-4"
-                aria-label={id ? 'Edit JD' : undefined}
+                aria-label={id ? tr('Edit JD') : undefined}
                 spacing={3}
                 sx={{
                   display: id && view !== 'edit' ? 'none' : undefined,
@@ -1585,12 +1660,12 @@ export function JobEditor() {
                       variant="h6"
                       component="h2"
                     >
-                      {id ? 'Job details' : 'Review & Save'}
+                      {id ? tr('Job details') : tr('Review & Save')}
                     </Typography>
                     <Typography color="text.secondary">
-                      Unknown values can stay blank. Only job title is required.
-                      Quotes show textual support; verify that each value
-                      describes this job.
+                      {tr(
+                        'Unknown values can stay blank. Only job title is required. Quotes show textual support; verify that each value describes this job.',
+                      )}
                     </Typography>
                     <Box
                       sx={{
@@ -1638,9 +1713,13 @@ export function JobEditor() {
                                 error={Boolean(conflict && !review.reviewed)}
                                 helperText={
                                   conflict
-                                    ? 'Review conflicting source values below.'
+                                    ? tr(
+                                        'Review conflicting source values below.',
+                                      )
                                     : review?.status === 'MISSING'
-                                      ? 'Missing / unknown — no supported value found.'
+                                      ? tr(
+                                          'Missing / unknown — no supported value found.',
+                                        )
                                       : undefined
                                 }
                                 onChange={(value) => {
@@ -1660,7 +1739,7 @@ export function JobEditor() {
                               <TextField
                                 label={fieldLabels[field]}
                                 placeholder={
-                                  field === 'title' ? undefined : 'Unknown'
+                                  field === 'title' ? undefined : tr('Unknown')
                                 }
                                 required={field === 'title'}
                                 type={field === 'originalLink' ? 'url' : 'text'}
@@ -1684,12 +1763,18 @@ export function JobEditor() {
                                 error={Boolean(conflict && !review.reviewed)}
                                 helperText={
                                   conflict
-                                    ? 'Conflicting source values. Choose a value, type a correction, or leave unknown; acknowledge below.'
+                                    ? tr(
+                                        'Conflicting source values. Choose a value, type a correction, or leave unknown; acknowledge below.',
+                                      )
                                     : review?.status === 'MISSING'
-                                      ? 'Missing / unknown — no supported value found.'
+                                      ? tr(
+                                          'Missing / unknown — no supported value found.',
+                                        )
                                       : review
                                         ? field === 'company'
-                                          ? 'Suggested company or JD issuer. This does not identify an unnamed end-client.'
+                                          ? tr(
+                                              'Suggested company or JD issuer. This does not identify an unnamed end-client.',
+                                            )
                                           : undefined
                                         : undefined
                                 }
@@ -1702,8 +1787,8 @@ export function JobEditor() {
                                   variant="subtitle2"
                                 >
                                   {conflict
-                                    ? 'Conflicting evidence'
-                                    : 'Source evidence'}
+                                    ? tr('Conflicting evidence')
+                                    : tr('Source evidence')}
                                 </Typography>
                                 <Stack spacing={1}>
                                   {review.candidates.map((candidate, index) => (
@@ -1717,8 +1802,8 @@ export function JobEditor() {
                                     >
                                       <Typography variant="body2">
                                         {candidate.source === 'post'
-                                          ? 'Recruitment post'
-                                          : 'JD document'}
+                                          ? tr('Recruitment post')
+                                          : tr('JD document')}
                                         : {candidate.value}
                                       </Typography>
                                       <Typography
@@ -1744,7 +1829,7 @@ export function JobEditor() {
                                             );
                                           }}
                                         >
-                                          Use this value for{' '}
+                                          {tr('Use this value for')}{' '}
                                           {fieldLabels[field]}
                                         </Button>
                                       )}
@@ -1773,7 +1858,9 @@ export function JobEditor() {
                                     }
                                   />
                                 }
-                                label={`I reviewed the conflict for ${fieldLabels[field]}`}
+                                label={tr('I reviewed the conflict for {v0}', {
+                                  v0: fieldLabels[field],
+                                })}
                               />
                             )}
                           </Stack>
@@ -1783,7 +1870,7 @@ export function JobEditor() {
                     {id && (
                       <TextField
                         select
-                        label="Source"
+                        label={tr('Source')}
                         value={form.source}
                         onChange={(e) =>
                           change(
@@ -1791,7 +1878,7 @@ export function JobEditor() {
                             e.target.value as OpportunityInput['source'],
                           )
                         }
-                        helperText="Where this job was originally found."
+                        helperText={tr('Where this job was originally found.')}
                       >
                         {sources.map((value) => (
                           <MenuItem key={value} value={value}>
@@ -1801,7 +1888,7 @@ export function JobEditor() {
                       </TextField>
                     )}
                     <TextField
-                      label="Job description"
+                      label={tr('Job description')}
                       multiline
                       minRows={6}
                       maxRows={14}
@@ -1810,8 +1897,12 @@ export function JobEditor() {
                       slotProps={{ htmlInput: { maxLength: 26000 } }}
                       helperText={
                         id
-                          ? 'Edit this job description manually. Original imported source text and documents are preserved separately.'
-                          : 'Both source texts are included after extraction; edit the description as needed. The original sources are preserved separately.'
+                          ? tr(
+                              'Edit this job description manually. Original imported source text and documents are preserved separately.',
+                            )
+                          : tr(
+                              'Both source texts are included after extraction; edit the description as needed. The original sources are preserved separately.',
+                            )
                       }
                     />
                   </Stack>
@@ -1829,22 +1920,22 @@ export function JobEditor() {
                   >
                     {conflicts.length > 0 && (
                       <Alert severity="warning">
-                        Review {conflicts.length} conflicting field(s) before
-                        saving.
+                        {tr('Review')} {conflicts.length}{' '}
+                        {tr('conflicting field(s) before saving.')}
                         {id && view !== 'edit' && (
                           <Button
                             variant="outlined"
                             onClick={() => setView('edit')}
                           >
-                            Review conflicts in Edit JD
+                            {tr('Review conflicts in Edit JD')}
                           </Button>
                         )}
                       </Alert>
                     )}
                     <Typography variant="body2" color="text.secondary">
-                      Save confirms your reviewed values. Nothing is sent to
-                      recruiters and no application is submitted. Changes across
-                      sections are saved together.
+                      {tr(
+                        'Save confirms your reviewed values. Nothing is sent to recruiters and no application is submitted. Changes across sections are saved together.',
+                      )}
                     </Typography>
                   </Stack>
                 </JobActionLayout>
@@ -1880,13 +1971,13 @@ export function JobEditor() {
                     <Stack spacing={2}>
                       {conflicts.length > 0 && (
                         <Alert severity="warning">
-                          Review {conflicts.length} conflicting field(s) before
-                          saving.
+                          {tr('Review')} {conflicts.length}{' '}
+                          {tr('conflicting field(s) before saving.')}
                           <Button
                             variant="outlined"
                             onClick={() => setView('edit')}
                           >
-                            Review conflicts in Edit JD
+                            {tr('Review conflicts in Edit JD')}
                           </Button>
                         </Alert>
                       )}
@@ -1900,7 +1991,7 @@ export function JobEditor() {
                           minHeight: { xs: 44, sm: 36 },
                         }}
                       >
-                        {busy ? 'Saving…' : 'Save changes'}
+                        {busy ? tr('Saving…') : tr('Save changes')}
                       </Button>
                     </Stack>
                   }
@@ -1912,7 +2003,7 @@ export function JobEditor() {
                         component="h2"
                         sx={{ fontWeight: 600, lineHeight: 1.5 }}
                       >
-                        Application details
+                        {tr('Application details')}
                       </Typography>
                       <Box
                         sx={{
@@ -1928,7 +2019,7 @@ export function JobEditor() {
                         <TextField
                           select
                           size="small"
-                          label="Application status"
+                          label={tr('Application status')}
                           value={form.status}
                           onChange={(e) =>
                             change(
@@ -1939,29 +2030,33 @@ export function JobEditor() {
                         >
                           {statuses.map((value) => (
                             <MenuItem key={value} value={value}>
-                              {value.replaceAll('_', ' ')}
+                              {tr(value.replaceAll('_', ' '))}
                             </MenuItem>
                           ))}
                         </TextField>
                         <TextField
                           size="small"
-                          label="Applied date"
+                          label={tr('Applied date')}
                           type="date"
                           value={form.appliedDate ?? ''}
                           onChange={(e) =>
                             change('appliedDate', e.target.value || null)
                           }
-                          helperText="Actual submission date; leave blank if unknown."
+                          helperText={tr(
+                            'Actual submission date; leave blank if unknown.',
+                          )}
                           slotProps={{ inputLabel: { shrink: true } }}
                         />
                         <TextField
                           size="small"
-                          label="Application channel"
+                          label={tr('Application channel')}
                           value={form.applicationChannel ?? ''}
                           onChange={(e) =>
                             change('applicationChannel', e.target.value || null)
                           }
-                          helperText="How you applied, separate from job source."
+                          helperText={tr(
+                            'How you applied, separate from job source.',
+                          )}
                           slotProps={{ htmlInput: { maxLength: 200 } }}
                         />
                       </Box>
@@ -1972,7 +2067,7 @@ export function JobEditor() {
                         component="h2"
                         sx={{ fontWeight: 600, lineHeight: 1.5 }}
                       >
-                        Recruiter contact &amp; follow-up
+                        {tr('Recruiter contact & follow-up')}
                       </Typography>
                       <Box
                         sx={{
@@ -1986,8 +2081,10 @@ export function JobEditor() {
                       >
                         <TextField
                           size="small"
-                          label="Last HR contact date"
-                          helperText="When HR last contacted you. Earlier dates are retained."
+                          label={tr('Last HR contact date')}
+                          helperText={tr(
+                            'When HR last contacted you. Earlier dates are retained.',
+                          )}
                           type="date"
                           value={contactDate}
                           onChange={(e) => {
@@ -1997,8 +2094,10 @@ export function JobEditor() {
                         />
                         <TextField
                           size="small"
-                          label="Next follow-up date"
-                          helperText="When you plan to contact HR; independent of actual contact."
+                          label={tr('Next follow-up date')}
+                          helperText={tr(
+                            'When you plan to contact HR; independent of actual contact.',
+                          )}
                           type="date"
                           value={form.followUpDate ?? ''}
                           onChange={(e) => {
@@ -2013,8 +2112,10 @@ export function JobEditor() {
                           <TextField
                             select
                             size="small"
-                            label="Follow-up status"
-                            helperText="Done or Dismissed hides it from due follow-ups. Application status is unchanged."
+                            label={tr('Follow-up status')}
+                            helperText={tr(
+                              'Done or Dismissed hides it from due follow-ups. Application status is unchanged.',
+                            )}
                             value={form.followUpStatus}
                             onChange={(e) =>
                               change(
@@ -2026,7 +2127,7 @@ export function JobEditor() {
                           >
                             {followUpStatuses.map((value) => (
                               <MenuItem key={value} value={value}>
-                                {value[0] + value.slice(1).toLowerCase()}
+                                {tr(value[0] + value.slice(1).toLowerCase())}
                               </MenuItem>
                             ))}
                           </TextField>
@@ -2039,11 +2140,11 @@ export function JobEditor() {
                         component="h2"
                         sx={{ fontWeight: 600, lineHeight: 1.5 }}
                       >
-                        Notes
+                        {tr('Notes')}
                       </Typography>
                       <TextField
                         size="small"
-                        label="Application notes"
+                        label={tr('Application notes')}
                         multiline
                         minRows={3}
                         value={form.notes}

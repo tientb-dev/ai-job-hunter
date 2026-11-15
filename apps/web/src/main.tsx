@@ -8,9 +8,9 @@ import { AiLimitNotices } from './features/ai/AiLimitNotices';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
-import { CssBaseline, ThemeProvider } from '@mui/material';
+import { CssBaseline } from '@mui/material';
 import { AuthGate } from './features/auth/AuthGate';
-import { theme } from './app/theme';
+import { LocalizedTheme } from './app/LocalizedTheme';
 
 const router = createBrowserRouter([{ path: '*', element: <AuthGate /> }]);
 
@@ -19,12 +19,12 @@ if (!root) throw new Error('Application root is missing');
 
 createRoot(root).render(
   <StrictMode>
-    <ThemeProvider theme={theme}>
+    <LocalizedTheme>
       <CssBaseline />
       <NotificationProvider>
         <AiLimitNotices />
         <RouterProvider router={router} />
       </NotificationProvider>
-    </ThemeProvider>
+    </LocalizedTheme>
   </StrictMode>,
 );

@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import { Box } from '@mui/material';
 
@@ -42,7 +43,7 @@ export function JobActionLayout({
       <Box
         ref={fields}
         role={scrollable ? 'region' : undefined}
-        aria-label={scrollable ? 'Scrollable job fields' : undefined}
+        aria-label={scrollable ? tr('Scrollable job fields') : undefined}
         tabIndex={scrollable ? 0 : undefined}
         sx={{
           minWidth: 0,
@@ -60,7 +61,7 @@ export function JobActionLayout({
       </Box>
       <Box
         role={active ? 'region' : undefined}
-        aria-label={active ? 'Job save actions' : undefined}
+        aria-label={active ? tr('Job save actions') : undefined}
         sx={
           active
             ? {

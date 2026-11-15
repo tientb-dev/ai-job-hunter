@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import { HOSTED } from '../../app/hosted';
 import { AutoAwesomeIcon, RefreshIcon } from '../../components/icons';
 import {
@@ -34,7 +35,7 @@ export function TranscriptPanel({
   return (
     <Stack spacing={1} sx={{ pt: 1 }}>
       <Typography variant="subtitle2" component="h3">
-        Transcript
+        {tr('Transcript')}
       </Typography>
       {recording && !HOSTED && (
         <Stack
@@ -45,24 +46,24 @@ export function TranscriptPanel({
         >
           {t.busy ? (
             <Button variant="text" onClick={t.cancel}>
-              Stop transcribing
+              {tr('Stop transcribing')}
             </Button>
           ) : (
             <Button
               variant="outlined"
               onClick={() => t.run(recording, questionId)}
             >
-              Transcribe locally
+              {tr('Transcribe locally')}
             </Button>
           )}
           {t.busy && <CircularProgress size={18} aria-hidden="true" />}
           <Typography variant="body2" color="text.secondary" role="status">
             {t.status.kind === 'converting'
-              ? 'Preparing audio…'
+              ? tr('Preparing audio…')
               : t.status.kind === 'transcribing'
-                ? 'Transcribing on this computer…'
+                ? tr('Transcribing on this computer…')
                 : t.status.kind === 'idle' && t.status.done
-                  ? 'Transcript ready. Check it and fix any mistakes.'
+                  ? tr('Transcript ready. Check it and fix any mistakes.')
                   : ''}
           </Typography>
         </Stack>
@@ -77,15 +78,15 @@ export function TranscriptPanel({
                 size="small"
                 onClick={() => t.replace(recording, questionId)}
               >
-                Replace
+                {tr('Replace')}
               </Button>
               <Button color="inherit" size="small" onClick={t.keep} autoFocus>
-                Keep my text
+                {tr('Keep my text')}
               </Button>
             </Stack>
           }
         >
-          Replace your edited transcript with a new transcription?
+          {tr('Replace your edited transcript with a new transcription?')}
         </Alert>
       )}
       {t.status.kind === 'error' && (
@@ -93,7 +94,7 @@ export function TranscriptPanel({
         <Alert severity="info">{t.status.message}</Alert>
       )}
       <TextField
-        label="Transcript (edit it, or type your answer)"
+        label={tr('Transcript (edit it, or type your answer)')}
         multiline
         minRows={3}
         value={t.text}
@@ -101,7 +102,10 @@ export function TranscriptPanel({
         error={over}
         helperText={
           over
-            ? `${count}/${MAX_ANSWER_CHARS} · AI feedback needs ${MAX_ANSWER_CHARS} characters or fewer. Shorten the transcript first; nothing is cut automatically.`
+            ? tr(
+                '{count}/{MAX_ANSWER_CHARS} · AI feedback needs {MAX_ANSWER_CHARS} characters or fewer. Shorten the transcript first; nothing is cut automatically.',
+                { count: count, MAX_ANSWER_CHARS: MAX_ANSWER_CHARS },
+              )
             : `${count}/${MAX_ANSWER_CHARS}`
         }
         slotProps={{ htmlInput: { lang: 'en' } }}
@@ -116,14 +120,14 @@ export function TranscriptPanel({
             !t.text.trim() || over || t.busy || t.feedback.kind === 'loading'
           }
         >
-          Get AI feedback
+          {tr('Get AI feedback')}
         </Button>
       </Box>
       {t.feedback.kind === 'loading' && (
         <Stack spacing={1} role="status">
-          <LinearProgress aria-label="Waiting for feedback" />
+          <LinearProgress aria-label={tr('Waiting for feedback')} />
           <Typography variant="body2" color="text.secondary">
-            Checking with the AI… usually under 10 seconds.
+            {tr('Checking with the AI… usually under 10 seconds.')}
           </Typography>
         </Stack>
       )}
@@ -137,7 +141,7 @@ export function TranscriptPanel({
               onClick={() => void t.askFeedback(questionId, variant)}
               disabled={!t.text.trim() || over}
             >
-              Retry
+              {tr('Retry')}
             </Button>
           }
         >
@@ -147,14 +151,15 @@ export function TranscriptPanel({
       {t.feedback.kind === 'done' && (
         <Stack
           component="section"
-          aria-label="Feedback on your transcript"
+          aria-label={tr('Feedback on your transcript')}
           spacing={2}
         >
           {/* Old feedback is hidden, never shown beside newer text. */}
           {t.outdated ? (
             <Alert severity="warning">
-              Outdated: you changed the transcript after this feedback. Get AI
-              feedback again for the current text.
+              {tr(
+                'Outdated: you changed the transcript after this feedback. Get AI feedback again for the current text.',
+              )}
             </Alert>
           ) : (
             renderFeedback(t.feedback.feedback, t.feedback.answer)
@@ -164,9 +169,9 @@ export function TranscriptPanel({
       {!HOSTED && (
         <Box>
           <Typography variant="caption" color="text.secondary">
-            Transcribe locally sends this recording to this app&apos;s own
-            server on your computer, which turns it into text there. Audio and
-            transcripts are not saved.
+            {tr(
+              "Transcribe locally sends this recording to this app's own server on your computer, which turns it into text there. Audio and transcripts are not saved.",
+            )}
           </Typography>
         </Box>
       )}

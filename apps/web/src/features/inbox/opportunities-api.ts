@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 export const sources = [
   'Website',
   'Facebook',
@@ -34,20 +35,48 @@ export const importFields = [
 ] as const;
 export type ImportFieldName = (typeof importFields)[number];
 export const fieldLabels: Record<ImportFieldName, string> = {
-  title: 'Job title',
-  company: 'Company',
-  agency: 'Recruitment agency',
-  contactNotes: 'Recruiter / contact notes',
-  location: 'Location',
-  workMode: 'Work mode',
-  employmentType: 'Employment type',
-  seniority: 'Seniority',
-  skills: 'Required skills',
-  experience: 'Experience',
-  preferredSkills: 'Preferred skills',
-  domain: 'Domain',
-  salary: 'Salary',
-  originalLink: 'Original link',
+  get title() {
+    return tr('Job title');
+  },
+  get company() {
+    return tr('Company');
+  },
+  get agency() {
+    return tr('Recruitment agency');
+  },
+  get contactNotes() {
+    return tr('Recruiter / contact notes');
+  },
+  get location() {
+    return tr('Location');
+  },
+  get workMode() {
+    return tr('Work mode');
+  },
+  get employmentType() {
+    return tr('Employment type');
+  },
+  get seniority() {
+    return tr('Seniority');
+  },
+  get skills() {
+    return tr('Required skills');
+  },
+  get experience() {
+    return tr('Experience');
+  },
+  get preferredSkills() {
+    return tr('Preferred skills');
+  },
+  get domain() {
+    return tr('Domain');
+  },
+  get salary() {
+    return tr('Salary');
+  },
+  get originalLink() {
+    return tr('Original link');
+  },
 };
 export interface ImportField {
   field: ImportFieldName;
@@ -154,8 +183,9 @@ export async function opportunityRequest<T>(
     },
   });
   if (!response.ok) {
-    let message =
-      'Could not save or load opportunities. Check the local API and retry.';
+    let message = tr(
+      'Could not save or load opportunities. Check the local API and retry.',
+    );
     if (response.status < 500) {
       try {
         const body = (await response.json()) as { message?: unknown };

@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import {
   PracticeError,
   decodeFeedback,
@@ -38,7 +39,7 @@ const int = (v: unknown): v is number => Number.isSafeInteger(v);
 const invalid = () =>
   new PracticeError(
     'INVALID_RESPONSE',
-    'The app received an unexpected response. Try again.',
+    tr('The app received an unexpected response. Try again.'),
   );
 const item = (v: unknown): v is SessionItem => {
   if (
@@ -98,7 +99,7 @@ async function call(
     if (signal?.aborted) throw error;
     throw new PracticeError(
       'NETWORK',
-      'The app could not reach the API. Your text is kept — try again.',
+      tr('The app could not reach the API. Your text is kept — try again.'),
     );
   }
   if (response.status === 204) return null;
@@ -110,7 +111,7 @@ async function call(
       : new PracticeError(payload.errorCode, payload.message);
   throw new PracticeError(
     'UNAVAILABLE',
-    'Mock interviews are unavailable right now. Try again.',
+    tr('Mock interviews are unavailable right now. Try again.'),
   );
 }
 const C = { contractVersion: '1' };

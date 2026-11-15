@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import { useMemo, useState, type ReactNode } from 'react';
 import {
   Alert,
@@ -89,13 +90,13 @@ export function ProposalComparison({
   const status =
     proposal === 'pending'
       ? needsCheck
-        ? 'Needs your check'
-        : 'Waiting for you'
+        ? tr('Needs your check')
+        : tr('Waiting for you')
       : proposal === 'accepted'
         ? 'Accepted'
         : manuallyEdited
-          ? 'Edited by you'
-          : 'Original kept';
+          ? tr('Edited by you')
+          : tr('Original kept');
   const decide = (decision: 'accept' | 'reject') => {
     onDecision(decision);
     setChanging(false);
@@ -104,7 +105,7 @@ export function ProposalComparison({
     <Paper
       component="article"
       variant="outlined"
-      aria-label={`Suggestion for ${where}`}
+      aria-label={tr('Suggestion for {where}', { where: where })}
       sx={{
         p: { xs: 2, sm: 2.5 },
         minWidth: 0,
@@ -159,20 +160,20 @@ export function ProposalComparison({
             >
               <Box sx={{ p: 1.5, borderRadius: 1, bgcolor: 'action.hover' }}>
                 <Typography variant="caption" color="text.secondary">
-                  Your original
+                  {tr('Your original')}
                 </Typography>
                 <Typography sx={textBox}>{original}</Typography>
               </Box>
               <Box sx={{ p: 1.5, borderRadius: 1, bgcolor: 'action.selected' }}>
                 <Typography variant="caption" color="text.secondary">
-                  Suggested
+                  {tr('Suggested')}
                 </Typography>
                 <Typography sx={textBox}>{suggestion}</Typography>
               </Box>
             </Box>
             {why && (
               <Typography variant="body2">
-                <Box component="strong">Why:</Box> {why}
+                <Box component="strong">{tr('Why:')}</Box> {why}
               </Typography>
             )}
             {reviewNote && (
@@ -183,7 +184,7 @@ export function ProposalComparison({
             {needsCheck && (
               <Alert severity="warning" variant="outlined">
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  Check this before accepting.
+                  {tr('Check this before accepting.')}
                 </Typography>
                 <Typography variant="body2">{needsCheck}</Typography>
               </Alert>
@@ -196,28 +197,31 @@ export function ProposalComparison({
               <Button
                 variant="outlined"
                 disabled={disabled}
-                aria-label={`Accept suggestion for ${where}`}
+                aria-label={tr('Accept suggestion for {where}', {
+                  where: where,
+                })}
                 onClick={() => decide('accept')}
               >
-                Accept suggestion
+                {tr('Accept suggestion')}
               </Button>
               <Button
                 variant="outlined"
                 disabled={disabled}
-                aria-label={`Keep original for ${where}`}
+                aria-label={tr('Keep original for {where}', { where: where })}
                 onClick={() => decide('reject')}
               >
-                Keep original
+                {tr('Keep original')}
               </Button>
               {changing && (
                 <Button disabled={disabled} onClick={() => setChanging(false)}>
-                  Cancel change
+                  {tr('Cancel change')}
                 </Button>
               )}
             </Stack>
             <Typography variant="body2" color="text.secondary">
-              Accept uses the suggested wording. Keep original keeps your CV
-              wording unchanged. Either one counts as your decision.
+              {tr(
+                'Accept uses the suggested wording. Keep original keeps your CV wording unchanged. Either one counts as your decision.',
+              )}
             </Typography>
           </>
         ) : (
@@ -231,18 +235,22 @@ export function ProposalComparison({
           >
             <Typography variant="body2" color="text.secondary" sx={textBox}>
               {proposal === 'accepted'
-                ? `Using the suggestion: ${suggestion}`
+                ? tr('Using the suggestion: {suggestion}', {
+                    suggestion: suggestion,
+                  })
                 : manuallyEdited
-                  ? 'Using your own edited wording.'
-                  : `Using your original: ${original}`}
+                  ? tr('Using your own edited wording.')
+                  : tr('Using your original: {original}', {
+                      original: original,
+                    })}
             </Typography>
             <Button
               disabled={disabled}
-              aria-label={`Change decision for ${where}`}
+              aria-label={tr('Change decision for {where}', { where: where })}
               onClick={() => setChanging(true)}
               sx={{ flexShrink: 0 }}
             >
-              Change decision
+              {tr('Change decision')}
             </Button>
           </Stack>
         )}
@@ -253,12 +261,13 @@ export function ProposalComparison({
             color="primary"
             sx={{ py: 1 }}
           >
-            Show evidence and word changes
+            {tr('Show evidence and word changes')}
           </Typography>
           <Stack spacing={1.5} sx={{ mt: 1 }}>
             <Typography variant="body2" color="text.secondary">
-              AI wording for your review, not independently verified evidence.
-              Removed words are struck through; added words are underlined.
+              {tr(
+                'AI wording for your review, not independently verified evidence. Removed words are struck through; added words are underlined.',
+              )}
             </Typography>
             <Box
               sx={{
@@ -273,7 +282,7 @@ export function ProposalComparison({
               {(['original', 'suggestion'] as const).map((kind) => (
                 <Box key={kind} sx={{ minWidth: 0 }}>
                   <Typography variant="subtitle2">
-                    {kind === 'original' ? 'Original' : 'AI suggestion'}
+                    {kind === 'original' ? tr('Original') : tr('AI suggestion')}
                   </Typography>
                   <Typography variant="body2" sx={textBox}>
                     {diff[kind].map((part, index) => (

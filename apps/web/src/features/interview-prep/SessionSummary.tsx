@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import { ArrowBackIcon, DeleteIcon, PlayIcon } from '../../components/icons';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -33,11 +34,12 @@ export function SessionSummary({
       <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
         <Stack spacing={2}>
           <Typography variant="h6" component="h2">
-            Interview summary
+            {tr('Interview summary')}
           </Typography>
           <Typography>
-            {answered} of {total} answered · {skipped} skipped · {unanswered}{' '}
-            unanswered · {withFeedback} with AI feedback
+            {answered} {tr('of')} {total} {tr('answered ·')} {skipped}{' '}
+            {tr('skipped ·')} {unanswered} {tr('unanswered ·')} {withFeedback}{' '}
+            {tr('with AI feedback')}
           </Typography>
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
@@ -53,7 +55,7 @@ export function SessionSummary({
                 to={`/jobs/${session.jobId}/interview`}
                 disabled={pending}
               >
-                Back to job questions
+                {tr('Back to job questions')}
               </Button>
             ) : (
               <Button
@@ -62,7 +64,7 @@ export function SessionSummary({
                 onClick={onNew}
                 disabled={pending}
               >
-                Start another interview
+                {tr('Start another interview')}
               </Button>
             )}
             <Button
@@ -72,7 +74,7 @@ export function SessionSummary({
               onClick={() => setConfirm(true)}
               disabled={pending}
             >
-              Delete interview
+              {tr('Delete interview')}
             </Button>
           </Stack>
         </Stack>
@@ -82,10 +84,12 @@ export function SessionSummary({
       ))}
       <ConfirmDialog
         open={confirm}
-        title="Delete this interview?"
-        text="Its answers and feedback are deleted. Reference answers you already saved are kept. This can’t be undone."
-        safeLabel="Keep interview"
-        confirmLabel="Delete"
+        title={tr('Delete this interview?')}
+        text={tr(
+          'Its answers and feedback are deleted. Reference answers you already saved are kept. This can’t be undone.',
+        )}
+        safeLabel={tr('Keep interview')}
+        confirmLabel={tr('Delete')}
         destructive
         onSafe={() => setConfirm(false)}
         onConfirm={() => {
@@ -112,7 +116,7 @@ function SummaryItem({ item, number }: { item: SessionItem; number: number }) {
     try {
       await saveAnswer(item.questionId, item.answer, expectedVersion);
       setState({ kind: 'saved' });
-      notify({ severity: 'success', text: 'Saved as reference answer.' });
+      notify({ severity: 'success', text: tr('Saved as reference answer.') });
     } catch (e) {
       setState(
         e instanceof AnswerConflictError
@@ -122,7 +126,7 @@ function SummaryItem({ item, number }: { item: SessionItem; number: number }) {
               message:
                 e instanceof PracticeError
                   ? e.message
-                  : 'The answer could not be saved. Try again.',
+                  : tr('The answer could not be saved. Try again.'),
             },
       );
     }
@@ -136,7 +140,7 @@ function SummaryItem({ item, number }: { item: SessionItem; number: number }) {
     >
       <Stack spacing={1.5}>
         <Typography variant="caption" color="text.secondary">
-          Question {number}
+          {tr('Question')} {number}
         </Typography>
         <Typography
           id={`q-${number}`}
@@ -149,7 +153,9 @@ function SummaryItem({ item, number }: { item: SessionItem; number: number }) {
         </Typography>
         {item.answer === null ? (
           <Typography variant="body2" color="text.secondary">
-            {item.skipped ? 'Skipped' : 'Not answered (interview ended early)'}
+            {item.skipped
+              ? tr('Skipped')
+              : tr('Not answered (interview ended early)')}
           </Typography>
         ) : (
           <Typography lang="en" sx={{ whiteSpace: 'pre-wrap' }}>
@@ -160,18 +166,18 @@ function SummaryItem({ item, number }: { item: SessionItem; number: number }) {
           <Stack spacing={0.5}>
             {f.answersQuestion && (
               <Typography variant="body2">
-                <strong>Answers the question:</strong>{' '}
+                <strong>{tr('Answers the question:')}</strong>{' '}
                 {VERDICT[f.answersQuestion]}
               </Typography>
             )}
             {f.mainIssue && (
               <Typography variant="body2">
-                <strong>Main issue:</strong> {f.mainIssue}
+                <strong>{tr('Main issue:')}</strong> {f.mainIssue}
               </Typography>
             )}
             {f.suggestion && (
               <Typography variant="body2" lang="en">
-                <strong>Suggested wording:</strong> {f.suggestion}
+                <strong>{tr('Suggested wording:')}</strong> {f.suggestion}
               </Typography>
             )}
           </Stack>
@@ -180,7 +186,7 @@ function SummaryItem({ item, number }: { item: SessionItem; number: number }) {
           <Stack spacing={1} sx={{ alignItems: 'flex-start' }}>
             {state.kind === 'saved' ? (
               <Typography variant="body2" color="success.main" role="status">
-                Saved as your reference answer.
+                {tr('Saved as your reference answer.')}
               </Typography>
             ) : (
               state.kind !== 'conflict' && (
@@ -189,7 +195,7 @@ function SummaryItem({ item, number }: { item: SessionItem; number: number }) {
                   disabled={state.kind === 'saving'}
                   onClick={() => void save(null)}
                 >
-                  Save as reference answer
+                  {tr('Save as reference answer')}
                 </Button>
               )
             )}
@@ -203,19 +209,19 @@ function SummaryItem({ item, number }: { item: SessionItem; number: number }) {
                       size="small"
                       onClick={() => void save(state.version)}
                     >
-                      Replace
+                      {tr('Replace')}
                     </Button>
                     <Button
                       color="inherit"
                       size="small"
                       onClick={() => setState({ kind: 'idle' })}
                     >
-                      Keep saved
+                      {tr('Keep saved')}
                     </Button>
                   </Stack>
                 }
               >
-                You already have a reference answer for this question.
+                {tr('You already have a reference answer for this question.')}
               </Alert>
             )}
             {state.kind === 'error' && (

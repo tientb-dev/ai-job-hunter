@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import { useEffect, useRef, useState } from 'react';
 import { draftRequest } from './tailored-cv.contract';
 import { Box, Paper } from '@mui/material';
@@ -109,7 +110,7 @@ function JobMatchPanel({
       />
       <Box
         component="section"
-        aria-label="Gaps and advice"
+        aria-label={tr('Gaps and advice')}
         hidden={view === 'hidden'}
         sx={{ mt: 3 }}
       >

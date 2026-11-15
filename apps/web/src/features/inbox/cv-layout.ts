@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import type { SavedDraft } from './tailored-cv.contract';
 
 export type Document = SavedDraft['document'];
@@ -18,16 +19,36 @@ const SECTION_ORDER = [
 
 // Same titles as the PDF/DOCX export (tailored-cv-export.ts).
 const TITLES: Record<string, string> = {
-  contact: 'Contact',
-  summary: 'Summary',
-  skills: 'Skills',
-  experience: 'Experience',
-  projects: 'Projects',
-  education: 'Education',
-  certifications: 'Certifications',
-  languages: 'Languages',
-  links: 'Links',
-  additional: 'Additional information',
+  get contact() {
+    return tr('Contact');
+  },
+  get summary() {
+    return tr('Summary');
+  },
+  get skills() {
+    return tr('Skills');
+  },
+  get experience() {
+    return tr('Experience');
+  },
+  get projects() {
+    return tr('Projects');
+  },
+  get education() {
+    return tr('Education');
+  },
+  get certifications() {
+    return tr('Certifications');
+  },
+  get languages() {
+    return tr('Languages');
+  },
+  get links() {
+    return tr('Links');
+  },
+  get additional() {
+    return tr('Additional information');
+  },
 };
 export const sectionTitle = (kind: string) =>
   TITLES[kind] ??

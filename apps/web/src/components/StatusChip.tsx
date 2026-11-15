@@ -1,3 +1,4 @@
+import { tr } from '../app/i18n';
 import { Box, Chip } from '@mui/material';
 
 type Tone = 'success' | 'primary' | 'info' | 'error' | 'neutral';
@@ -19,7 +20,7 @@ const tones: Record<string, Tone> = {
 const sentence = (value: string) => {
   const text = value.replaceAll('_', ' ').toLowerCase();
   return text === 'jd received'
-    ? 'JD received'
+    ? tr('JD received')
     : text.charAt(0).toUpperCase() + text.slice(1);
 };
 
@@ -30,7 +31,7 @@ export function StatusChip({ status }: { status: string }) {
     <Chip
       size="small"
       variant="outlined"
-      label={sentence(status)}
+      label={tr(sentence(status))}
       icon={
         <Box
           component="span"

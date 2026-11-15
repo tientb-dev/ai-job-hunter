@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import {
   ArrowForwardIcon,
   CheckIcon,
@@ -68,7 +69,7 @@ export function DiscoveryCandidateReview({
           setError(
             reason instanceof Error
               ? reason.message
-              : 'Could not load this candidate. Retry.',
+              : tr('Could not load this candidate. Retry.'),
           );
       })
       .finally(() => {
@@ -114,8 +115,10 @@ export function DiscoveryCandidateReview({
           severity: 'success',
           text:
             result.outcome === 'created'
-              ? 'Job saved to Jobs.'
-              : 'Linked to the existing job. Its details and application history are unchanged.',
+              ? tr('Job saved to Jobs.')
+              : tr(
+                  'Linked to the existing job. Its details and application history are unchanged.',
+                ),
         });
       } else {
         const result = await discoveryRequest<CandidateDetail>(
@@ -129,8 +132,10 @@ export function DiscoveryCandidateReview({
           severity: 'success',
           text:
             action === 'SEEN'
-              ? 'Marked as seen.'
-              : 'Candidate dismissed. You can still save it from the Dismissed filter.',
+              ? tr('Marked as seen.')
+              : tr(
+                  'Candidate dismissed. You can still save it from the Dismissed filter.',
+                ),
         });
       }
     } catch (reason) {
@@ -143,7 +148,7 @@ export function DiscoveryCandidateReview({
         setError(
           reason instanceof Error
             ? reason.message
-            : 'Could not update this candidate. Retry.',
+            : tr('Could not update this candidate. Retry.'),
         );
       }
     } finally {
@@ -168,7 +173,7 @@ export function DiscoveryCandidateReview({
           id="candidate-review-title"
           sx={{ overflowWrap: 'anywhere' }}
         >
-          {candidate?.title ?? 'Review candidate'}
+          {candidate?.title ?? tr('Review candidate')}
         </DialogTitle>
         <DialogContent
           dividers
@@ -176,7 +181,7 @@ export function DiscoveryCandidateReview({
         >
           <Stack spacing={2}>
             {loading && (
-              <Typography role="status">Loading candidate…</Typography>
+              <Typography role="status">{tr('Loading candidate…')}</Typography>
             )}
             {error && <Alert severity="error">{error}</Alert>}
             {!loading && !candidate && (
@@ -189,7 +194,7 @@ export function DiscoveryCandidateReview({
                   setAttempt((value) => value + 1);
                 }}
               >
-                Retry candidate
+                {tr('Retry candidate')}
               </Button>
             )}
             {candidate && (
@@ -208,8 +213,10 @@ export function DiscoveryCandidateReview({
                     .join(' · ')}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {candidate.sourceName} · Opening details does not mark this
-                  candidate as seen.
+                  {candidate.sourceName}{' '}
+                  {tr(
+                    '· Opening details does not mark this candidate as seen.',
+                  )}
                 </Typography>
                 {link && (
                   <MuiLink
@@ -218,21 +225,21 @@ export function DiscoveryCandidateReview({
                     rel="noopener noreferrer"
                     sx={{ alignSelf: 'flex-start', overflowWrap: 'anywhere' }}
                   >
-                    Original source job
+                    {tr('Original source job')}
                   </MuiLink>
                 )}
                 <Typography variant="subtitle1" component="h3">
-                  Job description
+                  {tr('Job description')}
                 </Typography>
                 <Typography
                   sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}
                 >
-                  {candidate.description || 'No description available.'}
+                  {candidate.description || tr('No description available.')}
                 </Typography>
                 {candidate.skills && (
                   <>
                     <Typography variant="subtitle1" component="h3">
-                      Requirements
+                      {tr('Requirements')}
                     </Typography>
                     <Typography
                       sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}
@@ -244,7 +251,7 @@ export function DiscoveryCandidateReview({
                 {candidate.preferredSkills && (
                   <>
                     <Typography variant="subtitle1" component="h3">
-                      Preferred qualifications
+                      {tr('Preferred qualifications')}
                     </Typography>
                     <Typography
                       sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}
@@ -266,7 +273,7 @@ export function DiscoveryCandidateReview({
           }}
         >
           <Button disabled={busy} onClick={onClose}>
-            Close review
+            {tr('Close review')}
           </Button>
           {candidate && !loading && (
             <>
@@ -277,7 +284,7 @@ export function DiscoveryCandidateReview({
                   disabled={busy}
                   onClick={() => void act('SEEN')}
                 >
-                  Mark as seen
+                  {tr('Mark as seen')}
                 </Button>
               )}
               {['NEW', 'SEEN'].includes(candidate.status) && (
@@ -289,7 +296,7 @@ export function DiscoveryCandidateReview({
                   startIcon={<CloseIcon />}
                   onClick={() => void act('DISMISSED')}
                 >
-                  Dismiss
+                  {tr('Dismiss')}
                 </Button>
               )}
               {candidate.opportunityId ? (
@@ -299,7 +306,7 @@ export function DiscoveryCandidateReview({
                   variant="outlined"
                   endIcon={<ArrowForwardIcon />}
                 >
-                  Open in Jobs
+                  {tr('Open in Jobs')}
                 </Button>
               ) : (
                 <Button
@@ -308,7 +315,7 @@ export function DiscoveryCandidateReview({
                   variant="contained"
                   onClick={() => void act('SAVE')}
                 >
-                  Save to Jobs
+                  {tr('Save to Jobs')}
                 </Button>
               )}
             </>
@@ -327,8 +334,8 @@ export function DiscoveryCandidateReview({
         <DialogCloseButton disabled={busy} onClick={() => setConflict(null)} />
         <DialogTitle id="duplicate-confirm-title" sx={{ pr: 7 }}>
           {conflict?.code === 'POSSIBLE_DUPLICATE'
-            ? 'Possible duplicate job'
-            : 'Multiple exact matches in Jobs'}
+            ? tr('Possible duplicate job')
+            : tr('Multiple exact matches in Jobs')}
         </DialogTitle>
         <DialogContent>
           <Stack spacing={2}>
@@ -351,8 +358,12 @@ export function DiscoveryCandidateReview({
             ))}
             <Typography>
               {conflict?.code === 'POSSIBLE_DUPLICATE'
-                ? 'Create a separate job only if these are different openings. Existing jobs will not be changed.'
-                : 'No job was created or linked. Review the existing jobs; this candidate remains in the queue.'}
+                ? tr(
+                    'Create a separate job only if these are different openings. Existing jobs will not be changed.',
+                  )
+                : tr(
+                    'No job was created or linked. Review the existing jobs; this candidate remains in the queue.',
+                  )}
             </Typography>
           </Stack>
         </DialogContent>
@@ -363,7 +374,9 @@ export function DiscoveryCandidateReview({
             onClick={() => setConflict(null)}
             autoFocus
           >
-            {conflict?.code === 'POSSIBLE_DUPLICATE' ? 'Cancel' : 'Close'}
+            {conflict?.code === 'POSSIBLE_DUPLICATE'
+              ? tr('Cancel')
+              : tr('Close')}
           </Button>
           {conflict?.code === 'POSSIBLE_DUPLICATE' && (
             <Button
@@ -372,7 +385,7 @@ export function DiscoveryCandidateReview({
               disabled={busy}
               onClick={() => void act('SAVE', true)}
             >
-              Save as separate job
+              {tr('Save as separate job')}
             </Button>
           )}
         </DialogActions>

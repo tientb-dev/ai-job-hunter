@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import {
   ArrowBackIcon,
   ArrowForwardIcon,
@@ -48,7 +49,7 @@ const UUID =
 const message = (error: unknown) =>
   error instanceof PracticeError
     ? error.message
-    : 'Something went wrong. Try again.';
+    : tr('Something went wrong. Try again.');
 
 /**
  * /interview-prep/mock[?jobId=&setId=]: 5–8 questions in a row. Progress lives
@@ -106,7 +107,9 @@ export function MockInterview() {
     } catch (e) {
       if (e instanceof SessionConflictError) {
         setNotice(
-          'This interview changed in another tab. Showing the latest progress.',
+          tr(
+            'This interview changed in another tab. Showing the latest progress.',
+          ),
         );
         setSession(
           await activeSession(new AbortController().signal).catch(() => null),
@@ -145,8 +148,10 @@ export function MockInterview() {
 
   const header = (
     <PageHeader
-      title="Mock interview"
-      description="Answer 5–8 questions in a row, like a real interview. AI feedback is optional."
+      title={tr('Mock interview')}
+      description={tr(
+        'Answer 5–8 questions in a row, like a real interview. AI feedback is optional.',
+      )}
     />
   );
   const back = job ? `/jobs/${job.jobId}/interview` : '/interview-prep';
@@ -169,7 +174,7 @@ export function MockInterview() {
                 color="inherit"
                 onClick={() => setAttempt((n) => n + 1)}
               >
-                Retry
+                {tr('Retry')}
               </Button>
               {viewId && (
                 // The summary may have been deleted in another tab.
@@ -181,7 +186,7 @@ export function MockInterview() {
                     setSession(undefined);
                   }}
                 >
-                  Start page
+                  {tr('Start page')}
                 </Button>
               )}
             </Stack>
@@ -194,9 +199,9 @@ export function MockInterview() {
   if (session === undefined)
     return (
       <Stack spacing={1} role="status">
-        <LinearProgress aria-label="Loading mock interview" />
+        <LinearProgress aria-label={tr('Loading mock interview')} />
         <Typography variant="body2" color="text.secondary">
-          Loading mock interview…
+          {tr('Loading mock interview…')}
         </Typography>
       </Stack>
     );
@@ -224,7 +229,7 @@ export function MockInterview() {
           onDelete={() =>
             void run(async () => {
               await removeSession(session);
-              notify({ severity: 'success', text: 'Interview deleted.' });
+              notify({ severity: 'success', text: tr('Interview deleted.') });
               showSummary(null);
               return null;
             })
@@ -241,12 +246,12 @@ export function MockInterview() {
         {header}
         {alerts}
         <Alert severity="info">
-          You have an unfinished mock interview from{' '}
+          {tr('You have an unfinished mock interview from')}{' '}
           {session.source === 'job'
-            ? 'another job'
-            : 'Interview Prep questions'}{' '}
-          ({answered} of {session.items.length} answered). Only one interview
-          can be in progress at a time.
+            ? tr('another job')
+            : tr('Interview Prep questions')}{' '}
+          ({answered} {tr('of')} {session.items.length}{' '}
+          {tr('answered). Only one interview can be in progress at a time.')}
         </Alert>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
           <Button
@@ -260,7 +265,7 @@ export function MockInterview() {
               setParams({}, { replace: true });
             }}
           >
-            Continue that interview
+            {tr('Continue that interview')}
           </Button>
           <Button
             variant="outlined"
@@ -271,13 +276,15 @@ export function MockInterview() {
                 await completeSession(session);
                 notify({
                   severity: 'success',
-                  text: 'Earlier interview finished. Its answers are in Past interviews.',
+                  text: tr(
+                    'Earlier interview finished. Its answers are in Past interviews.',
+                  ),
                 });
                 return null;
               })
             }
           >
-            Finish it and start here
+            {tr('Finish it and start here')}
           </Button>
         </Stack>
       </Stack>
@@ -293,18 +300,23 @@ export function MockInterview() {
         <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
           <Stack spacing={2} sx={{ alignItems: 'flex-start' }}>
             <Typography variant="h6" component="h2">
-              Start an interview
+              {tr('Start an interview')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {job
-                ? 'Questions come from this job’s question set, in order. Shorter sets use all their questions.'
-                : 'Questions are picked at random from the Interview Prep questions.'}{' '}
-              Your progress is saved, so you can come back after a refresh.
-              Audio is never saved.
+                ? tr(
+                    'Questions come from this job’s question set, in order. Shorter sets use all their questions.',
+                  )
+                : tr(
+                    'Questions are picked at random from the Interview Prep questions.',
+                  )}{' '}
+              {tr(
+                'Your progress is saved, so you can come back after a refresh. Audio is never saved.',
+              )}
             </Typography>
             <TextField
               select
-              label="Number of questions"
+              label={tr('Number of questions')}
               value={count}
               onChange={(e) => setCount(Number(e.target.value))}
               sx={{ minWidth: 200 }}
@@ -334,7 +346,7 @@ export function MockInterview() {
                   )
                 }
               >
-                Start interview
+                {tr('Start interview')}
               </Button>
               <Button
                 startIcon={<ArrowBackIcon />}
@@ -342,7 +354,9 @@ export function MockInterview() {
                 to={back}
                 variant="outlined"
               >
-                {job ? 'Back to job questions' : 'Back to Interview Prep'}
+                {job
+                  ? tr('Back to job questions')
+                  : tr('Back to Interview Prep')}
               </Button>
             </Stack>
           </Stack>
@@ -372,7 +386,8 @@ export function MockInterview() {
           }}
         >
           <Typography variant="subtitle2" component="p" aria-live="polite">
-            Question {allAnswered ? total : index + 1} of {total}
+            {tr('Question')} {allAnswered ? total : index + 1} {tr('of')}{' '}
+            {total}
           </Typography>
           <Stack direction="row" spacing={1}>
             <Button
@@ -381,7 +396,7 @@ export function MockInterview() {
               disabled={pending}
               onClick={() => setConfirm('discard')}
             >
-              Discard
+              {tr('Discard')}
             </Button>
             <Button
               startIcon={<StopIcon />}
@@ -389,14 +404,14 @@ export function MockInterview() {
               disabled={pending}
               onClick={() => setConfirm('end')}
             >
-              End interview
+              {tr('End interview')}
             </Button>
           </Stack>
         </Stack>
         <LinearProgress
           variant="determinate"
           value={(session.currentIndex / total) * 100}
-          aria-label="Interview progress"
+          aria-label={tr('Interview progress')}
         />
       </Stack>
       {allAnswered ? (
@@ -410,11 +425,13 @@ export function MockInterview() {
               disabled={pending}
               onClick={() => void finish(session)}
             >
-              Finish
+              {tr('Finish')}
             </Button>
           }
         >
-          All questions are done. Finish the interview to see your results.
+          {tr(
+            'All questions are done. Finish the interview to see your results.',
+          )}
         </Alert>
       ) : (
         <QuestionStep
@@ -433,16 +450,22 @@ export function MockInterview() {
         open={confirm !== null}
         title={
           confirm === 'discard'
-            ? 'Discard this interview?'
-            : 'End the interview now?'
+            ? tr('Discard this interview?')
+            : tr('End the interview now?')
         }
         text={
           confirm === 'discard'
-            ? 'All answers and feedback from this interview are deleted. This can’t be undone.'
-            : 'Questions you haven’t reached are marked unanswered. Text you haven’t saved with Next is not kept.'
+            ? tr(
+                'All answers and feedback from this interview are deleted. This can’t be undone.',
+              )
+            : tr(
+                'Questions you haven’t reached are marked unanswered. Text you haven’t saved with Next is not kept.',
+              )
         }
-        safeLabel="Keep practising"
-        confirmLabel={confirm === 'discard' ? 'Discard' : 'End interview'}
+        safeLabel={tr('Keep practising')}
+        confirmLabel={
+          confirm === 'discard' ? tr('Discard') : tr('End interview')
+        }
         destructive={confirm === 'discard'}
         confirmIcon={confirm === 'discard' ? <DeleteIcon /> : <StopIcon />}
         onSafe={() => setConfirm(null)}
@@ -453,7 +476,7 @@ export function MockInterview() {
           else
             void run(async () => {
               await removeSession(session);
-              notify({ severity: 'success', text: 'Interview discarded.' });
+              notify({ severity: 'success', text: tr('Interview discarded.') });
               return null;
             });
         }}
@@ -502,7 +525,7 @@ function QuestionStep({
         </Typography>
         <Recorder
           recorder={recorder}
-          title="Your answer"
+          title={tr('Your answer')}
           prominent
           transcript={
             <TranscriptPanel
@@ -524,8 +547,8 @@ function QuestionStep({
         <Box>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
             {feedback
-              ? 'Next saves your answer with this feedback.'
-              : 'Next saves your answer. AI feedback is optional.'}
+              ? tr('Next saves your answer with this feedback.')
+              : tr('Next saves your answer. AI feedback is optional.')}
           </Typography>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
             <Button
@@ -534,10 +557,10 @@ function QuestionStep({
               disabled={!ready || pending}
               onClick={() => onNext(text, feedback)}
             >
-              {last ? 'Save and finish' : 'Next'}
+              {last ? tr('Save and finish') : tr('Next')}
             </Button>
             <Button variant="outlined" disabled={pending} onClick={onSkip}>
-              Skip question
+              {tr('Skip question')}
             </Button>
           </Stack>
         </Box>

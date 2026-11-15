@@ -1,14 +1,25 @@
+import { tr } from '../../app/i18n';
 import { useEffect } from 'react';
 import { useNotify } from '../../components/useNotify';
 
 // Same wording as the API (ai.errors.ts); /analyses reports only the code.
 const MESSAGES: Record<string, string> = {
-  AI_DAILY_USER_LIMIT:
-    'You have used today’s AI requests. The limit resets at midnight (Vietnam time).',
-  AI_DAILY_GLOBAL_LIMIT:
-    'The beta has used today’s AI requests. The limit resets at midnight (Vietnam time).',
-  AI_BUSY: 'AI is busy with other requests. Try again in a minute.',
-  AI_UNAVAILABLE: 'AI is unavailable. Try again later.',
+  get AI_DAILY_USER_LIMIT() {
+    return tr(
+      'You have used today’s AI requests. The limit resets at midnight (Vietnam time).',
+    );
+  },
+  get AI_DAILY_GLOBAL_LIMIT() {
+    return tr(
+      'The beta has used today’s AI requests. The limit resets at midnight (Vietnam time).',
+    );
+  },
+  get AI_BUSY() {
+    return tr('AI is busy with other requests. Try again in a minute.');
+  },
+  get AI_UNAVAILABLE() {
+    return tr('AI is unavailable. Try again later.');
+  },
 };
 const REPEAT_MS = 10_000;
 

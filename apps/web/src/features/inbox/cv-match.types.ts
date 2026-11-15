@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 export interface MatchResult {
   matchId?: string;
   cvUpdatedAt?: string;
@@ -38,8 +39,8 @@ export const statusLabel = (
   status: MatchResult['requirements'][number]['status'],
 ) =>
   ({
-    EVIDENCED: 'Matched',
-    PARTIAL: 'Partial',
-    NOT_EVIDENCED: 'Unknown',
-    CONFLICT: 'Conflict / Needs review',
+    EVIDENCED: tr('Matched'),
+    PARTIAL: tr('Partial'),
+    NOT_EVIDENCED: tr('Unknown'),
+    CONFLICT: tr('Conflict / Needs review'),
   })[status];

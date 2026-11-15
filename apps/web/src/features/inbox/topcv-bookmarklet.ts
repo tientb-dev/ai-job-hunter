@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 export const TOPCV_ORIGINS = ['https://topcv.vn', 'https://www.topcv.vn'];
 export const PAGE_IMPORT_ORIGINS = [
   ...TOPCV_ORIGINS,
@@ -89,10 +90,10 @@ export function runTopcvBookmarklet(appOrigin: string): void {
         : /^\/[^/]+-\d+-jv$/.test(url.pathname))
     )
       throw new Error(
-        'Open an individual public TopCV or VietnamWorks job page first.',
+        tr('Open an individual public TopCV or VietnamWorks job page first.'),
       );
     if (!['http://127.0.0.1:5173', 'http://localhost:5173'].includes(appOrigin))
-      throw new Error('Unsupported local app address.');
+      throw new Error(tr('Unsupported local app address.'));
     const jobs: Record<string, unknown>[] = [];
     const visit = (value: unknown): void => {
       if (Array.isArray(value)) {
@@ -287,7 +288,9 @@ export function runTopcvBookmarklet(appOrigin: string): void {
           const content = body ? visibleNode(body) : '';
           if (!content)
             throw new Error(
-              'Expand the full VietnamWorks job description and Requirements, then click the bookmark again.',
+              tr(
+                'Expand the full VietnamWorks job description and Requirements, then click the bookmark again.',
+              ),
             );
           captured.push({ kind, text: `${label}\n${content}` });
         }
@@ -297,14 +300,18 @@ export function runTopcvBookmarklet(appOrigin: string): void {
             !captured.some((section) => section.kind === 'requirements')
           )
             throw new Error(
-              'Both VietnamWorks Responsibilities and Requirements must be visible. Expand the full JD and retry the bookmark.',
+              tr(
+                'Both VietnamWorks Responsibilities and Requirements must be visible. Expand the full JD and retry the bookmark.',
+              ),
             );
           layouts.push(captured);
         }
       }
       if (layouts.length > 1)
         throw new Error(
-          'Multiple job-content containers found. Open one VietnamWorks job and retry.',
+          tr(
+            'Multiple job-content containers found. Open one VietnamWorks job and retry.',
+          ),
         );
       if (layouts.length === 1)
         visibleText = layouts[0]!.map((section) => section.text).join('\n\n');
@@ -377,7 +384,9 @@ export function runTopcvBookmarklet(appOrigin: string): void {
     );
     if (!jobPosting?.description && !visibleText)
       throw new Error(
-        'No job description found. Open the full JD; do not bypass a login or CAPTCHA.',
+        tr(
+          'No job description found. Open the full JD; do not bypass a login or CAPTCHA.',
+        ),
       );
     let workModeText = '';
     for (const node of document.querySelectorAll<HTMLElement>(
@@ -407,7 +416,7 @@ export function runTopcvBookmarklet(appOrigin: string): void {
       new TextEncoder().encode(JSON.stringify(payload)).byteLength > 65536
     )
       throw new Error(
-        'Job content exceeds the import limit. Use manual import instead.',
+        tr('Job content exceeds the import limit. Use manual import instead.'),
       );
     const nonce = Array.from(
       crypto.getRandomValues(new Uint8Array(16)),
@@ -435,26 +444,30 @@ export function runTopcvBookmarklet(appOrigin: string): void {
     if (!child) {
       window.removeEventListener('message', listener);
       throw new Error(
-        'Allow the bookmark to open the local app window, then try again.',
+        tr('Allow the bookmark to open the local app window, then try again.'),
       );
     }
     const timer = setTimeout(() => {
       window.removeEventListener('message', listener);
       alert(
-        'Import connection timed out. Start the local app. If browser policy blocks the connection, use manual import; do not bypass site restrictions.',
+        tr(
+          'Import connection timed out. Start the local app. If browser policy blocks the connection, use manual import; do not bypass site restrictions.',
+        ),
       );
     }, 30000);
   } catch (error) {
     alert(
       error instanceof Error
         ? error.message
-        : 'Could not import this job page. Use manual import.',
+        : tr('Could not import this job page. Use manual import.'),
     );
   }
 }
 export function bookmarkletUrl(origin: string): string {
   if (!isLocalImportOrigin(origin))
-    throw new Error('Use the local app on port 5173 to install this bookmark.');
+    throw new Error(
+      tr('Use the local app on port 5173 to install this bookmark.'),
+    );
   return `javascript:void(${encodeURIComponent(`(${runTopcvBookmarklet.toString()})(${JSON.stringify(origin)})`)})`;
 }
 export function receiveTopcvPage(
@@ -475,7 +488,9 @@ export function receiveTopcvPage(
     !win.opener
   ) {
     fail(
-      'Invalid bookmark import connection. Open the supported job page and click your installed bookmark again.',
+      tr(
+        'Invalid bookmark import connection. Open the supported job page and click your installed bookmark again.',
+      ),
     );
     return () => {};
   }
@@ -508,7 +523,9 @@ export function receiveTopcvPage(
       new URL(event.data.payload.sourceUrl).origin !== origin
     ) {
       fail(
-        'Invalid or oversized job-page payload. Your existing inputs are unchanged.',
+        tr(
+          'Invalid or oversized job-page payload. Your existing inputs are unchanged.',
+        ),
       );
       return;
     }
@@ -518,7 +535,9 @@ export function receiveTopcvPage(
   const timer = setTimeout(() => {
     cleanup();
     fail(
-      'Bookmark import timed out. Reopen the source page and try again, or use manual import.',
+      tr(
+        'Bookmark import timed out. Reopen the source page and try again, or use manual import.',
+      ),
     );
   }, 30000);
   sender.postMessage({ type: 'AJH_TOPCV_READY', nonce }, origin);

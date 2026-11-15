@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ArrowBackIcon,
@@ -75,16 +76,26 @@ const TOPICS: Record<
   hr: {
     // chat bubble
     icon: 'M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2m0 14H5.17L4 17.17V4h16z',
-    label: 'HR communication',
-    description:
-      'Introduce yourself, talk about strengths, motivation, goals and teamwork.',
+    get label() {
+      return tr('HR communication');
+    },
+    get description() {
+      return tr(
+        'Introduce yourself, talk about strengths, motivation, goals and teamwork.',
+      );
+    },
   },
   technical: {
     // code brackets
     icon: 'M9.4 16.6 4.8 12l4.6-4.6L8 6l-6 6 6 6zm5.2 0 4.6-4.6-4.6-4.6L16 6l6 6-6 6z',
-    label: 'Technical communication',
-    description:
-      'Explain concepts, decisions, trade-offs and how you solve problems.',
+    get label() {
+      return tr('Technical communication');
+    },
+    get description() {
+      return tr(
+        'Explain concepts, decisions, trade-offs and how you solve problems.',
+      );
+    },
   },
 };
 const MODES: Record<
@@ -92,16 +103,32 @@ const MODES: Record<
   { label: string; field: string; action: string; helper: string }
 > = {
   express: {
-    label: 'Help me express it',
-    field: 'Your ideas (Vietnamese, English or both)',
-    action: 'Help me say it',
-    helper: 'Short notes are fine. AI only uses what you write.',
+    get label() {
+      return tr('Help me express it');
+    },
+    get field() {
+      return tr('Your ideas (Vietnamese, English or both)');
+    },
+    get action() {
+      return tr('Help me say it');
+    },
+    get helper() {
+      return tr('Short notes are fine. AI only uses what you write.');
+    },
   },
   review: {
-    label: 'Review my English',
-    field: 'Your answer in English',
-    action: 'Review my English',
-    helper: 'Write it the way you would say it.',
+    get label() {
+      return tr('Review my English');
+    },
+    get field() {
+      return tr('Your answer in English');
+    },
+    get action() {
+      return tr('Review my English');
+    },
+    get helper() {
+      return tr('Write it the way you would say it.');
+    },
   },
 };
 // Safety withholds share one reassuring message; the guard itself is unchanged.
@@ -111,21 +138,36 @@ const WITHHELD: Record<Withheld, string> = {
   CHANGED_FACTS: NOT_SAFE,
   CHANGED_MEANING: NOT_SAFE,
   UNCLEAR: NOT_SAFE,
-  TOO_LONG:
-    "I couldn't make a version that is short enough to say comfortably. This doesn't mean your answer is wrong.",
-  OFF_TOPIC:
-    "Your answer doesn't answer this question yet. Use the questions below to refocus, then try again.",
-  NOT_ENOUGH_DETAIL:
-    "There wasn't enough detail to suggest an answer. Answer the questions below first.",
+  get TOO_LONG() {
+    return tr(
+      "I couldn't make a version that is short enough to say comfortably. This doesn't mean your answer is wrong.",
+    );
+  },
+  get OFF_TOPIC() {
+    return tr(
+      "Your answer doesn't answer this question yet. Use the questions below to refocus, then try again.",
+    );
+  },
+  get NOT_ENOUGH_DETAIL() {
+    return tr(
+      "There wasn't enough detail to suggest an answer. Answer the questions below first.",
+    );
+  },
 };
 const NEXT_WITH_CORRECTIONS =
   'You can still use the corrections above and try again.';
 const NEXT_WITHOUT_CORRECTIONS =
   'You can still use the questions and sentence starters below and try again.';
 const ANSWERS = {
-  yes: 'Answers the question',
-  partly: 'Partly answers the question',
-  no: "Doesn't answer the question yet",
+  get yes() {
+    return tr('Answers the question');
+  },
+  get partly() {
+    return tr('Partly answers the question');
+  },
+  get no() {
+    return tr("Doesn't answer the question yet");
+  },
 };
 
 type Status =
@@ -199,31 +241,33 @@ function Suggestion({
 }) {
   if (unchangedSuggestion(feedback, answer))
     return (
-      <Section title="Simpler spoken version">
+      <Section title={tr('Simpler spoken version')}>
         <Typography variant="body2" color="text.secondary">
-          Your answer is already simple and clear, so no rewrite was needed.
-          Practise saying it as written.
+          {tr(
+            'Your answer is already simple and clear, so no rewrite was needed. Practise saying it as written.',
+          )}
         </Typography>
       </Section>
     );
   if (!feedback.suggestion)
     return feedback.suggestionWithheld ? (
       <Alert severity="info">
-        {WITHHELD[feedback.suggestionWithheld]}
+        {tr(WITHHELD[feedback.suggestionWithheld])}
         {feedback.suggestionWithheld !== 'OFF_TOPIC' &&
           feedback.suggestionWithheld !== 'NOT_ENOUGH_DETAIL' &&
-          ` ${feedback.corrections.length ? NEXT_WITH_CORRECTIONS : NEXT_WITHOUT_CORRECTIONS}`}
+          ` ${tr(feedback.corrections.length ? NEXT_WITH_CORRECTIONS : NEXT_WITHOUT_CORRECTIONS)}`}
       </Alert>
     ) : null;
   return (
-    <Section title="Simpler spoken version">
+    <Section title={tr('Simpler spoken version')}>
       <Typography variant="body2" color="text.secondary">
-        AI suggestion based only on what you wrote. Read it, hide it, then say
-        it in your own words.
+        {tr(
+          'AI suggestion based only on what you wrote. Read it, hide it, then say it in your own words.',
+        )}
       </Typography>
       <Box>
         <Button variant="text" onClick={onToggle} aria-expanded={shown}>
-          {shown ? 'Hide suggestion' : 'Show suggestion'}
+          {shown ? tr('Hide suggestion') : tr('Show suggestion')}
         </Button>
       </Box>
       <Collapse in={shown} unmountOnExit>
@@ -263,7 +307,7 @@ export function Feedback({
         </Stack>
       )}
       {feedback.corrections.length > 0 && (
-        <Section title="Corrections">
+        <Section title={tr('Corrections')}>
           <Stack component="ul" spacing={1} sx={{ m: 0, pl: 2.5 }}>
             {feedback.corrections.map((c) => (
               <li key={c.original}>
@@ -282,7 +326,7 @@ export function Feedback({
                     component="span"
                     sx={{ position: 'absolute', left: -9999 }}
                   >
-                    better:{' '}
+                    {tr('better:')}{' '}
                   </Box>
                   {c.better}
                 </Typography>
@@ -298,7 +342,7 @@ export function Feedback({
         onToggle={onToggle}
       />
       {feedback.followUpQuestions.length > 0 && (
-        <Section title="Questions to add your own details">
+        <Section title={tr('Questions to add your own details')}>
           <Stack component="ul" spacing={0.5} sx={{ m: 0, pl: 2.5 }}>
             {feedback.followUpQuestions.map((q) => (
               <li key={q}>
@@ -309,7 +353,7 @@ export function Feedback({
         </Section>
       )}
       {feedback.phrases.length > 0 && (
-        <Section title="Useful sentence starters">
+        <Section title={tr('Useful sentence starters')}>
           <Stack component="ul" spacing={1} sx={{ m: 0, pl: 2.5 }}>
             {feedback.phrases.map((p) => (
               <li key={p.text}>
@@ -328,17 +372,18 @@ export function Feedback({
         <Paper
           variant="outlined"
           component="aside"
-          aria-label="Technical learning hint"
+          aria-label={tr('Technical learning hint')}
           sx={{ p: 2, borderStyle: 'dashed' }}
         >
           <Stack spacing={0.5}>
             <Typography variant="subtitle2" component="h3">
-              Technical learning hint (AI, not verified)
+              {tr('Technical learning hint (AI, not verified)')}
             </Typography>
             <Typography variant="body2">{feedback.technicalNote}</Typography>
             <Typography variant="body2" color="text.secondary">
-              Separate from the English feedback, which keeps what you said. AI
-              can be wrong about technical details — check them yourself.
+              {tr(
+                'Separate from the English feedback, which keeps what you said. AI can be wrong about technical details — check them yourself.',
+              )}
             </Typography>
           </Stack>
         </Paper>
@@ -346,7 +391,7 @@ export function Feedback({
       {cvCheck.notices.length > 0 && (
         <Alert severity="info">
           <Typography variant="subtitle2" component="p">
-            Details to double-check
+            {tr('Details to double-check')}
           </Typography>
           <Stack component="ul" spacing={0.5} sx={{ m: 0, pl: 2.5 }}>
             {cvCheck.notices.map((n) => (
@@ -359,14 +404,16 @@ export function Feedback({
       )}
       {cvCheck.status === 'checked' && !cvCheck.notices.length && (
         <Typography variant="body2" color="text.secondary">
-          Nothing to flag against your reviewed CV. This only checks numbers and
-          tools — it is not full fact verification.
+          {tr(
+            'Nothing to flag against your reviewed CV. This only checks numbers and tools — it is not full fact verification.',
+          )}
         </Typography>
       )}
       {cvCheck.status === 'unavailable' && (
         <Typography variant="body2" color="text.secondary">
-          CV fact check is off because there is no reviewed CV. Feedback uses
-          only what you wrote.
+          {tr(
+            'CV fact check is off because there is no reviewed CV. Feedback uses only what you wrote.',
+          )}
         </Typography>
       )}
     </Stack>
@@ -394,36 +441,40 @@ export function Recorder({
       </Typography>
       {transcript && state !== 'unavailable' && (
         <Typography variant="body2" color="text.secondary">
-          Record your answer, transcribe it locally, or type it yourself. Review
-          the text before requesting AI feedback.
+          {tr(
+            'Record your answer, transcribe it locally, or type it yourself. Review the text before requesting AI feedback.',
+          )}
         </Typography>
       )}
       {!transcript && url && state === 'ready' && (
         <Typography variant="body2" role="status">
-          Listen to your recording, then record again to practise. For AI
-          feedback, type your answer in the text field below.
+          {tr(
+            'Listen to your recording, then record again to practise. For AI feedback, type your answer in the text field below.',
+          )}
         </Typography>
       )}
       {!transcript &&
         state !== 'unavailable' &&
         !(url && state === 'ready') && (
           <Typography variant="body2" color="text.secondary">
-            Record yourself speaking, then listen back. Audio is not analysed by
-            AI.
+            {tr(
+              'Record yourself speaking, then listen back. Audio is not analysed by AI.',
+            )}
           </Typography>
         )}
       {state === 'unavailable' ? (
         <Stack spacing={1} sx={{ alignItems: 'flex-start' }}>
           <Typography variant="body2" color="text.secondary" role="status">
-            Recording isn't available (no microphone, permission denied, or
-            browser support). You can keep practising by typing.
+            {tr(
+              "Recording isn't available (no microphone, permission denied, or browser support). You can keep practising by typing.",
+            )}
           </Typography>
           <Button
             startIcon={<MicIcon />}
             variant="text"
             onClick={() => void start()}
           >
-            Try recording again
+            {tr('Try recording again')}
           </Button>
         </Stack>
       ) : (
@@ -435,7 +486,7 @@ export function Recorder({
         >
           {state === 'recording' ? (
             <Button variant="outlined" onClick={stop} startIcon={<StopIcon />}>
-              Stop recording
+              {tr('Stop recording')}
             </Button>
           ) : (
             <Button
@@ -444,14 +495,14 @@ export function Recorder({
               disabled={state === 'requesting'}
               startIcon={<MicIcon />}
             >
-              {url ? 'Record again' : 'Record'}
+              {url ? tr('Record again') : tr('Record')}
             </Button>
           )}
           <Typography variant="body2" color="text.secondary" role="status">
             {state === 'requesting'
-              ? 'Waiting for microphone permission…'
+              ? tr('Waiting for microphone permission…')
               : state === 'recording'
-                ? 'Recording… speak now.'
+                ? tr('Recording… speak now.')
                 : ''}
           </Typography>
           {url && state === 'ready' && (
@@ -459,7 +510,7 @@ export function Recorder({
               component="audio"
               controls
               src={url}
-              aria-label="Your recording"
+              aria-label={tr('Your recording')}
               sx={{ width: { xs: '100%', sm: 320 }, maxWidth: '100%' }}
             />
           )}
@@ -467,8 +518,9 @@ export function Recorder({
       )}
       {transcript ?? (
         <Typography variant="caption" color="text.secondary">
-          Recordings stay in this browser only and are never uploaded or saved.
-          AI feedback uses only the text you type.
+          {tr(
+            'Recordings stay in this browser only and are never uploaded or saved. AI feedback uses only the text you type.',
+          )}
         </Typography>
       )}
     </Stack>
@@ -487,7 +539,7 @@ const mockLink = (query: string) => (
     to={`/interview-prep/mock${query}`}
     variant="outlined"
   >
-    Mock interview
+    {tr('Mock interview')}
   </Button>
 );
 
@@ -721,7 +773,9 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
         message:
           error instanceof PracticeError
             ? error.message
-            : 'Feedback is unavailable right now. Your text is kept — try again.',
+            : tr(
+                'Feedback is unavailable right now. Your text is kept — try again.',
+              ),
       });
     } finally {
       if (request.current === controller) request.current = null;
@@ -822,7 +876,9 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
               error:
                 error instanceof PracticeError
                   ? error.message
-                  : 'Your answer could not be saved. Your text is kept — try again.',
+                  : tr(
+                      'Your answer could not be saved. Your text is kept — try again.',
+                    ),
             }
           : cur,
       );
@@ -855,27 +911,31 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
       if (error instanceof AnswerConflictError) {
         storeAnswer(saved.questionId, error.current);
         setNotice(
-          'This answer changed in another tab, so nothing was removed. The latest saved state is shown.',
+          tr(
+            'This answer changed in another tab, so nothing was removed. The latest saved state is shown.',
+          ),
         );
       } else
         setNotice(
           error instanceof PracticeError
             ? error.message
-            : 'The answer could not be removed. Try again.',
+            : tr('The answer could not be removed. Try again.'),
         );
     }
   };
 
   const header = job ? (
     <PageHeader
-      title="Interview practice"
+      title={tr('Interview practice')}
       description={`${job.jobTitle} · ${job.setLabel}`}
       actions={mockLink(`?jobId=${job.jobId}&setId=${job.setId}`)}
     />
   ) : (
     <PageHeader
-      title="Interview Prep"
-      description="Practise saying your own experience in simple English — one question at a time."
+      title={tr('Interview Prep')}
+      description={tr(
+        'Practise saying your own experience in simple English — one question at a time.',
+      )}
       actions={mockLink('')}
     />
   );
@@ -891,11 +951,11 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
               color="inherit"
               onClick={reload}
             >
-              Retry
+              {tr('Retry')}
             </Button>
           }
         >
-          Practice questions could not be loaded.
+          {tr('Practice questions could not be loaded.')}
         </Alert>
       </Stack>
     );
@@ -904,21 +964,22 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
       <Stack spacing={3}>
         {header}
         <Typography role="status" color="text.secondary">
-          Loading questions…
+          {tr('Loading questions…')}
         </Typography>
       </Stack>
     );
   if (!topic || !question)
     return (
       <Stack spacing={3}>
-        <PageHeader title="Interview Prep" actions={mockLink('')} />
+        <PageHeader title={tr('Interview Prep')} actions={mockLink('')} />
         <Box>
           <Typography variant="h5" component="h2" sx={{ fontWeight: 600 }}>
-            Get comfortable speaking about your experience.
+            {tr('Get comfortable speaking about your experience.')}
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-            One question at a time. Simple English, real experience, your own
-            words.
+            {tr(
+              'One question at a time. Simple English, real experience, your own words.',
+            )}
           </Typography>
         </Box>
         {answersStatus === 'error' && (
@@ -930,12 +991,13 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
                 color="inherit"
                 onClick={retryAnswers}
               >
-                Retry
+                {tr('Retry')}
               </Button>
             }
           >
-            Your saved answers couldn't be loaded. You can still practise with
-            AI help.
+            {tr(
+              "Your saved answers couldn't be loaded. You can still practise with AI help.",
+            )}
           </Alert>
         )}
         <Box
@@ -1002,9 +1064,11 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
                   startIcon={<PlayIcon />}
                   variant="contained"
                   onClick={() => chooseTopic(key)}
-                  aria-label={`Practise ${TOPICS[key].label}`}
+                  aria-label={tr('Practise {label}', {
+                    label: TOPICS[key].label,
+                  })}
                 >
-                  Start
+                  {tr('Start')}
                 </Button>
                 {(() => {
                   const n = questions.filter(
@@ -1017,10 +1081,10 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
                       disabled={answersStatus !== 'ready' || n === 0}
                     >
                       {answersStatus === 'ready'
-                        ? `Practice prepared answers (${n})`
+                        ? tr('Practice prepared answers ({n})', { n: n })
                         : answersStatus === 'loading'
-                          ? 'Practice prepared answers (…)'
-                          : 'Practice prepared answers (unavailable)'}
+                          ? tr('Practice prepared answers (…)')
+                          : tr('Practice prepared answers (unavailable)')}
                     </Button>
                   );
                 })()}
@@ -1078,13 +1142,13 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
             variant="text"
             sx={{ overflowWrap: 'anywhere', textAlign: 'left' }}
           >
-            Back to {job.jobTitle} interview
+            {tr('Back to')} {job.jobTitle} {tr('interview')}
           </Button>
         ) : (
           <>
             <Chip label={TOPICS[topic].label} variant="outlined" />
             <Button variant="text" onClick={changeTopic}>
-              Change topic
+              {tr('Change topic')}
             </Button>
           </>
         )}
@@ -1110,21 +1174,24 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
             color="text.secondary"
             sx={{ gridColumn: { sm: '1 / 2 !important' }, alignSelf: 'center' }}
           >
-            {question.category} · Question {index + 1} of {order.length}
+            {question.category} {tr('· Question')} {index + 1} {tr('of')}{' '}
+            {order.length}
           </Typography>
           <Typography id="practice-question" variant="h6" component="h2">
             {question.variants[variant] ?? question.variants[0]}
           </Typography>
           {question.kind === 'general' && (
             <Typography variant="body2" color="text.secondary">
-              Explain the idea in general terms. Personal experience is
-              optional.
+              {tr(
+                'Explain the idea in general terms. Personal experience is optional.',
+              )}
             </Typography>
           )}
           {question.kind === 'hypothetical' && (
             <Typography variant="body2" color="text.secondary">
-              This is a "what would you do" question — you don't need past
-              experience with it.
+              {tr(
+                'This is a "what would you do" question — you don\'t need past experience with it.',
+              )}
             </Typography>
           )}
           {job?.context[question.id] && (
@@ -1135,7 +1202,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
                 aria-expanded={whyOpen}
                 aria-controls="practice-why"
               >
-                Why was this asked?
+                {tr('Why was this asked?')}
               </Button>
               <Collapse in={whyOpen}>
                 <Stack id="practice-why" spacing={1.5} sx={{ mt: 1 }}>
@@ -1156,7 +1223,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
                       color="text.secondary"
                       component="figcaption"
                     >
-                      From the job description
+                      {tr('From the job description')}
                     </Typography>
                     <Typography
                       variant="body2"
@@ -1178,7 +1245,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
                 aria-expanded={hintsOpen}
                 aria-controls="practice-hints"
               >
-                {hintsOpen ? 'Hide ideas' : 'Ideas to mention'}
+                {hintsOpen ? tr('Hide ideas') : tr('Ideas to mention')}
               </Button>
               <Collapse in={hintsOpen}>
                 <Stack
@@ -1206,7 +1273,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
               justifySelf: { sm: 'end' },
             }}
           >
-            Next question
+            {tr('Next question')}
           </Button>
         </Box>
       </Paper>
@@ -1236,7 +1303,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
           }}
         >
           <Typography sx={{ fontWeight: 600, flex: 1, whiteSpace: 'nowrap' }}>
-            Browse questions
+            {tr('Browse questions')}
           </Typography>
           <Typography
             variant="body2"
@@ -1249,17 +1316,18 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
                   component="span"
                   sx={{ display: { xs: 'none', sm: 'inline' } }}
                 >
-                  {preparedCount} prepared · {order.length} questions
+                  {preparedCount} {tr('prepared ·')} {order.length}{' '}
+                  {tr('questions')}
                 </Box>
                 <Box
                   component="span"
                   sx={{ display: { xs: 'inline', sm: 'none' } }}
                 >
-                  {preparedCount} / {order.length} prepared
+                  {preparedCount} / {order.length} {tr('prepared')}
                 </Box>
               </>
             ) : (
-              `${order.length} questions`
+              tr('{length} questions', { length: order.length })
             )}
           </Typography>
           <ExpandMoreIcon
@@ -1280,20 +1348,20 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
                 onChange={(_e, v: 'all' | 'prepared' | null) =>
                   v && setListFilter(v)
                 }
-                aria-label="Filter questions"
+                aria-label={tr('Filter questions')}
               >
                 <ToggleButton
                   value="all"
                   sx={{ textTransform: 'none', minHeight: 44 }}
                 >
-                  All
+                  {tr('All')}
                 </ToggleButton>
                 <ToggleButton
                   value="prepared"
                   sx={{ textTransform: 'none', minHeight: 44 }}
                   disabled={answersStatus !== 'ready'}
                 >
-                  Prepared
+                  {tr('Prepared')}
                 </ToggleButton>
               </ToggleButtonGroup>
               {(() => {
@@ -1306,14 +1374,14 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
                 if (!rows.length)
                   return (
                     <Typography variant="body2" color="text.secondary">
-                      No prepared answers in this topic yet.
+                      {tr('No prepared answers in this topic yet.')}
                     </Typography>
                   );
                 return (
                   <List
                     dense
                     disablePadding
-                    aria-label="Questions in this topic"
+                    aria-label={tr('Questions in this topic')}
                   >
                     {rows.map((q) => (
                       <ListItemButton
@@ -1363,13 +1431,13 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
       <Step
         n={1}
         id="prepare-answer"
-        title="Prepare your answer"
-        intro="Write it yourself or get help expressing it in English."
+        title={tr('Prepare your answer')}
+        intro={tr('Write it yourself or get help expressing it in English.')}
       >
         <Stack
           spacing={2}
           component="form"
-          aria-label="Your answer"
+          aria-label={tr('Your answer')}
           onSubmit={(e) => {
             e.preventDefault();
             void submit();
@@ -1381,7 +1449,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
               component="h3"
               id="practice-mode-label"
             >
-              How should AI help?
+              {tr('How should AI help?')}
             </Typography>
             <ToggleButtonGroup
               exclusive
@@ -1414,7 +1482,14 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
                 void submit();
               }
             }}
-            helperText={`${MODES[mode].helper} ${text.length}/${MAX_ANSWER_CHARS} · Ctrl+Enter to send`}
+            helperText={tr(
+              '{helper} {length}/{MAX_ANSWER_CHARS} · Ctrl+Enter to send',
+              {
+                helper: MODES[mode].helper,
+                length: text.length,
+                MAX_ANSWER_CHARS: MAX_ANSWER_CHARS,
+              },
+            )}
             slotProps={{
               htmlInput: {
                 maxLength: MAX_ANSWER_CHARS,
@@ -1438,22 +1513,23 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
             </Button>
             {loading && (
               <Button variant="outlined" onClick={cancel}>
-                Cancel
+                {tr('Cancel')}
               </Button>
             )}
           </Stack>
           {loading && (
             <Stack spacing={1} role="status">
-              <LinearProgress aria-label="Waiting for feedback" />
+              <LinearProgress aria-label={tr('Waiting for feedback')} />
               <Typography variant="body2" color="text.secondary">
-                Checking with the AI… usually under 10 seconds.
+                {tr('Checking with the AI… usually under 10 seconds.')}
               </Typography>
             </Stack>
           )}
           {status.kind === 'idle' && status.cancelled && (
             <Typography variant="body2" color="text.secondary" role="status">
-              Stopped waiting. Your text is kept. The AI may still finish in the
-              background.
+              {tr(
+                'Stopped waiting. Your text is kept. The AI may still finish in the background.',
+              )}
             </Typography>
           )}
           {status.kind === 'error' && (
@@ -1465,7 +1541,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
                   color="inherit"
                   onClick={() => void submit()}
                 >
-                  Retry
+                  {tr('Retry')}
                 </Button>
               }
             >
@@ -1484,13 +1560,13 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
                 aria-expanded={tryOpen}
                 aria-controls="try-speaking"
               >
-                Want to try speaking first?
+                {tr('Want to try speaking first?')}
               </Button>
               <Collapse in={tryOpen} id="try-speaking">
                 <Box sx={{ mt: 1 }}>
                   <Recorder
                     recorder={recorder}
-                    title="Try speaking (optional)"
+                    title={tr('Try speaking (optional)')}
                   />
                 </Box>
               </Collapse>
@@ -1512,7 +1588,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
               component="h2"
               tabIndex={-1}
             >
-              Feedback
+              {tr('Feedback')}
             </Typography>
             <Feedback
               feedback={feedback}
@@ -1527,8 +1603,12 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
                   feedback,
                   status.kind === 'done' ? status.answer : undefined,
                 )
-                  ? 'Now hide the suggestion and say your answer out loud again.'
-                  : 'Now say your answer out loud again, using the feedback above.'}
+                  ? tr(
+                      'Now hide the suggestion and say your answer out loud again.',
+                    )
+                  : tr(
+                      'Now say your answer out loud again, using the feedback above.',
+                    )}
               </Typography>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
                 <Button
@@ -1536,7 +1616,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
                   variant="contained"
                   onClick={tryAgain}
                 >
-                  Try again
+                  {tr('Try again')}
                 </Button>
               </Stack>
             </Stack>
@@ -1551,12 +1631,16 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
                     component="h3"
                     sx={{ fontWeight: 600 }}
                   >
-                    Choose your reference answer
+                    {tr('Choose your reference answer')}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     {feedback.suggestion
-                      ? 'Start from the AI suggestion or your own words. You can edit it before saving.'
-                      : 'No safe rewrite is available. Start from your own words and edit them before saving.'}
+                      ? tr(
+                          'Start from the AI suggestion or your own words. You can edit it before saving.',
+                        )
+                      : tr(
+                          'No safe rewrite is available. Start from your own words and edit them before saving.',
+                        )}
                   </Typography>
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
                     {/* suggestion is non-null only when PR13's meaning guards passed */}
@@ -1567,7 +1651,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
                           openEditor('feedback', feedback.suggestion!)
                         }
                       >
-                        Use suggested answer
+                        {tr('Use suggested answer')}
                       </Button>
                     )}
                     {status.kind === 'done' && status.mode === 'review' && (
@@ -1575,7 +1659,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
                         variant="outlined"
                         onClick={() => openEditor('feedback', status.answer)}
                       >
-                        Keep my original
+                        {tr('Keep my original')}
                       </Button>
                     )}
                   </Stack>
@@ -1591,7 +1675,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
           <Paper
             variant="outlined"
             component="section"
-            aria-label="Edit your reference answer"
+            aria-label={tr('Edit your reference answer')}
             sx={{ p: { xs: 2, sm: 3 } }}
           >
             <Editor {...editorProps} editor={editor} />
@@ -1608,7 +1692,9 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
             aria-controls="previous-attempt"
             id="previous-attempt-header"
           >
-            <Typography variant="subtitle2">Your previous attempt</Typography>
+            <Typography variant="subtitle2">
+              {tr('Your previous attempt')}
+            </Typography>
           </AccordionSummary>
           <AccordionDetails id="previous-attempt">
             <Stack spacing={2}>
@@ -1640,7 +1726,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
         recorder={
           <Recorder
             recorder={recorder}
-            title="Say it out loud"
+            title={tr('Say it out loud')}
             prominent
             transcript={
               <TranscriptPanel

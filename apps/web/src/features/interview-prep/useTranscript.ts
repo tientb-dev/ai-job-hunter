@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   MAX_ANSWER_CHARS,
@@ -9,13 +10,24 @@ import {
 import { WavError, toWav, type WavErrorCode } from './wav';
 
 const WAV_MESSAGES: Record<WavErrorCode, string> = {
-  UNSUPPORTED:
-    "This browser can't prepare audio for transcription. You can type your answer instead.",
-  DECODE:
-    "This browser couldn't read the recording. Record again, or type your answer.",
-  EMPTY: 'The recording is too short. Record at least half a second.',
-  TOO_LONG:
-    'This recording is longer than 3 minutes. Record a shorter answer, or type it.',
+  get UNSUPPORTED() {
+    return tr(
+      "This browser can't prepare audio for transcription. You can type your answer instead.",
+    );
+  },
+  get DECODE() {
+    return tr(
+      "This browser couldn't read the recording. Record again, or type your answer.",
+    );
+  },
+  get EMPTY() {
+    return tr('The recording is too short. Record at least half a second.');
+  },
+  get TOO_LONG() {
+    return tr(
+      'This recording is longer than 3 minutes. Record a shorter answer, or type it.',
+    );
+  },
 };
 
 type Status =
@@ -92,7 +104,9 @@ export function useTranscript() {
       if (!result.transcript) {
         setStatus({
           kind: 'error',
-          message: 'No speech was detected. Record again, or type your answer.',
+          message: tr(
+            'No speech was detected. Record again, or type your answer.',
+          ),
         });
         return;
       }
@@ -108,7 +122,7 @@ export function useTranscript() {
             ? WAV_MESSAGES[error.code]
             : error instanceof PracticeError
               ? error.message
-              : 'Transcription failed. Try again, or type your answer.',
+              : tr('Transcription failed. Try again, or type your answer.'),
       });
     } finally {
       if (request.current === controller) request.current = null;
@@ -139,7 +153,9 @@ export function useTranscript() {
         message:
           error instanceof PracticeError
             ? error.message
-            : 'Feedback is unavailable right now. Your text is kept — try again.',
+            : tr(
+                'Feedback is unavailable right now. Your text is kept — try again.',
+              ),
       });
     } finally {
       if (feedbackRequest.current === controller)
@@ -170,7 +186,7 @@ export function useTranscript() {
         abandon();
         setStatus({
           kind: 'error',
-          message: 'Transcription stopped because you edited the text.',
+          message: tr('Transcription stopped because you edited the text.'),
         });
       }
       // A result for the previous text must not land under the new one.

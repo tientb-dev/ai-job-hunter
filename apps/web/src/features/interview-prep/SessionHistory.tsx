@@ -1,3 +1,4 @@
+import { dateLocale, tr } from '../../app/i18n';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -27,7 +28,7 @@ export function SessionHistory() {
         setError(
           e instanceof PracticeError
             ? e.message
-            : 'Something went wrong. Try again.',
+            : tr('Something went wrong. Try again.'),
         );
     });
     return () => controller.abort();
@@ -42,7 +43,7 @@ export function SessionHistory() {
     >
       <Stack spacing={2}>
         <Typography id="past-interviews" variant="h6" component="h2">
-          Past interviews
+          {tr('Past interviews')}
         </Typography>
         {error ? (
           <Alert
@@ -57,17 +58,17 @@ export function SessionHistory() {
                   setAttempt((n) => n + 1);
                 }}
               >
-                Retry
+                {tr('Retry')}
               </Button>
             }
           >
             {error}
           </Alert>
         ) : items === null ? (
-          <LinearProgress aria-label="Loading past interviews" />
+          <LinearProgress aria-label={tr('Loading past interviews')} />
         ) : items.length === 0 ? (
           <Typography variant="body2" color="text.secondary">
-            No finished interviews yet.
+            {tr('No finished interviews yet.')}
           </Typography>
         ) : (
           <List disablePadding aria-labelledby="past-interviews">
@@ -82,16 +83,21 @@ export function SessionHistory() {
                 <ListItemText
                   primary={
                     s.source === 'job'
-                      ? (s.jobTitle ?? 'Job interview')
-                      : 'Interview Prep questions'
+                      ? (s.jobTitle ?? tr('Job interview'))
+                      : tr('Interview Prep questions')
                   }
-                  secondary={`${new Date(s.updatedAt).toLocaleString(
-                    undefined,
+                  secondary={tr(
+                    '{v0} · {answered} of {total} answered · {withFeedback} with AI feedback',
                     {
-                      dateStyle: 'medium',
-                      timeStyle: 'short',
+                      v0: new Date(s.updatedAt).toLocaleString(dateLocale(), {
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                      }),
+                      answered: s.summary.answered,
+                      total: s.summary.total,
+                      withFeedback: s.summary.withFeedback,
                     },
-                  )} · ${s.summary.answered} of ${s.summary.total} answered · ${s.summary.withFeedback} with AI feedback`}
+                  )}
                   slotProps={{ primary: { sx: { overflowWrap: 'anywhere' } } }}
                 />
               </ListItemButton>

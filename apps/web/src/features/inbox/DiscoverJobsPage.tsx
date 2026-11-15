@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { DiscoveryQueue } from './DiscoveryQueue';
 import { Stack, useTheme } from '@mui/material';
@@ -74,7 +75,7 @@ export function DiscoverJobsPage({
         spacing={2}
         sx={{ flexShrink: 0 }}
       >
-        <PageHeader title="Discover jobs" />
+        <PageHeader title={tr('Discover jobs')} />
         <DiscoverJobs onDiscovered={() => setRevision((value) => value + 1)} />
       </Stack>
       <DiscoveryQueue revision={revision} bounded={bounded} />

@@ -1,3 +1,4 @@
+import { dateLocale, tr } from '../../app/i18n';
 import { Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
 import type { SavedDraft } from './tailored-cv.contract';
 
@@ -8,7 +9,7 @@ interface DraftItem {
 }
 
 const when = (iso: string) =>
-  new Date(iso).toLocaleString(undefined, {
+  new Date(iso).toLocaleString(dateLocale(), {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
@@ -52,7 +53,7 @@ export function DraftPanel({
     <Paper
       variant="outlined"
       component="section"
-      aria-label="Current draft"
+      aria-label={tr('Current draft')}
       sx={{ p: { xs: 2, sm: 2.5 } }}
     >
       <Stack spacing={1}>
@@ -69,7 +70,8 @@ export function DraftPanel({
                 component="h2"
                 sx={{ fontWeight: 600 }}
               >
-                {openIndex >= 0 ? label(openIndex) : 'Draft'} of {items.length}
+                {openIndex >= 0 ? label(openIndex) : tr('Draft')} {tr('of')}{' '}
+                {items.length}
               </Typography>
               <Chip
                 size="small"
@@ -77,34 +79,36 @@ export function DraftPanel({
                 color={dirty ? 'warning' : approved ? 'success' : 'default'}
                 label={
                   dirty
-                    ? 'Unsaved changes'
+                    ? tr('Unsaved changes')
                     : approved
-                      ? 'Approved'
-                      : 'Not approved'
+                      ? tr('Approved')
+                      : tr('Not approved')
                 }
               />
             </Stack>
             <Typography variant="body2" color="text.secondary">
-              Saved version {saved.revision} · last saved{' '}
+              {tr('Saved version')} {saved.revision} {tr('· last saved')}{' '}
               {when(saved.updatedAt)}
-              {latestReview === true && ' · uses your latest CV review'}
-              {latestReview === false && ' · uses an earlier CV review'}
+              {latestReview === true && tr(' · uses your latest CV review')}
+              {latestReview === false && tr(' · uses an earlier CV review')}
             </Typography>
           </>
         ) : (
           <Typography variant="body2">
-            {items.length} saved draft{items.length === 1 ? '' : 's'}. Open one
-            to continue.
+            {items.length} {tr('saved draft')}
+            {items.length === 1 ? '' : tr('s')}
+            {tr('. Open one to continue.')}
           </Typography>
         )}
         {!canSwitch && items.length > 1 && onGoToSwitch && (
           <Box>
             <Button size="small" onClick={onGoToSwitch}>
-              Switch drafts in Tailor &amp; Review
+              {tr('Switch drafts in Tailor & Review')}
             </Button>
             <Typography variant="body2" color="text.secondary">
-              Drafts are switched and reviewed in Tailor &amp; Review; this step
-              only approves and downloads the open draft.
+              {tr(
+                'Drafts are switched and reviewed in Tailor & Review; this step only approves and downloads the open draft.',
+              )}
             </Typography>
           </Box>
         )}
@@ -120,16 +124,17 @@ export function DraftPanel({
               color="primary"
               sx={{ py: 0.5 }}
             >
-              Switch draft ({items.length})
+              {tr('Switch draft (')}
+              {items.length})
             </Typography>
             {dirty && (
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                Save or discard your changes before switching drafts.
+                {tr('Save or discard your changes before switching drafts.')}
               </Typography>
             )}
             <Box
               component="ul"
-              aria-label="Saved drafts"
+              aria-label={tr('Saved drafts')}
               sx={{ listStyle: 'none', m: 0, mt: 1, p: 0 }}
             >
               {items.map((item, index) => {
@@ -155,8 +160,8 @@ export function DraftPanel({
                           {label(index)}
                         </Box>{' '}
                         <Box component="span" sx={{ color: 'text.secondary' }}>
-                          · last saved {when(item.updatedAt)} · version{' '}
-                          {item.revision}
+                          {tr('· last saved')} {when(item.updatedAt)}{' '}
+                          {tr('· version')} {item.revision}
                         </Box>
                       </Box>
                       <Box
@@ -164,10 +169,10 @@ export function DraftPanel({
                         sx={{ flexShrink: 0, ml: 1, color: 'text.secondary' }}
                       >
                         {current
-                          ? 'Open now'
+                          ? tr('Open now')
                           : opening === item.id
-                            ? 'Opening…'
-                            : 'Open'}
+                            ? tr('Opening…')
+                            : tr('Open')}
                       </Box>
                     </Button>
                   </li>
@@ -176,7 +181,7 @@ export function DraftPanel({
             </Box>
             {hasMore && (
               <Button size="small" disabled={disabled} onClick={onLoadMore}>
-                Show older drafts
+                {tr('Show older drafts')}
               </Button>
             )}
           </Box>

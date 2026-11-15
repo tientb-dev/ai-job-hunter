@@ -1,3 +1,4 @@
+import { dateLocale, tr } from '../../app/i18n';
 import { ArrowBackIcon, RefreshIcon } from '../../components/icons';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
@@ -66,7 +67,7 @@ export function JobPractice() {
   const back = valid ? `/jobs/${jobId}/interview` : '/jobs';
   const unavailable = (text: string, retry = false) => (
     <Stack spacing={3}>
-      <PageHeader title="Interview practice" />
+      <PageHeader title={tr('Interview practice')} />
       <Alert
         severity={retry ? 'error' : 'info'}
         action={
@@ -76,7 +77,7 @@ export function JobPractice() {
               color="inherit"
               onClick={() => setAttempt((n) => n + 1)}
             >
-              Retry
+              {tr('Retry')}
             </Button>
           ) : undefined
         }
@@ -90,28 +91,30 @@ export function JobPractice() {
         variant="outlined"
         sx={{ alignSelf: 'flex-start' }}
       >
-        {valid ? 'Back to job interview questions' : 'Back to Jobs'}
+        {valid ? tr('Back to job interview questions') : tr('Back to Jobs')}
       </Button>
     </Stack>
   );
 
-  if (!valid) return unavailable('This question set link is not valid.');
+  if (!valid) return unavailable(tr('This question set link is not valid.'));
   if (state === 'error')
     return unavailable(
-      'This question set could not be loaded. It may belong to a job that no longer exists.',
+      tr(
+        'This question set could not be loaded. It may belong to a job that no longer exists.',
+      ),
       true,
     );
   if (!loaded)
     return (
       <Stack spacing={1} role="status">
-        <LinearProgress aria-label="Loading interview questions" />
+        <LinearProgress aria-label={tr('Loading interview questions')} />
         <Typography variant="body2" color="text.secondary">
-          Loading interview questions…
+          {tr('Loading interview questions…')}
         </Typography>
       </Stack>
     );
   if (!set || !questions.length)
-    return unavailable("This question set isn't available for this job.");
+    return unavailable(tr("This question set isn't available for this job."));
 
   const q = params.get('q');
   // Missing or foreign ?q= opens the first question without a history entry.
@@ -128,11 +131,13 @@ export function JobPractice() {
         jobId,
         jobTitle: loaded.job.title,
         setLabel: set.active
-          ? 'Current question set'
-          : `Previous question set · ${new Date(set.createdAt).toLocaleString(
-              undefined,
-              { dateStyle: 'medium', timeStyle: 'short' },
-            )}`,
+          ? tr('Current question set')
+          : tr('Previous question set · {v0}', {
+              v0: new Date(set.createdAt).toLocaleString(dateLocale(), {
+                dateStyle: 'medium',
+                timeStyle: 'short',
+              }),
+            }),
         questions,
         context: Object.fromEntries(
           set.questions.map((x) => [

@@ -1,3 +1,4 @@
+import { tr } from '../../app/i18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { type MatchResult } from './cv-match.types';
 import { validSourceDate } from './cv-suggestions.contract';
@@ -61,7 +62,7 @@ export function useCvMatch(
       () => {
         if (active) {
           setCvLoaded(true);
-          setError('Could not load saved CV. Check the local API.');
+          setError(tr('Could not load saved CV. Check the local API.'));
         }
       },
     );
@@ -119,7 +120,9 @@ export function useCvMatch(
         if (!cancelled && request === generation.current) {
           setMatchStatus('ERROR');
           setMatchReadError(
-            'Could not load the current CV Match. Retry loading it; analysis is never started automatically.',
+            tr(
+              'Could not load the current CV Match. Retry loading it; analysis is never started automatically.',
+            ),
           );
         }
       }
@@ -154,7 +157,9 @@ export function useCvMatch(
       }
     } catch (error) {
       if (request === generation.current)
-        setError(error instanceof Error ? error.message : 'CV upload failed.');
+        setError(
+          error instanceof Error ? error.message : tr('CV upload failed.'),
+        );
     } finally {
       if (request === generation.current) setBusy(false);
     }
@@ -170,12 +175,16 @@ export function useCvMatch(
         method: 'POST',
       }).catch(() => {
         throw new Error(
-          'Could not reach the local matching API. Check the local API and retry; no new fit score was produced.',
+          tr(
+            'Could not reach the local matching API. Check the local API and retry; no new fit score was produced.',
+          ),
         );
       });
       const value: unknown = await response.json().catch(() => {
         throw new Error(
-          'The local API returned unreadable matching output. Retry; no new fit score was produced.',
+          tr(
+            'The local API returned unreadable matching output. Retry; no new fit score was produced.',
+          ),
         );
       });
       if (!response.ok) {
@@ -186,12 +195,16 @@ export function useCvMatch(
         throw new Error(
           typeof code === 'string' && analyzeErrors[code]
             ? analyzeErrors[code]
-            : 'CV matching failed. Check your saved CV, saved job requirements and the AI service, then retry.',
+            : tr(
+                'CV matching failed. Check your saved CV, saved job requirements and the AI service, then retry.',
+              ),
         );
       }
       if (!isMatchResult(value))
         throw new Error(
-          'The API returned an invalid matching result. Retry; no new fit score was produced.',
+          tr(
+            'The API returned an invalid matching result. Retry; no new fit score was produced.',
+          ),
         );
       if (request === generation.current) {
         setResult(value);
@@ -204,7 +217,7 @@ export function useCvMatch(
         setError(
           error instanceof Error
             ? error.message
-            : 'CV matching failed. Check the local API and retry.',
+            : tr('CV matching failed. Check the local API and retry.'),
         );
     } finally {
       if (request === generation.current) setBusy(false);
@@ -230,27 +243,56 @@ export function useCvMatch(
 export type CvMatchState = ReturnType<typeof useCvMatch>;
 
 export const matchStatusMessages: Record<string, string> = {
-  MISSING: 'Not analyzed yet. Analyze CV Match to continue.',
-  EXPIRED:
-    'Outdated. Matching rules were updated since this analysis. Re-analyze CV Match; your source review and drafts are retained.',
-  STALE_CV:
-    'Outdated. Your CV changed since the saved match. Re-analyze CV Match with the current CV.',
-  STALE_JOB:
-    'Outdated. The job changed since the saved match. Re-analyze CV Match with the current job requirements.',
-  CV_UNAVAILABLE:
-    'Save a source CV before analyzing CV Match. Existing drafts can still be resumed.',
+  get MISSING() {
+    return tr('Not analyzed yet. Analyze CV Match to continue.');
+  },
+  get EXPIRED() {
+    return tr(
+      'Outdated. Matching rules were updated since this analysis. Re-analyze CV Match; your source review and drafts are retained.',
+    );
+  },
+  get STALE_CV() {
+    return tr(
+      'Outdated. Your CV changed since the saved match. Re-analyze CV Match with the current CV.',
+    );
+  },
+  get STALE_JOB() {
+    return tr(
+      'Outdated. The job changed since the saved match. Re-analyze CV Match with the current job requirements.',
+    );
+  },
+  get CV_UNAVAILABLE() {
+    return tr(
+      'Save a source CV before analyzing CV Match. Existing drafts can still be resumed.',
+    );
+  },
 };
 const analyzeErrors: Record<string, string> = {
-  CV_MATCH_CV_UNAVAILABLE:
-    'Saved CV text is missing or empty. Save a readable CV again before analyzing.',
-  CV_MATCH_TIMEOUT:
-    'Matching timed out. Check the AI service and retry; no new fit score was produced.',
-  CV_MATCH_INVALID_OUTPUT:
-    'The AI model returned invalid matching output. Retry; no new fit score was produced.',
-  CV_MATCH_INCOMPLETE:
-    'The AI model returned an incomplete assessment. Retry; no new fit score was produced.',
-  CV_MATCH_EVIDENCE_REJECTED:
-    'Evidence could not be verified against the saved sources. Retry; no new fit score was produced.',
+  get CV_MATCH_CV_UNAVAILABLE() {
+    return tr(
+      'Saved CV text is missing or empty. Save a readable CV again before analyzing.',
+    );
+  },
+  get CV_MATCH_TIMEOUT() {
+    return tr(
+      'Matching timed out. Check the AI service and retry; no new fit score was produced.',
+    );
+  },
+  get CV_MATCH_INVALID_OUTPUT() {
+    return tr(
+      'The AI model returned invalid matching output. Retry; no new fit score was produced.',
+    );
+  },
+  get CV_MATCH_INCOMPLETE() {
+    return tr(
+      'The AI model returned an incomplete assessment. Retry; no new fit score was produced.',
+    );
+  },
+  get CV_MATCH_EVIDENCE_REJECTED() {
+    return tr(
+      'Evidence could not be verified against the saved sources. Retry; no new fit score was produced.',
+    );
+  },
 };
 
 function validCoverage(value: unknown): boolean {

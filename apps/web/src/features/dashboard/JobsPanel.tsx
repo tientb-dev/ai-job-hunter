@@ -1,3 +1,4 @@
+import { dateLocale, tr } from '../../app/i18n';
 import { RefreshIcon, SearchIcon } from '../../components/icons';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -69,7 +70,7 @@ export function JobsPanel({ analysis }: { analysis: AnalysisResponse | null }) {
     <Stack spacing={3}>
       <Paper
         component="form"
-        aria-label="CV job discovery"
+        aria-label={tr('CV job discovery')}
         variant="outlined"
         sx={{ p: 2 }}
         onSubmit={(event) => {
@@ -93,16 +94,18 @@ export function JobsPanel({ analysis }: { analysis: AnalysisResponse | null }) {
               else
                 setCv({
                   status: 'error',
-                  message:
+                  message: tr(
                     'The CV could not be parsed. Review the file and try again. Jobs remain available without personalization.',
+                  ),
                 });
             })
             .catch(() => {
               if (id === generation.current)
                 setCv({
                   status: 'error',
-                  message:
+                  message: tr(
                     'The local CV parser is unavailable. Jobs remain available without personalization.',
+                  ),
                 });
             })
             .finally(() => {
@@ -113,13 +116,16 @@ export function JobsPanel({ analysis }: { analysis: AnalysisResponse | null }) {
       >
         <Stack spacing={2}>
           <Typography component="h2" variant="h6">
-            Upload a CV to order real jobs by skill mentions
+            {tr('Upload a CV to order real jobs by skill mentions')}
           </Typography>
           <Typography>
-            No pasted job description or AI call required. Your CV stays local
-            to this app and is never sent to the job source.
+            {tr(
+              'No pasted job description or AI call required. Your CV stays local to this app and is never sent to the job source.',
+            )}
           </Typography>
-          <label htmlFor="jobs-cv">CV for job discovery (PDF or DOCX)</label>
+          <label htmlFor="jobs-cv">
+            {tr('CV for job discovery (PDF or DOCX)')}
+          </label>
           <input
             id="jobs-cv"
             type="file"
@@ -139,18 +145,20 @@ export function JobsPanel({ analysis }: { analysis: AnalysisResponse | null }) {
               variant="contained"
               disabled={cv.status === 'loading'}
             >
-              Use CV to find jobs
+              {tr('Use CV to find jobs')}
             </Button>
           </Box>
           {cv.status === 'loading' && (
-            <Typography role="status">Parsing CV without AI…</Typography>
+            <Typography role="status">
+              {tr('Parsing CV without AI…')}
+            </Typography>
           )}
           {cv.status === 'error' && (
             <Alert severity="warning">{cv.message}</Alert>
           )}
           {response?.documents?.cv && (
             <Box component="details">
-              <summary>Parsed CV source</summary>
+              <summary>{tr('Parsed CV source')}</summary>
               <Typography
                 sx={{
                   whiteSpace: 'pre-wrap',
@@ -167,34 +175,36 @@ export function JobsPanel({ analysis }: { analysis: AnalysisResponse | null }) {
       </Paper>
       <Box>
         <Typography component="h2" variant="h5">
-          Real job postings
+          {tr('Real job postings')}
         </Typography>
         <Typography>
-          Source:{' '}
+          {tr('Source:')}{' '}
           <Link
             href="https://www.arbeitnow.com"
             target="_blank"
             rel="noopener noreferrer"
           >
-            Arbeitnow
+            {tr('Arbeitnow')}
           </Link>
-          . Latest feed page, primarily Germany/Europe. Availability and
-          application requirements must be checked on the original posting.
+          {tr(
+            '. Latest feed page, primarily Germany/Europe. Availability and application requirements must be checked on the original posting.',
+          )}
         </Typography>
       </Box>
       {skills.length > 0 ? (
         <Alert severity="info">
-          CV terms used for ordering:{' '}
-          {skills.map((skill) => skill.name).join(', ')}. Basis:{' '}
-          {skills[0]!.origin}. More unique shared terms appear first; ties use
-          newest source date. This is text overlap, not a suitability score or
-          proof of experience.
+          {tr('CV terms used for ordering:')}{' '}
+          {skills.map((skill) => skill.name).join(', ')}
+          {tr('. Basis:')} {skills[0]!.origin}
+          {tr(
+            '. More unique shared terms appear first; ties use newest source date. This is text overlap, not a suitability score or proof of experience.',
+          )}
         </Alert>
       ) : (
         <Alert severity="info">
-          Not personalized: no usable CV skills are available. Jobs are ordered
-          by source date. Upload a CV with an explicit Skills section, or use
-          available validated CV skill facts from the CV/JD analysis below.
+          {tr(
+            'Not personalized: no usable CV skills are available. Jobs are ordered by source date. Upload a CV with an explicit Skills section, or use available validated CV skill facts from the CV/JD analysis below.',
+          )}
         </Alert>
       )}
       <Box>
@@ -207,36 +217,44 @@ export function JobsPanel({ analysis }: { analysis: AnalysisResponse | null }) {
             setRevision((value) => value + 1);
           }}
         >
-          Refresh jobs
+          {tr('Refresh jobs')}
         </Button>
       </Box>
       {feed.status === 'loading' && (
-        <Typography role="status">Loading real jobs from Arbeitnow…</Typography>
+        <Typography role="status">
+          {tr('Loading real jobs from Arbeitnow…')}
+        </Typography>
       )}
       {feed.status === 'error' && (
         <Alert severity="error">
-          Could not retrieve jobs from Arbeitnow. Retry Refresh jobs later. No
-          sample or fabricated jobs are shown.
+          {tr(
+            'Could not retrieve jobs from Arbeitnow. Retry Refresh jobs later. No sample or fabricated jobs are shown.',
+          )}
         </Alert>
       )}
       {feed.status === 'loaded' && (
         <>
           <Typography variant="body2">
-            {rows.length} listings. Source last fetched{' '}
-            {new Date(feed.data.fetchedAt).toLocaleString()}. Cached for up to
-            five minutes.
+            {rows.length} {tr('listings. Source last fetched')}{' '}
+            {new Date(feed.data.fetchedAt).toLocaleString(dateLocale())}
+            {tr('. Cached for up to five minutes.')}
             {feed.data.omittedCount > 0
-              ? ` ${feed.data.omittedCount} invalid or duplicate source rows omitted.`
+              ? tr(
+                  ' {omittedCount} invalid or duplicate source rows omitted.',
+                  { omittedCount: feed.data.omittedCount },
+                )
               : ''}
           </Typography>
           {rows.length === 0 && (
             <Alert severity="info">
-              Arbeitnow returned no job listings. Try Refresh jobs later.
+              {tr(
+                'Arbeitnow returned no job listings. Try Refresh jobs later.',
+              )}
             </Alert>
           )}
           <Stack
             component="ul"
-            aria-label="Job listings"
+            aria-label={tr('Job listings')}
             spacing={2}
             sx={{ listStyle: 'none', p: 0 }}
           >
@@ -258,15 +276,16 @@ export function JobsPanel({ analysis }: { analysis: AnalysisResponse | null }) {
                     </Link>
                   </Typography>
                   <Typography>
-                    {job.company} · {job.location ?? 'Location not provided'}
-                    {job.remote === true ? ' · Remote' : ''}
+                    {job.company} ·{' '}
+                    {job.location ?? tr('Location not provided')}
+                    {job.remote === true ? tr(' · Remote') : ''}
                   </Typography>
                   <Typography variant="body2">
-                    Source: {job.source}
+                    {tr('Source:')} {job.source}
                     {job.publishedAt ? (
                       <>
                         {' '}
-                        · Listed{' '}
+                        {tr('· Listed')}{' '}
                         <time dateTime={job.publishedAt}>
                           {new Date(job.publishedAt).toLocaleDateString()}
                         </time>
@@ -293,17 +312,22 @@ export function JobsPanel({ analysis }: { analysis: AnalysisResponse | null }) {
                   ) : null}
                   <Typography variant="body2">
                     {skills.length === 0
-                      ? 'General listing; no CV personalization applied.'
+                      ? tr('General listing; no CV personalization applied.')
                       : matchedSkills.length
-                        ? `${matchedSkills.length} shared CV skill term(s) appear in the title, source tags or description.`
-                        : 'No shared CV skill terms found in this listing; review the original posting.'}
+                        ? tr(
+                            '{length} shared CV skill term(s) appear in the title, source tags or description.',
+                            { length: matchedSkills.length },
+                          )
+                        : tr(
+                            'No shared CV skill terms found in this listing; review the original posting.',
+                          )}
                   </Typography>
                   <Link
                     href={job.url}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    View original posting
+                    {tr('View original posting')}
                   </Link>
                 </Stack>
               </Paper>
@@ -311,7 +335,7 @@ export function JobsPanel({ analysis }: { analysis: AnalysisResponse | null }) {
           </Stack>
           {rows.length > visible && (
             <Button onClick={() => setVisible((value) => value + 30)}>
-              Show more jobs
+              {tr('Show more jobs')}
             </Button>
           )}
         </>

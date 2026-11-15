@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { VI_TEXT } from './i18n-vi';
 
 // Interface text only. User data (CV/JD, jobs) and the English interview
 // questions/feedback are never translated.
@@ -204,3 +205,20 @@ export function useI18n() {
       translate(locale, key, values),
   };
 }
+
+/**
+ * Feature screens use their English text as the key, e.g. tr("Save job").
+ * Vietnamese comes from VI_TEXT; English (and any text without an entry,
+ * such as server or user content) is returned unchanged. Reads the current
+ * locale at call time; AuthGate subscribes, so the tree re-renders on change.
+ */
+export function tr(text: string, values?: Record<string, string | number>) {
+  // An empty translation is valid (English plural suffixes have no Vietnamese form).
+  const template = (current === 'vi-VN' ? VI_TEXT[text] : undefined) ?? text;
+  return template.replace(/\{(\w+)\}/g, (match, name: string) =>
+    values && name in values ? String(values[name]) : match,
+  );
+}
+
+/** BCP 47 locale for dates and numbers, so they follow the chosen language. */
+export const dateLocale = () => current;

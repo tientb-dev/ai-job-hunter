@@ -1,3 +1,4 @@
+import { dateLocale, tr } from '../../app/i18n';
 import { AddIcon, EditIcon, SearchIcon } from '../../components/icons';
 import { useNotify } from '../../components/useNotify';
 import { useRef, useState } from 'react';
@@ -55,15 +56,28 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
         text:
           result.sources.length > 0 &&
           result.sourceFailures === result.sources.length
-            ? 'No sources available. Retry later; see Run details.'
-            : `${result.eligible} eligible · ${result.added} added · ${result.refreshed} known · ${result.remaining} over limit${result.sourceFailures ? ` · ${result.sourceFailures} source unavailable` : ''}`,
+            ? tr('No sources available. Retry later; see Run details.')
+            : tr(
+                '{eligible} eligible · {added} added · {refreshed} known · {remaining} over limit{v4}',
+                {
+                  eligible: result.eligible,
+                  added: result.added,
+                  refreshed: result.refreshed,
+                  remaining: result.remaining,
+                  v4: result.sourceFailures
+                    ? tr(' · {sourceFailures} source unavailable', {
+                        sourceFailures: result.sourceFailures,
+                      })
+                    : '',
+                },
+              ),
       });
       onDiscovered();
     } catch (error) {
       setError(
         error instanceof Error
           ? error.message
-          : 'Discovery failed. Retry later.',
+          : tr('Discovery failed. Retry later.'),
       );
     } finally {
       running.current = false;
@@ -73,7 +87,7 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
   return (
     <Paper
       component="section"
-      aria-label="Discovery run"
+      aria-label={tr('Discovery run')}
       variant="outlined"
       sx={{ p: 2 }}
     >
@@ -85,7 +99,9 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
         >
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography variant="body2">
-              Up to 50 new candidates per run. Review before saving to Jobs.
+              {tr(
+                'Up to 50 new candidates per run. Review before saving to Jobs.',
+              )}
             </Typography>
             <Typography
               variant="body2"
@@ -93,9 +109,9 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
               sx={{ overflowWrap: 'anywhere' }}
             >
               {location} ·{' '}
-              {stacks.length ? stacks.join(', ') : 'Select a tech stack'} ·{' '}
-              {workMode === 'All' ? 'Any work mode' : workMode} ·{' '}
-              {seniority === 'All' ? 'Any seniority' : seniority}
+              {stacks.length ? stacks.join(', ') : tr('Select a tech stack')} ·{' '}
+              {workMode === 'All' ? tr('Any work mode') : workMode} ·{' '}
+              {seniority === 'All' ? tr('Any seniority') : seniority}
             </Typography>
           </Box>
           <Button
@@ -106,7 +122,7 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
             onClick={() => setExpanded((value) => !value)}
             sx={{ minHeight: { xs: 44, sm: 36 } }}
           >
-            {expanded ? 'Hide preferences' : 'Edit preferences'}
+            {expanded ? tr('Hide preferences') : tr('Edit preferences')}
           </Button>
           <Button
             variant="contained"
@@ -115,20 +131,20 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
             startIcon={<SearchIcon />}
             sx={{ flexShrink: 0, minHeight: { xs: 44, sm: 36 } }}
           >
-            Run discovery
+            {tr('Run discovery')}
           </Button>
         </Stack>
         {expanded && (
           <Stack id="discovery-preferences" spacing={1.5}>
             <Typography variant="body2" color="text.secondary">
-              Greenhouse searches Axon, Backbase, Temus, and Go1 Vietnam.
-              Location, work mode, and level prioritize new candidates under the
-              50-new limit; they do not filter or reorder the Queue. The Queue
-              includes candidates from previous runs.
+              {tr(
+                'Greenhouse searches Axon, Backbase, Temus, and Go1 Vietnam. Location, work mode, and level prioritize new candidates under the 50-new limit; they do not filter or reorder the Queue. The Queue includes candidates from previous runs.',
+              )}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Unknown location, work mode, or level may remain eligible under
-              existing rules. A selected stack must still match job text.
+              {tr(
+                'Unknown location, work mode, or level may remain eligible under existing rules. A selected stack must still match job text.',
+              )}
             </Typography>
             <Box
               sx={{
@@ -145,8 +161,10 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
                 size="small"
                 select
                 fullWidth
-                label="Preferred location"
-                helperText="Vietnam scope, including unspecified and global remote locations."
+                label={tr('Preferred location')}
+                helperText={tr(
+                  'Vietnam scope, including unspecified and global remote locations.',
+                )}
                 value={location}
                 disabled={busy}
                 onChange={(event) => setLocation(event.target.value)}
@@ -161,8 +179,10 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
                 size="small"
                 select
                 fullWidth
-                label="Must mention any selected stack"
-                helperText="Matches any selected keyword in job text, including descriptions and preferred skills; not necessarily required skills."
+                label={tr('Must mention any selected stack')}
+                helperText={tr(
+                  'Matches any selected keyword in job text, including descriptions and preferred skills; not necessarily required skills.',
+                )}
                 value={stacks}
                 disabled={busy}
                 slotProps={{ select: { multiple: true } }}
@@ -184,8 +204,10 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
                 size="small"
                 select
                 fullWidth
-                label="Preferred work mode"
-                helperText="Ranking only. All favors local onsite/hybrid roles."
+                label={tr('Preferred work mode')}
+                helperText={tr(
+                  'Ranking only. All favors local onsite/hybrid roles.',
+                )}
                 value={workMode}
                 disabled={busy}
                 onChange={(event) => setWorkMode(event.target.value)}
@@ -200,8 +222,10 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
                 size="small"
                 select
                 fullWidth
-                label="Preferred level"
-                helperText="Ranking only. Senior includes technical leads."
+                label={tr('Preferred level')}
+                helperText={tr(
+                  'Ranking only. Senior includes technical leads.',
+                )}
                 value={seniority}
                 disabled={busy}
                 onChange={(event) => setSeniority(event.target.value)}
@@ -228,10 +252,10 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
             aria-expanded={Boolean(detailsAnchor)}
             aria-controls={detailsAnchor ? 'discovery-run-details' : undefined}
           >
-            Run details
+            {tr('Run details')}
           </Button>
           <Typography variant="body2" role="status">
-            {busy ? 'Discovering public jobs…' : ''}
+            {busy ? tr('Discovering public jobs…') : ''}
           </Typography>
         </Stack>
         {error && <Alert severity="error">{error}</Alert>}
@@ -249,7 +273,7 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
               id="discovery-run-details"
               spacing={1}
               role="dialog"
-              aria-label="Discovery run details"
+              aria-label={tr('Discovery run details')}
               sx={{ minWidth: 0, overflowWrap: 'anywhere' }}
             >
               <Button
@@ -257,10 +281,10 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
                 onClick={() => setDetailsAnchor(null)}
                 sx={{ alignSelf: 'flex-end' }}
               >
-                Close run details
+                {tr('Close run details')}
               </Button>
               <Typography variant="subtitle2" component="h2">
-                Latest discovery run
+                {tr('Latest discovery run')}
               </Typography>
               <Box
                 component="dl"
@@ -273,14 +297,14 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
                 }}
               >
                 {[
-                  ['Fetched listings', summary.fetched],
-                  ['Valid / normalized listings', summary.normalized],
-                  ['Eligible candidates (unique)', summary.eligible],
-                  ['Added candidates', summary.added],
-                  ['Known candidates', summary.refreshed],
-                  ['Not queued: 50-new limit', summary.remaining],
-                  ['Source failures', summary.sourceFailures],
-                  ['Normalization warnings', summary.warnings.length],
+                  [tr('Fetched listings'), summary.fetched],
+                  [tr('Valid / normalized listings'), summary.normalized],
+                  [tr('Eligible candidates (unique)'), summary.eligible],
+                  [tr('Added candidates'), summary.added],
+                  [tr('Known candidates'), summary.refreshed],
+                  [tr('Not queued: 50-new limit'), summary.remaining],
+                  [tr('Source failures'), summary.sourceFailures],
+                  [tr('Normalization warnings'), summary.warnings.length],
                 ].map(([label, count]) => (
                   <Box key={label} sx={{ display: 'contents' }}>
                     <Typography component="dt" variant="body2">
@@ -293,30 +317,30 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
                 ))}
               </Box>
               <Typography variant="body2" color="text.secondary">
-                Known means previously queued, including saved or dismissed
-                candidates; snapshots and review states are unchanged. Listing
-                totals may include repeated posts; eligible candidates are
-                unique identities.
+                {tr(
+                  'Known means previously queued, including saved or dismissed candidates; snapshots and review states are unchanged. Listing totals may include repeated posts; eligible candidates are unique identities.',
+                )}
               </Typography>
               {allFailed ? (
                 <Typography variant="body2">
-                  No sources available. Retry later; source cooldowns may apply.
-                  Your existing Queue is unchanged.
+                  {tr(
+                    'No sources available. Retry later; source cooldowns may apply. Your existing Queue is unchanged.',
+                  )}
                 </Typography>
               ) : summary.eligible === 0 ? (
                 <Typography variant="body2">
-                  No eligible candidates in this run. Try different selected
-                  stacks or Add job. Your Queue includes previous runs and is
-                  unchanged.
+                  {tr(
+                    'No eligible candidates in this run. Try different selected stacks or Add job. Your Queue includes previous runs and is unchanged.',
+                  )}
                 </Typography>
               ) : null}
               {summary.remaining > 0 && (
                 <Typography variant="body2">
-                  Run again to discover the remaining candidates.
+                  {tr('Run again to discover the remaining candidates.')}
                 </Typography>
               )}
               <Typography variant="subtitle2" component="h3">
-                Sources
+                {tr('Sources')}
               </Typography>
               {summary.sources.map((source) => (
                 <Box
@@ -329,17 +353,25 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
                   </Typography>
                   <Typography variant="body2">
                     {source.status === 'failed'
-                      ? 'Unavailable · listing counts unavailable'
-                      : `${source.fetched ?? 'Unavailable'} fetched · ${source.normalized ?? 'Unavailable'} valid · ${source.invalid ?? 'Unavailable'} invalid`}
+                      ? tr('Unavailable · listing counts unavailable')
+                      : tr('{v0} fetched · {v1} valid · {v2} invalid', {
+                          v0: source.fetched ?? 'Unavailable',
+                          v1: source.normalized ?? 'Unavailable',
+                          v2: source.invalid ?? 'Unavailable',
+                        })}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
                     {source.cacheHit
-                      ? 'Cached data'
+                      ? tr('Cached data')
                       : source.fetchedAt
-                        ? 'Live fetch'
-                        : 'No successful fetch available'}
+                        ? tr('Live fetch')
+                        : tr('No successful fetch available')}
                     {source.fetchedAt
-                      ? ` · Fetched ${new Date(source.fetchedAt).toLocaleString()}`
+                      ? tr(' · Fetched {v0}', {
+                          v0: new Date(source.fetchedAt).toLocaleString(
+                            dateLocale(),
+                          ),
+                        })
                       : ''}
                   </Typography>
                   {source.failure && (
@@ -355,13 +387,13 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
                 </Typography>
               ))}
               <Typography variant="caption" color="text.secondary">
-                Totals cover available feeds only. Source responses may be
-                cached for five minutes. Fetch time is not a listing update
-                time. Retry later after source failures.
+                {tr(
+                  'Totals cover available feeds only. Source responses may be cached for five minutes. Fetch time is not a listing update time. Retry later after source failures.',
+                )}
               </Typography>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
                 <Button component={Link} to="/jobs" variant="outlined">
-                  View Jobs
+                  {tr('View Jobs')}
                 </Button>
                 {summary.eligible === 0 && (
                   <Button
@@ -370,7 +402,7 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
                     to="/jobs/new"
                     variant="outlined"
                   >
-                    Add job
+                    {tr('Add job')}
                   </Button>
                 )}
               </Stack>
