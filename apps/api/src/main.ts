@@ -13,9 +13,10 @@ import { configureAiGenerationDiagnostics } from './ai/ai-generation.diagnostics
 import { configureCvMatchDiagnostics } from './matching/cv-match.diagnostics.js';
 
 async function bootstrap(): Promise<void> {
-  const host = '127.0.0.1';
   const {
     port,
+    host,
+    trustProxy,
     pdfParserDiagnostics,
     aiGenerationDiagnostics,
     cvMatchDiagnostics,
@@ -26,7 +27,7 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
   const security = localAnalysisSecurity(port);
   // Auth first: it must run before every other Express handler, including /analyses.
-  configureAuth(app, { origins: security.origins });
+  configureAuth(app, { origins: security.origins, trustProxy });
   configureAnalysisHttp(app, security);
   app.setGlobalPrefix('api/v1');
   app.useGlobalFilters(new FoundationRequestErrors(app.getHttpAdapter()));

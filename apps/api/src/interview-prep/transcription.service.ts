@@ -86,6 +86,9 @@ export class TranscriptionService {
 
   /** Optional config, checked per request so the app always starts. */
   private async config() {
+    // Hosted beta: no whisper.cpp on the server; typing an answer still works.
+    if (process.env.NODE_ENV === 'production')
+      throw new InterviewPrepError('STT_UNAVAILABLE');
     // Unset or empty: whisper.cpp's own build layout under ~/whisper.cpp.
     const root = join(process.env.HOME || homedir(), 'whisper.cpp');
     const bin =

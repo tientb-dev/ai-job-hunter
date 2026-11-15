@@ -1,3 +1,4 @@
+import { HOSTED } from '../../app/hosted';
 import { CheckIcon } from '../../components/icons';
 import {
   Box,
@@ -58,55 +59,57 @@ export function ImportMethodCards({
         gap: 1.5,
       }}
     >
-      {methods.map((method) => (
-        <Paper
-          key={method.value}
-          variant="outlined"
-          sx={{
-            minWidth: 0,
-            borderColor: value === method.value ? 'primary.main' : 'divider',
-            bgcolor:
-              value === method.value ? 'action.selected' : 'background.paper',
-          }}
-        >
-          <CardActionArea
-            type="button"
-            disabled={disabled}
-            aria-pressed={value === method.value}
-            aria-controls={panelId}
-            onClick={() => onChange(method.value)}
+      {methods
+        .filter((method) => !(HOSTED && method.value === 'bookmarklet'))
+        .map((method) => (
+          <Paper
+            key={method.value}
+            variant="outlined"
             sx={{
-              height: '100%',
-              borderRadius: 'inherit',
-              p: 2,
-              '&.Mui-focusVisible': {
-                outline: '3px solid',
-                outlineColor: 'primary.main',
-                outlineOffset: 2,
-              },
+              minWidth: 0,
+              borderColor: value === method.value ? 'primary.main' : 'divider',
+              bgcolor:
+                value === method.value ? 'action.selected' : 'background.paper',
             }}
           >
-            <Stack
-              direction="row"
-              spacing={1.5}
-              sx={{ alignItems: 'center', minWidth: 0 }}
+            <CardActionArea
+              type="button"
+              disabled={disabled}
+              aria-pressed={value === method.value}
+              aria-controls={panelId}
+              onClick={() => onChange(method.value)}
+              sx={{
+                height: '100%',
+                borderRadius: 'inherit',
+                p: 2,
+                '&.Mui-focusVisible': {
+                  outline: '3px solid',
+                  outlineColor: 'primary.main',
+                  outlineOffset: 2,
+                },
+              }}
             >
-              <SvgIcon aria-hidden="true" color="primary">
-                <path d={method.path} />
-              </SvgIcon>
-              <Box sx={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                  {method.title}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {method.subtitle}
-                </Typography>
-              </Box>
-              {value === method.value && <CheckIcon color="primary" />}
-            </Stack>
-          </CardActionArea>
-        </Paper>
-      ))}
+              <Stack
+                direction="row"
+                spacing={1.5}
+                sx={{ alignItems: 'center', minWidth: 0 }}
+              >
+                <SvgIcon aria-hidden="true" color="primary">
+                  <path d={method.path} />
+                </SvgIcon>
+                <Box sx={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                    {method.title}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {method.subtitle}
+                  </Typography>
+                </Box>
+                {value === method.value && <CheckIcon color="primary" />}
+              </Stack>
+            </CardActionArea>
+          </Paper>
+        ))}
     </Box>
   );
 }

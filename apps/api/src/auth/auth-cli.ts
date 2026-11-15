@@ -1,7 +1,10 @@
 import 'reflect-metadata';
 import { parseArgs } from 'node:util';
 import { DataSource } from 'typeorm';
-import { databaseOptions } from '../database/database.config.js';
+import {
+  databaseOptions,
+  databaseTarget,
+} from '../database/database.config.js';
 import { LOCAL_OWNER_ID } from '../opportunities/opportunities.service.js';
 import { AuthService } from './auth.service.js';
 
@@ -38,9 +41,7 @@ async function main(): Promise<void> {
     process.exitCode = 2;
     return;
   }
-  const db = new DataSource(
-    databaseOptions(process.env.DB_ENV === 'test' ? 'test' : 'development'),
-  );
+  const db = new DataSource(databaseOptions(databaseTarget()));
   await db.initialize();
   try {
     const auth = new AuthService(db);

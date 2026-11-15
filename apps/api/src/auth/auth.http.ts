@@ -14,6 +14,23 @@ export interface AuthHttpOptions {
   origins: readonly string[];
   /** Attempts per client address per window on login/register/reset. */
   rateLimit?: { max: number; windowMs: number };
+  /** Behind the production reverse proxy (the API's only client): key limits on the client it forwards. */
+  trustProxy?: boolean;
+}
+
+/**
+ * The proxy appends the address it received the request from, so the last
+ * X-Forwarded-For entry is the client; earlier entries are client-supplied.
+ */
+export function clientAddress(req: IncomingMessage, trustProxy: boolean) {
+  const forwarded = req.headers['x-forwarded-for'];
+  const last = trustProxy
+    ? String(forwarded ?? '')
+        .split(',')
+        .at(-1)
+        ?.trim()
+    : '';
+  return last || req.socket.remoteAddress || 'unknown';
 }
 
 export const sessionCookieName = (secure: boolean) =>
@@ -66,8 +83,8 @@ export function configureAuth(
     max: 10,
     windowMs: 15 * 60_000,
   };
-  // shortcut: in-memory, keyed by socket address; one API instance only. Behind a
-  // reverse proxy (hosting PR) this must key on the trusted forwarded address.
+  // shortcut: in-memory, one API instance only; move to the database or Redis
+  // before running more than one API replica.
   const attempts = new Map<string, { count: number; resetAt: number }>();
 
   app.use(
@@ -92,7 +109,7 @@ export function configureAuth(
             return deny(res, 403, 'ORIGIN_DENIED');
         }
         if (LIMITED.test(path) && req.method === 'POST') {
-          const key = req.socket.remoteAddress ?? 'unknown';
+          const key = clientAddress(req, options.trustProxy ?? false);
           const now = Date.now();
           const entry = attempts.get(key);
           if (!entry || entry.resetAt <= now)

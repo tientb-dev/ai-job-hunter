@@ -5,7 +5,20 @@ export interface AnalysisSecurity {
   readonly hosts: readonly string[];
   readonly origins: readonly string[];
 }
+/**
+ * Hosted mode: PUBLIC_ORIGIN (validated at startup) is the only Host/Origin a
+ * browser may use, replacing the local aliases. The reverse proxy keeps Host.
+ */
+export function publicSecurity(
+  env: NodeJS.ProcessEnv = process.env,
+): AnalysisSecurity | null {
+  if (!env.PUBLIC_ORIGIN) return null;
+  const url = new URL(env.PUBLIC_ORIGIN);
+  return { hosts: [url.host], origins: [url.origin] };
+}
 export function localAnalysisSecurity(port: number): AnalysisSecurity {
+  const hosted = publicSecurity();
+  if (hosted) return hosted;
   return {
     hosts: [`127.0.0.1:${port}`, '127.0.0.1:5173'],
     origins: [`http://127.0.0.1:${port}`, 'http://127.0.0.1:5173'],

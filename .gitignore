@@ -71,6 +71,10 @@ web_modules/
 .env.*
 !.env.example
 !.env.test.example
+!.env.production.example
+
+# Production database backups (copy off the server; never commit)
+backups/
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache

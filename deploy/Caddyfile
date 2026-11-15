@@ -1,0 +1,28 @@
+{
+	admin off
+}
+
+# A real domain (beta.example.com) gets automatic HTTPS; http://localhost is the
+# local production test. Caddy keeps the Host header, which the API checks.
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	# No trusted_proxies: Caddy replaces any client X-Forwarded-For with the real
+	# client address, which the API's rate limiter uses (TRUST_PROXY=1).
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

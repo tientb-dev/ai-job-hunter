@@ -1,3 +1,4 @@
+import { HOSTED } from '../../app/hosted';
 import { AutoAwesomeIcon, RefreshIcon } from '../../components/icons';
 import {
   Alert,
@@ -35,7 +36,7 @@ export function TranscriptPanel({
       <Typography variant="subtitle2" component="h3">
         Transcript
       </Typography>
-      {recording && (
+      {recording && !HOSTED && (
         <Stack
           direction="row"
           spacing={1}
@@ -160,13 +161,15 @@ export function TranscriptPanel({
           )}
         </Stack>
       )}
-      <Box>
-        <Typography variant="caption" color="text.secondary">
-          Transcribe locally sends this recording to this app&apos;s own server
-          on your computer, which turns it into text there. Audio and
-          transcripts are not saved.
-        </Typography>
-      </Box>
+      {!HOSTED && (
+        <Box>
+          <Typography variant="caption" color="text.secondary">
+            Transcribe locally sends this recording to this app&apos;s own
+            server on your computer, which turns it into text there. Audio and
+            transcripts are not saved.
+          </Typography>
+        </Box>
+      )}
     </Stack>
   );
 }

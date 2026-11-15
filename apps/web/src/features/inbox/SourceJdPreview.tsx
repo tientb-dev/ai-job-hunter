@@ -1,3 +1,4 @@
+import { HOSTED } from '../../app/hosted';
 import { useState } from 'react';
 import { ExpandMoreIcon } from '../../components/icons';
 import {
@@ -83,8 +84,9 @@ export function SourceJdPreview({
           ) : (
             !loading && (
               <Typography variant="body2">
-                No source text available yet. Fetch a job page, use the
-                bookmarklet, or upload a supported document.
+                {HOSTED
+                  ? 'No source text available yet. Fetch a job page, paste the JD, or upload a supported document.'
+                  : 'No source text available yet. Fetch a job page, use the bookmarklet, or upload a supported document.'}
               </Typography>
             )
           )}
