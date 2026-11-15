@@ -29,10 +29,7 @@ import { Repository } from 'typeorm';
 import { AiService } from '../ai/ai.service.js';
 import { ExtractionService } from '../extraction/extraction.service.js';
 import type { JobDocument } from '../opportunities/job-import.upload.js';
-import {
-  LOCAL_OWNER_ID,
-  OpportunitiesService,
-} from '../opportunities/opportunities.service.js';
+import { OpportunitiesService } from '../opportunities/opportunities.service.js';
 import { SavedCv } from './saved-cv.entity.js';
 import {
   validateMatchAssessment,
@@ -82,9 +79,9 @@ export class JobMatchService {
   // readiness answer before checking again.
   static readonly RECHECK_MS = 15 * 60 * 1000;
 
-  private async cvIdentity() {
+  private async cvIdentity(ownerId: string) {
     const cv = await this.cvs.findOne({
-      where: { ownerId: LOCAL_OWNER_ID },
+      where: { ownerId },
       select: { ownerId: true, text: true, updatedAt: true },
     });
     if (!cv || typeof cv.text !== 'string') return null;
@@ -127,16 +124,20 @@ export class JobMatchService {
     };
   }
 
-  async requireSnapshot(id: string, matchId: string): Promise<MatchSnapshot> {
-    const cv = await this.cvIdentity();
-    const job = await this.jobs.get(id);
+  async requireSnapshot(
+    ownerId: string,
+    id: string,
+    matchId: string,
+  ): Promise<MatchSnapshot> {
+    const cv = await this.cvIdentity(ownerId);
+    const job = await this.jobs.get(ownerId, id);
     if (!cv)
       throw new ConflictException(
         'Saved CV is unavailable. Reanalyze CV Match.',
       );
     const row = await this.matchRows.findOneBy({
       matchId,
-      ownerId: LOCAL_OWNER_ID,
+      ownerId,
       jobId: id,
     });
     const current = row ? await this.resolve(row, cv, job.updatedAt) : null;
@@ -146,8 +147,12 @@ export class JobMatchService {
       );
     return current.snapshot;
   }
-  async remainingSnapshotMs(id: string, matchId: string): Promise<number> {
-    await this.requireSnapshot(id, matchId);
+  async remainingSnapshotMs(
+    ownerId: string,
+    id: string,
+    matchId: string,
+  ): Promise<number> {
+    await this.requireSnapshot(ownerId, id, matchId);
     return JobMatchService.RECHECK_MS;
   }
   constructor(
@@ -160,16 +165,16 @@ export class JobMatchService {
     private readonly matchRows: Repository<CvMatchRecord>,
     @Optional() @Inject(AI_CONFIG) private readonly aiConfig?: AiConfig,
   ) {}
-  async cv() {
-    const cv = await this.cvs.findOneBy({ ownerId: LOCAL_OWNER_ID });
+  async cv(ownerId: string) {
+    const cv = await this.cvs.findOneBy({ ownerId });
     return cv ? { fileName: cv.fileName, updatedAt: cv.updatedAt } : null;
   }
-  async currentMatch(id: string) {
-    const job = await this.jobs.get(id);
-    const cv = await this.cvIdentity();
+  async currentMatch(ownerId: string, id: string) {
+    const job = await this.jobs.get(ownerId, id);
+    const cv = await this.cvIdentity(ownerId);
     if (!cv) return { status: 'CV_UNAVAILABLE' as const };
     const row = await this.matchRows.findOneBy({
-      ownerId: LOCAL_OWNER_ID,
+      ownerId,
       jobId: id,
     });
     if (!row) return { status: 'MISSING' as const };
@@ -188,7 +193,7 @@ export class JobMatchService {
       },
     };
   }
-  async saveCv(document?: JobDocument) {
+  async saveCv(ownerId: string, document?: JobDocument) {
     if (!document)
       throw new BadRequestException('Choose a CV PDF or DOCX up to 5 MiB.');
     try {
@@ -197,7 +202,7 @@ export class JobMatchService {
       if (!source.text.trim()) throw new Error();
       await this.cvs.upsert(
         {
-          ownerId: LOCAL_OWNER_ID,
+          ownerId,
           fileName: document.fileName,
           text: source.text,
           sourceMetadata: {
@@ -212,7 +217,7 @@ export class JobMatchService {
         },
         ['ownerId'],
       );
-      return this.cv();
+      return this.cv(ownerId);
     } catch {
       throw new BadRequestException(
         'Could not save this CV. Use a text-based PDF or DOCX up to 5 MiB; the previous CV is retained.',
@@ -220,12 +225,13 @@ export class JobMatchService {
     }
   }
   private async recheckSuggestionSnapshot(
+    ownerId: string,
     id: string,
     matchId: string,
     snapshot: MatchSnapshot,
   ): Promise<void> {
     try {
-      const latest = await this.requireSnapshot(id, matchId);
+      const latest = await this.requireSnapshot(ownerId, id, matchId);
       if (
         latest.matchId !== snapshot.matchId ||
         latest.cvUpdatedAt !== snapshot.cvUpdatedAt ||
@@ -241,14 +247,18 @@ export class JobMatchService {
       throw error;
     }
   }
-  async suggest(id: string, body: unknown): Promise<CvSuggestionsResponse> {
+  async suggest(
+    ownerId: string,
+    id: string,
+    body: unknown,
+  ): Promise<CvSuggestionsResponse> {
     const matchId = suggestionMatchId(body);
     if (this.active) throw new CvSuggestionsError('CV_SUGGESTIONS_BUSY');
     this.active = true;
     try {
-      const snapshot = await this.requireSnapshot(id, matchId);
+      const snapshot = await this.requireSnapshot(ownerId, id, matchId);
       const cv = await this.cvs.findOne({
-        where: { ownerId: LOCAL_OWNER_ID },
+        where: { ownerId },
         select: { ownerId: true, text: true, updatedAt: true },
       });
       if (
@@ -257,16 +267,16 @@ export class JobMatchService {
         cv.updatedAt.toISOString() !== snapshot.cvUpdatedAt
       )
         throw new CvSuggestionsError('CV_SUGGESTIONS_STALE_MATCH');
-      await this.recheckSuggestionSnapshot(id, matchId, snapshot);
+      await this.recheckSuggestionSnapshot(ownerId, id, matchId, snapshot);
       const service = new CvSuggestionsService(this.ai);
       let result: CvSuggestionsResponse;
       try {
         result = await service.generate(snapshot, cv.text);
       } catch (error) {
-        await this.recheckSuggestionSnapshot(id, matchId, snapshot);
+        await this.recheckSuggestionSnapshot(ownerId, id, matchId, snapshot);
         throw error;
       }
-      await this.recheckSuggestionSnapshot(id, matchId, snapshot);
+      await this.recheckSuggestionSnapshot(ownerId, id, matchId, snapshot);
       return result;
     } catch (error) {
       if (error instanceof CvSuggestionsError) throw error;
@@ -281,12 +291,12 @@ export class JobMatchService {
       this.active = false;
     }
   }
-  async analyze(id: string) {
+  async analyze(ownerId: string, id: string) {
     const started = performance.now();
     const trace: MatchFailureTrace = { stage: 'SETUP' };
     return matchAttempt.run(randomUUID(), async () => {
       try {
-        return await this.runAnalysis(id, trace);
+        return await this.runAnalysis(ownerId, id, trace);
       } catch (error) {
         emitMatchFailure(
           error,
@@ -298,7 +308,11 @@ export class JobMatchService {
       }
     });
   }
-  private async runAnalysis(id: string, trace: MatchFailureTrace) {
+  private async runAnalysis(
+    ownerId: string,
+    id: string,
+    trace: MatchFailureTrace,
+  ) {
     if (this.active) {
       trace.reason = 'ANALYSIS_ALREADY_RUNNING';
       throw new ConflictException(
@@ -308,12 +322,12 @@ export class JobMatchService {
     this.active = true;
     try {
       const cv = await this.cvs.findOne({
-        where: { ownerId: LOCAL_OWNER_ID },
+        where: { ownerId },
         select: { ownerId: true, text: true, fileName: true, updatedAt: true },
       });
       if (!cv || typeof cv.text !== 'string' || !cv.text.trim())
         throw new CvMatchError('CV_MATCH_CV_UNAVAILABLE', 'CV_TEXT_EMPTY');
-      const job = await this.jobs.get(id);
+      const job = await this.jobs.get(ownerId, id);
       if (
         ![
           job.skills,
@@ -426,8 +440,8 @@ export class JobMatchService {
         allowed,
       );
       trace.stage = 'SOURCE_VERIFICATION';
-      const latestCv = await this.cv();
-      const latestJob = await this.jobs.get(id);
+      const latestCv = await this.cv(ownerId);
+      const latestJob = await this.jobs.get(ownerId, id);
       if (
         latestCv?.updatedAt.getTime() !== cv.updatedAt.getTime() ||
         latestJob.updatedAt.getTime() !== job.updatedAt.getTime()
@@ -450,10 +464,10 @@ export class JobMatchService {
       trace.stage = 'PERSISTENCE';
       await this.matchRows.manager.transaction(async (m) => {
         const rows = m.getRepository(CvMatchRecord);
-        await rows.delete({ ownerId: LOCAL_OWNER_ID, jobId: id });
+        await rows.delete({ ownerId, jobId: id });
         await rows.insert({
           matchId,
-          ownerId: LOCAL_OWNER_ID,
+          ownerId,
           jobId: id,
           cvTextHash: createHash('sha256')
             .update(cv.text, 'utf8')

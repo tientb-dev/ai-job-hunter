@@ -18,7 +18,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, type EntityManager } from 'typeorm';
 import { Opportunity } from './opportunity.entity.js';
 import { validateOpportunity } from './opportunity.validation.js';
-// Local single-user identity only. Never accept owner identifiers from callers.
+// Owner of data created before accounts existed; `auth invite --local-owner` claims it.
+// Request owners come from the session (CurrentOwner), never from request input.
 export const LOCAL_OWNER_ID = '00000000-0000-4000-8000-000000000001';
 @Injectable()
 export class OpportunitiesService {
@@ -27,13 +28,13 @@ export class OpportunitiesService {
     private readonly rows: Repository<Opportunity>,
     private readonly imports: JobImportService,
   ) {}
-  list() {
+  list(ownerId: string) {
     return this.rows.find({
-      where: { ownerId: LOCAL_OWNER_ID },
+      where: { ownerId },
       order: { updatedAt: 'DESC', id: 'ASC' },
     });
   }
-  async duplicateUrl(value: unknown) {
+  async duplicateUrl(ownerId: string, value: unknown) {
     if (typeof value !== 'string' || !value || value.length > 2048)
       throw new BadRequestException(
         'Enter a full HTTP(S) job URL without credentials.',
@@ -56,7 +57,7 @@ export class OpportunitiesService {
       );
     const key = normalizedUrl(value);
     const existing = await this.rows.find({
-      where: { ownerId: LOCAL_OWNER_ID },
+      where: { ownerId },
       select: { id: true, title: true, company: true, originalLink: true },
       order: { id: 'ASC' },
     });
@@ -67,8 +68,8 @@ export class OpportunitiesService {
         : null,
     };
   }
-  async get(id: string) {
-    const row = await this.rows.findOneBy({ id, ownerId: LOCAL_OWNER_ID });
+  async get(ownerId: string, id: string) {
+    const row = await this.rows.findOneBy({ id, ownerId });
     if (!row) throw new NotFoundException('Opportunity not found');
     return row;
   }
@@ -106,9 +107,9 @@ export class OpportunitiesService {
     if (!row) throw new NotFoundException('Opportunity not found');
     return row;
   }
-  async document(id: string): Promise<JobDocument> {
+  async document(ownerId: string, id: string): Promise<JobDocument> {
     const row = await this.rows.findOne({
-      where: { id, ownerId: LOCAL_OWNER_ID },
+      where: { id, ownerId },
       select: {
         id: true,
         documentName: true,
@@ -124,12 +125,12 @@ export class OpportunitiesService {
       mediaType: row.documentType,
     };
   }
-  async importDiscovered(jobs: DiscoveredJob[]) {
+  async importDiscovered(ownerId: string, jobs: DiscoveredJob[]) {
     return this.rows.manager.transaction(async (manager) => {
       // Serialize imports across API processes; existing/manual jobs are never updated.
-      await lockOpportunityWrites(manager, LOCAL_OWNER_ID);
+      await lockOpportunityWrites(manager, ownerId);
       const rows = manager.getRepository(Opportunity);
-      const existing = await rows.find({ where: { ownerId: LOCAL_OWNER_ID } });
+      const existing = await rows.find({ where: { ownerId } });
       let imported = 0;
       let duplicatesSkipped = 0;
       let remaining = 0;
@@ -147,7 +148,7 @@ export class OpportunitiesService {
         const row = await rows.save(
           rows.create({
             ...fields,
-            ownerId: LOCAL_OWNER_ID,
+            ownerId,
             jdText: '',
             discovery: job.discovery,
             documentName: null,
@@ -226,16 +227,16 @@ export class OpportunitiesService {
         'Linked Inbox job is unavailable. No changes were saved.',
       );
   }
-  async create(input: unknown, document?: JobDocument) {
+  async create(ownerId: string, input: unknown, document?: JobDocument) {
     const parsed = document ? await this.imports.parse(document) : null;
     const fields = validateOpportunity(input, parsed?.source.text ?? '');
     return this.rows.manager.transaction(async (manager) => {
-      await lockOpportunityWrites(manager, LOCAL_OWNER_ID);
+      await lockOpportunityWrites(manager, ownerId);
       const rows = manager.getRepository(Opportunity);
       const urlKey = normalizedUrl(fields.originalLink);
       if (urlKey) {
         const existing = await rows.find({
-          where: { ownerId: LOCAL_OWNER_ID },
+          where: { ownerId },
         });
         if (existing.some((job) => normalizedUrl(job.originalLink) === urlKey))
           throw new ConflictException(
@@ -248,18 +249,23 @@ export class OpportunitiesService {
           description:
             fields.description ||
             fullDescription(fields.postText, parsed?.source.text ?? ''),
-          ownerId: LOCAL_OWNER_ID,
+          ownerId,
           jdText: parsed?.source.text ?? '',
           documentName: document?.fileName ?? null,
           documentType: document?.mediaType ?? null,
           documentBytes: document?.bytes ?? null,
         }),
       );
-      return rows.findOneByOrFail({ id: row.id, ownerId: LOCAL_OWNER_ID });
+      return rows.findOneByOrFail({ id: row.id, ownerId });
     });
   }
-  async update(id: string, input: unknown, document?: JobDocument) {
-    const row = await this.get(id);
+  async update(
+    ownerId: string,
+    id: string,
+    input: unknown,
+    document?: JobDocument,
+  ) {
+    const row = await this.get(ownerId, id);
     if (document && row.documentName)
       throw new BadRequestException(
         'The original JD is preserved. Create another opportunity for a different document.',
@@ -302,9 +308,9 @@ export class OpportunitiesService {
         documentBytes: document.bytes,
       });
     await this.rows.manager.transaction(async (manager) => {
-      await lockOpportunityWrites(manager, LOCAL_OWNER_ID);
+      await lockOpportunityWrites(manager, ownerId);
       await manager.getRepository(Opportunity).save(row);
     });
-    return this.get(id);
+    return this.get(ownerId, id);
   }
 }

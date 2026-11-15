@@ -1,3 +1,4 @@
+import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js';
 import 'reflect-metadata';
 import { memoryMatchRows } from '../support/memory-match-rows.js';
 import { expect, jest, test } from '@jest/globals';
@@ -181,7 +182,7 @@ test('the service sends verified rows to scoring and returns nonzero API-shaped 
     jobs as unknown as OpportunitiesService,
     memoryMatchRows(),
   );
-  const result = await service.analyze('synthetic');
+  const result = await service.analyze(LOCAL_OWNER_ID, 'synthetic');
   expect(result.score).toBeGreaterThan(0);
   expect(
     result.requirements.filter((row) => row.status === 'EVIDENCED'),

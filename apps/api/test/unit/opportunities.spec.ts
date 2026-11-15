@@ -1,3 +1,4 @@
+import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js';
 import { transactionalRepository } from '../support/transactional-repository.mock.js';
 import { expect, test } from '@jest/globals';
 import { validateOpportunity } from '../../src/opportunities/opportunity.validation.js';
@@ -111,19 +112,21 @@ test('service preserves omitted application details and accepts explicit edits a
     >[0],
     {} as ConstructorParameters<typeof OpportunitiesService>[1],
   );
-  expect(await service.update('synthetic', input)).toMatchObject({
+  expect(
+    await service.update(LOCAL_OWNER_ID, 'synthetic', input),
+  ).toMatchObject({
     appliedDate: '2024-02-29',
     applicationChannel: 'Referral',
   });
   expect(
-    await service.update('synthetic', {
+    await service.update(LOCAL_OWNER_ID, 'synthetic', {
       ...input,
       appliedDate: '2026-10-30',
       applicationChannel: 'TopCV',
     }),
   ).toMatchObject({ appliedDate: '2026-10-30', applicationChannel: 'TopCV' });
   expect(
-    await service.update('synthetic', {
+    await service.update(LOCAL_OWNER_ID, 'synthetic', {
       ...input,
       appliedDate: null,
       applicationChannel: null,

@@ -1,3 +1,4 @@
+import { asLocalOwner } from '../support/as-local-owner.js';
 import 'reflect-metadata';
 import { expect, test, jest } from '@jest/globals';
 import { Test } from '@nestjs/testing';
@@ -19,6 +20,7 @@ test('legacy discovery responds 410 without fetching or saving even with a valid
     ],
   }).compile();
   const app = module.createNestApplication();
+  asLocalOwner(app);
   app.setGlobalPrefix('api/v1');
   await app.init();
   try {

@@ -1,3 +1,4 @@
+import { asLocalOwner } from '../support/as-local-owner.js';
 import 'reflect-metadata';
 import { memoryMatchRows } from '../support/memory-match-rows.js';
 import { CvSuggestionsRequestErrors } from '../../src/matching/cv-suggestions-request.filter.js';
@@ -77,8 +78,8 @@ function setup(text = source, skills = 'Java\nKubernetes') {
   };
   const jobs = {
     get: jest
-      .fn<(id: string) => Promise<Opportunity>>()
-      .mockImplementation(async (id) => {
+      .fn<(ownerId: string, id: string) => Promise<Opportunity>>()
+      .mockImplementation(async (_owner: string, id: string) => {
         if (id !== jobId && id !== otherId)
           throw new NotFoundException('unsafe synthetic detail');
         return { ...job, id };
@@ -103,7 +104,7 @@ function setup(text = source, skills = 'Java\nKubernetes') {
     memoryMatchRows(),
   );
   async function ready() {
-    const result = await service.analyze(jobId);
+    const result = await service.analyze(LOCAL_OWNER_ID, jobId);
     provider.generate
       .mockClear()
       .mockResolvedValue(
@@ -144,9 +145,11 @@ test('valid selection preserves deterministic ordering, original evidence and P6
   const { service, provider, ready, cvs, jobs } = setup();
   const match = await ready();
   const before = JSON.stringify(
-    await service.requireSnapshot(jobId, match.matchId),
+    await service.requireSnapshot(LOCAL_OWNER_ID, jobId, match.matchId),
   );
-  const result = await service.suggest(jobId, { matchId: match.matchId });
+  const result = await service.suggest(LOCAL_OWNER_ID, jobId, {
+    matchId: match.matchId,
+  });
   expect(result).toMatchObject({
     contractVersion: '1',
     matchId: match.matchId,
@@ -173,7 +176,9 @@ test('valid selection preserves deterministic ordering, original evidence and P6
     evidence.quote,
   );
   expect(
-    JSON.stringify(await service.requireSnapshot(jobId, match.matchId)),
+    JSON.stringify(
+      await service.requireSnapshot(LOCAL_OWNER_ID, jobId, match.matchId),
+    ),
   ).toBe(before);
   expect(provider.generate).toHaveBeenCalledTimes(1);
   // These read-only mocks deliberately offer no repository/job write methods.
@@ -186,7 +191,8 @@ test('valid empty selection is successful', async () => {
   const match = await ready();
   provider.generate.mockResolvedValue(JSON.stringify({ candidateIds: [] }));
   expect(
-    (await service.suggest(jobId, { matchId: match.matchId })).suggestions,
+    (await service.suggest(LOCAL_OWNER_ID, jobId, { matchId: match.matchId }))
+      .suggestions,
   ).toEqual([]);
 });
 
@@ -224,7 +230,7 @@ test.each([
   const match = await ready();
   provider.generate.mockResolvedValue(JSON.stringify(output));
   await expectCode(
-    service.suggest(jobId, { matchId: match.matchId }),
+    service.suggest(LOCAL_OWNER_ID, jobId, { matchId: match.matchId }),
     'CV_SUGGESTIONS_INVALID_OUTPUT',
     503,
   );
@@ -235,7 +241,7 @@ test('malformed JSON is rejected safely without exposing model output', async ()
   const match = await ready();
   provider.generate.mockResolvedValue('PRIVATE_SYNTHETIC_PROVIDER_OUTPUT');
   try {
-    await service.suggest(jobId, { matchId: match.matchId });
+    await service.suggest(LOCAL_OWNER_ID, jobId, { matchId: match.matchId });
     throw new Error('expected rejection');
   } catch (error) {
     expect(error).toBeInstanceOf(CvSuggestionsError);
@@ -247,17 +253,17 @@ test('unknown and cross-job IDs are stale, unknown job is a safe typed 404, no i
   const { service, provider, ready } = setup();
   const match = await ready();
   await expectCode(
-    service.suggest(jobId, { matchId: 'unknown' }),
+    service.suggest(LOCAL_OWNER_ID, jobId, { matchId: 'unknown' }),
     'CV_SUGGESTIONS_STALE_MATCH',
     409,
   );
   await expectCode(
-    service.suggest(otherId, { matchId: match.matchId }),
+    service.suggest(LOCAL_OWNER_ID, otherId, { matchId: match.matchId }),
     'CV_SUGGESTIONS_STALE_MATCH',
     409,
   );
   await expectCode(
-    service.suggest('missing', { matchId: match.matchId }),
+    service.suggest(LOCAL_OWNER_ID, 'missing', { matchId: match.matchId }),
     'CV_SUGGESTIONS_JOB_NOT_FOUND',
     404,
   );
@@ -275,7 +281,7 @@ test('a match from an older matching policy cannot generate suggestions', async 
       }
     ).rows[0]!.policyVersion = 'older-policy';
     await expectCode(
-      service.suggest(jobId, { matchId: match.matchId }),
+      service.suggest(LOCAL_OWNER_ID, jobId, { matchId: match.matchId }),
       'CV_SUGGESTIONS_STALE_MATCH',
     );
     expect(provider.generate).not.toHaveBeenCalled();
@@ -292,7 +298,9 @@ test.each(['cv', 'job'] as const)(
     setupResult[kind].updatedAt = new Date(revision.getTime() + 1);
     if (kind === 'cv') setupResult.cv.text = 'Changed CV text.';
     await expectCode(
-      setupResult.service.suggest(jobId, { matchId: match.matchId }),
+      setupResult.service.suggest(LOCAL_OWNER_ID, jobId, {
+        matchId: match.matchId,
+      }),
       'CV_SUGGESTIONS_STALE_MATCH',
     );
     expect(setupResult.provider.generate).not.toHaveBeenCalled();
@@ -307,7 +315,7 @@ test('CV replacement between snapshot check and full-text load is stale before i
     updatedAt: new Date(revision.getTime() + 1),
   });
   await expectCode(
-    service.suggest(jobId, { matchId: match.matchId }),
+    service.suggest(LOCAL_OWNER_ID, jobId, { matchId: match.matchId }),
     'CV_SUGGESTIONS_STALE_MATCH',
   );
   expect(provider.generate).not.toHaveBeenCalled();
@@ -336,7 +344,9 @@ test.each(['cv', 'job', 'snapshot', 'policy'] as const)(
         return JSON.stringify({ candidateIds: ['candidate-1'] });
       });
       await expectCode(
-        state.service.suggest(jobId, { matchId: match.matchId }),
+        state.service.suggest(LOCAL_OWNER_ID, jobId, {
+          matchId: match.matchId,
+        }),
         'CV_SUGGESTIONS_STALE_MATCH',
       );
       expect(state.provider.generate).toHaveBeenCalledTimes(1);
@@ -355,20 +365,24 @@ test('suggestion admission excludes both suggestions and matching; release on co
     started.resolve();
     return finish.promise;
   });
-  const pending = service.suggest(jobId, { matchId: match.matchId });
+  const pending = service.suggest(LOCAL_OWNER_ID, jobId, {
+    matchId: match.matchId,
+  });
   await started.promise;
   await expectCode(
-    service.suggest(jobId, { matchId: match.matchId }),
+    service.suggest(LOCAL_OWNER_ID, jobId, { matchId: match.matchId }),
     'CV_SUGGESTIONS_BUSY',
     409,
   );
-  await expect(service.analyze(jobId)).rejects.toMatchObject({ status: 409 });
+  await expect(service.analyze(LOCAL_OWNER_ID, jobId)).rejects.toMatchObject({
+    status: 409,
+  });
   expect(provider.generate).toHaveBeenCalledTimes(1);
   finish.resolve(JSON.stringify({ candidateIds: [] }));
   await pending;
   provider.generate.mockResolvedValue(JSON.stringify({ candidateIds: [] }));
   await expect(
-    service.suggest(jobId, { matchId: match.matchId }),
+    service.suggest(LOCAL_OWNER_ID, jobId, { matchId: match.matchId }),
   ).resolves.toMatchObject({ suggestions: [] });
 });
 
@@ -381,10 +395,10 @@ test('matching admission also excludes suggestions without changing match behavi
     started.resolve();
     return finish.promise;
   });
-  const pending = service.analyze(jobId);
+  const pending = service.analyze(LOCAL_OWNER_ID, jobId);
   await started.promise;
   await expectCode(
-    service.suggest(jobId, { matchId: match.matchId }),
+    service.suggest(LOCAL_OWNER_ID, jobId, { matchId: match.matchId }),
     'CV_SUGGESTIONS_BUSY',
   );
   finish.resolve(
@@ -410,13 +424,13 @@ test.each([
     const match = await ready();
     provider.generate.mockRejectedValueOnce(error);
     await expectCode(
-      service.suggest(jobId, { matchId: match.matchId }),
+      service.suggest(LOCAL_OWNER_ID, jobId, { matchId: match.matchId }),
       code,
       status,
     );
     provider.generate.mockResolvedValue(JSON.stringify({ candidateIds: [] }));
     await expect(
-      service.suggest(jobId, { matchId: match.matchId }),
+      service.suggest(LOCAL_OWNER_ID, jobId, { matchId: match.matchId }),
     ).resolves.toMatchObject({ suggestions: [] });
   },
 );
@@ -447,13 +461,15 @@ test('prompt injection is enclosed as untrusted data and cannot introduce wordin
     });
   });
   await expectCode(
-    service.suggest(jobId, { matchId: match.matchId }),
+    service.suggest(LOCAL_OWNER_ID, jobId, { matchId: match.matchId }),
     'CV_SUGGESTIONS_INVALID_OUTPUT',
   );
   provider.generate.mockResolvedValue(
     JSON.stringify({ candidateIds: ['candidate-1', 'candidate-2'] }),
   );
-  const result = await service.suggest(jobId, { matchId: match.matchId });
+  const result = await service.suggest(LOCAL_OWNER_ID, jobId, {
+    matchId: match.matchId,
+  });
   expect(result.suggestions.every((card) => card.wording === null)).toBe(true);
 });
 
@@ -462,7 +478,9 @@ test('conflict stays first and has no wording regardless of model order', async 
     `${source}\nI have never used Java.`,
   );
   const match = await ready();
-  const result = await service.suggest(jobId, { matchId: match.matchId });
+  const result = await service.suggest(LOCAL_OWNER_ID, jobId, {
+    matchId: match.matchId,
+  });
   expect(result.suggestions[0]).toMatchObject({
     parentId: 'p1',
     status: 'CONFLICT',
@@ -489,6 +507,7 @@ test('HTTP boundary enforces local origin, UUID, strict body, typed errors and n
     ],
   }).compile();
   const app = module.createNestApplication();
+  asLocalOwner(app);
   app.setGlobalPrefix('api/v1');
   app.useGlobalFilters(new CvSuggestionsRequestErrors(app.getHttpAdapter()));
   await app.init();
@@ -586,7 +605,7 @@ test('job changes while full CV is loading: recheck before inference', async () 
     return cv;
   });
   await expectCode(
-    service.suggest(jobId, { matchId: match.matchId }),
+    service.suggest(LOCAL_OWNER_ID, jobId, { matchId: match.matchId }),
     'CV_SUGGESTIONS_STALE_MATCH',
   );
   expect(provider.generate).not.toHaveBeenCalled();
@@ -602,7 +621,7 @@ test('job deletion during selection is stale rather than an initial unknown-job 
     return JSON.stringify({ candidateIds: [] });
   });
   await expectCode(
-    service.suggest(jobId, { matchId: match.matchId }),
+    service.suggest(LOCAL_OWNER_ID, jobId, { matchId: match.matchId }),
     'CV_SUGGESTIONS_STALE_MATCH',
     409,
   );
@@ -616,7 +635,7 @@ test('post-failure revision changes take precedence over a provider failure', as
     throw new AiError('TIMEOUT');
   });
   await expectCode(
-    service.suggest(jobId, { matchId: match.matchId }),
+    service.suggest(LOCAL_OWNER_ID, jobId, { matchId: match.matchId }),
     'CV_SUGGESTIONS_STALE_MATCH',
   );
 });
@@ -641,7 +660,9 @@ test.each([
       JSON.stringify({ candidateIds: ['candidate-1'] }),
     );
     const [card] = (
-      await state.service.suggest(jobId, { matchId: match.matchId })
+      await state.service.suggest(LOCAL_OWNER_ID, jobId, {
+        matchId: match.matchId,
+      })
     ).suggestions;
     expect(card).toMatchObject({ status, wording: text, clarification: null });
     if (status === 'PARTIAL')

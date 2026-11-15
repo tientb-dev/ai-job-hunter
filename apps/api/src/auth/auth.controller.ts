@@ -10,7 +10,6 @@ import {
   Res,
 } from '@nestjs/common';
 import type { ServerResponse } from 'node:http';
-import { LOCAL_OWNER_ID } from '../opportunities/opportunities.service.js';
 import { AuthService, authError } from './auth.service.js';
 import { sessionCookie } from './auth.http.js';
 import type { AuthRequest } from './auth.http.js';
@@ -26,8 +25,7 @@ export class AuthController {
   private me(req: AuthRequest) {
     const user = req.authUser;
     if (!user) throw authError('UNAUTHENTICATED');
-    // dataAccess is false until PR 2 scopes existing data by account.
-    return { email: user.email, dataAccess: user.id === LOCAL_OWNER_ID };
+    return { email: user.email };
   }
 
   @Post('register')

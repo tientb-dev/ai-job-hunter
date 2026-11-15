@@ -1,3 +1,4 @@
+import { asLocalOwner } from '../support/as-local-owner.js';
 import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, expect, test } from '@jest/globals';
@@ -114,6 +115,7 @@ beforeAll(async () => {
     })
     .compile();
   app = module.createNestApplication();
+  asLocalOwner(app);
   app.setGlobalPrefix('api/v1');
   app.useGlobalFilters(new FoundationRequestErrors(app.getHttpAdapter()));
   await app.init();

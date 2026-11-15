@@ -1,3 +1,4 @@
+import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js';
 import 'reflect-metadata';
 import { afterEach, describe, expect, jest, test } from '@jest/globals';
 import type { Repository } from 'typeorm';
@@ -126,7 +127,7 @@ afterEach(() => {
 });
 async function events(service: JobMatchService) {
   const write = jest.spyOn(process.stderr, 'write').mockReturnValue(true);
-  await service.analyze('synthetic').catch(() => undefined);
+  await service.analyze(LOCAL_OWNER_ID, 'synthetic').catch(() => undefined);
   const lines = write.mock.calls.map(([line]) => String(line));
   write.mockRestore();
   expect(lines.join('')).not.toMatch(/PRIVATE/u);
@@ -473,7 +474,7 @@ describe('one classified CV_MATCH_FAILURE per failed operation', () => {
           (resolve) => (release = () => resolve(reply(rows()))),
         ),
     ]);
-    const first = service.analyze('synthetic');
+    const first = service.analyze(LOCAL_OWNER_ID, 'synthetic');
     await new Promise((resolve) => setImmediate(resolve));
     expect(await failure(service)).toMatchObject({
       stage: 'SETUP',

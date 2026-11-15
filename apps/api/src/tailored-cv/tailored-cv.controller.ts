@@ -17,7 +17,7 @@ import {
   UseFilters,
   UseGuards,
 } from '@nestjs/common';
-import { LOCAL_OWNER_ID } from '../opportunities/opportunities.service.js';
+import { CurrentOwner } from '../auth/current-owner.js';
 import { TailoredCvService } from './tailored-cv.service.js';
 import { FoundationErrors, FoundationLocalGuard } from './tailored-cv.http.js';
 
@@ -35,210 +35,258 @@ export class TailoredCvController {
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
   sourceRead(
+    @CurrentOwner() owner: string,
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: unknown,
   ) {
     version(body, []);
-    return this.service.getSource(LOCAL_OWNER_ID, id);
+    return this.service.getSource(owner, id);
   }
   @Post('sources/:id/content')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
   contentRead(
+    @CurrentOwner() owner: string,
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: unknown,
   ) {
     version(body, []);
-    return this.service.getSource(LOCAL_OWNER_ID, id, true);
+    return this.service.getSource(owner, id, true);
   }
   @Post('sources/:id/profile')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
   latestRead(
+    @CurrentOwner() owner: string,
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: unknown,
   ) {
     version(body, []);
-    return this.service.latestForSource(LOCAL_OWNER_ID, id);
+    return this.service.latestForSource(owner, id);
   }
   @Post('sources/:id/reusable-review')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
   reusableRead(
+    @CurrentOwner() owner: string,
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: unknown,
   ) {
     version(body, []);
-    return this.service.reusableReview(LOCAL_OWNER_ID, id);
+    return this.service.reusableReview(owner, id);
   }
   @Post('profile-revisions/:id')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
   profileRead(
+    @CurrentOwner() owner: string,
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: unknown,
   ) {
     version(body, []);
-    return this.service.getProfile(LOCAL_OWNER_ID, id);
+    return this.service.getProfile(owner, id);
   }
   @Post('drafts/:id')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
   draftRead(
+    @CurrentOwner() owner: string,
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: unknown,
   ) {
     version(body, []);
-    return this.drafts.get(LOCAL_OWNER_ID, id);
+    return this.drafts.get(owner, id);
   }
   @Post('jobs/:id/drafts/list')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
   draftsRead(
+    @CurrentOwner() owner: string,
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: unknown,
   ) {
     const value = version(body, ['before']);
     return this.drafts.list(
-      LOCAL_OWNER_ID,
+      owner,
       id,
       value.before === null ? {} : { before: value.before },
     );
   }
   @Post('sources')
   @Header('Cache-Control', 'no-store')
-  capture(@Body() body: unknown) {
-    return this.service.capture(LOCAL_OWNER_ID, body);
+  capture(@CurrentOwner() owner: string, @Body() body: unknown) {
+    return this.service.capture(owner, body);
   }
   @Get('sources/:id')
   @Header('Cache-Control', 'no-store')
-  source(@Param('id', new ParseUUIDPipe()) id: string) {
-    return this.service.getSource(LOCAL_OWNER_ID, id);
+  source(
+    @CurrentOwner() owner: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.service.getSource(owner, id);
   }
   // Full parsed text is available only through this explicit, protected read.
   @Get('sources/:id/content')
   @Header('Cache-Control', 'no-store')
-  content(@Param('id', new ParseUUIDPipe()) id: string) {
-    return this.service.getSource(LOCAL_OWNER_ID, id, true);
+  content(
+    @CurrentOwner() owner: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.service.getSource(owner, id, true);
   }
   @Get('sources/:id/profile')
   @Header('Cache-Control', 'no-store')
-  latest(@Param('id', new ParseUUIDPipe()) id: string) {
-    return this.service.latestForSource(LOCAL_OWNER_ID, id);
+  latest(
+    @CurrentOwner() owner: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.service.latestForSource(owner, id);
   }
   @Get('sources/:id/reusable-review')
   @Header('Cache-Control', 'no-store')
-  reusable(@Param('id', new ParseUUIDPipe()) id: string) {
-    return this.service.reusableReview(LOCAL_OWNER_ID, id);
+  reusable(
+    @CurrentOwner() owner: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.service.reusableReview(owner, id);
   }
   @Post('profiles/:id/proposal')
   @Header('Cache-Control', 'no-store')
-  propose(@Param('id', new ParseUUIDPipe()) id: string, @Body() body: unknown) {
-    return this.service.propose(LOCAL_OWNER_ID, id, body);
+  propose(
+    @CurrentOwner() owner: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: unknown,
+  ) {
+    return this.service.propose(owner, id, body);
   }
   @Post('profiles/:id/rebuild')
   @Header('Cache-Control', 'no-store')
-  rebuild(@Param('id', new ParseUUIDPipe()) id: string, @Body() body: unknown) {
-    return this.service.propose(LOCAL_OWNER_ID, id, body, true);
+  rebuild(
+    @CurrentOwner() owner: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: unknown,
+  ) {
+    return this.service.propose(owner, id, body, true);
   }
   @Post('profiles/:id/confirm-section')
   @Header('Cache-Control', 'no-store')
   confirmSection(
+    @CurrentOwner() owner: string,
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: unknown,
   ) {
-    return this.service.confirmSection(LOCAL_OWNER_ID, id, body);
+    return this.service.confirmSection(owner, id, body);
   }
   @Delete('sources/:id')
   @Header('Cache-Control', 'no-store')
-  deleteSource(@Param('id', new ParseUUIDPipe()) id: string) {
-    return this.service.deleteSource(LOCAL_OWNER_ID, id);
+  deleteSource(
+    @CurrentOwner() owner: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.service.deleteSource(owner, id);
   }
   @Post('profiles')
   @Header('Cache-Control', 'no-store')
-  create(@Body() body: unknown) {
-    return this.service.createProfile(LOCAL_OWNER_ID, body);
+  create(@CurrentOwner() owner: string, @Body() body: unknown) {
+    return this.service.createProfile(owner, body);
   }
   @Get('profile-revisions/:id')
   @Header('Cache-Control', 'no-store')
-  profile(@Param('id', new ParseUUIDPipe()) id: string) {
-    return this.service.getProfile(LOCAL_OWNER_ID, id);
+  profile(
+    @CurrentOwner() owner: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.service.getProfile(owner, id);
   }
   @Post('profiles/:id/revisions')
   @Header('Cache-Control', 'no-store')
-  append(@Param('id', new ParseUUIDPipe()) id: string, @Body() body: unknown) {
-    return this.service.appendProfile(LOCAL_OWNER_ID, id, body);
+  append(
+    @CurrentOwner() owner: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: unknown,
+  ) {
+    return this.service.appendProfile(owner, id, body);
   }
   @Delete('profiles/:id')
   @Header('Cache-Control', 'no-store')
   deleteProfile(
+    @CurrentOwner() owner: string,
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: unknown,
   ) {
-    return this.service.deleteProfile(LOCAL_OWNER_ID, id, body);
+    return this.service.deleteProfile(owner, id, body);
   }
   @Post('jobs/:id/drafts')
   @Header('Cache-Control', 'no-store')
   generateDraft(
+    @CurrentOwner() owner: string,
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: unknown,
   ) {
-    return this.drafts.generate(LOCAL_OWNER_ID, id, body);
+    return this.drafts.generate(owner, id, body);
   }
   // Read-only facts for the Dashboard; next steps are decided client-side.
   // POST like other private reads: browsers omit Origin on same-origin GETs.
   @Post('job-progress')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
-  jobProgress(@Body() body: unknown) {
+  jobProgress(@CurrentOwner() owner: string, @Body() body: unknown) {
     version(body, []);
-    return this.drafts.progress(LOCAL_OWNER_ID);
+    return this.drafts.progress(owner);
   }
   @Post('jobs/:id/drafts/readiness')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
   readiness(
+    @CurrentOwner() owner: string,
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: unknown,
   ) {
-    return this.drafts.readiness(LOCAL_OWNER_ID, id, body);
+    return this.drafts.readiness(owner, id, body);
   }
   @Get('jobs/:id/drafts')
   @Header('Cache-Control', 'no-store')
   listDrafts(
+    @CurrentOwner() owner: string,
     @Param('id', new ParseUUIDPipe()) id: string,
     @Query() query: unknown,
   ) {
-    return this.drafts.list(LOCAL_OWNER_ID, id, query);
+    return this.drafts.list(owner, id, query);
   }
   @Get('drafts/:id')
   @Header('Cache-Control', 'no-store')
-  getDraft(@Param('id', new ParseUUIDPipe()) id: string) {
-    return this.drafts.get(LOCAL_OWNER_ID, id);
+  getDraft(
+    @CurrentOwner() owner: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.drafts.get(owner, id);
   }
   @Post('drafts/:id/review')
   @Header('Cache-Control', 'no-store')
   saveReview(
+    @CurrentOwner() owner: string,
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: unknown,
   ) {
-    return this.drafts.review(LOCAL_OWNER_ID, id, body);
+    return this.drafts.review(owner, id, body);
   }
   @Post('drafts/:id/approve')
   @Header('Cache-Control', 'no-store')
   approveDraft(
+    @CurrentOwner() owner: string,
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: unknown,
   ) {
-    return this.drafts.review(LOCAL_OWNER_ID, id, body, true);
+    return this.drafts.review(owner, id, body, true);
   }
   @Post('drafts/:id/export')
   async exportDraft(
+    @CurrentOwner() owner: string,
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: unknown,
     @Res() response: ServerResponse,
   ) {
-    const result = await this.exports.export(LOCAL_OWNER_ID, id, body);
+    const result = await this.exports.export(owner, id, body);
     response.statusCode = 200;
     response.setHeader('Cache-Control', 'no-store');
     response.setHeader('X-Content-Type-Options', 'nosniff');
@@ -253,9 +301,10 @@ export class TailoredCvController {
   @Delete('drafts/:id')
   @Header('Cache-Control', 'no-store')
   deleteDraft(
+    @CurrentOwner() owner: string,
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: unknown,
   ) {
-    return this.service.deleteDraft(LOCAL_OWNER_ID, id, body);
+    return this.service.deleteDraft(owner, id, body);
   }
 }

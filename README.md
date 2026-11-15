@@ -59,9 +59,9 @@ Tracking jobs and applications works without any AI.
   read them. Use synthetic data unless you accept that.
 - With Ollama, AI processing stays on your computer. Other features, such as URL
   import and Discover, still contact the job websites.
-- Keep API keys only in your local `.env` file. Sign-in is required (web beta
-  PR 1), but data is not yet separated per account, so do not expose the app to
-  a network or host it online until per-account ownership ships.
+- Keep API keys only in your local `.env` file. Sign-in is required and each
+  account sees only its own data, but hosting (HTTPS, proxy, backups) is not set
+  up yet, so do not expose the app to a network.
 
 ### Sign-in (local)
 
@@ -74,9 +74,9 @@ pnpm --filter @ai-job-hunter/api auth invite --days 7        # invite another ac
 pnpm --filter @ai-job-hunter/api auth reset --email you@example.com  # reset code for /reset-password
 ```
 
-Codes are shown once; only their hashes are stored. Until per-account ownership
-ships, only the `--local-owner` account can open the workspace; other accounts
-see an "account ready" notice.
+Codes are shown once; only their hashes are stored. The `--local-owner` account
+keeps the data created before sign-in existed; every other account starts with
+an empty workspace of its own.
 
 ## Beta limitations
 

@@ -1,3 +1,5 @@
+import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js';
+import { asLocalOwner } from '../support/as-local-owner.js';
 import 'reflect-metadata';
 import { memoryMatchRows } from '../support/memory-match-rows.js';
 import { expect, jest, test } from '@jest/globals';
@@ -74,7 +76,7 @@ test('synthetic accepted AI Developer still returns 27 with exact Java and durat
     expect(request.prompt).toContain('Minimum 3 years');
     return JSON.stringify({ requirements: output() });
   });
-  const result = await service.analyze('synthetic');
+  const result = await service.analyze(LOCAL_OWNER_ID, 'synthetic');
   expect(result.score).toBe(27);
   expect(
     result.requirements
@@ -94,7 +96,9 @@ test.each([null, '', '   '])(
       async () => JSON.stringify({ requirements: output() }),
       text,
     );
-    await expect(service.analyze('synthetic')).rejects.toThrow(/CV/i);
+    await expect(service.analyze(LOCAL_OWNER_ID, 'synthetic')).rejects.toThrow(
+      /CV/i,
+    );
     expect(provider.generate).not.toHaveBeenCalled();
   },
 );
@@ -112,7 +116,7 @@ test('empty model output is analysis failure, not a synthesized 0% Java match', 
     cvText,
     javaJob,
   );
-  await expect(service.analyze('synthetic')).rejects.toThrow();
+  await expect(service.analyze(LOCAL_OWNER_ID, 'synthetic')).rejects.toThrow();
 });
 test.each([
   'timeout',
@@ -135,7 +139,7 @@ test.each([
     if (kind === 'omitted canonical requirements') rows.splice(0, 1);
     return JSON.stringify({ requirements: rows });
   });
-  await expect(service.analyze('synthetic')).rejects.toThrow();
+  await expect(service.analyze(LOCAL_OWNER_ID, 'synthetic')).rejects.toThrow();
 });
 test('a valid fully evaluated negative assessment is allowed to remain genuinely zero', async () => {
   const javaJob = {
@@ -162,7 +166,7 @@ test('a valid fully evaluated negative assessment is allowed to remain genuinely
     'Synthetic CV: SQL reporting experience.',
     javaJob,
   );
-  expect(await service.analyze('synthetic')).toMatchObject({
+  expect(await service.analyze(LOCAL_OWNER_ID, 'synthetic')).toMatchObject({
     score: 0,
     recommendation: 'Low Fit',
   });
@@ -175,7 +179,7 @@ test('AI-assisted coding tool evidence cannot substantiate production AI/ML', as
       'Tools: AI-assisted coding with Copilot.';
     return JSON.stringify({ requirements });
   });
-  const result = await service.analyze('synthetic');
+  const result = await service.analyze(LOCAL_OWNER_ID, 'synthetic');
   expect(result.score).toBe(27);
   expect(
     result.requirements.find((item) => item.requirement === 'AI/ML'),
@@ -206,6 +210,7 @@ test('HTTP pipeline returns structured success or explicit errors without a fabr
     ],
   }).compile();
   const app = module.createNestApplication();
+  asLocalOwner(app);
   app.setGlobalPrefix('api/v1');
   await app.init();
   const origin = { Origin: 'http://127.0.0.1:5173', Host: '127.0.0.1:3000' };
@@ -266,7 +271,9 @@ test('explicit AI-assisted coding-tool requirements can still use tool evidence'
     cvText,
     toolingJob,
   );
-  expect(await service.analyze('synthetic')).toMatchObject({ score: 100 });
+  expect(await service.analyze(LOCAL_OWNER_ID, 'synthetic')).toMatchObject({
+    score: 100,
+  });
 });
 
 test('provider output outside the allowed CV passages fails explicitly instead of returning zero', async () => {
@@ -275,7 +282,7 @@ test('provider output outside the allowed CV passages fails explicitly instead o
     requirements[0]!.cvQuote = 'Invented Python production experience';
     return JSON.stringify({ requirements });
   });
-  await expect(service.analyze('synthetic')).rejects.toThrow(
+  await expect(service.analyze(LOCAL_OWNER_ID, 'synthetic')).rejects.toThrow(
     /invalid matching output/i,
   );
 });
@@ -309,7 +316,7 @@ test('service returns source-selected quotes and keeps unsupported qualification
     source,
     mixedJob,
   );
-  const result = await service.analyze('synthetic');
+  const result = await service.analyze(LOCAL_OWNER_ID, 'synthetic');
   expect(result.score).toBe(75);
   expect(result.recommendation).toBe('Consider');
   expect(
@@ -340,7 +347,9 @@ test('evidence rejection logs once, never scores, and never writes saved records
   Object.assign(cvs, { upsert: saveCv, save: saveCv, update: saveCv });
   Object.assign(jobs, { save: saveJob, update: saveJob });
   try {
-    await expect(service.analyze('synthetic')).rejects.toMatchObject({
+    await expect(
+      service.analyze(LOCAL_OWNER_ID, 'synthetic'),
+    ).rejects.toMatchObject({
       errorCode: 'CV_MATCH_EVIDENCE_REJECTED',
     });
     expect(score).not.toHaveBeenCalled();
@@ -357,8 +366,12 @@ test('successful match adds an opaque context without changing the assessment; r
   const { service, provider } = setup(async () =>
     JSON.stringify({ requirements: output() }),
   );
-  const first = await service.analyze('synthetic');
-  const snapshot = await service.requireSnapshot('synthetic', first.matchId);
+  const first = await service.analyze(LOCAL_OWNER_ID, 'synthetic');
+  const snapshot = await service.requireSnapshot(
+    LOCAL_OWNER_ID,
+    'synthetic',
+    first.matchId,
+  );
   const { matchId, cvUpdatedAt, jobUpdatedAt, analyzedAt, ...assessment } =
     first;
   expect(matchId).toMatch(/^[0-9a-f-]{36}$/u);
@@ -366,15 +379,15 @@ test('successful match adds an opaque context without changing the assessment; r
   expect(jobUpdatedAt).toEqual(job.updatedAt);
   expect(typeof analyzedAt).toBe('string');
   expect(snapshot.assessment).toEqual(assessment);
-  const second = await service.analyze('synthetic');
+  const second = await service.analyze(LOCAL_OWNER_ID, 'synthetic');
   expect(second.matchId).not.toBe(first.matchId);
   expect(second.score).toBe(first.score);
   expect(second.requirements).toEqual(first.requirements);
   await expect(
-    service.requireSnapshot('synthetic', first.matchId),
+    service.requireSnapshot(LOCAL_OWNER_ID, 'synthetic', first.matchId),
   ).rejects.toThrow(/stale/);
   await expect(
-    service.requireSnapshot('other', second.matchId),
+    service.requireSnapshot(LOCAL_OWNER_ID, 'other', second.matchId),
   ).rejects.toThrow(/stale/);
   expect(provider.generate).toHaveBeenCalledTimes(2);
 });
@@ -383,7 +396,7 @@ test('context retrieval rechecks saved CV and job revisions without inference or
   const { service, provider, cvs, jobs } = setup(async () =>
     JSON.stringify({ requirements: output() }),
   );
-  const result = await service.analyze('synthetic');
+  const result = await service.analyze(LOCAL_OWNER_ID, 'synthetic');
   // Changed CV text is stale; a new timestamp alone is not (identical re-upload).
   cvs.findOne.mockResolvedValueOnce({
     text: `${cvText}\nChanged line.`,
@@ -391,18 +404,18 @@ test('context retrieval rechecks saved CV and job revisions without inference or
     updatedAt: new Date('2026-11-01T00:00:00Z'),
   });
   await expect(
-    service.requireSnapshot('synthetic', result.matchId),
+    service.requireSnapshot(LOCAL_OWNER_ID, 'synthetic', result.matchId),
   ).rejects.toThrow(/stale/);
   jobs.get.mockResolvedValueOnce({
     ...job,
     updatedAt: new Date('2026-11-01T00:00:00Z'),
   });
   await expect(
-    service.requireSnapshot('synthetic', result.matchId),
+    service.requireSnapshot(LOCAL_OWNER_ID, 'synthetic', result.matchId),
   ).rejects.toThrow(/stale/);
   cvs.findOne.mockResolvedValueOnce(null);
   await expect(
-    service.requireSnapshot('synthetic', result.matchId),
+    service.requireSnapshot(LOCAL_OWNER_ID, 'synthetic', result.matchId),
   ).rejects.toThrow(/unavailable/);
   expect(provider.generate).toHaveBeenCalledTimes(1);
   // The repository mock intentionally has no write methods: analyze and lookup
@@ -414,11 +427,12 @@ test('failed reanalysis leaves the previous successful snapshot usable', async (
   const { service, provider } = setup(async () =>
     JSON.stringify({ requirements: output() }),
   );
-  const first = await service.analyze('synthetic');
+  const first = await service.analyze(LOCAL_OWNER_ID, 'synthetic');
   provider.generate.mockRejectedValueOnce(new AiError('TIMEOUT'));
-  await expect(service.analyze('synthetic')).rejects.toThrow();
+  await expect(service.analyze(LOCAL_OWNER_ID, 'synthetic')).rejects.toThrow();
   expect(
-    (await service.requireSnapshot('synthetic', first.matchId)).matchId,
+    (await service.requireSnapshot(LOCAL_OWNER_ID, 'synthetic', first.matchId))
+      .matchId,
   ).toBe(first.matchId);
 });
 
@@ -426,11 +440,11 @@ test('current match read reuses the authoritative analysis without inference and
   const { service, provider, cvs, jobs } = setup(async () =>
     JSON.stringify({ requirements: output() }),
   );
-  expect(await service.currentMatch('synthetic')).toEqual({
+  expect(await service.currentMatch(LOCAL_OWNER_ID, 'synthetic')).toEqual({
     status: 'MISSING',
   });
-  const result = await service.analyze('synthetic');
-  const current = await service.currentMatch('synthetic');
+  const result = await service.analyze(LOCAL_OWNER_ID, 'synthetic');
+  const current = await service.currentMatch(LOCAL_OWNER_ID, 'synthetic');
   expect(current).toMatchObject({
     status: 'VALID',
     result: {
@@ -444,7 +458,7 @@ test('current match read reuses the authoritative analysis without inference and
     ...job,
     updatedAt: new Date('2026-11-01T00:00:00Z'),
   });
-  expect(await service.currentMatch('synthetic')).toEqual({
+  expect(await service.currentMatch(LOCAL_OWNER_ID, 'synthetic')).toEqual({
     status: 'STALE_JOB',
   });
   cvs.findOne.mockResolvedValueOnce({
@@ -452,7 +466,7 @@ test('current match read reuses the authoritative analysis without inference and
     fileName: 'synthetic.pdf',
     updatedAt: new Date('2026-11-01T00:00:00Z'),
   });
-  expect(await service.currentMatch('synthetic')).toEqual({
+  expect(await service.currentMatch(LOCAL_OWNER_ID, 'synthetic')).toEqual({
     status: 'STALE_CV',
   });
   // Byte-identical text under a new timestamp stays valid and is re-bound.
@@ -462,17 +476,19 @@ test('current match read reuses the authoritative analysis without inference and
     fileName: 'synthetic.pdf',
     updatedAt: rebound,
   });
-  expect(await service.currentMatch('synthetic')).toMatchObject({
-    status: 'VALID',
-    result: { matchId: result.matchId, cvUpdatedAt: rebound.toISOString() },
-  });
+  expect(await service.currentMatch(LOCAL_OWNER_ID, 'synthetic')).toMatchObject(
+    {
+      status: 'VALID',
+      result: { matchId: result.matchId, cvUpdatedAt: rebound.toISOString() },
+    },
+  );
   expect(provider.generate).toHaveBeenCalledTimes(1);
   cvs.findOne.mockResolvedValueOnce(null);
-  expect(await service.currentMatch('synthetic')).toEqual({
+  expect(await service.currentMatch(LOCAL_OWNER_ID, 'synthetic')).toEqual({
     status: 'CV_UNAVAILABLE',
   });
   jobs.get.mockRejectedValueOnce(new Error('Job unavailable'));
-  await expect(service.currentMatch('missing')).rejects.toThrow(
+  await expect(service.currentMatch(LOCAL_OWNER_ID, 'missing')).rejects.toThrow(
     'Job unavailable',
   );
   expect(provider.generate).toHaveBeenCalledTimes(1);
@@ -512,7 +528,7 @@ test.each(['skill', 'experience'] as const)(
       cv,
       savedJob,
     );
-    const result = await service.analyze('synthetic');
+    const result = await service.analyze(LOCAL_OWNER_ID, 'synthetic');
     expect(result).toMatchObject({
       score: 100,
       requirements: [
@@ -535,7 +551,9 @@ test.each(['skill', 'experience'] as const)(
         (c) => !('qualification' in c),
       ),
     ).toBe(true);
-    expect(await service.currentMatch('synthetic')).toMatchObject({
+    expect(
+      await service.currentMatch(LOCAL_OWNER_ID, 'synthetic'),
+    ).toMatchObject({
       status: 'VALID',
       result: { matchId: result.matchId, score: 100 },
     });

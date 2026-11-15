@@ -1,3 +1,4 @@
+import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js';
 import 'reflect-metadata';
 import { afterEach, describe, expect, jest, test } from '@jest/globals';
 import type { Repository } from 'typeorm';
@@ -138,6 +139,7 @@ describe('server-side evidence enforcement without schema enums', () => {
 
   test('Gemini gets no enums; an exact passage is still Matched', async () => {
     const result = await setup(recording(answer(kafkaLine))).analyze(
+      LOCAL_OWNER_ID,
       'synthetic',
     );
     expect(enums(schemas[0])).toEqual([]);
@@ -150,7 +152,10 @@ describe('server-side evidence enforcement without schema enums', () => {
   });
 
   test('Ollama keeps its passage enums', async () => {
-    await setup(recording(answer(kafkaLine)), 'ollama').analyze('synthetic');
+    await setup(recording(answer(kafkaLine)), 'ollama').analyze(
+      LOCAL_OWNER_ID,
+      'synthetic',
+    );
     expect(enums(schemas[0])).toHaveLength(2);
   });
 
@@ -163,7 +168,7 @@ describe('server-side evidence enforcement without schema enums', () => {
       recording(answer(quote)),
       'gemini',
       text,
-    ).analyze('synthetic');
+    ).analyze(LOCAL_OWNER_ID, 'synthetic');
     const row = result.requirements.find((r) => r.requirement === 'Kafka')!;
     expect(row.status).not.toBe('EVIDENCED');
     expect(row.cvQuote).not.toBe(quote);
@@ -174,7 +179,10 @@ describe('server-side evidence enforcement without schema enums', () => {
   ])('%s is rejected', async (_, quote) => {
     expect(
       await code(
-        setup(recording(answer(kafkaLine, quote))).analyze('synthetic'),
+        setup(recording(answer(kafkaLine, quote))).analyze(
+          LOCAL_OWNER_ID,
+          'synthetic',
+        ),
       ),
     ).toBe('CV_MATCH_EVIDENCE_REJECTED');
   });
@@ -182,7 +190,7 @@ describe('server-side evidence enforcement without schema enums', () => {
   test('a unique component fragment is widened to its full allowed line', async () => {
     const result = await setup(
       recording(answer(kafkaLine, 'services with Docker')),
-    ).analyze('synthetic');
+    ).analyze(LOCAL_OWNER_ID, 'synthetic');
     const docker = result.requirements
       .find((r) => r.requirement === pairs)!
       .coverage.components.find((c) => c.label === 'Docker');

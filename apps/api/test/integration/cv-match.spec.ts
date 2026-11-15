@@ -1,3 +1,4 @@
+import { asLocalOwner } from '../support/as-local-owner.js';
 import type { GenerationRequest } from '../../src/ai/ai-provider.js';
 import type { MatchRequirement } from '../../src/matching/cv-match.js';
 import { SavedCv1793500000000 } from '../../src/database/migrations/1793500000000-SavedCv.js';
@@ -61,6 +62,7 @@ beforeAll(async () => {
     })
     .compile();
   app = module.createNestApplication();
+  asLocalOwner(app);
   app.setGlobalPrefix('api/v1');
   await app.init();
 });
@@ -359,6 +361,7 @@ test('saved matches persist across restart, survive identical re-upload and go s
         })
         .compile()
     ).createNestApplication();
+    asLocalOwner(restarted);
     restarted.setGlobalPrefix('api/v1');
     await restarted.init();
     try {

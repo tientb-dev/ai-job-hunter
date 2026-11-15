@@ -1,3 +1,4 @@
+import { asLocalOwner } from '../support/as-local-owner.js';
 import 'reflect-metadata';
 import { afterEach, beforeEach, expect, jest, test } from '@jest/globals';
 import { Test } from '@nestjs/testing';
@@ -192,6 +193,7 @@ beforeEach(async () => {
     ],
   }).compile();
   app = module.createNestApplication({ logger: false });
+  asLocalOwner(app);
   service = app.get(AnalysisService);
   matching = app.get(MatchingService);
   configureAnalysisHttp(app);

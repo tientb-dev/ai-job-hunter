@@ -1,3 +1,4 @@
+import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js';
 import 'reflect-metadata';
 import { afterEach, describe, expect, jest, test } from '@jest/globals';
 import type { Repository } from 'typeorm';
@@ -77,7 +78,7 @@ function run(
 }
 async function summary(service: JobMatchService) {
   const write = jest.spyOn(process.stderr, 'write').mockReturnValue(true);
-  await service.analyze('synthetic');
+  await service.analyze(LOCAL_OWNER_ID, 'synthetic');
   const lines = write.mock.calls.map(([line]) => String(line));
   write.mockRestore();
   expect(lines.join('')).not.toMatch(/PRIVATE|Kafka|PostgreSQL|Designed/u);

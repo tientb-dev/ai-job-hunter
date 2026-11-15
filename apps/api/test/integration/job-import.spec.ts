@@ -1,3 +1,4 @@
+import { asLocalOwner } from '../support/as-local-owner.js';
 import {
   docxInput,
   docxEntries,
@@ -70,6 +71,7 @@ beforeAll(async () => {
     .useValue({ generate })
     .compile();
   app = module.createNestApplication();
+  asLocalOwner(app);
   app.setGlobalPrefix('api/v1');
   await app.init();
 });
