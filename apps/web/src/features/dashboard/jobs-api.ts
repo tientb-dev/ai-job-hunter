@@ -70,7 +70,6 @@ export async function loadJobs(signal: AbortSignal): Promise<JobsResponse> {
   const response = await fetch('/api/v1/jobs', {
     signal,
     cache: 'no-store',
-    credentials: 'omit',
     redirect: 'error',
   });
   if (!response.ok) throw Error(tr('Source unavailable'));
@@ -87,7 +86,6 @@ export async function parseJobsCv(
     body: form,
     signal,
     cache: 'no-store',
-    credentials: 'omit',
     redirect: 'error',
   });
   return decodeAnalysis(await response.json(), response.ok);

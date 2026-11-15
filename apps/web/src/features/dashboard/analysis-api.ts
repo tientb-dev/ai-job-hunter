@@ -385,7 +385,6 @@ export async function analyze(
         body,
         signal,
         cache: 'no-store',
-        credentials: 'omit',
         redirect: 'error',
       },
     );
