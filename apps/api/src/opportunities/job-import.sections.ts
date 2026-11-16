@@ -2,6 +2,23 @@ import type { ImportCandidate } from './job-import.contract.js';
 // Section boundaries are part of source evidence, not inferred from job titles.
 const nonSkillHeading =
   /^(?:benefits?|compensation|salary(?: and benefits)?|working hours|office location|insurance benefits|leave|time off|team activities|phúc lợi|quyền lợi(?: được hưởng| ứng viên)?|chế độ đãi ngộ|đãi ngộ|thời gian làm việc|giờ làm việc|địa điểm(?: làm việc)?)(?:\s*[:：].*)?$/iu;
+// An all-caps sub-heading inside a requirements section ("EDUCATION &
+// KNOWLEDGE", "PERSONAL ATTRIBUTES / BEHAVIOR / ATTITUDES") is structure, not a
+// requirement. Only heading vocabulary qualifies, so "AWS, SQL" stays a skill.
+const headingWord =
+  /^(?:education|knowledge|experience|skills?|requirements?|qualifications?|personal|attributes?|behaviou?rs?|attitudes?|competenc(?:y|ies)|responsibilities|must|have|nice|to|preferred|other|technical|soft|professional|and|yêu|cầu|kỹ|năng|kinh|nghiệm|học|vấn|trình|độ|kiến|thức|phẩm|chất|thái)$/iu;
+export function requirementHeading(line: string): boolean {
+  const clean = line
+    .trim()
+    .replace(/^(?:[-•*]\s*|\d+(?:\.\d+)*[.)]?\s+|[IVX]+[.)]\s+)/u, '')
+    .replace(/\s*[:：]$/u, '');
+  const words = clean.split(/[\s&/,+-]+/u).filter(Boolean);
+  return (
+    words.length > 0 &&
+    !/\p{Ll}/u.test(clean) &&
+    words.every((word) => headingWord.test(word))
+  );
+}
 const employmentContent =
   /^(?:(?:mức\s+)?lương|thu nhập|salary|compensation|working hours|work schedule|office (?:address|location)|location\s*:|thời gian làm việc|giờ làm việc|địa điểm(?: làm việc)?|địa chỉ|(?:đóng\s+)?(?:BHXH|BHYT|BHTN|bảo hiểm xã hội|bảo hiểm y tế)|nghỉ phép|nghỉ lễ|paid leave|annual leave|vacation|team building|team activities|du lịch|ngân sách đào tạo|annual learning budget|được đào tạo|hỗ trợ chi phí)/iu;
 const explicitQualification =
@@ -69,6 +86,8 @@ export function requirementLines(text: string): {
         excludedSection = true;
         return [{ line, kind: null, structured, excluded: true }];
       }
+      if (requirementHeading(clean))
+        return [{ line, kind: null, structured, excluded: true }];
       if (nonSkillHeading.test(clean)) {
         section = null;
         structured = false;
