@@ -8,6 +8,14 @@ import {
   importFields,
 } from '../src/features/inbox/opportunities-api';
 import type { ImportPreview } from '../src/features/inbox/opportunities-api';
+
+// The link card is always shown; returning to it closes the open alternative.
+function showLinkImport() {
+  const open = screen
+    .queryAllByRole('button', { pressed: true })
+    .find((button) => /^(Paste JD|Upload JD)/.test(button.textContent ?? ''));
+  if (open) fireEvent.click(open);
+}
 const id = '00000000-0000-4000-8000-123456789012';
 const post = 'Synthetic engineer recruitment post';
 function preview(
@@ -114,7 +122,13 @@ test('paste-first extraction fills editable fields, leaves company optional and 
   await userEvent.click(
     screen.getByRole('button', { name: 'Extract with AI' }),
   );
-  expect(await screen.findByDisplayValue('Synthetic engineer')).toBeVisible();
+  expect(
+    await screen.findByDisplayValue('Synthetic engineer'),
+  ).toBeInTheDocument();
+  // Review opens read-only; each section has its own Edit action.
+  expect(
+    screen.getByRole('button', { name: 'Edit Main details' }),
+  ).toBeVisible();
   expect(screen.getByLabelText('Company')).not.toBeRequired();
   expect(screen.getAllByText(/Missing \/ unknown/).length).toBeGreaterThan(0);
   fireEvent.change(screen.getByLabelText('Location'), {
@@ -655,7 +669,7 @@ test('manual URL survives extraction, save and reopen without fetching the URL',
   );
   mount();
   const url = 'https://www.itviec.com/it-jobs/synthetic-role?utm_source=manual';
-  fireEvent.click(screen.getByRole('button', { name: /Paste job URL/ }));
+  showLinkImport();
   fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
     target: { value: url },
   });
@@ -685,7 +699,7 @@ test('manual URL survives extraction, save and reopen without fetching the URL',
 test('invalid job URL blocks save with actionable feedback and retains inputs', async () => {
   const fetch = mock(preview({}));
   mount();
-  fireEvent.click(screen.getByRole('button', { name: /Paste job URL/ }));
+  showLinkImport();
   fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
     target: { value: 'javascript:alert(1)' },
   });

@@ -66,24 +66,38 @@ test('URL is the recommended method and lists the sources the server enables', a
   vi.mocked(loadLinkSources).mockResolvedValueOnce(['ITviec', 'TopCV']);
   vi.stubGlobal('fetch', vi.fn());
   mount();
-  const card = screen.getByRole('button', { name: /^Paste job URL/ });
-  expect(card).toHaveAttribute('aria-pressed', 'true');
+  // One prominent link card holds the input and the primary Fetch JD action,
+  // above "Other methods"; the bookmark is a collapsed fallback, not a card.
+  const card = screen.getByRole('region', { name: 'Paste job URL' });
   expect(within(card).getByText('Recommended')).toBeVisible();
   expect(
     await within(card).findByText('Supported: ITviec · TopCV'),
   ).toBeVisible();
+  const fetchButton = within(card).getByRole('button', { name: 'Fetch JD' });
+  expect(fetchButton).toHaveClass('MuiButton-contained');
+  const other = screen.getByRole('region', { name: 'Other methods' });
+  expect(
+    card.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  expect(
+    within(other).queryByRole('button', { name: /^Page-import bookmark/ }),
+  ).not.toBeInTheDocument();
+  const fallback = within(other)
+    .getByText("Can't fetch the page? Use the page-import bookmark")
+    .closest('details')!;
+  expect(fallback).not.toHaveAttribute('open');
   // VietnamWorks is off on this server: Fetch stays disabled with guidance.
   fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
     target: {
       value: 'https://www.vietnamworks.com/synthetic-marketing-1-42-jv',
     },
   });
-  expect(screen.getByRole('button', { name: 'Fetch from URL' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Fetch JD' })).toBeDisabled();
   expect(
     screen.getByText(/VietnamWorks link import is turned off/),
   ).toBeVisible();
-  for (const name of [/^Page-import bookmark/, /^Paste JD/, /^Upload JD/])
-    expect(screen.getByRole('button', { name })).toBeEnabled();
+  for (const name of [/^Paste JD/, /^Upload JD/])
+    expect(within(other).getByRole('button', { name })).toBeEnabled();
 });
 
 test('fetch shows a compact summary, then Review groups fields and saves unchanged values', async () => {
@@ -102,7 +116,7 @@ test('fetch shows a compact summary, then Review groups fields and saves unchang
   fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
     target: { value: link },
   });
-  await userEvent.click(screen.getByRole('button', { name: 'Fetch from URL' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Fetch JD' }));
   const summary = await screen.findByRole('region', { name: 'Job summary' });
   expect(within(summary).getByText('Synthetic Brand Manager')).toBeVisible();
   expect(within(summary).getByText('25M–30M VND/month')).toBeVisible();
@@ -112,28 +126,64 @@ test('fetch shows a compact summary, then Review groups fields and saves unchang
   fireEvent.click(
     screen.getByRole('button', { name: 'Continue to Review & Save' }),
   );
-  const review = await screen.findAllByRole('region', { name: 'Job summary' });
-  expect(
-    within(review.at(-1)!).getByText('Three years in marketing'),
-  ).toBeVisible();
+  // Review opens read-only: formatted content, no visible inputs, shown once.
   for (const name of [
     'Main details',
     'Candidate requirements',
     'Job description',
   ])
     expect(screen.getByRole('heading', { name })).toBeVisible();
-  const optional = screen.getByText('Optional details').closest('details')!;
-  expect(optional).not.toHaveAttribute('open');
   expect(
-    within(optional).getByLabelText('Recruitment agency'),
-  ).toBeInTheDocument();
+    screen.queryByRole('region', { name: 'Job summary' }),
+  ).not.toBeInTheDocument();
+  const section = (name: string) =>
+    screen.getByRole('heading', { name }).closest('section')!;
+  expect(
+    within(section('Main details')).getByText('25M–30M VND/month'),
+  ).toBeVisible();
+  expect(
+    within(section('Candidate requirements')).getByText('At least 3 year(s)'),
+  ).toBeVisible();
+  expect(
+    screen.getByText('Three years in marketing', { selector: 'li' }),
+  ).toBeVisible();
+  expect(screen.getByLabelText(/Job title/)).not.toBeVisible();
+  expect(screen.getByLabelText('Salary')).not.toBeVisible();
+  const optional = screen
+    .getByRole('heading', { name: 'Additional details' })
+    .closest('details')!;
+  expect(optional).not.toHaveAttribute('open');
+
+  // Read → edit → read for one section, with focus moving into the inputs.
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Edit Main details' }),
+  );
+  const title = screen.getByLabelText(/Job title/);
+  expect(title).toBeVisible();
+  await waitFor(() => expect(title).toHaveFocus());
   // Stored values are unchanged by display formatting.
   expect(screen.getByLabelText('Salary')).toHaveValue(
     '25000000-30000000 VND per MONTH',
   );
-  fireEvent.change(screen.getByLabelText(/Job title/), {
-    target: { value: 'Edited Brand Manager' },
-  });
+  // Other sections stay read-only.
+  expect(screen.getByLabelText('Experience')).not.toBeVisible();
+  fireEvent.change(title, { target: { value: 'Edited Brand Manager' } });
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Done editing Main details' }),
+  );
+  expect(title).not.toBeVisible();
+  expect(
+    within(section('Main details')).getByText('Edited Brand Manager'),
+  ).toBeVisible();
+  // A missing title forces the section open so validation stays visible.
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Edit Main details' }),
+  );
+  fireEvent.change(title, { target: { value: '' } });
+  expect(
+    screen.getByRole('button', { name: 'Done editing Main details' }),
+  ).toBeDisabled();
+  fireEvent.change(title, { target: { value: 'Edited Brand Manager' } });
   fireEvent.click(screen.getByRole('button', { name: 'Confirm and save job' }));
   await waitFor(() =>
     expect(

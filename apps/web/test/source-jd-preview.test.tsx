@@ -4,6 +4,14 @@ import { MemoryRouter } from 'react-router-dom';
 import { JobEditor } from '../src/features/inbox/JobEditor';
 import { SourceJdPreview } from '../src/features/inbox/SourceJdPreview';
 import * as bridge from '../src/features/inbox/topcv-bookmarklet';
+
+// The link card is always shown; returning to it closes the open alternative.
+function showLinkImport() {
+  const open = screen
+    .queryAllByRole('button', { pressed: true })
+    .find((button) => /^(Paste JD|Upload JD)/.test(button.textContent ?? ''));
+  if (open) fireEvent.click(open);
+}
 const raw =
   'Original source heading\nResponsibilities: system architecture\nRequirements: education, TOEIC 550 / IELTS 5.5\nEnd of full source';
 const preview = {
@@ -36,7 +44,7 @@ test('ITviec preview shows full actual extraction source before AI, survives swi
   fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
     target: { value: preview.originalLink },
   });
-  fireEvent.click(screen.getByRole('button', { name: 'Fetch from URL' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Fetch JD' }));
   const text = await screen.findByLabelText('Source JD text (read-only)');
   expect(text).toHaveValue(raw);
   expect(text).toHaveAttribute('readonly');
@@ -53,7 +61,7 @@ test('ITviec preview shows full actual extraction source before AI, survives swi
   fireEvent.change(screen.getByLabelText('Recruitment post'), {
     target: { value: `${raw}\nManual source correction` },
   });
-  select('Paste job URL');
+  showLinkImport();
   expect(screen.getByLabelText('Source JD text (read-only)')).toHaveValue(
     `${raw}\nManual source correction`,
   );
@@ -110,9 +118,7 @@ test('upload calls existing parse-only endpoint once, shows real parsed text, an
     await screen.findByLabelText('Source JD text (read-only)'),
   ).toHaveValue(raw);
   await waitFor(() =>
-    expect(
-      screen.getByRole('button', { name: /^Paste job URL/ }),
-    ).toBeEnabled(),
+    expect(screen.getByRole('button', { name: /^Paste JD/ })).toBeEnabled(),
   );
   expect(fetch.mock.calls[0]![0]).toBe('/api/v1/opportunities/parse-document');
   expect(fetch.mock.calls[0]![1]!.headers).toMatchObject({
@@ -120,7 +126,7 @@ test('upload calls existing parse-only endpoint once, shows real parsed text, an
   });
   expect(fetch.mock.calls[0]![1]!.body).toBeInstanceOf(Blob);
   select('Paste JD');
-  select('Paste job URL');
+  showLinkImport();
   select('Upload JD');
   expect(
     screen.queryByLabelText('Source JD text (read-only)'),

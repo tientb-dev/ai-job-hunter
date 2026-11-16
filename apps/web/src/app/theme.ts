@@ -103,7 +103,56 @@ export const theme = createTheme({
         outlined: { borderRadius: 8 },
       },
     },
-    MuiOutlinedInput: { styleOverrides: { root: { borderRadius: 6 } } },
+    // Compact form controls everywhere: 40px single-line fields from sm up,
+    // 44px on phones (touch targets). TextField covers selects, dates and
+    // multiline fields; per-page size props are not needed.
+    MuiTextField: { defaultProps: { size: 'small' } },
+    MuiFormControl: { defaultProps: { size: 'small' } },
+    MuiOutlinedInput: {
+      styleOverrides: {
+        root: ({ theme }) => ({
+          borderRadius: 6,
+          backgroundColor: theme.palette.background.paper,
+          '& .MuiOutlinedInput-notchedOutline': { borderColor: '#c9cac3' },
+          '&:hover:not(.Mui-disabled):not(.Mui-error) .MuiOutlinedInput-notchedOutline':
+            { borderColor: theme.palette.text.secondary },
+          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderWidth: 2 },
+          // 9.25px padding + 15px text = 40px; 11.25px = 44px on phones.
+          '&.MuiInputBase-sizeSmall:not(.MuiInputBase-multiline) .MuiOutlinedInput-input':
+            {
+              paddingTop: 9.25,
+              paddingBottom: 9.25,
+              [theme.breakpoints.down('sm')]: {
+                paddingTop: 11.25,
+                paddingBottom: 11.25,
+              },
+            },
+        }),
+      },
+    },
+    // Labels keep MUI's 1rem size so the shrunk label stays 12px.
+    MuiInputLabel: {
+      styleOverrides: {
+        sizeSmall: ({ theme }) => ({
+          [theme.breakpoints.down('sm')]: {
+            '&:not(.MuiInputLabel-shrink)': {
+              transform: 'translate(14px, 11px) scale(1)',
+            },
+          },
+        }),
+      },
+    },
+    MuiFormHelperText: {
+      styleOverrides: {
+        root: {
+          marginTop: 4,
+          marginLeft: 2,
+          marginRight: 2,
+          fontSize: '0.8125rem',
+          lineHeight: 1.45,
+        },
+      },
+    },
     MuiChip: {
       styleOverrides: {
         root: ({ theme }) => ({

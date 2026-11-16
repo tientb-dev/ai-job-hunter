@@ -13,6 +13,14 @@ import {
   importFields,
 } from '../src/features/inbox/opportunities-api';
 import * as bridge from '../src/features/inbox/topcv-bookmarklet';
+
+// The link card is always shown; returning to it closes the open alternative.
+function showLinkImport() {
+  const open = screen
+    .queryAllByRole('button', { pressed: true })
+    .find((button) => /^(Paste JD|Upload JD)/.test(button.textContent ?? ''));
+  if (open) fireEvent.click(open);
+}
 vi.mock('../src/features/inbox/CvMatchPanel', () => ({
   CvMatchPanel: () => <span>Synthetic match panel</span>,
 }));
@@ -82,7 +90,7 @@ function mount(path = '/jobs/new') {
   );
 }
 
-test('four method cards are keyboard buttons with selected states and no radio/dropdown replacement', async () => {
+test('alternative method cards are keyboard buttons with selected states and no radio/dropdown replacement', async () => {
   function Harness() {
     const [value, setValue] = useState<ImportMethod>('url');
     return (
@@ -97,20 +105,19 @@ test('four method cards are keyboard buttons with selected states and no radio/d
   render(<Harness />);
   const buttons = screen.getAllByRole('button');
   expect(buttons.map((button) => button.textContent)).toEqual([
-    'Paste job URLRecommendedSupported: ITviec',
-    'Page-import bookmarkTopCV · VietnamWorks',
     'Paste JDRecruiter post or text',
     'Upload JDPDF · DOCX',
   ]);
-  expect(buttons[0]).toHaveAttribute('aria-pressed', 'true');
+  // Link import is the default, so no alternative starts selected.
+  for (const button of buttons)
+    expect(button).toHaveAttribute('aria-pressed', 'false');
   const user = userEvent.setup();
   await user.tab();
-  await user.tab();
   await user.keyboard('{Enter}');
-  expect(buttons[1]).toHaveAttribute('aria-pressed', 'true');
+  expect(buttons[0]).toHaveAttribute('aria-pressed', 'true');
   await user.tab();
   await user.keyboard(' ');
-  expect(buttons[2]).toHaveAttribute('aria-pressed', 'true');
+  expect(buttons[1]).toHaveAttribute('aria-pressed', 'true');
   expect(buttons[0]).toHaveAttribute('aria-pressed', 'false');
   expect(screen.queryByRole('radio')).not.toBeInTheDocument();
   expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
@@ -119,23 +126,24 @@ test('four method cards are keyboard buttons with selected states and no radio/d
 test('one contextual panel retains text but clears the document when leaving Upload JD without fetching on selection', async () => {
   const fetch = api();
   mount();
+  expect(screen.getByRole('heading', { name: 'Paste job URL' })).toBeVisible();
+  const linkCard = screen.getByRole('region', { name: 'Paste job URL' });
   expect(
-    screen.getByRole('heading', {
-      name: 'How would you like to add this job?',
-    }),
+    within(linkCard).getByLabelText('Original Job URL (optional)'),
   ).toBeVisible();
-  const panel = screen.getByRole('region', { name: 'Import method input' });
   expect(
-    within(panel).getByLabelText('Original Job URL (optional)'),
-  ).toBeVisible();
+    within(linkCard).getByRole('button', { name: 'Fetch JD' }),
+  ).toBeInTheDocument();
   expect(screen.queryByLabelText('Recruitment post')).not.toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
     target: { value: sourceUrl },
   });
   select('Paste JD');
+  // The recommended link card stays above the alternatives.
+  expect(screen.getByLabelText('Original Job URL (optional)')).toBeVisible();
   expect(
-    screen.queryByLabelText('Original Job URL (optional)'),
-  ).not.toBeInTheDocument();
+    screen.getByRole('region', { name: 'Import method input' }),
+  ).toContainElement(screen.getByLabelText('Recruitment post'));
   fireEvent.change(screen.getByLabelText('Recruitment post'), {
     target: { value: 'Preserved recruiter post' },
   });
@@ -151,7 +159,7 @@ test('one contextual panel retains text but clears the document when leaving Upl
       screen.getByRole('button', { name: 'Extract with AI' }),
     ).toBeEnabled(),
   );
-  select('Paste job URL');
+  showLinkImport();
   expect(screen.getByLabelText('Original Job URL (optional)')).toHaveValue(
     sourceUrl,
   );
@@ -183,14 +191,14 @@ test('ITviec fetch loads once without AI, extraction remains explicit, and manua
   fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
     target: { value: sourceUrl },
   });
-  fireEvent.click(screen.getByRole('button', { name: 'Fetch from URL' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Fetch JD' }));
   expect(await screen.findByText(/JD loaded from ITviec/)).toBeVisible();
   expect(fetch).toHaveBeenCalledTimes(1);
   select('Paste JD');
   expect(screen.getByLabelText('Recruitment post')).toHaveValue(
     preview.sourceText,
   );
-  select('Paste job URL');
+  showLinkImport();
   fireEvent.click(
     screen.getByRole('button', { name: 'Continue to Review & Save' }),
   );
@@ -201,7 +209,7 @@ test('ITviec fetch loads once without AI, extraction remains explicit, and manua
     screen.getByRole('button', { name: 'Back to Import sources' }),
   );
   select('Paste JD');
-  select('Paste job URL');
+  showLinkImport();
   fireEvent.click(screen.getByRole('button', { name: 'Extract with AI' }));
   await screen.findByRole('button', { name: 'Confirm and save job' });
   expect(screen.getByLabelText(/Job title/)).toHaveValue('My reviewed title');
@@ -234,15 +242,14 @@ test('validated bookmark transfer selects Bookmarklet and keeps the original URL
   );
   act(() => receive(payload));
   expect(await screen.findByText(/JD loaded from TopCV/)).toBeVisible();
-  expect(
-    screen.getByRole('button', { name: /^Page-import bookmark/ }),
-  ).toHaveAttribute('aria-pressed', 'true');
+  // The bookmark result lands in the recommended link card's summary.
+  expect(screen.getByRole('region', { name: 'Job summary' })).toBeVisible();
   expect(screen.getByRole('button', { name: 'Extract with AI' })).toBeEnabled();
   select('Paste JD');
   expect(screen.getByLabelText('Recruitment post')).toHaveValue(
     preview.sourceText,
   );
-  select('Paste job URL');
+  showLinkImport();
   expect(screen.getByLabelText('Original Job URL (optional)')).toHaveValue(
     payload.sourceUrl,
   );

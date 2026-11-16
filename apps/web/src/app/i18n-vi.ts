@@ -528,6 +528,21 @@ export const VI_TEXT: Record<string, string> = {
     'Hiện chưa có nhận xét. Văn bản của bạn được giữ — hãy thử lại.',
   'Feedback on your transcript': 'Nhận xét về bản ghi lời nói',
   'Fetch from URL': 'Tải từ URL',
+  'Fetch JD': 'Tải JD',
+  'Other methods': 'Cách khác',
+  "Can't fetch the page? Use the page-import bookmark":
+    'Không tải được trang? Dùng bookmark nhập trang',
+  'Paste a single job posting link, then select Fetch JD. You review the JD before saving.':
+    'Dán link của một tin tuyển dụng rồi chọn Tải JD. Bạn sẽ xem lại JD trước khi lưu.',
+  'Additional details': 'Thông tin bổ sung',
+  'Done editing {section}': 'Sửa xong {section}',
+  'Edit {section}': 'Sửa {section}',
+  'Show full description': 'Xem toàn bộ mô tả',
+  'No requirements found. Use Edit to add them.':
+    'Chưa tìm thấy yêu cầu. Chọn Sửa để thêm.',
+  'No job description yet. Use Edit to add it.':
+    'Chưa có mô tả công việc. Chọn Sửa để thêm.',
+  'Nothing added.': 'Chưa có thông tin.',
   'Main details': 'Thông tin chính',
   '/month': '/tháng',
   '/year': '/năm',
@@ -543,12 +558,9 @@ export const VI_TEXT: Record<string, string> = {
   'Paste job URL': 'Dán link việc làm',
   'Page-import bookmark': 'Bookmark nhập trang',
   'Supported: {sources}': 'Hỗ trợ: {sources}',
-  'Paste a job link from {sources}, then click Fetch from URL. You review the JD before saving.':
-    'Dán link tin tuyển dụng từ {sources} rồi bấm Tải từ URL. Bạn sẽ xem lại JD trước khi lưu.',
   'Use the link of a single job posting on {sources}. If it cannot be loaded, use the page-import bookmark or paste the JD.':
     'Hãy dùng link của một tin tuyển dụng trên {sources}. Nếu không tải được, hãy dùng bookmark nhập trang hoặc dán JD.',
   'Candidate requirements': 'Yêu cầu ứng viên',
-  'Optional details': 'Thông tin bổ sung (không bắt buộc)',
   'Add the JD first: fetch a job link, paste the post, use the page-import bookmark or upload a document.':
     'Hãy thêm JD trước: tải từ link việc làm, dán tin tuyển dụng, dùng bookmark nhập trang hoặc tải tài liệu lên.',
   '{platform} link import is turned off on this server. Use the page-import bookmark or paste the JD.':

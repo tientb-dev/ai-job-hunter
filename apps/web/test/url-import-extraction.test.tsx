@@ -7,6 +7,14 @@ import {
   importFields,
   type ImportPreview,
 } from '../src/features/inbox/opportunities-api';
+
+// The link card is always shown; returning to it closes the open alternative.
+function showLinkImport() {
+  const open = screen
+    .queryAllByRole('button', { pressed: true })
+    .find((button) => /^(Paste JD|Upload JD)/.test(button.textContent ?? ''));
+  if (open) fireEvent.click(open);
+}
 const title = 'Java Backend Developer Java 17+, Spring Boot, English';
 const location = 'Anna Building, QTSC, Quận 12, Hồ Chí Minh, VN';
 const link = 'https://itviec.com/it-jobs/synthetic-bbv';
@@ -85,14 +93,16 @@ function setup(conflict = false, missing = false) {
 function pasteSource() {
   const back = screen.queryByRole('button', { name: 'Back to Import sources' });
   if (back) fireEvent.click(back);
-  fireEvent.click(screen.getByRole('button', { name: /Paste JD/ }));
+  // Cards toggle; only open Paste JD when it is not already open.
+  const paste = screen.getByRole('button', { name: /Paste JD/ });
+  if (paste.getAttribute('aria-pressed') !== 'true') fireEvent.click(paste);
 }
 async function fetchJob() {
-  fireEvent.click(screen.getByRole('button', { name: /Paste job URL/ }));
+  showLinkImport();
   fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
     target: { value: link },
   });
-  await userEvent.click(screen.getByRole('button', { name: 'Fetch from URL' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Fetch JD' }));
   await screen.findByDisplayValue(title);
 }
 async function extract() {

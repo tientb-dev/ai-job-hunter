@@ -12,6 +12,14 @@ import {
   canFetchJobUrl,
   type UrlJobPreview,
 } from '../src/features/inbox/job-url-import';
+
+// The link card is always shown; returning to it closes the open alternative.
+function showLinkImport() {
+  const open = screen
+    .queryAllByRole('button', { pressed: true })
+    .find((button) => /^(Paste JD|Upload JD)/.test(button.textContent ?? ''));
+  if (open) fireEvent.click(open);
+}
 const preview: UrlJobPreview = {
   title: 'Synthetic backend engineer',
   company: 'Synthetic company',
@@ -72,7 +80,7 @@ test('fetch enables only for single-job URLs on supported sites, never on paste'
       <JobEditor />
     </MemoryRouter>,
   );
-  const button = screen.getByRole('button', { name: 'Fetch from URL' });
+  const button = screen.getByRole('button', { name: 'Fetch JD' });
   expect(button).toBeDisabled();
   fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
     target: { value: 'https://itviec.com/it-jobs/synthetic' },
@@ -143,7 +151,7 @@ test('click imports fixture content into review, preserves edits, warns about ex
   fireEvent.change(screen.getByLabelText('Recruiter / contact notes'), {
     target: { value: 'My contact' },
   });
-  await userEvent.click(screen.getByRole('button', { name: 'Fetch from URL' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Fetch JD' }));
   expect(await screen.findByText(/This listing is expired/)).toBeVisible();
   expect(screen.getByLabelText(/Job title/)).toHaveValue('My edited title');
   expect(screen.getByLabelText('Company')).toHaveValue(result.company);
@@ -199,8 +207,8 @@ test('busy fetch prevents overlap and blocked response preserves manual inputs',
   fireEvent.change(screen.getByLabelText('Recruitment post'), {
     target: { value: 'Original post' },
   });
-  fireEvent.click(screen.getByRole('button', { name: /Paste job URL/ }));
-  const button = screen.getByRole('button', { name: 'Fetch from URL' });
+  showLinkImport();
+  const button = screen.getByRole('button', { name: 'Fetch JD' });
   await userEvent.click(button);
   expect(button).toBeDisabled();
   fireEvent.click(button);
@@ -216,8 +224,8 @@ test('busy fetch prevents overlap and blocked response preserves manual inputs',
   expect(screen.getByLabelText('Recruitment post')).toHaveValue(
     'Original post',
   );
-  fireEvent.click(screen.getByRole('button', { name: /Paste job URL/ }));
-  expect(screen.getByRole('button', { name: 'Fetch from URL' })).toBeEnabled();
+  showLinkImport();
+  expect(screen.getByRole('button', { name: 'Fetch JD' })).toBeEnabled();
 });
 
 test('repeat preview replaces tracked source without duplication; replacement preserves manual fields and separate text', () => {
@@ -286,13 +294,9 @@ test('failed fetch retains draft and retry is idempotent; different URL requires
   );
   const url = screen.getByLabelText('Original Job URL (optional)');
   const run = async () => {
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Fetch from URL' }),
-    );
+    await userEvent.click(screen.getByRole('button', { name: 'Fetch JD' }));
     await waitFor(() =>
-      expect(
-        screen.getByRole('button', { name: 'Fetch from URL' }),
-      ).toBeEnabled(),
+      expect(screen.getByRole('button', { name: 'Fetch JD' })).toBeEnabled(),
     );
   };
   fireEvent.change(url, { target: { value: first.originalLink } });
@@ -341,9 +345,7 @@ test.each(['method', 'url'])(
     fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
       target: { value: 'https://itviec.com/it-jobs/a' },
     });
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Fetch from URL' }),
-    );
+    await userEvent.click(screen.getByRole('button', { name: 'Fetch JD' }));
     if (target === 'method') {
       expect(screen.getByRole('button', { name: /Paste JD/ })).toBeEnabled();
       await userEvent.click(screen.getByRole('button', { name: /Paste JD/ }));
@@ -387,7 +389,7 @@ test('successful pending fetch preserves edits made after the request began', as
   fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
     target: { value: originalLink },
   });
-  await userEvent.click(screen.getByRole('button', { name: 'Fetch from URL' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Fetch JD' }));
   fireEvent.change(screen.getByLabelText(/Job title/), {
     target: { value: 'Title edited while fetching' },
   });
@@ -476,7 +478,7 @@ test('a source turned off on the server shows localised bookmark/paste guidance 
   fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
     target: { value: link },
   });
-  await userEvent.click(screen.getByRole('button', { name: 'Fetch from URL' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Fetch JD' }));
   expect(
     (await screen.findAllByText(/TopCV link import is turned off/))[0],
   ).toBeVisible();

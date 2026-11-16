@@ -261,8 +261,7 @@ test('manual creation validates title and keeps fields after save failure', asyn
     'aria-hidden',
     'true',
   );
-  // Continue requires JD content (PR87).
-  fireEvent.click(screen.getByRole('button', { name: /Paste JD/ }));
+  // Continue requires JD content (PR87); mount() already opened Paste JD.
   fireEvent.change(screen.getByLabelText('Recruitment post'), {
     target: { value: 'Synthetic JD' },
   });
@@ -440,6 +439,9 @@ test('review actions occupy a separate row below the language fields', async () 
   expect(actions).toContainElement(save);
   expect(actions).not.toContainElement(
     screen.getByLabelText('Required language requirements'),
+  );
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Edit Candidate requirements' }),
   );
   expect(screen.getByLabelText('Required language requirements')).toBeVisible();
   expect(

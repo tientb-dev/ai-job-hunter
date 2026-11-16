@@ -1,3 +1,4 @@
+import { HOSTED } from '../../app/hosted';
 import { dateLocale, tr } from '../../app/i18n';
 import { DuplicateJobNotice } from './DuplicateJobNotice';
 import {
@@ -6,6 +7,7 @@ import {
   AutoAwesomeIcon,
   DeleteIcon,
   DownloadIcon,
+  CheckIcon,
   EditIcon,
   SaveIcon,
 } from '../../components/icons';
@@ -13,7 +15,8 @@ import { StatusChip } from '../../components/StatusChip';
 import { useNotify } from '../../components/useNotify';
 import { JobInterviewTab } from './JobInterviewTab';
 import { SourceJdPreview } from './SourceJdPreview';
-import { JobSummary } from './JobSummary';
+import { JobSummary, SectionReadView } from './JobSummary';
+import { displaySalary } from './job-display';
 import { loadLinkSources } from './link-sources';
 import { ImportMethodCards, type ImportMethod } from './ImportMethodCards';
 import { JobActionLayout } from './JobActionLayout';
@@ -113,7 +116,7 @@ const FIELD_GROUPS: {
   { key: 'description', title: () => tr('Job description'), fields: [] },
   {
     key: 'optional',
-    title: () => tr('Optional details'),
+    title: () => tr('Additional details'),
     fields: ['agency', 'contactNotes', 'domain'],
   },
 ];
@@ -239,8 +242,27 @@ export function JobEditor() {
     stepper.current?.scrollIntoView?.({ block: 'start' });
   }, [step]);
   const [importMethod, setImportMethod] = useState<ImportMethod>('url');
+  // Review & Save sections the user explicitly opened (true) or finished (false).
+  const [sectionModes, setSectionModes] = useState<
+    ReadonlyMap<string, boolean>
+  >(() => new Map());
+  const toggleSection = (key: string, open: boolean) => {
+    setSectionModes((current) => new Map(current).set(key, open));
+    // Move focus into the inputs on Edit, and back to the toggle on Done.
+    requestAnimationFrame(() => {
+      const section = document.querySelector(`[data-review-section="${key}"]`);
+      const target = open
+        ? section?.querySelector<HTMLElement>(
+            '[data-section-inputs] input:not([type=hidden]), [data-section-inputs] textarea',
+          )
+        : section?.querySelector<HTMLElement>('[data-section-toggle]');
+      target?.focus();
+    });
+  };
   // Link sources the server fetches; ITviec is always on, others are flag-gated.
-  const [linkSources, setLinkSources] = useState<string[]>(['ITviec']);
+  // null until the server answers; nothing is treated as "off" before then.
+  const [loadedSources, setLinkSources] = useState<string[] | null>(null);
+  const linkSources = loadedSources ?? ['ITviec'];
   useEffect(() => {
     if (id) return;
     let active = true;
@@ -983,53 +1005,75 @@ export function JobEditor() {
   const linkOff =
     canFetchJobUrl(form.originalLink) &&
     !!linkPlatform &&
-    !linkSources.includes(linkPlatform);
+    !!loadedSources &&
+    !loadedSources.includes(linkPlatform);
   const fetchedSummary = fetchedJob.current &&
     form.postText.includes(fetchedJob.current.sourceText) && (
       <JobSummary form={form} platform={fetchedJob.current.platform} />
     );
+  const switchMethod = (method: ImportMethod) => {
+    if (method === importMethod) return;
+    sourceGeneration.current++;
+    urlFetchRunning.current = false;
+    setBusy(false);
+    parseGeneration.current++;
+    parseRequest.current?.abort();
+    setParsing(false);
+    if (importMethod === 'upload') {
+      setSourceErrors((errors) => ({ ...errors, upload: '' }));
+      setFile(undefined);
+      setJdText('');
+      sourcesChanged();
+    }
+    setError('');
+    setNotice('');
+    setImportMethod(method);
+  };
   const importSources = (
     <Box hidden={!id && step !== 0}>
-      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
-        <Stack spacing={2}>
-          {!id && (
-            <Typography variant="h6" component="h2">
-              {tr('How would you like to add this job?')}
-            </Typography>
-          )}
-          <ImportMethodCards
-            value={importMethod}
-            onChange={(method) => {
-              if (method === importMethod) return;
-              sourceGeneration.current++;
-              urlFetchRunning.current = false;
-              setBusy(false);
-              parseGeneration.current++;
-              parseRequest.current?.abort();
-              setParsing(false);
-              if (importMethod === 'upload') {
-                setSourceErrors((errors) => ({ ...errors, upload: '' }));
-                setFile(undefined);
-                setJdText('');
-                sourcesChanged();
-              }
-              setError('');
-              setNotice('');
-              setImportMethod(method);
-            }}
-            panelId="job-import-panel"
-            linkSources={linkSources}
-            disabled={extracting || loadFailed || saving.current}
-          />
-          <Box
-            id="job-import-panel"
-            role="region"
-            aria-label={tr('Import method input')}
-            sx={{ minWidth: 0 }}
-          >
-            {importMethod === 'url' && (
-              <Stack spacing={1.5}>
+      <Stack spacing={3}>
+        {/* Recommended path: one prominent card with the link input and its action. */}
+        <Paper
+          variant="outlined"
+          component="section"
+          aria-labelledby="url-import-title"
+          sx={{
+            p: { xs: 2, sm: 3 },
+            borderColor: 'primary.main',
+            borderWidth: 2,
+          }}
+        >
+          <Stack spacing={1.5}>
+            <Box>
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 0.5 }}
+              >
+                <Typography id="url-import-title" variant="h6" component="h2">
+                  {tr('Paste job URL')}
+                </Typography>
+                <Chip
+                  size="small"
+                  color="primary"
+                  variant="outlined"
+                  label={tr('Recommended')}
+                />
+              </Stack>
+              <Typography variant="body2" color="text.secondary">
+                {tr('Supported: {sources}', {
+                  sources: linkSources.join(' · '),
+                })}
+              </Typography>
+            </Box>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1}
+              sx={{ alignItems: { xs: 'stretch', sm: 'flex-start' } }}
+            >
+              <Box sx={{ flex: 1, minWidth: 0 }}>
                 <TextField
+                  fullWidth
                   label={tr('Original Job URL (optional)')}
                   type="url"
                   value={form.originalLink}
@@ -1048,138 +1092,203 @@ export function JobEditor() {
                         })
                   }
                 />
-                <Button
-                  startIcon={<DownloadIcon />}
-                  variant="outlined"
-                  sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
-                  disabled={
-                    disabled || !canFetchJobUrl(form.originalLink) || linkOff
-                  }
-                  onClick={() => void fetchFromUrl()}
-                  aria-describedby="url-import-help"
-                >
-                  {urlFetchRunning.current
-                    ? tr('Fetching JD…')
-                    : tr('Fetch from URL')}
-                </Button>
-                <Typography
-                  id="url-import-help"
-                  variant="body2"
-                  color="text.secondary"
-                >
-                  {linkOff
-                    ? urlImportError(
-                        `${linkPlatform} link import is turned off`,
-                      )
-                    : !form.originalLink || canFetchJobUrl(form.originalLink)
-                      ? tr(
-                          'Paste a job link from {sources}, then click Fetch from URL. You review the JD before saving.',
-                          { sources: linkSources.join(', ') },
-                        )
-                      : urlImportHelp(linkSources)}
-                </Typography>
+              </Box>
+              <Button
+                startIcon={<DownloadIcon />}
+                variant="contained"
+                // Match the 40px outlined input from sm up (44px stacked on phones).
+                sx={{ minHeight: { sm: 40 }, flexShrink: 0 }}
+                disabled={
+                  disabled || !canFetchJobUrl(form.originalLink) || linkOff
+                }
+                onClick={() => {
+                  if (importMethod !== 'url' && importMethod !== 'bookmarklet')
+                    switchMethod('url');
+                  void fetchFromUrl();
+                }}
+                aria-describedby="url-import-help"
+              >
+                {urlFetchRunning.current ? tr('Fetching JD…') : tr('Fetch JD')}
+              </Button>
+            </Stack>
+            <Typography
+              id="url-import-help"
+              variant="body2"
+              color="text.secondary"
+            >
+              {linkOff
+                ? urlImportError(`${linkPlatform} link import is turned off`)
+                : !form.originalLink || canFetchJobUrl(form.originalLink)
+                  ? tr(
+                      'Paste a single job posting link, then select Fetch JD. You review the JD before saving.',
+                      { sources: linkSources.join(', ') },
+                    )
+                  : urlImportHelp(linkSources)}
+            </Typography>
+            {(importMethod === 'url' || importMethod === 'bookmarklet') && (
+              <>
                 {fetchedSummary}
-              </Stack>
-            )}
-            {importMethod === 'bookmarklet' && (
-              <Stack spacing={1.5}>
-                <TopcvBookmarkletInstall />
-                {fetchedSummary}
-              </Stack>
-            )}
-            {importMethod === 'paste' && (
-              <Stack spacing={1.5}>
-                <TextField
-                  label={tr('Recruitment post')}
-                  multiline
-                  minRows={4}
-                  maxRows={12}
-                  value={form.postText}
-                  onChange={(e) => {
-                    change('postText', e.target.value);
-                    sourcesChanged();
-                  }}
-                  slotProps={{ htmlInput: { maxLength: 12000 } }}
-                  helperText={tr(
-                    'Paste the entire post, including contact details and links. Up to 12,000 characters. The original text is preserved when saved.',
-                  )}
-                />
-              </Stack>
-            )}
-            {importMethod === 'upload' && (
-              <Stack spacing={1.5}>
-                <Box>
-                  <Typography component="label" htmlFor="jd-document">
-                    {tr('Upload JD document (PDF or DOCX)')}
-                  </Typography>
-                  <input
-                    id="jd-document"
-                    type="file"
-                    accept=".pdf,.docx"
-                    disabled={disabled}
-                    onChange={(e) => {
-                      const selected = e.target.files?.[0];
-                      if (selected) void attach(selected);
-                      e.target.value = '';
-                    }}
-                  />
-                  {file && (
-                    <Stack direction="row" spacing={1}>
-                      <Typography>{file.name}</Typography>
-                      <Button
-                        startIcon={<DeleteIcon />}
-                        variant="outlined"
-                        type="button"
-                        onClick={() => {
-                          parseGeneration.current++;
-                          parseRequest.current?.abort();
-                          setSourceErrors((errors) => ({
-                            ...errors,
-                            upload: '',
-                          }));
-                          setFile(undefined);
-                          setJdText('');
-                          sourcesChanged();
-                        }}
-                      >
-                        {tr('Remove selected document')}
-                      </Button>
-                    </Stack>
-                  )}
-                </Box>
-                <Typography variant="body2" color="text.secondary">
-                  {tr(
-                    'Optional PDF/DOCX up to 5 MiB and 20 PDF pages. Original document is preserved on save. Scans/OCR, images and legacy DOC are unsupported; paste text instead.',
-                  )}
-                </Typography>
-              </Stack>
-            )}
-          </Box>
-          {importMethod !== 'paste' && (
-            <SourceJdPreview
-              text={importMethod === 'upload' ? jdText : form.postText}
-              source={
-                importMethod === 'upload'
-                  ? `Document${file?.name ? ` · ${file.name}` : ''}`
-                  : (fetchedJob.current?.platform ??
+                <SourceJdPreview
+                  text={form.postText}
+                  source={
+                    fetchedJob.current?.platform ??
                     jobUrlInfo(form.originalLink).platform ??
                     (importMethod === 'bookmarklet'
                       ? tr('Page-import bookmark')
-                      : tr('Job URL')))
+                      : tr('Job URL'))
+                  }
+                  loading={urlFetchRunning.current}
+                  error={
+                    sourceErrors[importMethod] &&
+                    sourceErrors[importMethod] === error
+                      ? tr(
+                          'Loading this source failed. See the request error above, or use Paste JD.',
+                        )
+                      : sourceErrors[importMethod]
+                  }
+                />
+              </>
+            )}
+          </Stack>
+        </Paper>
+        <Paper
+          variant="outlined"
+          component="section"
+          aria-labelledby="other-methods-title"
+          sx={{ p: { xs: 2, sm: 3 } }}
+        >
+          <Stack spacing={2}>
+            <Typography
+              id="other-methods-title"
+              variant="subtitle1"
+              component="h2"
+              sx={{ fontWeight: 600 }}
+            >
+              {tr('Other methods')}
+            </Typography>
+            <ImportMethodCards
+              value={importMethod}
+              // Selecting the open method again closes it and returns to the link card.
+              onChange={(method) =>
+                switchMethod(method === importMethod ? 'url' : method)
               }
-              loading={
-                importMethod === 'upload' ? parsing : urlFetchRunning.current
-              }
-              error={
-                sourceErrors[importMethod] &&
-                sourceErrors[importMethod] === error
-                  ? tr(
-                      'Loading this source failed. See the request error above, or use Paste JD.',
-                    )
-                  : sourceErrors[importMethod]
-              }
+              panelId="job-import-panel"
+              disabled={extracting || loadFailed || saving.current}
             />
-          )}
+            {(importMethod === 'paste' || importMethod === 'upload') && (
+              <Box
+                id="job-import-panel"
+                role="region"
+                aria-label={tr('Import method input')}
+                sx={{ minWidth: 0 }}
+              >
+                {importMethod === 'paste' && (
+                  <Stack spacing={1.5}>
+                    <TextField
+                      label={tr('Recruitment post')}
+                      multiline
+                      minRows={4}
+                      maxRows={12}
+                      value={form.postText}
+                      onChange={(e) => {
+                        change('postText', e.target.value);
+                        sourcesChanged();
+                      }}
+                      slotProps={{ htmlInput: { maxLength: 12000 } }}
+                      helperText={tr(
+                        'Paste the entire post, including contact details and links. Up to 12,000 characters. The original text is preserved when saved.',
+                      )}
+                    />
+                  </Stack>
+                )}
+                {importMethod === 'upload' && (
+                  <Stack spacing={1.5}>
+                    <Box>
+                      <Typography component="label" htmlFor="jd-document">
+                        {tr('Upload JD document (PDF or DOCX)')}
+                      </Typography>
+                      <input
+                        id="jd-document"
+                        type="file"
+                        accept=".pdf,.docx"
+                        disabled={disabled}
+                        onChange={(e) => {
+                          const selected = e.target.files?.[0];
+                          if (selected) void attach(selected);
+                          e.target.value = '';
+                        }}
+                      />
+                      {file && (
+                        <Stack direction="row" spacing={1}>
+                          <Typography>{file.name}</Typography>
+                          <Button
+                            startIcon={<DeleteIcon />}
+                            variant="outlined"
+                            type="button"
+                            onClick={() => {
+                              parseGeneration.current++;
+                              parseRequest.current?.abort();
+                              setSourceErrors((errors) => ({
+                                ...errors,
+                                upload: '',
+                              }));
+                              setFile(undefined);
+                              setJdText('');
+                              sourcesChanged();
+                            }}
+                          >
+                            {tr('Remove selected document')}
+                          </Button>
+                        </Stack>
+                      )}
+                    </Box>
+                    <Typography variant="body2" color="text.secondary">
+                      {tr(
+                        'Optional PDF/DOCX up to 5 MiB and 20 PDF pages. Original document is preserved on save. Scans/OCR, images and legacy DOC are unsupported; paste text instead.',
+                      )}
+                    </Typography>
+                    <SourceJdPreview
+                      text={jdText}
+                      source={`Document${file?.name ? ` · ${file.name}` : ''}`}
+                      loading={parsing}
+                      error={
+                        sourceErrors[importMethod] &&
+                        sourceErrors[importMethod] === error
+                          ? tr(
+                              'Loading this source failed. See the request error above, or use Paste JD.',
+                            )
+                          : sourceErrors[importMethod]
+                      }
+                    />
+                  </Stack>
+                )}
+              </Box>
+            )}
+            {!HOSTED && (
+              <Box
+                component="details"
+                sx={{
+                  borderTop: 1,
+                  borderColor: 'divider',
+                  pt: 1.5,
+                  '& > summary': { cursor: 'pointer' },
+                }}
+              >
+                <Typography
+                  component="summary"
+                  variant="body2"
+                  color="text.secondary"
+                >
+                  {tr("Can't fetch the page? Use the page-import bookmark")}
+                </Typography>
+                <Box sx={{ mt: 1.5 }}>
+                  <TopcvBookmarkletInstall />
+                </Box>
+              </Box>
+            )}
+          </Stack>
+        </Paper>
+        <Stack spacing={2}>
           <TextField
             select
             label={tr('Source')}
@@ -1228,7 +1337,7 @@ export function JobEditor() {
           )}
           {notice && <Alert severity="info">{notice}</Alert>}
         </Stack>
-      </Paper>
+      </Stack>
       {!id && (
         <Button
           endIcon={<ArrowForwardIcon />}
@@ -1405,7 +1514,12 @@ export function JobEditor() {
                 sx={{ flexWrap: 'wrap', alignItems: 'center', mt: 0.5 }}
               >
                 {form.status && <StatusChip status={form.status} />}
-                {[form.seniority, form.workMode, form.salary]
+                {[
+                  form.seniority,
+                  form.workMode,
+                  // Display only; the stored salary text is unchanged.
+                  form.salary && displaySalary(form.salary),
+                ]
                   .filter(
                     (value) => value.trim() && !/^unknown\b/iu.test(value),
                   )
@@ -1912,28 +2026,26 @@ export function JobEditor() {
                         'Unknown values can stay blank. Only job title is required. Quotes show textual support; verify that each value describes this job.',
                       )}
                     </Typography>
-                    {!id && (
-                      <JobSummary
-                        form={form}
-                        platform={fetchedJob.current?.platform}
-                        showRequirements
-                      />
-                    )}
                     {FIELD_GROUPS.map((group) => {
-                      const fields = (
-                        <Box
-                          sx={{
-                            display: 'grid',
-                            gridTemplateColumns: {
-                              xs: '1fr',
-                              sm: 'repeat(2, minmax(0, 1fr))',
-                            },
-                            gap: 2,
-                          }}
-                        >
-                          {group.fields.map(renderField)}
-                        </Box>
-                      );
+                      const hasConflict = (reviewed: boolean) =>
+                        group.fields.some((field) =>
+                          form.importReview.some(
+                            (item) =>
+                              item.field === field &&
+                              item.status === 'CONFLICT' &&
+                              (reviewed || !item.reviewed),
+                          ),
+                        );
+                      // Unresolved conflicts and a missing title lock edit mode.
+                      const forced =
+                        hasConflict(false) ||
+                        (group.key === 'overview' && !form.title.trim());
+                      // A section with an acknowledged conflict stays open (its
+                      // checkbox in view) until the user chooses Done.
+                      const editing =
+                        !!id ||
+                        forced ||
+                        (sectionModes.get(group.key) ?? hasConflict(true));
                       const heading = (
                         <Typography
                           variant="subtitle1"
@@ -1943,34 +2055,44 @@ export function JobEditor() {
                           {group.title()}
                         </Typography>
                       );
-                      if (group.key === 'optional')
-                        return (
-                          <Box
-                            key={group.key}
-                            component="details"
-                            open={
-                              group.fields.some((field) =>
-                                conflicts.some((item) => item.field === field),
-                              ) || undefined
-                            }
-                            sx={{
-                              '& > summary': { cursor: 'pointer', py: 0.5 },
-                            }}
-                          >
-                            <Box component="summary">{heading}</Box>
-                            <Stack spacing={2} sx={{ mt: 1.5 }}>
-                              {fields}
-                            </Stack>
-                          </Box>
-                        );
-                      return (
-                        <Stack
-                          key={group.key}
-                          component="section"
-                          spacing={1.5}
+                      const toggle = !id && (
+                        <Button
+                          size="small"
+                          data-section-toggle
+                          startIcon={editing ? <CheckIcon /> : <EditIcon />}
+                          disabled={editing && forced}
+                          aria-label={
+                            editing
+                              ? tr('Done editing {section}', {
+                                  section: group.title(),
+                                })
+                              : tr('Edit {section}', { section: group.title() })
+                          }
+                          onClick={() => toggleSection(group.key, !editing)}
                         >
-                          {heading}
-                          {group.fields.length > 0 && fields}
+                          {editing ? tr('Done') : tr('Edit')}
+                        </Button>
+                      );
+                      const inputs = (
+                        <Stack
+                          spacing={id ? 2 : 1.5}
+                          data-section-inputs
+                          sx={{ display: editing ? undefined : 'none' }}
+                        >
+                          {group.fields.length > 0 && (
+                            <Box
+                              sx={{
+                                display: 'grid',
+                                gridTemplateColumns: {
+                                  xs: '1fr',
+                                  sm: 'repeat(2, minmax(0, 1fr))',
+                                },
+                                gap: id ? 2 : 1.5,
+                              }}
+                            >
+                              {group.fields.map(renderField)}
+                            </Box>
+                          )}
                           {group.key === 'overview' && id && (
                             <TextField
                               select
@@ -2015,6 +2137,80 @@ export function JobEditor() {
                               }
                             />
                           )}
+                        </Stack>
+                      );
+                      const body = (
+                        <>
+                          {!editing && (
+                            <SectionReadView
+                              section={group.key}
+                              form={form}
+                              platform={fetchedJob.current?.platform}
+                            />
+                          )}
+                          {inputs}
+                        </>
+                      );
+                      if (group.key === 'optional')
+                        return (
+                          <Box
+                            key={group.key}
+                            component="details"
+                            data-review-section={group.key}
+                            open={forced || undefined}
+                            sx={{
+                              borderTop: 1,
+                              borderColor: 'divider',
+                              pt: 1.5,
+                              '& > summary': { cursor: 'pointer' },
+                            }}
+                          >
+                            <Box component="summary">
+                              <Box
+                                component="span"
+                                sx={{ display: 'inline-block' }}
+                              >
+                                {heading}
+                              </Box>
+                            </Box>
+                            <Stack spacing={1.5} sx={{ mt: 1.5 }}>
+                              {toggle && (
+                                <Box sx={{ alignSelf: 'flex-end' }}>
+                                  {toggle}
+                                </Box>
+                              )}
+                              {body}
+                            </Stack>
+                          </Box>
+                        );
+                      return (
+                        <Stack
+                          key={group.key}
+                          component="section"
+                          data-review-section={group.key}
+                          spacing={1.5}
+                          sx={
+                            id
+                              ? undefined
+                              : {
+                                  borderTop: 1,
+                                  borderColor: 'divider',
+                                  pt: 1.5,
+                                }
+                          }
+                        >
+                          <Stack
+                            direction="row"
+                            spacing={1}
+                            sx={{
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                            }}
+                          >
+                            {heading}
+                            {toggle}
+                          </Stack>
+                          {body}
                         </Stack>
                       );
                     })}
@@ -2065,15 +2261,6 @@ export function JobEditor() {
                   height: formHeight ?? undefined,
                   p: { xs: 2, sm: 3 },
                   minWidth: 0,
-                  '& .MuiInputLabel-root': { color: 'text.secondary' },
-                  '& .MuiInputLabel-root.Mui-focused': {
-                    color: 'primary.main',
-                  },
-                  '& .MuiInputLabel-root.Mui-error': { color: 'error.main' },
-                  '& .MuiOutlinedInput-root:not(.MuiInputBase-multiline)': {
-                    minHeight: 44,
-                  },
-                  '& .MuiFormHelperText-root': { mx: 0, mt: 0.5 },
                 }}
               >
                 <JobActionLayout
