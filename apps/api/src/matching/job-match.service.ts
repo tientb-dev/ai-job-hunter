@@ -19,6 +19,7 @@ import { MatchingService } from './matching.service.js';
 import {
   BadRequestException,
   ConflictException,
+  NotFoundException,
   Inject,
   Injectable,
   Optional,
@@ -58,15 +59,29 @@ import type { OutputSchema } from '../ai/ai-provider.js';
 
 /** Pure, read-only validity of a saved match; resolve() adds the CV re-bind write. */
 export function savedMatchStatus(
-  row: Pick<CvMatchRecord, 'policyVersion' | 'cvTextHash' | 'jobUpdatedAt'>,
-  cvHash: string,
+  row: Pick<
+    CvMatchRecord,
+    'policyVersion' | 'cvTextHash' | 'jobUpdatedAt' | 'cvId'
+  >,
+  cv: { id: string; hash: string },
   jobUpdatedAt: Date,
 ) {
   if (row.policyVersion !== MATCHING_POLICY_VERSION) return 'EXPIRED' as const;
-  if (row.cvTextHash !== cvHash) return 'STALE_CV' as const;
+  // Stale only against the CV this job uses, never the account default.
+  if (row.cvId !== cv.id || row.cvTextHash !== cv.hash)
+    return 'STALE_CV' as const;
   if (row.jobUpdatedAt.getTime() !== jobUpdatedAt.getTime())
     return 'STALE_JOB' as const;
   return 'VALID' as const;
+}
+const UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+function cvIdFrom(body: unknown): string {
+  const cvId =
+    body && typeof body === 'object' && 'cvId' in body ? body.cvId : null;
+  if (typeof cvId !== 'string' || !UUID.test(cvId))
+    throw new BadRequestException('Choose a saved CV.');
+  return cvId;
 }
 export const cvTextHash = (text: string) =>
   createHash('sha256').update(text, 'utf8').digest('hex');
@@ -79,13 +94,31 @@ export class JobMatchService {
   // readiness answer before checking again.
   static readonly RECHECK_MS = 15 * 60 * 1000;
 
-  private async cvIdentity(ownerId: string) {
-    const cv = await this.cvs.findOne({
-      where: { ownerId },
-      select: { ownerId: true, text: true, updatedAt: true },
+  /** The job's CV: explicit selection, else the CV its saved match used, else the default. */
+  private async jobCvText(ownerId: string, jobId: string) {
+    const job = await this.jobs.get(ownerId, jobId);
+    const id =
+      job.cvId ??
+      (await this.matchRows.findOneBy({ ownerId, jobId }))?.cvId ??
+      null;
+    return this.cvs.findOne({
+      where: id ? { ownerId, id } : { ownerId, isDefault: true },
+      select: {
+        id: true,
+        ownerId: true,
+        name: true,
+        isDefault: true,
+        text: true,
+        fileName: true,
+        updatedAt: true,
+      },
     });
+  }
+  private async cvIdentity(ownerId: string, jobId: string) {
+    const cv = await this.jobCvText(ownerId, jobId);
     if (!cv || typeof cv.text !== 'string') return null;
     return {
+      id: cv.id,
       updatedAt: cv.updatedAt,
       hash: cvTextHash(cv.text),
     };
@@ -97,10 +130,10 @@ export class JobMatchService {
    */
   private async resolve(
     row: CvMatchRecord,
-    cv: { updatedAt: Date; hash: string },
+    cv: { id: string; updatedAt: Date; hash: string },
     jobUpdatedAt: Date,
   ) {
-    const status = savedMatchStatus(row, cv.hash, jobUpdatedAt);
+    const status = savedMatchStatus(row, cv, jobUpdatedAt);
     if (status !== 'VALID') return { status };
     if (row.cvUpdatedAt.getTime() !== cv.updatedAt.getTime()) {
       row.cvUpdatedAt = cv.updatedAt;
@@ -129,8 +162,8 @@ export class JobMatchService {
     id: string,
     matchId: string,
   ): Promise<MatchSnapshot> {
-    const cv = await this.cvIdentity(ownerId);
     const job = await this.jobs.get(ownerId, id);
+    const cv = await this.cvIdentity(ownerId, id);
     if (!cv)
       throw new ConflictException(
         'Saved CV is unavailable. Reanalyze CV Match.',
@@ -165,13 +198,102 @@ export class JobMatchService {
     private readonly matchRows: Repository<CvMatchRecord>,
     @Optional() @Inject(AI_CONFIG) private readonly aiConfig?: AiConfig,
   ) {}
+  private static dto(cv: SavedCv) {
+    return {
+      id: cv.id,
+      name: cv.name,
+      fileName: cv.fileName,
+      isDefault: cv.isDefault,
+      updatedAt: cv.updatedAt,
+    };
+  }
+  async listCvs(ownerId: string) {
+    const rows = await this.cvs.find({
+      where: { ownerId },
+      order: { isDefault: 'DESC', updatedAt: 'DESC' },
+    });
+    return rows.map(JobMatchService.dto);
+  }
+  /** The account default CV. */
   async cv(ownerId: string) {
-    const cv = await this.cvs.findOneBy({ ownerId });
-    return cv ? { fileName: cv.fileName, updatedAt: cv.updatedAt } : null;
+    const cv = await this.cvs.findOneBy({ ownerId, isDefault: true });
+    return cv ? JobMatchService.dto(cv) : null;
+  }
+  async jobCv(ownerId: string, jobId: string) {
+    const cv = await this.jobCvText(ownerId, jobId);
+    return cv ? JobMatchService.dto(cv) : null;
+  }
+  /** Pins a CV to one job; other jobs and the default are unaffected. */
+  async selectJobCv(ownerId: string, jobId: string, body: unknown) {
+    const cvId = cvIdFrom(body);
+    await this.jobs.get(ownerId, jobId);
+    if (!(await this.cvs.existsBy({ ownerId, id: cvId })))
+      throw new NotFoundException('CV not found.');
+    // Raw update: choosing a CV is not a job edit and must not move updatedAt.
+    await this.cvs.query(
+      'UPDATE ai_job_hunter.opportunities SET "cvId" = $1 WHERE id = $2 AND "ownerId" = $3',
+      [cvId, jobId, ownerId],
+    );
+    return this.jobCv(ownerId, jobId);
+  }
+  async updateCv(ownerId: string, cvId: string, body: unknown) {
+    if (!body || typeof body !== 'object' || Array.isArray(body))
+      throw new BadRequestException('Invalid CV update.');
+    const { name, isDefault, ...rest } = body as Record<string, unknown>;
+    if (
+      Object.keys(rest).length ||
+      (name !== undefined &&
+        (typeof name !== 'string' ||
+          !name.trim() ||
+          name.trim().length > 120)) ||
+      (isDefault !== undefined && isDefault !== true)
+    )
+      throw new BadRequestException('Use a CV name of 1 to 120 characters.');
+    await this.cvs.manager.transaction(async (m) => {
+      const repo = m.getRepository(SavedCv);
+      if (!(await repo.existsBy({ ownerId, id: cvId })))
+        throw new NotFoundException('CV not found.');
+      if (typeof name === 'string')
+        await repo.update({ ownerId, id: cvId }, { name: name.trim() });
+      if (isDefault) {
+        await repo.update({ ownerId, isDefault: true }, { isDefault: false });
+        await repo.update({ ownerId, id: cvId }, { isDefault: true });
+      }
+    });
+    return this.listCvs(ownerId);
+  }
+  /** Deletes an unused CV. A CV a job still uses, or the default, is kept. */
+  async deleteCv(ownerId: string, cvId: string) {
+    await this.cvs.manager.transaction(async (m) => {
+      const cv = await m.getRepository(SavedCv).findOne({
+        where: { ownerId, id: cvId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!cv) throw new NotFoundException('CV not found.');
+      if (cv.isDefault)
+        throw new ConflictException(
+          'Choose another default CV before deleting this one.',
+        );
+      const [{ jobs }] = (await m.query(
+        `SELECT count(*)::int AS jobs FROM ai_job_hunter.opportunities o
+          LEFT JOIN ai_job_hunter.cv_matches m
+            ON m."ownerId" = o."ownerId" AND m."jobId" = o.id
+          WHERE o."ownerId" = $1 AND coalesce(o."cvId", m."cvId") = $2`,
+        [ownerId, cvId],
+      )) as [{ jobs: number }];
+      if (jobs)
+        throw new ConflictException(
+          'This CV is still used by one or more jobs. Choose another CV for those jobs before deleting it.',
+        );
+      // Remaining matches on this CV belong to jobs that switched CV, so they are already stale.
+      await m.getRepository(CvMatchRecord).delete({ ownerId, cvId });
+      await m.getRepository(SavedCv).delete({ ownerId, id: cvId });
+    });
+    return this.listCvs(ownerId);
   }
   async currentMatch(ownerId: string, id: string) {
     const job = await this.jobs.get(ownerId, id);
-    const cv = await this.cvIdentity(ownerId);
+    const cv = await this.cvIdentity(ownerId, id);
     if (!cv) return { status: 'CV_UNAVAILABLE' as const };
     const row = await this.matchRows.findOneBy({
       ownerId,
@@ -200,27 +322,31 @@ export class JobMatchService {
       const { source, pdfLayout } =
         await this.extraction.parseCvWithLayout(document);
       if (!source.text.trim()) throw new Error();
-      await this.cvs.upsert(
-        {
-          ownerId,
-          fileName: document.fileName,
-          text: source.text,
-          sourceMetadata: {
-            ...(pdfLayout ? { pdfLayout } : {}),
-            kind: 'parsed-upload',
-            format: source.format === 'text' ? null : source.format,
-            parser: 'bounded-document-parser/v1',
-            segments: source.segments,
-            warnings: null,
-            originalBytesRetained: false,
-          },
+      const first = !(await this.cvs.existsBy({ ownerId, isDefault: true }));
+      const { identifiers } = await this.cvs.insert({
+        ownerId,
+        name: document.fileName.trim().slice(0, 120) || 'CV',
+        isDefault: first,
+        fileName: document.fileName,
+        text: source.text,
+        sourceMetadata: {
+          ...(pdfLayout ? { pdfLayout } : {}),
+          kind: 'parsed-upload',
+          format: source.format === 'text' ? null : source.format,
+          parser: 'bounded-document-parser/v1',
+          segments: source.segments,
+          warnings: null,
+          originalBytesRetained: false,
         },
-        ['ownerId'],
-      );
-      return this.cv(ownerId);
+      });
+      const cv = await this.cvs.findOneByOrFail({
+        ownerId,
+        id: identifiers[0]!.id as string,
+      });
+      return JobMatchService.dto(cv);
     } catch {
       throw new BadRequestException(
-        'Could not save this CV. Use a text-based PDF or DOCX up to 5 MiB; the previous CV is retained.',
+        'Could not save this CV. Use a text-based PDF or DOCX up to 5 MiB; your other CVs are unchanged.',
       );
     }
   }
@@ -257,10 +383,7 @@ export class JobMatchService {
     this.active = true;
     try {
       const snapshot = await this.requireSnapshot(ownerId, id, matchId);
-      const cv = await this.cvs.findOne({
-        where: { ownerId },
-        select: { ownerId: true, text: true, updatedAt: true },
-      });
+      const cv = await this.jobCvText(ownerId, id);
       if (
         !cv ||
         !cv.text?.trim() ||
@@ -321,13 +444,10 @@ export class JobMatchService {
     }
     this.active = true;
     try {
-      const cv = await this.cvs.findOne({
-        where: { ownerId },
-        select: { ownerId: true, text: true, fileName: true, updatedAt: true },
-      });
+      const job = await this.jobs.get(ownerId, id);
+      const cv = await this.jobCvText(ownerId, id);
       if (!cv || typeof cv.text !== 'string' || !cv.text.trim())
         throw new CvMatchError('CV_MATCH_CV_UNAVAILABLE', 'CV_TEXT_EMPTY');
-      const job = await this.jobs.get(ownerId, id);
       if (
         ![
           job.skills,
@@ -440,10 +560,11 @@ export class JobMatchService {
         allowed,
       );
       trace.stage = 'SOURCE_VERIFICATION';
-      const latestCv = await this.cv(ownerId);
+      const latestCv = await this.jobCv(ownerId, id);
       const latestJob = await this.jobs.get(ownerId, id);
       if (
-        latestCv?.updatedAt.getTime() !== cv.updatedAt.getTime() ||
+        latestCv?.id !== cv.id ||
+        latestCv.updatedAt.getTime() !== cv.updatedAt.getTime() ||
         latestJob.updatedAt.getTime() !== job.updatedAt.getTime()
       ) {
         trace.reason = 'SOURCE_CHANGED';
@@ -469,6 +590,7 @@ export class JobMatchService {
           matchId,
           ownerId,
           jobId: id,
+          cvId: cv.id,
           cvTextHash: createHash('sha256')
             .update(cv.text, 'utf8')
             .digest('hex'),

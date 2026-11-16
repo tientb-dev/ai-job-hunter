@@ -182,8 +182,8 @@ test('saved CV and Tailored CV sources are private; B cannot read, delete or lin
   const { a, b } = users;
   const savedAt = '2026-01-01T00:00:00.000Z';
   await db.query(
-    `INSERT INTO ${S}.saved_cvs ("ownerId", "fileName", text, "updatedAt")
-       VALUES ($1, 'a-cv.pdf', 'Synthetic CV text for account A.', $2)`,
+    `INSERT INTO ${S}.saved_cvs ("ownerId", name, "isDefault", "fileName", text, "updatedAt")
+       VALUES ($1, 'A CV', true, 'a-cv.pdf', 'Synthetic CV text for account A.', $2)`,
     [a.id, savedAt],
   );
   expect(
@@ -226,6 +226,49 @@ test('saved CV and Tailored CV sources are private; B cannot read, delete or lin
     sourceRevisionId: sourceId,
     expectedSavedCvUpdatedAt: savedAt,
   }).expect(201);
+});
+
+test('multiple CVs: B cannot list, select, rename, default or delete A’s CV, even by direct SQL', async () => {
+  const { a, b } = users;
+  const [{ id: cvA }] = await db.query(
+    `SELECT id FROM ${S}.saved_cvs WHERE "ownerId" = $1`,
+    [a.id],
+  );
+  const jobB = (
+    await call(b.cookie, 'post', '/opportunities', job('b-cv-job')).expect(201)
+  ).body.id as string;
+  expect(
+    (await call(b.cookie, 'get', '/opportunities/cv').expect(200)).body,
+  ).toEqual([]);
+  await call(b.cookie, 'put', `/opportunities/${jobB}/cv/current`, {
+    cvId: cvA,
+  }).expect(404);
+  expect(
+    (
+      await call(b.cookie, 'get', `/opportunities/${jobB}/cv/current`).expect(
+        200,
+      )
+    ).body,
+  ).toEqual({});
+  await call(b.cookie, 'patch', `/opportunities/cv/${cvA}`, {
+    name: 'hijack',
+  }).expect(404);
+  await call(b.cookie, 'patch', `/opportunities/cv/${cvA}`, {
+    isDefault: true,
+  }).expect(404);
+  await call(b.cookie, 'delete', `/opportunities/cv/${cvA}`).expect(404);
+  // The composite key rejects a cross-account reference outside the API too.
+  await expect(
+    db.query(`UPDATE ${S}.opportunities SET "cvId" = $1 WHERE id = $2`, [
+      cvA,
+      jobB,
+    ]),
+  ).rejects.toMatchObject({ driverError: { code: '23503' } });
+  const list = (await call(a.cookie, 'get', '/opportunities/cv').expect(200))
+    .body;
+  expect(list).toEqual([
+    expect.objectContaining({ id: cvA, name: 'A CV', isDefault: true }),
+  ]);
 });
 
 test('tailored drafts, job progress and interview question sets do not reach another account’s job', async () => {

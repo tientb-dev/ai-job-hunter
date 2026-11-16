@@ -88,6 +88,7 @@ test.each([
       vi.fn(async (url: string) =>
         url.endsWith('/cv/current')
           ? Response.json({
+              id: 'synthetic-cv',
               fileName: 'synthetic.pdf',
               updatedAt: '2026-01-01T00:00:00.000Z',
             })

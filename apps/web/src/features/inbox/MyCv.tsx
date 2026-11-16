@@ -1,12 +1,20 @@
 import { dateLocale, tr } from '../../app/i18n';
-import { RefreshIcon, UploadIcon } from '../../components/icons';
+import {
+  DeleteIcon,
+  EditIcon,
+  RefreshIcon,
+  UploadIcon,
+} from '../../components/icons';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Box,
   Button,
   Link as MuiLink,
+  MenuItem,
   Paper,
+  TextField,
   Skeleton,
   Stack,
   Typography,
@@ -45,7 +53,15 @@ async function readProgress(cv: SavedCv): Promise<Progress> {
 }
 
 export function MyCv() {
-  const [cv, setCv] = useState<SavedCv | null>(null);
+  const [cvs, setCvs] = useState<SavedCv[]>([]);
+  const [selectedId, setSelectedId] = useState('');
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [managing, setManaging] = useState(false);
+  const cv =
+    cvs.find((row) => row.id === selectedId) ??
+    cvs.find((row) => row.isDefault) ??
+    null;
   const [loaded, setLoaded] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
@@ -56,10 +72,10 @@ export function MyCv() {
   const saved = useRef(false);
   useEffect(() => {
     let active = true;
-    opportunityRequest<SavedCv | null>('/cv/current').then(
-      (row) => {
+    opportunityRequest<SavedCv[]>('/cv').then(
+      (rows) => {
         if (!active) return;
-        setCv(row);
+        setCvs(rows ?? []);
         setLoaded(true);
       },
       () => {
@@ -81,12 +97,14 @@ export function MyCv() {
     setUploading(true);
     setError('');
     try {
-      const next = await opportunityRequest<SavedCv>('/cv/current', {
+      // Adds a CV; existing CVs, job selections and the default are unchanged.
+      const next = await opportunityRequest<SavedCv>('/cv', {
         method: 'POST',
         body: importUpload({}, file),
       });
       setProgress(undefined);
-      setCv(next);
+      setCvs((rows) => [...rows, next]);
+      setSelectedId(next.id);
     } catch (failure) {
       setError(
         failure instanceof Error ? failure.message : tr('CV upload failed.'),
@@ -95,7 +113,25 @@ export function MyCv() {
       setUploading(false);
     }
   }
-  const locked = uploading || reviewBusy || reviewDirty;
+  async function manage(init: RequestInit) {
+    if (!cv) return;
+    setManaging(true);
+    setError('');
+    try {
+      setCvs(await opportunityRequest<SavedCv[]>(`/cv/${cv.id}`, init));
+      return true;
+    } catch (failure) {
+      setError(
+        failure instanceof Error
+          ? tr(failure.message)
+          : tr('Could not update this CV.'),
+      );
+      return false;
+    } finally {
+      setManaging(false);
+    }
+  }
+  const locked = uploading || reviewBusy || reviewDirty || managing;
   const reviewed =
     typeof progress === 'object' &&
     progress !== null &&
@@ -111,7 +147,7 @@ export function MyCv() {
       <PageHeader
         title={tr('My CV')}
         description={tr(
-          'Every job uses this CV. Review it once; tailored CVs are built from the reviewed version.',
+          'Keep several CVs. New jobs use the default CV; each job can choose its own on the job page. Tailored CVs are built from the reviewed version.',
         )}
       />
       <Paper
@@ -159,7 +195,70 @@ export function MyCv() {
             </Stack>
           ) : cv ? (
             <Box sx={{ overflowWrap: 'anywhere' }}>
-              <Typography sx={{ fontWeight: 600 }}>{cv.fileName}</Typography>
+              {cvs.length > 1 && (
+                <TextField
+                  select
+                  size="small"
+                  label={tr('CV')}
+                  value={cv.id}
+                  disabled={locked}
+                  onChange={(event) => {
+                    setProgress(undefined);
+                    setRenaming(null);
+                    setSelectedId(event.target.value);
+                  }}
+                  sx={{ mb: 1.5, width: { xs: '100%', sm: 360 } }}
+                >
+                  {cvs.map((row) => (
+                    <MenuItem
+                      key={row.id}
+                      value={row.id}
+                      sx={{ whiteSpace: 'normal' }}
+                    >
+                      {row.isDefault
+                        ? tr('{name} (default)', { name: row.name })
+                        : row.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
+              {renaming === null ? (
+                <Typography sx={{ fontWeight: 600 }}>
+                  {cv.name}
+                  {cv.isDefault && ` · ${tr('Default')}`}
+                </Typography>
+              ) : (
+                <Stack
+                  component="form"
+                  direction={{ xs: 'column', sm: 'row' }}
+                  spacing={1}
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void manage({
+                      method: 'PATCH',
+                      body: JSON.stringify({ name: renaming }),
+                    }).then((done) => done && setRenaming(null));
+                  }}
+                >
+                  <TextField
+                    size="small"
+                    label={tr('CV name')}
+                    value={renaming}
+                    autoFocus
+                    slotProps={{ htmlInput: { maxLength: 120 } }}
+                    onChange={(event) => setRenaming(event.target.value)}
+                  />
+                  <Button type="submit" disabled={managing || !renaming.trim()}>
+                    {tr('Save')}
+                  </Button>
+                  <Button onClick={() => setRenaming(null)}>
+                    {tr('Cancel')}
+                  </Button>
+                </Stack>
+              )}
+              <Typography variant="body2" color="text.secondary">
+                {cv.fileName}
+              </Typography>
               <Typography variant="body2" color="text.secondary">
                 {tr('Saved')}{' '}
                 {new Date(cv.updatedAt).toLocaleString(dateLocale())}
@@ -210,6 +309,48 @@ export function MyCv() {
               )}
             </Typography>
           )}
+          {cv && (
+            <Stack
+              direction="row"
+              spacing={1}
+              useFlexGap
+              sx={{ flexWrap: 'wrap' }}
+            >
+              {!cv.isDefault && (
+                <Button
+                  size="small"
+                  disabled={locked}
+                  onClick={() =>
+                    void manage({
+                      method: 'PATCH',
+                      body: JSON.stringify({ isDefault: true }),
+                    })
+                  }
+                >
+                  {tr('Make default')}
+                </Button>
+              )}
+              <Button
+                size="small"
+                startIcon={<EditIcon />}
+                disabled={locked || renaming !== null}
+                onClick={() => setRenaming(cv.name)}
+              >
+                {tr('Rename')}
+              </Button>
+              {!cv.isDefault && (
+                <Button
+                  size="small"
+                  color="error"
+                  startIcon={<DeleteIcon />}
+                  disabled={locked}
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  {tr('Delete')}
+                </Button>
+              )}
+            </Stack>
+          )}
           {loaded && (
             <Button
               startIcon={<UploadIcon />}
@@ -218,12 +359,12 @@ export function MyCv() {
               disabled={locked}
               sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
             >
-              {cv ? tr('Replace source CV') : tr('Save source CV')}
+              {cv ? tr('Upload another CV') : tr('Save source CV')}
               <input
                 hidden
                 type="file"
                 accept=".pdf,.docx"
-                aria-label={cv ? tr('Replace source CV') : tr('Save source CV')}
+                aria-label={cv ? tr('Upload another CV') : tr('Save source CV')}
                 disabled={locked}
                 onChange={(event) => {
                   const file = event.target.files?.[0];
@@ -236,7 +377,7 @@ export function MyCv() {
           {cv && reviewDirty && (
             <Typography variant="body2" color="text.secondary">
               {tr(
-                'Save or discard your review changes before replacing the CV.',
+                'Save or discard your review changes before switching or adding a CV.',
               )}
             </Typography>
           )}
@@ -249,16 +390,31 @@ export function MyCv() {
           {cv && (
             <Typography variant="body2" color="text.secondary">
               {tr(
-                'Replacing the CV never changes tailored CVs you already saved.',
+                'Adding a CV or changing the default never changes other jobs or tailored CVs you already saved.',
               )}
             </Typography>
           )}
         </Stack>
       </Paper>
+      <ConfirmDialog
+        open={confirmDelete}
+        title={tr('Delete this CV?')}
+        text={tr(
+          'Jobs that use this CV keep it; deleting is only possible once no job uses it. Tailored CVs already saved are not affected.',
+        )}
+        safeLabel={tr('Cancel')}
+        confirmLabel={tr('Delete')}
+        destructive
+        onSafe={() => setConfirmDelete(false)}
+        onConfirm={() => {
+          setConfirmDelete(false);
+          void manage({ method: 'DELETE' });
+        }}
+      />
       {cv && (
         <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, minWidth: 0 }}>
           <SourceCvReview
-            key={cv.updatedAt}
+            key={cv.id}
             myCv
             wizardEntry={!reviewed}
             entryState={

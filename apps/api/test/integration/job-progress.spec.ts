@@ -124,6 +124,8 @@ beforeAll(async () => {
   // Drafts reference a real (synthetic) review profile.
   await db.getRepository(SavedCv).insert({
     ownerId: owner,
+    name: 'Synthetic progress CV',
+    isDefault: true,
     fileName: 'synthetic-progress-cv.txt',
     text: fixture.text,
     sourceMetadata: null,
@@ -250,7 +252,7 @@ test('SQL draft summary matches the review policy for the latest draft only', as
 test('match status is read-only, owner-scoped and covers every job', async () => {
   const cv = await db.getRepository(SavedCv).findOneOrFail({
     where: { ownerId: owner },
-    select: { ownerId: true, text: true, updatedAt: true },
+    select: { id: true, ownerId: true, text: true, updatedAt: true },
   });
   const hash = cvTextHash(cv.text);
   const statuses = {
@@ -272,6 +274,7 @@ test('match status is read-only, owner-scoped and covers every job', async () =>
       jobUpdatedAt: row.updatedAt,
       analyzedAt: new Date(),
       assessment: {} as never,
+      cvId: cv.id,
       ...fields,
     });
   }
@@ -287,6 +290,7 @@ test('match status is read-only, owner-scoped and covers every job', async () =>
     assessment: {} as never,
     policyVersion: MATCHING_POLICY_VERSION,
     cvTextHash: hash,
+    cvId: cv.id,
   });
   ids.MISSING = (await job(owner, 'match MISSING')).id;
   // More than 20 jobs are all returned; no candidate cap.

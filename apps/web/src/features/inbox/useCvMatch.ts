@@ -5,7 +5,10 @@ import { validSourceDate } from './cv-suggestions.contract';
 import { importUpload, opportunityRequest } from './opportunities-api';
 
 export interface SavedCv {
+  id: string;
+  name: string;
   fileName: string;
+  isDefault: boolean;
   updatedAt: string;
 }
 
@@ -32,6 +35,7 @@ export function useCvMatch(
   const [contextRejected, setContextRejected] = useState(false);
   const rejectContext = useCallback(() => setContextRejected(true), []);
   const [cv, setCv] = useState<SavedCv | null>(null);
+  const [cvs, setCvs] = useState<SavedCv[]>([]);
   const [busy, setBusy] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState('');
@@ -52,7 +56,8 @@ export function useCvMatch(
   }, [jobId, revision]);
   useEffect(() => {
     let active = true;
-    opportunityRequest<SavedCv | null>('/cv/current').then(
+    // This job's CV (its own selection, else the CV its match used, else the default).
+    opportunityRequest<SavedCv | null>(`/${jobId}/cv/current`).then(
       (row) => {
         if (active) {
           setCv(row);
@@ -65,6 +70,13 @@ export function useCvMatch(
           setError(tr('Could not load saved CV. Check the local API.'));
         }
       },
+    );
+    // The picker list is optional; matching works without it.
+    opportunityRequest<unknown>('/cv').then(
+      (list) => {
+        if (active) setCvs(Array.isArray(list) ? (list as SavedCv[]) : []);
+      },
+      () => undefined,
     );
     return () => {
       active = false;
@@ -146,11 +158,17 @@ export function useCvMatch(
     setBusy(true);
     setError('');
     try {
-      const saved = await opportunityRequest<SavedCv>('/cv/current', {
+      // Adds a CV and selects it for this job only; other jobs keep theirs.
+      const added = await opportunityRequest<SavedCv>('/cv', {
         method: 'POST',
         body: importUpload({}, file),
       });
+      const saved = await opportunityRequest<SavedCv>(`/${jobId}/cv/current`, {
+        method: 'PUT',
+        body: JSON.stringify({ cvId: added.id }),
+      });
       if (request === generation.current) {
+        setCvs((list) => [...list, added]);
         setCv(saved);
         setResult(null);
         setMatchStatus('STALE_CV');
@@ -159,6 +177,33 @@ export function useCvMatch(
       if (request === generation.current)
         setError(
           error instanceof Error ? error.message : tr('CV upload failed.'),
+        );
+    } finally {
+      if (request === generation.current) setBusy(false);
+    }
+  }
+  /** Uses another saved CV for this job; the saved match is rechecked, never re-run. */
+  async function select(cvId: string) {
+    const request = ++generation.current;
+    setAttempt((value) => value + 1);
+    setBusy(true);
+    setError('');
+    try {
+      const saved = await opportunityRequest<SavedCv>(`/${jobId}/cv/current`, {
+        method: 'PUT',
+        body: JSON.stringify({ cvId }),
+      });
+      if (request === generation.current) {
+        setCv(saved);
+        setResult(null);
+        setMatchStatus('CHECKING');
+      }
+    } catch (error) {
+      if (request === generation.current)
+        setError(
+          error instanceof Error
+            ? error.message
+            : tr('Could not change the CV.'),
         );
     } finally {
       if (request === generation.current) setBusy(false);
@@ -225,6 +270,7 @@ export function useCvMatch(
   }
   return {
     cv,
+    cvs,
     cvLoaded,
     busy,
     error,
@@ -237,6 +283,7 @@ export function useCvMatch(
     rejectContext,
     reload,
     upload,
+    select,
     analyze,
   };
 }
@@ -253,7 +300,7 @@ export const matchStatusMessages: Record<string, string> = {
   },
   get STALE_CV() {
     return tr(
-      'Outdated. Your CV changed since the saved match. Re-analyze CV Match with the current CV.',
+      'Outdated. This job now uses a different CV than the saved match. Re-analyze CV Match with the selected CV.',
     );
   },
   get STALE_JOB() {

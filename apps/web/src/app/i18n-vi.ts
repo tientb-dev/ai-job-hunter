@@ -487,8 +487,6 @@ export const VI_TEXT: Record<string, string> = {
   'Enter a job title before saving.': 'Nhập chức danh trước khi lưu.',
   Entry: 'Mục',
   'Evaluable:': 'Có thể đánh giá:',
-  'Every job uses this CV. Review it once; tailored CVs are built from the reviewed version.':
-    'Mọi việc làm đều dùng CV này. Rà soát một lần; CV tùy chỉnh được tạo từ phiên bản đã rà soát.',
   'Every suggestion needs a decision, but you do not have to accept any. “Keep original” is a complete decision that keeps your CV wording unchanged.':
     'Mỗi gợi ý cần một quyết định, nhưng bạn không bắt buộc phải chấp nhận gợi ý nào. “Giữ bản gốc” là một quyết định đầy đủ, giữ nguyên cách viết trong CV.',
   'Evidence (': 'Bằng chứng (',
@@ -1038,8 +1036,6 @@ export const VI_TEXT: Record<string, string> = {
     'Đã cũ. Việc làm đã thay đổi sau lần đối chiếu đã lưu. Hãy phân tích lại Đối chiếu CV với yêu cầu công việc hiện tại.',
   'Outdated. This match is no longer current. Reanalyze in CV Match before requesting suggestions.':
     'Đã cũ. Kết quả đối chiếu này không còn hiện hành. Hãy phân tích lại trong Đối chiếu CV trước khi yêu cầu gợi ý.',
-  'Outdated. Your CV changed since the saved match. Re-analyze CV Match with the current CV.':
-    'Đã cũ. CV của bạn đã thay đổi sau lần đối chiếu đã lưu. Hãy phân tích lại Đối chiếu CV với CV hiện tại.',
   'Outdated: you changed the transcript after this feedback. Get AI feedback again for the current text.':
     'Đã cũ: bạn đã sửa bản ghi lời nói sau nhận xét này. Hãy nhận lại nhận xét AI cho nội dung hiện tại.',
   'Overall documented requirement support':
@@ -1204,8 +1200,6 @@ export const VI_TEXT: Record<string, string> = {
     'Thay việc làm đã tải trước đó bằng URL này? Các trường đã sửa thủ công và văn bản nhập riêng sẽ được giữ.',
   'Replace your edited transcript with a new transcription?':
     'Thay bản ghi lời nói đã sửa bằng bản chuyển văn bản mới?',
-  'Replacing the CV never changes tailored CVs you already saved.':
-    'Thay CV không bao giờ làm thay đổi các CV tùy chỉnh bạn đã lưu.',
   'Request ID:': 'Mã yêu cầu:',
   'Request failed. Retry manually.': 'Yêu cầu thất bại. Hãy thử lại thủ công.',
   'Request failed. Retry or enter fields manually.':
@@ -1348,8 +1342,6 @@ export const VI_TEXT: Record<string, string> = {
     'Hãy lưu hoặc bỏ thay đổi việc làm để bật thao tác rà soát CV.',
   'Save or discard your local edits before changing steps.':
     'Hãy lưu hoặc bỏ chỉnh sửa cục bộ trước khi đổi bước.',
-  'Save or discard your review changes before replacing the CV.':
-    'Hãy lưu hoặc bỏ thay đổi rà soát trước khi thay CV.',
   'Save or reload this job before generating a draft.':
     'Hãy lưu hoặc tải lại việc làm này trước khi tạo bản nháp.',
   'Save source CV': 'Lưu CV gốc',
@@ -1719,8 +1711,6 @@ export const VI_TEXT: Record<string, string> = {
     'Dữ kiện do người dùng nhập; không có bằng chứng từ nguồn gốc.',
   'Uses the configured AI provider only when you click Extract. You can also enter fields manually and save without AI.':
     'Chỉ dùng nhà cung cấp AI đã cấu hình khi bạn bấm Trích xuất. Bạn cũng có thể nhập các trường thủ công và lưu không cần AI.',
-  'Uses the latest saved CV and job, not unsaved edits. Files parse locally; analysis sends them to the configured AI provider.':
-    'Dùng CV và việc làm đã lưu mới nhất, không dùng chỉnh sửa chưa lưu. Tệp được phân tích cục bộ; việc phân tích gửi chúng tới nhà cung cấp AI đã cấu hình.',
   'Using the suggestion: {suggestion}': 'Dùng gợi ý: {suggestion}',
   'Using your original: {original}': 'Dùng bản gốc của bạn: {original}',
   'Using your own edited wording.': 'Dùng cách diễn đạt bạn đã sửa.',
@@ -2098,4 +2088,34 @@ export const VI_TEXT: Record<string, string> = {
   Match: 'Đối chiếu',
   Application: 'Ứng tuyển',
   Pending: 'Đang chờ',
+  'CV for this job': 'CV cho việc làm này',
+  '{name} (default)': '{name} (mặc định)',
+  'Upload another CV': 'Tải lên CV khác',
+  'Could not change the CV.': 'Không thể đổi CV.',
+  'Outdated. This job now uses a different CV than the saved match. Re-analyze CV Match with the selected CV.':
+    'Đã cũ. Việc làm này hiện dùng CV khác với lần đối chiếu đã lưu. Hãy phân tích lại Đối chiếu CV với CV đã chọn.',
+  'Uses the CV selected for this job and the saved job, not unsaved edits. Files parse locally; analysis sends them to the configured AI provider.':
+    'Dùng CV đã chọn cho việc làm này và việc làm đã lưu, không dùng chỉnh sửa chưa lưu. Tệp được phân tích cục bộ; khi phân tích, nội dung được gửi đến nhà cung cấp AI đã cấu hình.',
+  'Keep several CVs. New jobs use the default CV; each job can choose its own on the job page. Tailored CVs are built from the reviewed version.':
+    'Lưu nhiều CV. Việc làm mới dùng CV mặc định; mỗi việc làm có thể chọn CV riêng trên trang việc làm. CV tùy chỉnh được tạo từ bản đã rà soát.',
+  CV: 'CV',
+  Default: 'Mặc định',
+  'CV name': 'Tên CV',
+  'Make default': 'Đặt làm mặc định',
+  Rename: 'Đổi tên',
+  'Could not update this CV.': 'Không thể cập nhật CV này.',
+  'Save or discard your review changes before switching or adding a CV.':
+    'Hãy lưu hoặc hủy thay đổi rà soát trước khi chuyển hoặc thêm CV.',
+  'Adding a CV or changing the default never changes other jobs or tailored CVs you already saved.':
+    'Thêm CV hoặc đổi CV mặc định không bao giờ thay đổi các việc làm khác hay CV tùy chỉnh bạn đã lưu.',
+  'Delete this CV?': 'Xóa CV này?',
+  'Jobs that use this CV keep it; deleting is only possible once no job uses it. Tailored CVs already saved are not affected.':
+    'Các việc làm đang dùng CV này vẫn giữ nó; chỉ có thể xóa khi không còn việc làm nào dùng. CV tùy chỉnh đã lưu không bị ảnh hưởng.',
+  'This CV is still used by one or more jobs. Choose another CV for those jobs before deleting it.':
+    'CV này vẫn đang được một hoặc nhiều việc làm sử dụng. Hãy chọn CV khác cho các việc làm đó trước khi xóa.',
+  'Choose another default CV before deleting this one.':
+    'Hãy chọn CV mặc định khác trước khi xóa CV này.',
+  'Use a CV name of 1 to 120 characters.': 'Dùng tên CV từ 1 đến 120 ký tự.',
+  'CV not found.': 'Không tìm thấy CV.',
+  'Upload new CV': 'Tải lên CV mới',
 };

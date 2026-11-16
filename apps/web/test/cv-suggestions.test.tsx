@@ -59,11 +59,22 @@ function setup(
   const select = vi
     .fn<() => Promise<Response>>()
     .mockImplementation(async () => Response.json(response));
-  const fetch = vi.fn(async (url: string) => {
+  const fetch = vi.fn(async (url: string, init?: RequestInit) => {
+    // Multi-CV: the list, and an upload that adds a CV before this job selects it.
+    if (url.endsWith('/opportunities/cv'))
+      return Response.json(
+        init?.method === 'POST'
+          ? { id: 'synthetic-cv-2', fileName: 'synthetic.pdf' }
+          : [],
+      );
     if (url.endsWith('/cv/current'))
       return Response.json(
         saved
-          ? { fileName: 'synthetic.pdf', updatedAt: match.cvUpdatedAt }
+          ? {
+              id: 'synthetic-cv',
+              fileName: 'synthetic.pdf',
+              updatedAt: match.cvUpdatedAt,
+            }
           : null,
       );
     if (url.endsWith('/cv-improvement-suggestions')) return select();
@@ -75,7 +86,9 @@ function setup(
   const view = render(<Harness />);
   async function analyze() {
     fireEvent.click(screen.getByRole('button', { name: 'Go to CV Match' }));
-    await screen.findByText('Saved CV: synthetic.pdf');
+    expect(
+      await screen.findByRole('combobox', { name: 'CV for this job' }),
+    ).toHaveTextContent('synthetic.pdf');
     fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
     await screen.findByRole('button', { name: 'Reanalyze CV Match' });
     fireEvent.click(screen.getByRole('button', { name: 'Open Improve CV' }));
@@ -204,7 +217,9 @@ test('explicit suggestions show four compact cards, a header count and preserve 
 test('analysis in progress disables Suggest across tab switching', async () => {
   const state = setup();
   fireEvent.click(screen.getByRole('button', { name: 'Go to CV Match' }));
-  await screen.findByText('Saved CV: synthetic.pdf');
+  expect(
+    await screen.findByRole('combobox', { name: 'CV for this job' }),
+  ).toHaveTextContent('synthetic.pdf');
   const pending = deferred<Response>();
   state.fetch.mockImplementationOnce(() => pending.promise);
   fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));

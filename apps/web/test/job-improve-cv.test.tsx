@@ -15,6 +15,7 @@ function setup() {
   const fetch = vi.fn(async (url: string, init?: RequestInit) => {
     if (url.endsWith('/cv/current'))
       return Response.json({
+        id: 'synthetic-cv',
         fileName: 'synthetic.pdf',
         updatedAt: syntheticMatch.cvUpdatedAt,
       });
@@ -85,7 +86,9 @@ test('real Job Details shares one match across workspace tabs, compact cards and
     fetch.mock.calls.filter(([url]) => url.endsWith('/match')),
   ).toHaveLength(0);
   fireEvent.click(screen.getByRole('button', { name: 'Go to CV Match' }));
-  await screen.findByText('Saved CV: synthetic.pdf');
+  expect(
+    await screen.findByRole('combobox', { name: 'CV for this job' }),
+  ).toHaveTextContent('synthetic.pdf');
   fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
   await screen.findByLabelText('Fit score: 50/100 (heuristic)');
   tab('Improve CV');
@@ -147,7 +150,9 @@ test('unsaved JD edits and save invalidate context and cannot be bypassed by ana
   setup();
   await screen.findByRole('heading', { name: 'Synthetic engineer' });
   tab('CV Match');
-  await screen.findByText('Saved CV: synthetic.pdf');
+  expect(
+    await screen.findByRole('combobox', { name: 'CV for this job' }),
+  ).toHaveTextContent('synthetic.pdf');
   fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
   await screen.findByLabelText(/Fit score: 50/);
   tab('Edit JD');
@@ -181,7 +186,9 @@ test('a saved CV Match does not expire on the client after 15 minutes', async ()
   setup();
   await screen.findByRole('heading', { name: 'Synthetic engineer' });
   tab('CV Match');
-  await screen.findByText('Saved CV: synthetic.pdf');
+  expect(
+    await screen.findByRole('combobox', { name: 'CV for this job' }),
+  ).toHaveTextContent('synthetic.pdf');
   vi.useFakeTimers();
   try {
     fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));

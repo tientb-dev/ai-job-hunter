@@ -6,6 +6,7 @@ export class CvMatchRecord {
   @PrimaryColumn({ type: 'uuid' }) matchId!: string;
   @Column({ type: 'uuid' }) ownerId!: string;
   @Column({ type: 'uuid' }) jobId!: string;
+  @Column({ type: 'uuid', nullable: true }) cvId!: string | null;
   @Column({ type: 'varchar', length: 64 }) cvTextHash!: string;
   @Column({ type: 'timestamptz' }) cvUpdatedAt!: Date;
   @Column({ type: 'timestamptz' }) jobUpdatedAt!: Date;

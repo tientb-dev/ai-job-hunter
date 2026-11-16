@@ -262,7 +262,7 @@ test.each(['MISSING', 'EXPIRED', 'STALE_CV', 'STALE_JOB'])(
     const reason = {
       MISSING: /Not analyzed yet/,
       EXPIRED: /Matching rules were updated/,
-      STALE_CV: /Your CV changed since/,
+      STALE_CV: /uses a different CV than the saved match/,
       STALE_JOB: /The job changed since/,
     }[status]!;
     expect(screen.getByText(reason)).toBeVisible();

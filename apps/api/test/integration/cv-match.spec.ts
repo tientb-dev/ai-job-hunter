@@ -2,6 +2,7 @@ import { asLocalOwner } from '../support/as-local-owner.js';
 import type { GenerationRequest } from '../../src/ai/ai-provider.js';
 import type { MatchRequirement } from '../../src/matching/cv-match.js';
 import { SavedCv1793500000000 } from '../../src/database/migrations/1793500000000-SavedCv.js';
+import { MultiCv1794800000000 } from '../../src/database/migrations/1794800000000-MultiCv.js';
 import 'reflect-metadata';
 import { afterAll, beforeAll, expect, test } from '@jest/globals';
 import { Test } from '@nestjs/testing';
@@ -69,15 +70,16 @@ beforeAll(async () => {
 afterAll(async () => {
   await app?.close();
   if (database?.isInitialized) {
-    if (ownsCv)
-      await database.query(
-        'DELETE FROM ai_job_hunter.saved_cvs WHERE "ownerId"=$1 AND "fileName"=ANY($2)',
-        [LOCAL_OWNER_ID, [syntheticName, ...betaSamples]],
-      );
+    // Jobs first: a CV a job or match still references cannot be deleted.
     if (id)
       await database.query(
         'DELETE FROM ai_job_hunter.opportunities WHERE id=$1 AND title=$2',
         [id, 'Synthetic CV match fixture'],
+      );
+    if (ownsCv)
+      await database.query(
+        'DELETE FROM ai_job_hunter.saved_cvs WHERE "ownerId"=$1 AND "fileName"=ANY($2)',
+        [LOCAL_OWNER_ID, [syntheticName, ...betaSamples]],
       );
     await database.destroy();
   }
@@ -92,6 +94,7 @@ test('new migration reverses reapplies and repeat-runs without touching jobs', a
   // Exercise this historical migration without discarding later additive columns.
   await runner.startTransaction();
   try {
+    await new MultiCv1794800000000().down(runner);
     await migration.down(runner);
     expect(
       await runner.query(
@@ -102,6 +105,7 @@ test('new migration reverses reapplies and repeat-runs without touching jobs', a
     expect(
       await runner.query('SELECT "ownerId" FROM ai_job_hunter.saved_cvs'),
     ).toEqual([]);
+    await new MultiCv1794800000000().up(runner);
   } finally {
     await runner.rollbackTransaction();
     await runner.release();
@@ -115,11 +119,11 @@ test('new migration reverses reapplies and repeat-runs without touching jobs', a
 });
 test('synthetic CV upload persists and matching reuses latest CV/job without modifying tracker', async () => {
   await request(app.getHttpServer())
-    .post('/api/v1/opportunities/cv/current')
+    .post('/api/v1/opportunities/cv')
     .set({ ...origin, Origin: 'https://example.invalid' })
     .expect(403);
   const saved = await request(app.getHttpServer())
-    .post('/api/v1/opportunities/cv/current')
+    .post('/api/v1/opportunities/cv')
     .set(origin)
     .field('record', '{}')
     .attach('document', Buffer.from(pdfFixture(['Built Python services.'])), {
@@ -188,14 +192,21 @@ test('synthetic CV upload persists and matching reuses latest CV/job without mod
     expect.objectContaining({ requirement: 'Java', status: 'NOT_EVIDENCED' }),
   );
   await request(app.getHttpServer())
-    .post('/api/v1/opportunities/cv/current')
+    .post('/api/v1/opportunities/cv')
     .set(origin)
     .field('record', '{}')
     .attach('document', Buffer.from(pdfFixture(['Built Java services.'])), {
       filename: syntheticName,
       contentType: 'application/pdf',
     })
-    .expect(200);
+    .expect(200)
+    .then(({ body }) =>
+      request(app.getHttpServer())
+        .put(`/api/v1/opportunities/${id}/cv/current`)
+        .set(origin)
+        .send({ cvId: body.id })
+        .expect(200),
+    );
   const third = await request(app.getHttpServer())
     .post(`/api/v1/opportunities/${id}/match`)
     .set(origin)
@@ -221,10 +232,10 @@ test('synthetic CV upload persists and matching reuses latest CV/job without mod
 });
 // Runs before the restart test: closing a restarted context closes the
 // shared extraction owner for later tests in this file.
-test('beta sample PDF replaces a saved DOCX over HTTP', async () => {
+test('beta sample DOCX and PDF upload over HTTP as separate CVs', async () => {
   const upload = (fileName: string, contentType: string) =>
     request(app.getHttpServer())
-      .post('/api/v1/opportunities/cv/current')
+      .post('/api/v1/opportunities/cv')
       .set(origin)
       .field('record', '{}')
       .attach(
@@ -238,7 +249,13 @@ test('beta sample PDF replaces a saved DOCX over HTTP', async () => {
         expect([fileName, response.status, response.body]).toEqual([
           fileName,
           200,
-          { fileName, updatedAt: expect.any(String) },
+          {
+            id: expect.any(String),
+            name: fileName,
+            fileName,
+            isDefault: false,
+            updatedAt: expect.any(String),
+          },
         ]),
       );
   ownsCv = true;
@@ -248,8 +265,8 @@ test('beta sample PDF replaces a saved DOCX over HTTP', async () => {
   );
   await upload('synthetic-cv.pdf', 'application/pdf');
   const [stored] = await database.query(
-    'SELECT "fileName", text FROM ai_job_hunter.saved_cvs WHERE "ownerId"=$1',
-    [LOCAL_OWNER_ID],
+    'SELECT "fileName", text FROM ai_job_hunter.saved_cvs WHERE "ownerId"=$1 AND "fileName"=$2',
+    [LOCAL_OWNER_ID, 'synthetic-cv.pdf'],
   );
   expect(stored.fileName).toBe('synthetic-cv.pdf');
   expect(stored.text).toContain(
@@ -257,18 +274,26 @@ test('beta sample PDF replaces a saved DOCX over HTTP', async () => {
   );
 });
 
-test('saved matches persist across restart, survive identical re-upload and go stale on changed inputs', async () => {
-  const upload = (line: string) =>
-    request(app.getHttpServer())
-      .post('/api/v1/opportunities/cv/current')
+const uploadCv = async (line: string) =>
+  (
+    await request(app.getHttpServer())
+      .post('/api/v1/opportunities/cv')
       .set(origin)
       .field('record', '{}')
       .attach('document', Buffer.from(pdfFixture([line])), {
         filename: syntheticName,
         contentType: 'application/pdf',
       })
-      .expect(200);
-  await upload('Built Python services.');
+      .expect(200)
+  ).body as { id: string; isDefault: boolean; updatedAt: string };
+const selectCv = (job: string, cvId: string, status = 200) =>
+  request(app.getHttpServer())
+    .put(`/api/v1/opportunities/${job}/cv/current`)
+    .set(origin)
+    .send({ cvId })
+    .expect(status);
+test('saved matches persist across restart and go stale only when this job changes CV or job', async () => {
+  const python = await uploadCv('Built Python services.');
   ownsCv = true;
   const input = {
     title: 'Synthetic CV match persistence',
@@ -297,6 +322,7 @@ test('saved matches persist across restart, survive identical re-upload and go s
         .expect(200)
     ).body;
   try {
+    await selectCv(job, python.id);
     expect(await status()).toEqual({ status: 'MISSING' });
     const before = generations;
     const analyzed = (
@@ -306,20 +332,12 @@ test('saved matches persist across restart, survive identical re-upload and go s
         .expect(200)
     ).body;
     expect(generations).toBe(before + 1);
-    // Byte-identical re-upload keeps the same valid match, re-bound to the new CV timestamp.
-    await upload('Built Python services.');
-    const [cv] = await database.query(
-      'SELECT "updatedAt" FROM ai_job_hunter.saved_cvs WHERE "ownerId"=$1',
-      [LOCAL_OWNER_ID],
-    );
-    const same = await status();
-    expect(same).toMatchObject({
+    // Adding another CV never touches this job's match.
+    const java = await uploadCv('Built Java services.');
+    expect(await status()).toMatchObject({
       status: 'VALID',
       result: { matchId: analyzed.matchId },
     });
-    expect(new Date(same.result.cvUpdatedAt).getTime()).toBe(
-      new Date(cv.updatedAt).getTime(),
-    );
     // Job edits make the saved match stale; no analysis is triggered.
     await request(app.getHttpServer())
       .put(`/api/v1/opportunities/${job}`)
@@ -332,9 +350,9 @@ test('saved matches persist across restart, survive identical re-upload and go s
       .set(origin)
       .expect(200);
     expect((await status()).status).toBe('VALID');
-    await upload('Built Java services.');
+    await selectCv(job, java.id);
     expect(await status()).toEqual({ status: 'STALE_CV' });
-    await upload('Built Python services.');
+    await selectCv(job, python.id);
     expect((await status()).status).toBe('VALID');
     await database.query(
       'UPDATE ai_job_hunter.cv_matches SET "policyVersion"=$1 WHERE "jobId"=$2',
@@ -385,5 +403,192 @@ test('saved matches persist across restart, survive identical re-upload and go s
         [job],
       ),
     ).toEqual([]);
+  }
+});
+
+test('multi-CV migration keeps a legacy CV as the default and binds its existing match', async () => {
+  const owner = '00000000-0000-4000-8000-0000000000c9';
+  const runner = database.createQueryRunner();
+  await runner.connect();
+  await runner.startTransaction();
+  try {
+    await new MultiCv1794800000000().down(runner);
+    await runner.query(
+      `INSERT INTO ai_job_hunter.saved_cvs ("ownerId","fileName",text,"updatedAt")
+        VALUES ($1,'legacy.pdf','Built Python services.','2026-01-02T03:04:05.678Z')`,
+      [owner],
+    );
+    const [{ id: job }] = await runner.query(
+      `INSERT INTO ai_job_hunter.opportunities ("ownerId",title,company,source,status,"originalLink","contactNotes",description,notes,"contactDates")
+        VALUES ($1,'Synthetic legacy job','','Other','SAVED','','','','','[]'::jsonb) RETURNING id`,
+      [owner],
+    );
+    await runner.query(
+      `INSERT INTO ai_job_hunter.cv_matches ("matchId","ownerId","jobId","cvTextHash","cvUpdatedAt","jobUpdatedAt","policyVersion",assessment,"analyzedAt")
+        VALUES (gen_random_uuid(),$1,$2,'hash',now(),now(),'p','{}'::jsonb,now())`,
+      [owner, job],
+    );
+    await new MultiCv1794800000000().up(runner);
+    const [cv] = await runner.query(
+      'SELECT id, name, "isDefault", "fileName", text, "updatedAt" FROM ai_job_hunter.saved_cvs WHERE "ownerId"=$1',
+      [owner],
+    );
+    expect(cv).toEqual({
+      id: expect.any(String),
+      name: 'legacy.pdf',
+      isDefault: true,
+      fileName: 'legacy.pdf',
+      text: 'Built Python services.',
+      updatedAt: new Date('2026-01-02T03:04:05.678Z'),
+    });
+    expect(
+      await runner.query(
+        'SELECT "cvId" FROM ai_job_hunter.cv_matches WHERE "jobId"=$1',
+        [job],
+      ),
+    ).toEqual([{ cvId: cv.id }]);
+    expect(
+      await runner.query(
+        'SELECT "cvId" FROM ai_job_hunter.opportunities WHERE id=$1',
+        [job],
+      ),
+    ).toEqual([{ cvId: null }]);
+    // At most one default per account.
+    await expect(
+      runner.query(
+        `INSERT INTO ai_job_hunter.saved_cvs ("ownerId",name,"isDefault","fileName",text) VALUES ($1,'x',true,'x','x')`,
+        [owner],
+      ),
+    ).rejects.toMatchObject({ driverError: { code: '23505' } });
+  } finally {
+    await runner.rollbackTransaction();
+    await runner.release();
+  }
+});
+
+// The restart test above closes the shared parser, so later CVs are inserted directly.
+const insertCv = async (text: string) =>
+  (
+    await database.query(
+      `INSERT INTO ai_job_hunter.saved_cvs ("ownerId", name, "fileName", text)
+        VALUES ($1, $2, $2, $3) RETURNING id, "isDefault"`,
+      [LOCAL_OWNER_ID, syntheticName, text],
+    )
+  )[0] as { id: string; isDefault: boolean };
+test('each job keeps its own CV: other jobs, default changes and renames never make it stale; used CVs cannot be deleted', async () => {
+  const server = app.getHttpServer();
+  const input = {
+    title: 'Synthetic per-job CV',
+    company: '',
+    source: 'Other',
+    status: 'SAVED',
+    originalLink: '',
+    contactNotes: '',
+    description: 'Python required',
+    skills: 'Python',
+    notes: '',
+    contactDates: [],
+    followUpDate: null,
+  };
+  const jobs: string[] = [];
+  const createJob = async () => {
+    const created = await request(server)
+      .post('/api/v1/opportunities')
+      .set(origin)
+      .send(input)
+      .expect(201);
+    jobs.push(created.body.id);
+    return created.body as { id: string; updatedAt: string };
+  };
+  const status = async (job: string) =>
+    (
+      await request(server)
+        .get(`/api/v1/opportunities/${job}/match`)
+        .expect(200)
+    ).body.status;
+  const jobCv = async (job: string) =>
+    (
+      await request(server)
+        .get(`/api/v1/opportunities/${job}/cv/current`)
+        .expect(200)
+    ).body.id;
+  const patch = (cvId: string, body: object, code = 200) =>
+    request(server)
+      .patch(`/api/v1/opportunities/cv/${cvId}`)
+      .set(origin)
+      .send(body)
+      .expect(code);
+  const remove = (cvId: string, code: number) =>
+    request(server)
+      .delete(`/api/v1/opportunities/cv/${cvId}`)
+      .set(origin)
+      .expect(code);
+  const original = (
+    await request(server).get('/api/v1/opportunities/cv/current').expect(200)
+  ).body as { id: string };
+  ownsCv = true;
+  try {
+    const one = await createJob();
+    const two = await createJob();
+    for (const job of [one.id, two.id])
+      await request(server)
+        .post(`/api/v1/opportunities/${job}/match`)
+        .set(origin)
+        .expect(200);
+    const other = await insertCv('Built Python services and Java tools.');
+    expect(other.isDefault).toBe(false);
+    // Choosing a CV for job one changes neither job two nor the default.
+    await selectCv(one.id, other.id);
+    expect(await status(one.id)).toBe('STALE_CV');
+    expect(await status(two.id)).toBe('VALID');
+    expect(await jobCv(two.id)).toBe(original.id);
+    expect(
+      (await request(server).get('/api/v1/opportunities/cv/current')).body.id,
+    ).toBe(original.id);
+    // Selecting a CV is not a job edit.
+    expect(
+      (await request(server).get(`/api/v1/opportunities/${one.id}`)).body
+        .updatedAt,
+    ).toBe(one.updatedAt);
+    // A new default leaves analyzed jobs on the CV they used.
+    await patch(other.id, { isDefault: true });
+    expect(await status(two.id)).toBe('VALID');
+    expect(await jobCv(two.id)).toBe(original.id);
+    const fresh = await createJob();
+    expect(await jobCv(fresh.id)).toBe(other.id);
+    await request(server)
+      .post(`/api/v1/opportunities/${one.id}/match`)
+      .set(origin)
+      .expect(200);
+    expect(await status(one.id)).toBe('VALID');
+    // Renaming is not a CV change.
+    const renamed = await patch(original.id, { name: '  Main CV  ' });
+    expect(renamed.body).toContainEqual(
+      expect.objectContaining({ id: original.id, name: 'Main CV' }),
+    );
+    expect(await status(two.id)).toBe('VALID');
+    // Deletion guards: used by a job, or the default.
+    await remove(original.id, 409);
+    await remove(other.id, 409);
+    await patch(original.id, { isDefault: true });
+    await remove(other.id, 409);
+    const unused = await insertCv('Built unused services.');
+    await remove(unused.id, 200);
+    expect(
+      (await request(server).get('/api/v1/opportunities/cv')).body.map(
+        (cv: { id: string }) => cv.id,
+      ),
+    ).not.toContain(unused.id);
+    // Unknown CVs and invalid input are rejected without changes.
+    await selectCv(one.id, '00000000-0000-4000-8000-0000000000aa', 404);
+    await selectCv(one.id, 'not-a-uuid', 400);
+    await patch(original.id, { name: '   ' }, 400);
+    await patch(original.id, { isDefault: false }, 400);
+    expect(await jobCv(one.id)).toBe(other.id);
+  } finally {
+    await database.query(
+      'DELETE FROM ai_job_hunter.opportunities WHERE id = ANY($1) AND title=$2',
+      [jobs, input.title],
+    );
   }
 });
