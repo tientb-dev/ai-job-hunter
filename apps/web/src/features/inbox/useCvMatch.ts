@@ -10,6 +10,9 @@ export interface SavedCv {
   fileName: string;
   isDefault: boolean;
   updatedAt: string;
+  /** Original upload size; absent for CVs saved before originals were kept. */
+  fileSize?: number | null;
+  originalAvailable?: boolean;
 }
 
 /**
@@ -176,7 +179,7 @@ export function useCvMatch(
     } catch (error) {
       if (request === generation.current)
         setError(
-          error instanceof Error ? error.message : tr('CV upload failed.'),
+          error instanceof Error ? tr(error.message) : tr('CV upload failed.'),
         );
     } finally {
       if (request === generation.current) setBusy(false);

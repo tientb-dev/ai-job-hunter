@@ -2118,4 +2118,29 @@ export const VI_TEXT: Record<string, string> = {
   'Use a CV name of 1 to 120 characters.': 'Dùng tên CV từ 1 đến 120 ký tự.',
   'CV not found.': 'Không tìm thấy CV.',
   'Upload new CV': 'Tải lên CV mới',
+  // My CV library (PR #92)
+  Viewing: 'Đang xem',
+  'Add CV': 'Thêm CV',
+  'Manage your CVs and choose the default used for new jobs.':
+    'Quản lý các CV của bạn và chọn CV mặc định cho việc làm mới.',
+  'Your CVs': 'Danh sách CV',
+  '{count} of {max} CVs saved': 'Đã lưu {count}/{max} CV',
+  'More actions for {name}': 'Thao tác khác cho {name}',
+  'Updated {date}': 'Cập nhật: {date}',
+  'You can keep up to 5 CVs. Delete a CV you no longer need before adding another.':
+    'Bạn có thể lưu tối đa 5 CV. Hãy xóa CV không còn dùng trước khi thêm CV mới.',
+  'Review CV': 'Rà soát CV',
+  'Review status': 'Trạng thái rà soát',
+  Updated: 'Lần cập nhật',
+  Format: 'Định dạng',
+  Size: 'Kích thước',
+  'Actions for this CV': 'Thao tác với CV này',
+  'Download original': 'Tải file gốc',
+  'The original file was not kept for this CV. Upload it again to download it.':
+    'File gốc của CV này không được lưu. Hãy tải lên lại để có thể tải xuống.',
+  'Default CV': 'CV mặc định',
+  'New jobs use this CV for CV Match and tailored CVs. Each job can choose its own CV on the job page.':
+    'Việc làm mới dùng CV này cho phân tích độ phù hợp và CV tùy chỉnh. Mỗi việc làm có thể chọn CV riêng trên trang việc làm.',
+  'You are viewing a CV that is not the default. New jobs use {name}.':
+    'Bạn đang xem một CV không phải mặc định. Việc làm mới dùng {name}.',
 };

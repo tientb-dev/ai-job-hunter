@@ -159,6 +159,14 @@ per owner, exactly one of them the default (see Multi-CV, PR #90). The server as
 or multi-user isolation. Source document bytes and saved CV text are private
 local data, not fixtures or repository artifacts.
 
+Each account keeps at most 5 CVs (PR #92), counting uploads from My CV and from
+individual jobs; `saveCv` checks the count under a per-account advisory lock so
+concurrent uploads cannot exceed it. New uploads also keep the original file
+(`originalBytes`, `mediaType`, `fileSize`) so it downloads byte-for-byte under its
+original name. CVs saved earlier kept only extracted text; they report
+`originalAvailable: false` and are never reconstructed from text. The provenance
+flag `originalBytesRetained` stays false because snapshots never carry bytes.
+
 Status is one of SAVED, CONTACTED, JD_RECEIVED, APPLIED, INTERVIEW, OFFER,
 REJECTED, or CLOSED. Transitions are unrestricted. Application notes and
 recruiter/contact notes are separate strings. Contact dates are a bounded array

@@ -14,4 +14,10 @@ export class SavedCv {
   // CV content is immutable after upload; this is its version identity, so
   // renaming or changing the default must not move it.
   @Column({ type: 'timestamptz', default: () => 'now()' }) updatedAt!: Date;
+  // Original upload, kept unchanged for download; null for CVs saved before
+  // originals were retained.
+  @Column({ type: 'bytea', nullable: true, select: false })
+  originalBytes!: Buffer | null;
+  @Column({ type: 'text', nullable: true }) mediaType!: string | null;
+  @Column({ type: 'integer', nullable: true }) fileSize!: number | null;
 }

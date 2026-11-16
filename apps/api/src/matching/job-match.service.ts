@@ -86,6 +86,8 @@ function cvIdFrom(body: unknown): string {
 export const cvTextHash = (text: string) =>
   createHash('sha256').update(text, 'utf8').digest('hex');
 
+/** Per account, counting CVs uploaded from My CV and from individual jobs. */
+export const MAX_SAVED_CVS = 5;
 @Injectable()
 export class JobMatchService {
   private active = false;
@@ -205,7 +207,22 @@ export class JobMatchService {
       fileName: cv.fileName,
       isDefault: cv.isDefault,
       updatedAt: cv.updatedAt,
+      fileSize: cv.fileSize,
+      originalAvailable: cv.mediaType !== null,
     };
+  }
+  /** The exact bytes of an uploaded CV, when they were retained. */
+  async cvFile(ownerId: string, cvId: string) {
+    const cv = await this.cvs.findOne({
+      where: { ownerId, id: cvId },
+      select: { fileName: true, mediaType: true, originalBytes: true },
+    });
+    if (!cv) throw new NotFoundException('CV not found.');
+    if (!cv.originalBytes)
+      throw new NotFoundException(
+        'The original file was not kept for this CV. Upload it again to download it.',
+      );
+    return { fileName: cv.fileName, bytes: cv.originalBytes };
   }
   async listCvs(ownerId: string) {
     const rows = await this.cvs.find({
@@ -318,12 +335,28 @@ export class JobMatchService {
   async saveCv(ownerId: string, document?: JobDocument) {
     if (!document)
       throw new BadRequestException('Choose a CV PDF or DOCX up to 5 MiB.');
+    let parsed: Awaited<ReturnType<ExtractionService['parseCvWithLayout']>>;
     try {
-      const { source, pdfLayout } =
-        await this.extraction.parseCvWithLayout(document);
-      if (!source.text.trim()) throw new Error();
-      const first = !(await this.cvs.existsBy({ ownerId, isDefault: true }));
-      const { identifiers } = await this.cvs.insert({
+      parsed = await this.extraction.parseCvWithLayout(document);
+      if (!parsed.source.text.trim()) throw new Error();
+    } catch {
+      throw new BadRequestException(
+        'Could not save this CV. Use a text-based PDF or DOCX up to 5 MiB; your other CVs are unchanged.',
+      );
+    }
+    const { source, pdfLayout } = parsed;
+    const id = await this.cvs.manager.transaction(async (m) => {
+      // Serializes concurrent uploads per account so the limit cannot be exceeded.
+      await m.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
+        `saved_cvs:${ownerId}`,
+      ]);
+      const repo = m.getRepository(SavedCv);
+      if ((await repo.countBy({ ownerId })) >= MAX_SAVED_CVS)
+        throw new ConflictException(
+          'You can keep up to 5 CVs. Delete a CV you no longer need before adding another.',
+        );
+      const first = !(await repo.existsBy({ ownerId, isDefault: true }));
+      const { identifiers } = await repo.insert({
         ownerId,
         name: document.fileName.trim().slice(0, 120) || 'CV',
         isDefault: first,
@@ -336,19 +369,16 @@ export class JobMatchService {
           parser: 'bounded-document-parser/v1',
           segments: source.segments,
           warnings: null,
+          // Provenance snapshots never carry bytes; the original lives on this row.
           originalBytesRetained: false,
         },
+        originalBytes: document.bytes,
+        mediaType: document.mediaType,
+        fileSize: document.bytes.length,
       });
-      const cv = await this.cvs.findOneByOrFail({
-        ownerId,
-        id: identifiers[0]!.id as string,
-      });
-      return JobMatchService.dto(cv);
-    } catch {
-      throw new BadRequestException(
-        'Could not save this CV. Use a text-based PDF or DOCX up to 5 MiB; your other CVs are unchanged.',
-      );
-    }
+      return identifiers[0]!.id as string;
+    });
+    return JobMatchService.dto(await this.cvs.findOneByOrFail({ ownerId, id }));
   }
   private async recheckSuggestionSnapshot(
     ownerId: string,

@@ -13,6 +13,8 @@ const savedCv = {
   isDefault: true,
   fileName: sourceCvFixture.fileName,
   updatedAt: sourceCvFixture.savedCvUpdatedAt,
+  fileSize: 274_432 as number | null,
+  originalAvailable: true,
 };
 const otherCv = {
   ...savedCv,
@@ -118,18 +120,21 @@ test.each([
   expect(await screen.findByText(loadError)).toBeVisible();
 });
 
-test('saved state shows name, file, date and review progress with Upload another as secondary', async () => {
+test('saved state shows the library, details, file facts and review progress', async () => {
   const { total } = mount(savedCv, 1);
-  const summary = await screen.findByRole('region', { name: 'Source CV' });
+  const library = await screen.findByRole('region', { name: 'Your CVs' });
+  expect(within(library).getByLabelText('1 of 5 CVs saved')).toBeVisible();
+  const summary = screen.getByRole('region', { name: 'Main CV' });
+  // The original file name appears once, only because the CV was renamed.
   expect(within(summary).getByText(savedCv.fileName)).toBeVisible();
-  expect(within(summary).getByText(/^Main CV/)).toBeVisible();
-  expect(within(summary).getByText(/^Saved /)).toBeVisible();
+  expect(within(summary).getByText('Updated')).toBeVisible();
+  expect(within(summary).getByText('268 KB')).toBeVisible();
   expect(
     await within(summary).findByText(`1 of ${total} sections reviewed`),
   ).toBeVisible();
-  expect(
-    within(summary).getByText('Upload another CV', { selector: 'label' }),
-  ).toHaveClass('MuiButton-outlined');
+  expect(screen.getByText('Add CV', { selector: 'label' })).toHaveClass(
+    'MuiButton-contained',
+  );
   // The shared review stays primary until it is complete.
   expect(screen.getByRole('button', { name: 'Review source CV' })).toHaveClass(
     'MuiButton-contained',
@@ -183,7 +188,7 @@ test('adding a CV shows it without replacing the default and never touches tailo
   const { fetch } = mount(savedCv);
   await screen.findByText(/sections reviewed/);
   await userEvent.setup().upload(
-    screen.getByLabelText('Upload another CV'),
+    screen.getByLabelText('Add CV'),
     new File(['synthetic'], 'added-cv.pdf', {
       type: 'application/pdf',
     }),
@@ -291,23 +296,23 @@ test('Open review after a status failure never creates or resets a review', asyn
 test('a non-default CV can become the default; a CV still used by a job is not deleted', async () => {
   const user = userEvent.setup();
   const { fetch } = mount([savedCv, otherCv]);
-  await screen.findByText('Main CV · Default');
+  await screen.findByRole('region', { name: 'Main CV' });
   // The default CV offers neither Make default nor Delete.
   expect(screen.queryByRole('button', { name: 'Make default' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull();
-  await user.click(screen.getByRole('combobox', { name: 'CV' }));
-  await user.click(screen.getByRole('option', { name: 'Data CV' }));
+  await user.click(screen.getByRole('button', { name: /^Data CV/ }));
   await user.click(screen.getByRole('button', { name: 'Delete' }));
   await user.click(
     within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }),
   );
   expect(await screen.findByText(inUse)).toBeVisible();
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-  expect(screen.getByRole('combobox', { name: 'CV' })).toHaveTextContent(
-    'Data CV',
-  );
+  expect(screen.getByRole('region', { name: 'Data CV' })).toBeVisible();
   await user.click(screen.getByRole('button', { name: 'Make default' }));
-  expect(await screen.findByText('Data CV · Default')).toBeVisible();
+  await waitFor(() =>
+    expect(screen.queryByRole('button', { name: 'Make default' })).toBeNull(),
+  );
+  expect(screen.getByText('Default CV')).toBeVisible();
   expect(
     fetch.mock.calls.some(
       ([url, init]) =>
@@ -315,4 +320,76 @@ test('a non-default CV can become the default; a CV still used by a job is not d
         (init as RequestInit | undefined)?.method === 'PATCH',
     ),
   ).toBe(true);
+});
+
+test('the default CV and the CV being viewed are labelled separately', async () => {
+  const user = userEvent.setup();
+  mount([savedCv, otherCv]);
+  const library = await screen.findByRole('region', { name: 'Your CVs' });
+  const main = within(library).getByRole('button', { name: /^Main CV/ });
+  expect(main).toHaveAttribute('aria-current', 'true');
+  expect(within(main).getByText('Viewing')).toBeVisible();
+  expect(within(main).getByText('Default')).toBeVisible();
+  await user.click(within(library).getByRole('button', { name: /^Data CV/ }));
+  const data = within(library).getByRole('button', { name: /^Data CV/ });
+  expect(data).toHaveAttribute('aria-current', 'true');
+  expect(within(data).getByText('Viewing')).toBeVisible();
+  expect(within(data).queryByText('Default')).toBeNull();
+  expect(within(main).queryByText('Viewing')).toBeNull();
+  expect(within(main).getByText('Default')).toBeVisible();
+  expect(
+    screen.getByText(/not the default\. New jobs use Main CV\./),
+  ).toBeVisible();
+});
+
+test('download links to the exact original file, or explains why it is unavailable', async () => {
+  const user = userEvent.setup();
+  mount([savedCv, { ...otherCv, originalAvailable: false, fileSize: null }]);
+  const download = await screen.findByRole('link', {
+    name: 'Download original',
+  });
+  expect(download).toHaveAttribute(
+    'href',
+    `/api/v1/opportunities/cv/${savedCv.id}/file`,
+  );
+  expect(download).toHaveAttribute('download', savedCv.fileName);
+  await user.click(screen.getByRole('button', { name: /^Data CV/ }));
+  const summary = screen.getByRole('region', { name: 'Data CV' });
+  expect(
+    within(summary).getByRole('button', { name: 'Download original' }),
+  ).toBeDisabled();
+  expect(within(summary).getByText(/original file was not kept/)).toBeVisible();
+  expect(within(summary).getByText('—')).toBeVisible();
+});
+
+test('at 5 CVs adding is disabled with a clear message', async () => {
+  const five = Array.from({ length: 5 }, (_, i) => ({
+    ...otherCv,
+    id: `00000000-0000-4000-8000-0000000000d${i}`,
+    name: `CV ${i}`,
+    isDefault: i === 0,
+  }));
+  mount(five);
+  const library = await screen.findByRole('region', { name: 'Your CVs' });
+  expect(within(library).getByLabelText('5 of 5 CVs saved')).toBeVisible();
+  expect(within(library).getByText(/up to 5 CVs/)).toBeVisible();
+  expect(screen.getByLabelText('Add CV')).toBeDisabled();
+});
+
+test('the row menu opens that CV and offers its actions', async () => {
+  const user = userEvent.setup();
+  mount([savedCv, otherCv]);
+  await user.click(
+    await screen.findByRole('button', { name: 'More actions for Data CV' }),
+  );
+  const menu = screen.getByRole('menu');
+  expect(
+    within(menu)
+      .getAllByRole('menuitem')
+      .map((item) => item.textContent),
+  ).toEqual(['Make default', 'Rename', 'Download original', 'Delete']);
+  await user.click(within(menu).getByRole('menuitem', { name: 'Rename' }));
+  expect(screen.getByRole('textbox', { name: 'CV name' })).toHaveValue(
+    'Data CV',
+  );
 });

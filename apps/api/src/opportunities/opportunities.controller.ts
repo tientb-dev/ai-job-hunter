@@ -148,6 +148,15 @@ export class OpportunitiesController {
     localWrite(req);
     return this.matches.updateCv(owner, cvId, body);
   }
+  @Get('cv/:cvId/file')
+  async cvFile(
+    @CurrentOwner() owner: string,
+    @Param('cvId', new ParseUUIDPipe()) cvId: string,
+    @Res() res: ServerResponse,
+  ) {
+    const file = await this.matches.cvFile(owner, cvId);
+    sendAttachment(res, file.fileName, file.bytes);
+  }
   @Delete('cv/:cvId')
   @Header('Cache-Control', 'no-store')
   deleteCv(
@@ -276,14 +285,7 @@ export class OpportunitiesController {
     @Res() res: ServerResponse,
   ) {
     const document = await this.opportunities.document(owner, id);
-    res.setHeader('Content-Type', 'application/octet-stream');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Cache-Control', 'no-store');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename*=UTF-8''${encodeURIComponent(document.fileName).replace(/'/g, '%27')}`,
-    );
-    res.end(document.bytes);
+    sendAttachment(res, document.fileName, document.bytes);
   }
   @Post('parse-document')
   @HttpCode(200)
@@ -340,4 +342,15 @@ export class OpportunitiesController {
       clearTimeout(timer);
     }
   }
+}
+/** Sends stored bytes unchanged as a download under their original name. */
+function sendAttachment(res: ServerResponse, fileName: string, bytes: Buffer) {
+  res.setHeader('Content-Type', 'application/octet-stream');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename*=UTF-8''${encodeURIComponent(fileName).replace(/'/g, '%27')}`,
+  );
+  res.end(bytes);
 }
