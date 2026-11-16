@@ -11,7 +11,6 @@ import { AI_CONFIG, GEMINI_MODEL, type AiConfig } from '../ai/ai.config.js';
 import { OLLAMA_CONTEXT_PROFILE } from '../ai/ollama.context.js';
 import {
   JobMatchService,
-  cvTextHash,
   savedMatchStatus,
 } from '../matching/job-match.service.js';
 import { SavedCv } from '../matching/saved-cv.entity.js';
@@ -47,6 +46,9 @@ interface ProgressRow {
   jobUpdatedAt: Date;
   policyVersion: string | null;
   cvTextHash: string | null;
+  matchCvId: string | null;
+  cvId: string | null;
+  cvHash: string | null;
   matchJobUpdatedAt: Date | null;
   draftUpdatedAt: Date | null;
   draftJobUpdatedAt: Date | null;
@@ -63,11 +65,18 @@ const array = (value: string) =>
 const JOB_PROGRESS_SQL = `
 SELECT o.id, o."updatedAt" AS "jobUpdatedAt",
   m."policyVersion", m."cvTextHash", m."jobUpdatedAt" AS "matchJobUpdatedAt",
+  m."cvId" AS "matchCvId", c.id AS "cvId",
+  encode(sha256(convert_to(c.text, 'UTF8')), 'hex') AS "cvHash",
   d."updatedAt" AS "draftUpdatedAt", d."jobUpdatedAt" AS "draftJobUpdatedAt",
   d.pending, coalesce(d.approved, false) AS approved
 FROM ai_job_hunter.opportunities o
 LEFT JOIN ai_job_hunter.cv_matches m
   ON m."ownerId" = o."ownerId" AND m."jobId" = o.id
+-- Same CV resolution as JobMatchService.jobCvText.
+LEFT JOIN ai_job_hunter.saved_cvs c ON c."ownerId" = o."ownerId" AND c.id = coalesce(
+  o."cvId", m."cvId",
+  (SELECT d.id FROM ai_job_hunter.saved_cvs d
+    WHERE d."ownerId" = o."ownerId" AND d."isDefault"))
 LEFT JOIN LATERAL (
   SELECT x."updatedAt", x."jobUpdatedAt",
     CASE
@@ -158,9 +167,8 @@ export class TailoredDraftService {
         if (!canonicalRequirements(job).length)
           return blocked('CV_DRAFT_JOB_REQUIREMENTS_REQUIRED');
         if (!expectedCv) return blocked('CV_DRAFT_CV_UNAVAILABLE');
-        const cv = await manager
-          .getRepository(SavedCv)
-          .findOne({ where: { ownerId }, select: { updatedAt: true } });
+        // The job's own CV, not the account default.
+        const cv = await this.matches.jobCv(ownerId, jobId);
         if (!cv) return blocked('CV_DRAFT_CV_UNAVAILABLE');
         if (cv.updatedAt.toISOString() !== expectedCv)
           return blocked('CV_DRAFT_STALE_CV');
@@ -219,8 +227,9 @@ export class TailoredDraftService {
    */
   async reviewedFacts(ownerId: string): Promise<string[] | null> {
     const manager = this.db.manager;
+    // shortcut: Interview Prep has no job CV context yet, so it uses the default CV.
     const cv = await manager.getRepository(SavedCv).findOne({
-      where: { ownerId },
+      where: { ownerId, isDefault: true },
       select: { ownerId: true, text: true, fileName: true, updatedAt: true },
     });
     if (!cv?.text.trim()) return null;
@@ -290,8 +299,9 @@ export class TailoredDraftService {
    */
   async progress(ownerId: string) {
     const manager = this.db.manager;
+    // Review readiness is reported for the default CV; match status per job CV.
     const cv = await manager.getRepository(SavedCv).findOne({
-      where: { ownerId },
+      where: { ownerId, isDefault: true },
       select: { ownerId: true, text: true, fileName: true, updatedAt: true },
     });
     let sourceReason: string | null = null;
@@ -302,7 +312,6 @@ export class TailoredDraftService {
           'CV_DRAFT_MATCH_REQUIRED')
         : 'CV_DRAFT_PROFILE_NOT_FOUND';
     }
-    const hash = cv ? cvTextHash(cv.text) : null;
     const rows: ProgressRow[] = await manager.query(JOB_PROGRESS_SQL, [
       ownerId,
     ]);
@@ -311,7 +320,7 @@ export class TailoredDraftService {
       cv: { saved: Boolean(cv), sourceReason },
       jobs: rows.map((row) => ({
         id: row.id,
-        matchStatus: !hash
+        matchStatus: !row.cvHash
           ? ('CV_UNAVAILABLE' as const)
           : !row.policyVersion
             ? ('MISSING' as const)
@@ -320,8 +329,9 @@ export class TailoredDraftService {
                   policyVersion: row.policyVersion,
                   cvTextHash: row.cvTextHash!,
                   jobUpdatedAt: row.matchJobUpdatedAt!,
+                  cvId: row.matchCvId,
                 },
-                hash,
+                { id: row.cvId!, hash: row.cvHash },
                 row.jobUpdatedAt,
               ),
         draft: row.draftUpdatedAt && {

@@ -25,6 +25,8 @@ import {
   ParseUUIDPipe,
   Post,
   Put,
+  Patch,
+  Delete,
   Query,
   Req,
   Res,
@@ -122,12 +124,58 @@ export class OpportunitiesController {
   cv(@CurrentOwner() owner: string) {
     return this.matches.cv(owner);
   }
-  @Post('cv/current')
+  @Get('cv')
+  @Header('Cache-Control', 'no-store')
+  cvs(@CurrentOwner() owner: string) {
+    return this.matches.listCvs(owner);
+  }
+  /** Adds a CV; the first one becomes the default. Existing CVs are unchanged. */
+  @Post('cv')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
   async saveCv(@CurrentOwner() owner: string, @Req() req: IncomingMessage) {
     localWrite(req);
     return this.matches.saveCv(owner, (await readJobUpload(req)).document);
+  }
+  @Patch('cv/:cvId')
+  @Header('Cache-Control', 'no-store')
+  updateCv(
+    @CurrentOwner() owner: string,
+    @Req() req: IncomingMessage,
+    @Param('cvId', new ParseUUIDPipe()) cvId: string,
+    @Body() body: unknown,
+  ) {
+    localWrite(req);
+    return this.matches.updateCv(owner, cvId, body);
+  }
+  @Delete('cv/:cvId')
+  @Header('Cache-Control', 'no-store')
+  deleteCv(
+    @CurrentOwner() owner: string,
+    @Req() req: IncomingMessage,
+    @Param('cvId', new ParseUUIDPipe()) cvId: string,
+  ) {
+    localWrite(req);
+    return this.matches.deleteCv(owner, cvId);
+  }
+  @Get(':id/cv/current')
+  @Header('Cache-Control', 'no-store')
+  jobCv(
+    @CurrentOwner() owner: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.matches.jobCv(owner, id);
+  }
+  @Put(':id/cv/current')
+  @Header('Cache-Control', 'no-store')
+  selectJobCv(
+    @CurrentOwner() owner: string,
+    @Req() req: IncomingMessage,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: unknown,
+  ) {
+    localWrite(req);
+    return this.matches.selectJobCv(owner, id, body);
   }
   @Get(':id/match')
   @Header('Cache-Control', 'no-store')

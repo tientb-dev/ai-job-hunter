@@ -158,6 +158,7 @@ test.each([
       vi.fn(async (url: string) => {
         if (url.endsWith('/cv/current'))
           return Response.json({ fileName: 'synthetic.pdf' });
+        if (url.endsWith('/opportunities/cv')) return Response.json([]);
         return ++attempts === 1
           ? Response.json(result)
           : Response.json(

@@ -8,13 +8,25 @@ import { MyCv } from '../src/features/inbox/MyCv';
 import { cvProfileFixture, sourceCvFixture } from './fixtures/source-cv-review';
 
 const savedCv = {
+  id: '00000000-0000-4000-8000-0000000000c1',
+  name: 'Main CV',
+  isDefault: true,
   fileName: sourceCvFixture.fileName,
   updatedAt: sourceCvFixture.savedCvUpdatedAt,
 };
+const otherCv = {
+  ...savedCv,
+  id: '00000000-0000-4000-8000-0000000000c2',
+  name: 'Data CV',
+  isDefault: false,
+  fileName: 'data-cv.pdf',
+};
+const inUse =
+  'This CV is still used by one or more jobs. Choose another CV for those jobs before deleting it.';
 
-// Synthetic API: one saved CV (or none) and its review profile.
+// Synthetic API: the saved CVs (or none) and their review profile.
 function mount(
-  cv: typeof savedCv | null,
+  cv: typeof savedCv | (typeof savedCv)[] | null,
   confirmed = 0,
   profileResponse?: () => Promise<Response>,
   currentResponse?: () => Promise<Response>,
@@ -24,15 +36,27 @@ function mount(
     if (index < confirmed) section.review = 'confirmed';
   });
   const fetch = vi.fn(async (url: string, init?: RequestInit) => {
-    if (url.endsWith('/opportunities/cv/current')) {
+    const list = cv === null ? [] : Array.isArray(cv) ? cv : [cv];
+    if (url.endsWith('/opportunities/cv')) {
       if (init?.method === 'POST')
         return Response.json({
-          fileName: 'replacement-cv.pdf',
+          id: '00000000-0000-4000-8000-0000000000c3',
+          name: 'added-cv.pdf',
+          isDefault: false,
+          fileName: 'added-cv.pdf',
           updatedAt: '2026-02-01T00:00:00.000Z',
         });
       if (currentResponse) return currentResponse();
-      // Like Nest: a null result is an empty 200 body, not the text "null".
-      return cv ? Response.json(cv) : new Response(null, { status: 200 });
+      return Response.json(list);
+    }
+    if (url.includes('/opportunities/cv/')) {
+      // Every non-default CV is used by a job in this fixture.
+      if (init?.method === 'DELETE')
+        return Response.json({ message: inUse }, { status: 409 });
+      const id = url.split('/').at(-1);
+      return Response.json(
+        list.map((row) => ({ ...row, isDefault: row.id === id })),
+      );
     }
     if (url.endsWith('/sources') || url.endsWith('/content'))
       return Response.json(sourceCvFixture);
@@ -94,16 +118,17 @@ test.each([
   expect(await screen.findByText(loadError)).toBeVisible();
 });
 
-test('saved state shows file, date and review progress with Replace as secondary', async () => {
+test('saved state shows name, file, date and review progress with Upload another as secondary', async () => {
   const { total } = mount(savedCv, 1);
   const summary = await screen.findByRole('region', { name: 'Source CV' });
   expect(within(summary).getByText(savedCv.fileName)).toBeVisible();
+  expect(within(summary).getByText(/^Main CV/)).toBeVisible();
   expect(within(summary).getByText(/^Saved /)).toBeVisible();
   expect(
     await within(summary).findByText(`1 of ${total} sections reviewed`),
   ).toBeVisible();
   expect(
-    within(summary).getByText('Replace source CV', { selector: 'label' }),
+    within(summary).getByText('Upload another CV', { selector: 'label' }),
   ).toHaveClass('MuiButton-outlined');
   // The shared review stays primary until it is complete.
   expect(screen.getByRole('button', { name: 'Review source CV' })).toHaveClass(
@@ -154,16 +179,24 @@ test('opening the shared review refreshes progress from the same saved profile',
   ).toBeVisible();
 });
 
-test('replacing the CV updates the summary and never touches tailored drafts', async () => {
+test('adding a CV shows it without replacing the default and never touches tailored drafts', async () => {
   const { fetch } = mount(savedCv);
   await screen.findByText(/sections reviewed/);
   await userEvent.setup().upload(
-    screen.getByLabelText('Replace source CV'),
-    new File(['synthetic'], 'replacement-cv.pdf', {
+    screen.getByLabelText('Upload another CV'),
+    new File(['synthetic'], 'added-cv.pdf', {
       type: 'application/pdf',
     }),
   );
-  expect(await screen.findByText('replacement-cv.pdf')).toBeVisible();
+  expect(await screen.findAllByText('added-cv.pdf')).not.toHaveLength(0);
+  expect(screen.getByRole('button', { name: 'Make default' })).toBeVisible();
+  expect(
+    fetch.mock.calls.some(
+      ([url, init]) =>
+        String(url).endsWith('/opportunities/cv') &&
+        (init as RequestInit | undefined)?.method === 'POST',
+    ),
+  ).toBe(true);
   expect(
     fetch.mock.calls.some(([url]) => String(url).includes('/drafts')),
   ).toBe(false);
@@ -253,4 +286,33 @@ test('Open review after a status failure never creates or resets a review', asyn
   expect(
     await screen.findByText(`Reviewed · ${total} of ${total} sections`),
   ).toBeVisible();
+});
+
+test('a non-default CV can become the default; a CV still used by a job is not deleted', async () => {
+  const user = userEvent.setup();
+  const { fetch } = mount([savedCv, otherCv]);
+  await screen.findByText('Main CV · Default');
+  // The default CV offers neither Make default nor Delete.
+  expect(screen.queryByRole('button', { name: 'Make default' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull();
+  await user.click(screen.getByRole('combobox', { name: 'CV' }));
+  await user.click(screen.getByRole('option', { name: 'Data CV' }));
+  await user.click(screen.getByRole('button', { name: 'Delete' }));
+  await user.click(
+    within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }),
+  );
+  expect(await screen.findByText(inUse)).toBeVisible();
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  expect(screen.getByRole('combobox', { name: 'CV' })).toHaveTextContent(
+    'Data CV',
+  );
+  await user.click(screen.getByRole('button', { name: 'Make default' }));
+  expect(await screen.findByText('Data CV · Default')).toBeVisible();
+  expect(
+    fetch.mock.calls.some(
+      ([url, init]) =>
+        String(url).endsWith(`/opportunities/cv/${otherCv.id}`) &&
+        (init as RequestInit | undefined)?.method === 'PATCH',
+    ),
+  ).toBe(true);
 });

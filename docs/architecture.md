@@ -154,8 +154,8 @@ it. Port 5433 is reserved for tests. `databaseOptions` validates target, role,
 database, loopback host, port, and required password before connecting.
 
 `Opportunity` stores job/import data, source documents, tracking fields, discovery
-metadata, and creation/update timestamps. `SavedCv` stores one current parsed CV
-per local owner. The server assigns a fixed local owner; this is not authentication
+metadata, and creation/update timestamps. `SavedCv` stores several parsed CVs
+per owner, exactly one of them the default (see Multi-CV, PR #90). The server assigns a fixed local owner; this is not authentication
 or multi-user isolation. Source document bytes and saved CV text are private
 local data, not fixtures or repository artifacts.
 
@@ -2296,3 +2296,27 @@ Grounding decisions:
 - **VietnamWorks** has no JSON-LD. `vietnamworks-page.ts` reads the job object from the server-rendered Next.js flight data (`self.__next_f`) and turns title, company, description, requirements, skill tags, expiry and a visible salary into a `JobPosting` for the same parser. This format is undocumented; anything unrecognised fails closed with bookmark/paste guidance. Alternative considered: a headless browser — rejected (new infrastructure, heavier anti-bot footprint).
 - Accepted paths: ITviec `/it-jobs/…`, TopCV `/viec-lam/<slug>/<id>.html`, VietnamWorks `/<slug>-<id>-jv`. Query strings are dropped for TopCV/VietnamWorks.
 - **Content-use flags:** TopCV and VietnamWorks terms prohibit copying or exploiting their content and give no explicit permission for third-party fetching (reviewed 2026-11-16). Fetching for those sources is therefore off unless `JOB_URL_FETCH_TOPCV=1` / `JOB_URL_FETCH_VIETNAMWORKS=1`. Keep them off in hosted production until permission is obtained. When off, the API returns 403 and the UI points to the page-import bookmark or manual paste.
+
+## Multi-CV management and per-job CV selection (PR #90)
+
+- `saved_cvs` is keyed by `id`, with `name` and `isDefault` (partial unique index:
+  one default per owner). Uploads add a CV; the first becomes the default. CV text
+  is immutable after upload, so `updatedAt` remains the CV version identity that
+  Tailored CV pins (`expectedSavedCvUpdatedAt`) already use; capture resolves it
+  among the owner's CVs. Rename and default changes never move it.
+- A job's CV is resolved as: explicit `opportunities.cvId`, else the CV its saved
+  match used (`cv_matches.cvId`), else the account default. Analyzed jobs therefore
+  stay on their CV when the default changes, without writing to the job row.
+  Selecting a CV is a raw update that leaves the job's `updatedAt` unchanged.
+- A match is `STALE_CV` when its `cvId` differs from the job's CV or the text hash
+  differs; the dashboard progress SQL applies the same resolution.
+- `(ownerId, cvId)` composite foreign keys prevent cross-account references. A CV
+  can be deleted only when it is not the default and no job resolves to it; stale
+  matches still bound to it are removed with it.
+- Migration `MultiCv1794800000000` keeps each existing CV as the default under a new
+  id and binds existing matches to it. Reverting keeps only each default CV.
+- Routes: `GET/POST /opportunities/cv`, `PATCH/DELETE /opportunities/cv/:cvId`,
+  `GET /opportunities/cv/current` (default), `GET/PUT /opportunities/:id/cv/current`.
+  The old in-place replace (`POST /opportunities/cv/current`) is removed.
+- Known limits: Interview Prep fact checks and the dashboard's review readiness use
+  the default CV; there is no per-job CV list in the dashboard.

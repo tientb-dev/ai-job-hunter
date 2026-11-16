@@ -76,7 +76,7 @@ afterAll(async () => {
 });
 test('fresh synthetic PDF import persists geometry through capture and profile organization over HTTP', async () => {
   const imported = await request(app.getHttpServer())
-    .post('/api/v1/opportunities/cv/current')
+    .post('/api/v1/opportunities/cv')
     .set(headers)
     .field('record', '{}')
     .attach('document', Buffer.from(skillsPdf('interleaved')), {

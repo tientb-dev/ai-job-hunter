@@ -2,7 +2,7 @@ import { ConflictException, Injectable } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import { SavedCv } from './saved-cv.entity.js';
 
-// Matching owns the current CV. P8 may capture a locked snapshot, never write it.
+// Matching owns the saved CVs. P8 may capture a locked snapshot, never write it.
 @Injectable()
 export class SavedCvSourceService {
   async forCapture(
@@ -10,17 +10,27 @@ export class SavedCvSourceService {
     ownerId: string,
     expectedUpdatedAt: string,
   ) {
-    const cv = await manager.getRepository(SavedCv).findOne({
-      where: { ownerId },
-      select: {
-        ownerId: true,
-        text: true,
-        fileName: true,
-        updatedAt: true,
-        sourceMetadata: true,
-      },
-      lock: { mode: 'pessimistic_write' },
-    });
+    const repo = manager.getRepository(SavedCv);
+    // A CV's upload timestamp is its version identity among the owner's CVs.
+    const id = (
+      await repo.find({
+        where: { ownerId },
+        select: { id: true, updatedAt: true },
+      })
+    ).find((row) => row.updatedAt.toISOString() === expectedUpdatedAt)?.id;
+    const cv =
+      id &&
+      (await repo.findOne({
+        where: { ownerId, id },
+        select: {
+          ownerId: true,
+          text: true,
+          fileName: true,
+          updatedAt: true,
+          sourceMetadata: true,
+        },
+        lock: { mode: 'pessimistic_write' },
+      }));
     if (
       !cv ||
       cv.updatedAt.toISOString() !== expectedUpdatedAt ||

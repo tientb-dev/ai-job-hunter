@@ -29,6 +29,7 @@ export const FOLLOW_UP_STATUSES = ['PENDING', 'DONE', 'DISMISSED'] as const;
 export class Opportunity {
   @PrimaryGeneratedColumn('uuid') id!: string;
   @Column({ type: 'uuid' }) ownerId!: string;
+  @Column({ type: 'uuid', nullable: true }) cvId!: string | null;
   @Column({ type: 'varchar', length: 300 }) title!: string;
   @Column({ type: 'varchar', length: 300 }) company!: string;
   @Column({ type: 'varchar', length: 20 }) source!: (typeof SOURCES)[number];

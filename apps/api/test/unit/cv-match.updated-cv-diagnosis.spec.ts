@@ -110,7 +110,10 @@ function setup(
   const cvs = {
     findOne: async () => ({ ...saved }),
     findOneBy: async () => ({ ...saved }),
-    upsert: async (value: {
+    findOneByOrFail: async () => ({ ...saved }),
+    existsBy: async () => false,
+    // One slot: the newly added CV becomes the default this job falls back to.
+    insert: async (value: {
       ownerId: string;
       text: string;
       fileName: string;
@@ -119,6 +122,7 @@ function setup(
         ...value,
         updatedAt: new Date(saved.updatedAt.getTime() + 1000),
       };
+      return { identifiers: [{ id: 'synthetic-cv-2' }] };
     },
   };
   const service = new JobMatchService(

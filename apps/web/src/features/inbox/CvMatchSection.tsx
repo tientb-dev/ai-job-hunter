@@ -1,12 +1,9 @@
 import { dateLocale, tr } from '../../app/i18n';
-import {
-  AutoAwesomeIcon,
-  RefreshIcon,
-  UploadIcon,
-} from '../../components/icons';
+import { AutoAwesomeIcon, RefreshIcon } from '../../components/icons';
 import { Link, useInRouterContext } from 'react-router-dom';
 import { validSourceDate } from './cv-suggestions.contract';
 import { type MatchResult, statusLabel } from './cv-match.types';
+import { JobCvPicker } from './JobCvPicker';
 import { matchStatusMessages, type CvMatchState } from './useCvMatch';
 import {
   useCallback,
@@ -73,7 +70,7 @@ export function CvMatchSection({
   uploadBlocked?: boolean;
 }) {
   const { cv, busy, error, result, matchStatus, matchReadError } = match;
-  const { analyze, upload, reload } = match;
+  const { analyze, reload } = match;
   return (
     <Box
       role="tabpanel"
@@ -126,46 +123,19 @@ export function CvMatchSection({
             </Button>
           </Stack>
           <Box>
-            <Stack
-              direction="row"
-              spacing={1}
-              useFlexGap
-              sx={{ alignItems: 'center', flexWrap: 'wrap' }}
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ overflowWrap: 'anywhere', mb: 1 }}
             >
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ overflowWrap: 'anywhere', minWidth: 0 }}
-              >
-                {cv
-                  ? tr('Saved CV: {fileName}', { fileName: cv.fileName })
-                  : tr('No saved CV yet.')}
-              </Typography>
-              <Button
-                startIcon={<UploadIcon />}
-                component="label"
-                size="small"
-                disabled={busy || uploadBlocked}
-                sx={{ textTransform: 'none', flexShrink: 0 }}
-              >
-                {cv ? tr('Replace CV') : tr('Save CV')}
-                <input
-                  disabled={busy || uploadBlocked}
-                  hidden
-                  type="file"
-                  accept=".pdf,.docx"
-                  aria-label={tr('Save CV for matching')}
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    event.target.value = '';
-                    if (file) void upload(file);
-                  }}
-                />
-              </Button>
-            </Stack>
+              {cv
+                ? tr('Saved CV: {fileName}', { fileName: cv.fileName })
+                : tr('No saved CV yet.')}
+            </Typography>
+            <JobCvPicker match={match} disabled={busy || uploadBlocked} />
             <Typography variant="caption" color="text.secondary">
               {tr(
-                'Uses the latest saved CV and job, not unsaved edits. Files parse locally; analysis sends them to the configured AI provider.',
+                'Uses the CV selected for this job and the saved job, not unsaved edits. Files parse locally; analysis sends them to the configured AI provider.',
               )}
             </Typography>
           </Box>

@@ -59,7 +59,14 @@ function setup(
   const select = vi
     .fn<() => Promise<Response>>()
     .mockImplementation(async () => Response.json(response));
-  const fetch = vi.fn(async (url: string) => {
+  const fetch = vi.fn(async (url: string, init?: RequestInit) => {
+    // Multi-CV: the list, and an upload that adds a CV before this job selects it.
+    if (url.endsWith('/opportunities/cv'))
+      return Response.json(
+        init?.method === 'POST'
+          ? { id: 'synthetic-cv-2', fileName: 'synthetic.pdf' }
+          : [],
+      );
     if (url.endsWith('/cv/current'))
       return Response.json(
         saved

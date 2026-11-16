@@ -204,15 +204,20 @@ async function ready() {
   mode = 'valid';
   // A pure skills list gives the deterministic D2.3 order-only proposal.
   const fixture = draftFixture(false, undefined, undefined, 'Python, Java\n');
-  await db.getRepository(SavedCv).upsert(
-    {
+  // A fresh CV version per scenario, as a re-upload used to give.
+  const fresh = { text: fixture.text, updatedAt: new Date() };
+  if (
+    !(await db.getRepository(SavedCv).update({ ownerId: owner }, fresh))
+      .affected
+  )
+    await db.getRepository(SavedCv).insert({
       ownerId: owner,
+      name: filename,
+      isDefault: true,
       fileName: filename,
-      text: fixture.text,
       sourceMetadata: null,
-    },
-    ['ownerId'],
-  );
+      ...fresh,
+    });
   ownsCv = true;
   const cv = await db
     .getRepository(SavedCv)

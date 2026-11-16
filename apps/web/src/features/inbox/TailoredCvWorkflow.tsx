@@ -1,9 +1,5 @@
 import { tr } from '../../app/i18n';
-import {
-  ArrowForwardIcon,
-  RefreshIcon,
-  UploadIcon,
-} from '../../components/icons';
+import { ArrowForwardIcon, RefreshIcon } from '../../components/icons';
 import type React from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -24,6 +20,7 @@ import { TailoredCvReview } from './TailoredCvReview';
 import { SourceCvReview } from './SourceCvReview';
 import { MatchGate } from './CvMatchSection';
 import { useCvMatch } from './useCvMatch';
+import { JobCvPicker } from './JobCvPicker';
 import { WorkflowStepIcon } from '../../components/WorkflowStepIcon';
 import {
   workflowStepState,
@@ -54,7 +51,7 @@ export function TailoredCvWorkflow({
   const match = useCvMatch(jobId, revision, jobUpdatedAt);
   const { cv, cvLoaded, busy, error, result, matchStatus, matchReadError } =
     match;
-  const { analyze, upload, reload } = match;
+  const { analyze, reload } = match;
   const [step, setStep] = useState(0);
   const wideSteps = useMediaQuery('(min-width:600px)');
   const [entryResolved, setEntryResolved] = useState(false);
@@ -433,35 +430,14 @@ export function TailoredCvWorkflow({
                     {tr('Open in My CV')}
                   </MuiLink>
                 </Typography>
-                <Button
-                  startIcon={<UploadIcon />}
-                  component="label"
-                  variant={cv || hasDrafts ? 'outlined' : 'contained'}
+                <JobCvPicker
+                  match={match}
+                  emptyLabel={tr('Save source CV')}
+                  inputLabel={tr('Save source CV')}
                   disabled={
                     busy || reviewBusy || reviewDirty || draftBusy || draftDirty
                   }
-                  sx={{ minHeight: 44, alignSelf: 'flex-start' }}
-                >
-                  {cv ? tr('Replace source CV') : tr('Save source CV')}
-                  <input
-                    hidden
-                    type="file"
-                    accept=".pdf,.docx"
-                    aria-label={tr('Save source CV')}
-                    disabled={
-                      busy ||
-                      reviewBusy ||
-                      reviewDirty ||
-                      draftBusy ||
-                      draftDirty
-                    }
-                    onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      event.target.value = '';
-                      if (file) void upload(file);
-                    }}
-                  />
-                </Button>
+                />
                 {busy && (
                   <Typography role="status">
                     {tr('Saving source CV locally…')}

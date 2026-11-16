@@ -66,6 +66,8 @@ beforeAll(async () => {
   ).toBeNull();
   await db.getRepository(SavedCv).insert({
     ownerId: owner,
+    name: filename,
+    isDefault: true,
     fileName: filename,
     text,
     updatedAt: new Date(savedAt),

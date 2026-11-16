@@ -56,6 +56,8 @@ beforeAll(async () => {
   ).toBeNull();
   await db.getRepository(SavedCv).insert({
     ownerId: owner,
+    name: filename,
+    isDefault: true,
     fileName: filename,
     text: syntheticCv,
     updatedAt: new Date(savedAt),
@@ -369,9 +371,9 @@ test('drafts pin an exact profile revision and job, isolate owners and compare r
     .send({ ...v, expectedRevision: 2 })
     .expect(200);
 });
-test('source replacement leaves history intact and rejects stale captures/profile creation; new uploads retain known provenance', async () => {
+test('adding a CV leaves history intact and rejects unknown captures/mismatched profiles; new uploads retain known provenance', async () => {
   await request(app.getHttpServer())
-    .post('/api/v1/opportunities/cv/current')
+    .post('/api/v1/opportunities/cv')
     .set(origin)
     .field('record', '{}')
     .attach(
@@ -382,11 +384,11 @@ test('source replacement leaves history intact and rejects stale captures/profil
     .expect(200);
   const saved = await db
     .getRepository(SavedCv)
-    .findOneByOrFail({ ownerId: owner });
+    .findOneByOrFail({ ownerId: owner, isDefault: false });
   await request(app.getHttpServer())
     .post(`${base}/sources`)
     .set(origin)
-    .send({ ...v, expectedSavedCvUpdatedAt: savedAt })
+    .send({ ...v, expectedSavedCvUpdatedAt: '2000-01-01T00:00:00.000Z' })
     .expect(409);
   await request(app.getHttpServer())
     .post(`${base}/profiles`)
@@ -415,7 +417,7 @@ test('source replacement leaves history intact and rejects stale captures/profil
   expect(capture.id).not.toBe(sourceId);
   await service.deleteSource(owner, capture.id);
   expect(
-    (await db.getRepository(SavedCv).findOneByOrFail({ ownerId: owner }))
+    (await db.getRepository(SavedCv).findOneByOrFail({ id: saved.id }))
       .updatedAt,
   ).toEqual(saved.updatedAt);
 });
