@@ -8,7 +8,7 @@ import {
 } from '../../components/icons';
 import { DialogCloseButton } from '../../components/DialogCloseButton';
 import { useNotify } from '../../components/useNotify';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import {
   Alert,
   Checkbox,
@@ -343,12 +343,15 @@ export function SourceCvReview({
     /^[a-z0-9]+(?:-[a-z0-9]+){1,8}$/u.test(selectedText.trim()) &&
     selectedText.trim().length <= 100;
   const blocked = disabled || busy;
-  const opened = useRef(false);
-  useEffect(() => {
-    if (!autoOpen || opened.current || !cv) return;
-    opened.current = true;
-    void run(openReview);
+  // Opens once per mount. The cleanup cancels a pending open, so StrictMode's
+  // simulated unmount (which also bumps the epoch) leaves one live attempt.
+  const openOnMount = useEffectEvent(() => {
+    if (autoOpen && cv) void run(openReview);
   });
+  useEffect(() => {
+    const timer = setTimeout(openOnMount);
+    return () => clearTimeout(timer);
+  }, []);
   const blank =
     document?.sections.some((s) =>
       s.entries.some((e) => e.facts.some((f) => !f.value.trim())),
@@ -598,7 +601,28 @@ export function SourceCvReview({
             : tr('Preparing source review…')}
         </Typography>
       )}
-      {error && <Alert severity="error">{error}</Alert>}
+      {error && (
+        <Alert
+          severity="error"
+          action={
+            autoOpen &&
+            !profile &&
+            !reuseOffer &&
+            !busy && (
+              <Button
+                color="inherit"
+                size="small"
+                startIcon={<RefreshIcon />}
+                onClick={() => void run(openReview)}
+              >
+                {tr('Retry')}
+              </Button>
+            )
+          }
+        >
+          {error}
+        </Alert>
+      )}
       {profile && source && document && (
         <>
           <Typography variant="body2">

@@ -154,16 +154,27 @@ export function MyCv() {
       active = false;
     };
   }, []);
+  // A late status response for a previously selected CV must not land on this one.
+  const shownCvId = useRef('');
+  useEffect(() => {
+    shownCvId.current = cv?.id ?? '';
+  }, [cv]);
   const refreshProgress = useCallback(() => {
     if (!cv) return;
-    readProgress(cv).then(setProgress, () => setProgress('error'));
+    const id = cv.id;
+    readProgress(cv).then(
+      (next) => shownCvId.current === id && setProgress(next),
+      () => shownCvId.current === id && setProgress('error'),
+    );
   }, [cv]);
   useEffect(refreshProgress, [refreshProgress]);
   function select(id: string) {
     if (id === cv?.id) return;
     setProgress(undefined);
     setRenaming(null);
+    // Closing the review unmounts it; its pending requests are discarded.
     setReviewKey(0);
+    setReviewBusy(false);
     setSelectedId(id);
   }
   async function upload(file: File) {
@@ -178,6 +189,7 @@ export function MyCv() {
       setProgress(undefined);
       setRenaming(null);
       setReviewKey(0);
+      setReviewBusy(false);
       setCvs((rows) => [...rows, next]);
       setSelectedId(next.id);
     } catch (failure) {
@@ -212,7 +224,9 @@ export function MyCv() {
       method: 'PATCH',
       body: JSON.stringify({ isDefault: true }),
     });
-  const locked = uploading || reviewBusy || reviewDirty || managing;
+  // An open or loading review never locks the library; only unsaved review
+  // edits do, so switching or adding a CV cannot silently discard them.
+  const locked = uploading || reviewDirty || managing;
   const full = cvs.length >= MAX_CVS;
   const reviewed =
     typeof progress === 'object' &&

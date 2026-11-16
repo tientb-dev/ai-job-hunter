@@ -1,4 +1,5 @@
 import { ThemeProvider } from '@mui/material';
+import { StrictMode } from 'react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { expect, test, vi } from 'vitest';
@@ -32,6 +33,8 @@ function mount(
   confirmed = 0,
   profileResponse?: () => Promise<Response>,
   currentResponse?: () => Promise<Response>,
+  // The app runs in StrictMode; its double effects caught the stuck review.
+  strict = false,
 ) {
   const profile = cvProfileFixture();
   profile.document.sections.forEach((section, index) => {
@@ -74,11 +77,12 @@ function mount(
     ],
     { initialEntries: ['/cv'] },
   );
-  render(
+  const app = (
     <ThemeProvider theme={theme}>
       <RouterProvider router={router} />
-    </ThemeProvider>,
+    </ThemeProvider>
   );
+  render(strict ? <StrictMode>{app}</StrictMode> : app);
   return { fetch, router, total: profile.document.sections.length };
 }
 const calls = (fetch: ReturnType<typeof vi.fn>, suffix: string) =>
@@ -393,4 +397,77 @@ test('the row menu opens that CV and offers its actions', async () => {
   expect(screen.getByRole('textbox', { name: 'CV name' })).toHaveValue(
     'Data CV',
   );
+});
+
+test('under StrictMode, Review CV shows the review content instead of loading forever', async () => {
+  mount(savedCv, 1, undefined, undefined, true);
+  await screen.findByText(/sections reviewed/);
+  await userEvent
+    .setup()
+    .click(screen.getByRole('button', { name: 'Review CV' }));
+  expect(
+    await screen.findByText(
+      /Confirmation records your review, not independent verification/,
+    ),
+  ).toBeVisible();
+  await waitFor(() =>
+    expect(screen.queryByText('Preparing source review…')).toBeNull(),
+  );
+});
+
+test('a failed review load shows an error with Retry', async () => {
+  let fail = true;
+  mount(savedCv, 1, async () =>
+    fail
+      ? new Response(null, { status: 503 })
+      : Response.json(cvProfileFixture()),
+  );
+  const user = userEvent.setup();
+  await user.click(await screen.findByRole('button', { name: 'Review CV' }));
+  const heading = await screen.findByRole('heading', {
+    name: 'Source CV review',
+  });
+  const section = heading.parentElement!;
+  const retry = await within(section).findByRole('button', { name: 'Retry' });
+  expect(within(section).queryByText('Preparing source review…')).toBeNull();
+  fail = false;
+  await user.click(retry);
+  expect(
+    await screen.findByText(
+      /Confirmation records your review, not independent verification/,
+    ),
+  ).toBeVisible();
+});
+
+test('an open or loading review never locks the library; switching CV closes it', async () => {
+  let release!: () => void;
+  let hold = false;
+  mount([savedCv, otherCv], 1, () => {
+    if (!hold) return Promise.resolve(Response.json(cvProfileFixture()));
+    // Hold the review load open while the user keeps working.
+    return new Promise<Response>((resolve) => {
+      release = () => resolve(Response.json(cvProfileFixture()));
+    });
+  });
+  const user = userEvent.setup();
+  await screen.findByText(/sections reviewed/);
+  hold = true;
+  await user.click(screen.getByRole('button', { name: 'Review CV' }));
+  await screen.findByText('Preparing source review…');
+  expect(screen.getByRole('button', { name: /^Data CV/ })).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'Rename' })).toBeEnabled();
+  expect(screen.getByLabelText('Add CV')).toBeEnabled();
+  await user.click(screen.getByRole('button', { name: /^Data CV/ }));
+  expect(screen.getByRole('region', { name: 'Data CV' })).toBeVisible();
+  expect(
+    screen.queryByRole('heading', { name: 'Source CV review' }),
+  ).toBeNull();
+  // The old CV's late response changes nothing on the new selection.
+  release();
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Rename' })).toBeEnabled(),
+  );
+  expect(
+    screen.queryByRole('heading', { name: 'Source CV review' }),
+  ).toBeNull();
 });
