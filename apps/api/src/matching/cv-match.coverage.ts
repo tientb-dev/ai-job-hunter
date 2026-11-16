@@ -368,9 +368,9 @@ const uncertain = (text: string) =>
 // Vietnamese work/experience verbs: CVs are often Vietnamese while the JD is
 // English (or the reverse); the same evidence gate must apply to both.
 const vietnameseWork =
-  /(?<!\p{L})(?:kinh nghiệm|triển khai|thực hiện|xây dựng|phát triển|quản lý|vận hành|tối ưu|lập kế hoạch|phụ trách|đạt|ký mới|ký kết|tư vấn|sử dụng|tạo|phối hợp|trình bày|thiết lập|đàm phán)(?!\p{L})/iu;
+  /(?<!\p{L})(?:kinh nghiệm|triển khai|thực hiện|xây dựng|phát triển|quản lý|vận hành|tối ưu|lập kế hoạch|phụ trách|đạt|ký|tư vấn|sử dụng|tạo|phối hợp|trình bày|thiết lập|đàm phán)(?!\p{L})/iu;
 const active = (text: string) =>
-  /\b(?:built|build|designed|design|architected|developed|delivered|implemented|used|using|worked|experience|skills|knowledge|understand|proficient|integrated|deployed|led|created)\b/iu.test(
+  /\b(?:built|build|designed|design|architected|developed|delivered|implemented|used|using|worked|experience|skills|knowledge|understand|proficient|integrated|deployed|led|created|closed|signed|won|sold|negotiated|achieved|generated)\b/iu.test(
     text,
   ) || vietnameseWork.test(text);
 // "5 years" / "5 năm" (Vietnamese).
@@ -1422,6 +1422,48 @@ const simpleLabel = (requirement: string) =>
       /^(?:(?:(?:strong|solid|proven|hands-on)\s+)?experience (?:with|in|using)|familiarity with|working knowledge of|knowledge of|understanding of|proficiency (?:with|in)|backend)\s+/iu,
       '',
     );
+// "VND 1 billion", "1,5 tỷ", "2.400.000.000 VND", "$500k" → a number.
+// shortcut: no currency conversion; a requirement and its evidence are assumed
+// to use the same currency, which holds for one JD market.
+function amount(text: string): number | null {
+  const match =
+    /(\d+(?:[.,]\d+)*)\s*(billion|bn|tỷ|million|mn|m|triệu|k|nghìn|ngàn)?(?!\p{L})/iu.exec(
+      text,
+    );
+  if (!match) return null;
+  const digits = match[1]!;
+  // "2.400.000.000" / "1,000,000" group thousands; "1,5" / "1.5" are decimals.
+  const value = /^\d{1,3}(?:([.,])\d{3})(?:\1\d{3})*$/u.test(digits)
+    ? Number(digits.replace(/[.,]/gu, ''))
+    : Number(digits.replace(',', '.'));
+  const unit = (match[2] ?? '').toLowerCase();
+  const scale = /^(?:billion|bn|tỷ)$/u.test(unit)
+    ? 1e9
+    : /^(?:million|mn|m|triệu)$/u.test(unit)
+      ? 1e6
+      : /^(?:k|nghìn|ngàn)$/u.test(unit)
+        ? 1e3
+        : 1;
+  return Number.isFinite(value) ? value * scale : null;
+}
+const dealWord = String.raw`(?:contracts?|deals?|hợp đồng|thương vụ)`;
+// Requirement: "contracts worth VND 1 billion", "deal size of $50k".
+function perDealAmount(requirement: string): number | null {
+  const match = new RegExp(
+    String.raw`${dealWord}\s+(?:size\s+)?(?:worth|valued at|value of|of|trị giá|giá trị(?: từ)?)\s+(?:(?:VND|USD|US\$|\$|đ)\s*)?([^,;.\n]*\d[^,;\n]*)`,
+    'iu',
+  ).exec(requirement);
+  // Money only: "contracts of 12 months" is a term, not a deal size.
+  return match &&
+    /VND|USD|\$|đ\b|billion|\bbn\b|tỷ|million|triệu|\d\s*k\b/iu.test(match[0])
+    ? amount(match[1]!)
+    : null;
+}
+// Evidence: one contract/deal stated with its own value.
+const dealValue = new RegExp(
+  String.raw`${dealWord}\s+(?:[\p{L}-]+\s+){0,3}?(?:worth|valued at|value of|of|trị giá|giá trị)\s+(?:(?:VND|USD|US\$|\$|đ)\s*)?(\d[\d.,]*\s*(?:billion|bn|tỷ|million|mn|m|triệu|k|nghìn|ngàn)?)`,
+  'giu',
+);
 const genericExperienceWord =
   /^(?:experience|years?|development|work|working|professional|relevant|hands-on|proven|practical|field|industry|roles?|positions?|the|a|an|in|of|with|as|and|or|related|similar|at|least|minimum|plus|kinh|nghiệm)$/iu;
 /** Years of experience in a named field ("3+ years of experience in backend
@@ -1663,6 +1705,21 @@ export function simpleEvidenceStatus(
     role &&
     !passages(quote).some((line) =>
       role.words.every((word) => mentions(word, line)),
+    )
+  )
+    return 'NOT_EVIDENCED';
+  // "Contracts worth VND 1 billion or more" is a per-deal size: aggregate
+  // revenue across many contracts is not support. A passage must state one
+  // contract/deal value at or above the threshold.
+  const dealSize = perDealAmount(requirement);
+  if (
+    dealSize !== null &&
+    !passages(quote).some(
+      (line) =>
+        !negative(line) &&
+        [...line.matchAll(dealValue)].some(
+          (match) => (amount(match[1]!) ?? 0) >= dealSize,
+        ),
     )
   )
     return 'NOT_EVIDENCED';

@@ -174,3 +174,38 @@ describe('threshold wording is not an alternative', () => {
     ).toBe('SINGLE');
   });
 });
+
+describe('per-contract deal size is not aggregate revenue', () => {
+  const deal = 'Track record of closing contracts worth VND 1 billion or more';
+  const target =
+    'Proven record of achieving monthly revenue target of 1,500,000,000 VND';
+  const check = (requirement: string, line: string) =>
+    assess(job(requirement), `KINH NGHIỆM\n${line}`, { [requirement]: line })[
+      requirement
+    ];
+
+  test.each([
+    // Markus case: annual revenue across 24 contracts says nothing per contract.
+    '\uf0b7 Đạt doanh thu 2.400.000.000 VND trong năm 2025, tương đương 109% chỉ tiêu cá nhân; ký mới 24 hợp đồng B2B.',
+    '- Generated VND 3 billion in annual revenue from 30 new contracts.',
+    '- Closed a contract worth VND 500 million with a retail chain.',
+    '- Never closed a contract worth VND 2 billion.',
+  ])('not credited: %s', (line) =>
+    expect(check(deal, line)).toBe('NOT_EVIDENCED'),
+  );
+
+  test.each([
+    '- Closed a contract worth VND 1.5 billion with an FMCG brand.',
+    '\uf0b7 Ký hợp đồng trị giá 1,2 tỷ VND với khách hàng FMCG.',
+    '- Signed 3 contracts, the largest contract valued at VND 2,000,000,000.',
+  ])('credited: %s', (line) => expect(check(deal, line)).toBe('EVIDENCED'));
+
+  test('an annual revenue target is still credited by stated revenue', () => {
+    expect(
+      check(
+        target,
+        '\uf0b7 Đạt doanh thu 2.400.000.000 VND trong năm 2025, tương đương 109% chỉ tiêu cá nhân.',
+      ),
+    ).toBe('EVIDENCED');
+  });
+});
