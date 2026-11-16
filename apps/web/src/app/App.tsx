@@ -17,7 +17,6 @@ import {
   Box,
   Button,
   Container,
-  Divider,
   Drawer,
   IconButton,
   useMediaQuery,
@@ -39,7 +38,7 @@ import { InterviewPrep } from '../features/interview-prep/InterviewPrep';
 import { JobPractice } from '../features/interview-prep/JobPractice';
 import { MockInterview } from '../features/interview-prep/MockInterview';
 import { ApiReadiness } from '../features/health/ApiReadiness';
-import { SignOutButton } from '../features/auth/session';
+import { AccountMenu } from '../features/auth/session';
 import { useI18n, type MessageKey } from './i18n';
 import { LanguageSwitcher } from './LanguageSwitcher';
 
@@ -120,11 +119,6 @@ export function App() {
           </Button>
         ))}
       </Stack>
-      <Stack spacing={1} sx={{ mt: 'auto', pt: 2, alignItems: 'flex-start' }}>
-        <LanguageSwitcher />
-        <SignOutButton />
-        {desktop && <ApiReadiness />}
-      </Stack>
     </>
   );
   const jobsMatch = useMatch('/jobs');
@@ -189,10 +183,16 @@ export function App() {
         <Container
           component="header"
           maxWidth="lg"
+          // Sticky so language and sign-out stay reachable on long pages.
           sx={{
-            display: { xs: 'block', md: 'none' },
+            position: 'sticky',
+            top: 0,
+            zIndex: 'appBar',
+            bgcolor: 'background.default',
+            borderBottom: 1,
+            borderColor: 'divider',
             px: { xs: 2, sm: 3 },
-            py: 0.5,
+            py: 1,
             flexShrink: 0,
           }}
         >
@@ -225,14 +225,23 @@ export function App() {
               >
                 <MenuIcon sx={{ fontSize: 20 }} />
               </IconButton>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+              <Typography
+                variant="subtitle2"
+                sx={{ fontWeight: 600, display: { md: 'none' } }}
+              >
                 AI Job Hunter
               </Typography>
             </Stack>
-            {!desktop && <ApiReadiness />}
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{ alignItems: 'center', ml: 'auto' }}
+            >
+              <LanguageSwitcher />
+              <AccountMenu compact={!desktop} />
+            </Stack>
           </Stack>
         </Container>
-        <Divider sx={{ flexShrink: 0, display: { md: 'none' } }} />
         <Container
           component="main"
           maxWidth="lg"
@@ -247,6 +256,7 @@ export function App() {
             }),
           }}
         >
+          <ApiReadiness />
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Home />} />

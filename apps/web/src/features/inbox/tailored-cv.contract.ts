@@ -278,17 +278,54 @@ export async function draftRequest(
   return value;
 }
 
+// Mirrors CV_TEMPLATES in the API export (tailored-cv-export.ts).
+export const CV_TEMPLATES = ['classic', 'modern', 'compact'] as const;
+export type CvTemplate = (typeof CV_TEMPLATES)[number];
+
 export async function downloadDraft(
   id: string,
   expectedRevision: number,
   format: 'docx' | 'pdf',
   isCurrent: () => boolean = () => true,
+  template: CvTemplate = 'classic',
+) {
+  const { blob, filename } = await fetchDraftFile(
+    id,
+    expectedRevision,
+    format,
+    template,
+  );
+  if (!isCurrent()) return;
+  const url = URL.createObjectURL(blob),
+    anchor = document.createElement('a');
+  try {
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.append(anchor);
+    anchor.click();
+  } finally {
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+}
+
+/** The exact approved export, also used for the Step 3 PDF preview. */
+export async function fetchDraftFile(
+  id: string,
+  expectedRevision: number,
+  format: 'docx' | 'pdf',
+  template: CvTemplate = 'classic',
 ) {
   const response = await fetch(`/api/v1/tailored-cv/drafts/${id}/export`, {
     method: 'POST',
     cache: 'no-store',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ contractVersion: '1', expectedRevision, format }),
+    body: JSON.stringify({
+      contractVersion: '1',
+      expectedRevision,
+      format,
+      ...(format === 'pdf' ? { template } : {}),
+    }),
   }).catch(() => {
     throw new Error(
       tr(
@@ -333,18 +370,7 @@ export async function downloadDraft(
       .get('Content-Disposition')
       ?.match(/filename="(tailored-cv-[a-z0-9-]+\.(?:pdf|docx))"/u)?.[1] ??
     `tailored-cv-r${expectedRevision}.${format}`;
-  if (!isCurrent()) return;
-  const url = URL.createObjectURL(blob),
-    anchor = document.createElement('a');
-  try {
-    anchor.href = url;
-    anchor.download = filename;
-    document.body.append(anchor);
-    anchor.click();
-  } finally {
-    anchor.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
+  return { blob, filename };
 }
 
 // Mirrors the API approval rule (tailored-draft.contract.ts): only conflicting

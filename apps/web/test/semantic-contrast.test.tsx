@@ -89,7 +89,7 @@ test('filled warning Chips retain orange with normal-text contrast; other varian
   expect(theme.palette.warning).toEqual(baseline.palette.warning);
 });
 
-test('API unavailable uses the corrected actual indicator colors', async () => {
+test('server-unreachable warning keeps normal-text contrast', async () => {
   vi.stubGlobal(
     'fetch',
     vi.fn(async () => Response.json({}, { status: 503 })),
@@ -99,10 +99,10 @@ test('API unavailable uses the corrected actual indicator colors', async () => {
       <ApiReadiness />
     </ThemeProvider>,
   );
-  await screen.findByText('API unavailable');
-  const styles = getComputedStyle(chip('API unavailable'));
-  expect(styles.backgroundColor).toBe('rgb(237, 108, 2)');
-  expect(styles.color).toBe('rgb(33, 33, 33)');
+  const alert = (await screen.findByText(/Cannot reach the server/)).closest(
+    '.MuiAlert-root',
+  )!;
+  const styles = getComputedStyle(alert);
   expect(contrast(styles.color, styles.backgroundColor)).toBeGreaterThanOrEqual(
     4.5,
   );

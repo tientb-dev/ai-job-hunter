@@ -49,6 +49,8 @@ import {
   DialogActions,
   FormControlLabel,
   LinearProgress,
+  Link,
+  MenuItem,
   Paper,
   Stack,
   TextField,
@@ -58,13 +60,23 @@ import {
 } from '@mui/material';
 import {
   decodeDraft,
+  CV_TEMPLATES,
   downloadDraft,
   draftRequest,
+  fetchDraftFile,
+  type CvTemplate,
   issueBlocksApproval,
   type DraftOperation,
   type SavedDraft,
 } from './tailored-cv.contract';
 import { decodeCvProfile, decodeCvSource } from './source-cv-review.contract';
+
+const templateLabel = (t: CvTemplate) =>
+  t === 'modern'
+    ? tr('Modern — header band, headings in a side column')
+    : t === 'compact'
+      ? tr('Compact — centred header, denser, fits more per page')
+      : tr('Classic — the original layout');
 
 export function TailoredCvReview({
   jobId,
@@ -159,6 +171,7 @@ export function TailoredCvReview({
   const [cvOpen, setCvOpen] = useState(false);
   const [reviewed, setReviewed] = useState(false);
   const [exporting, setExporting] = useState<'docx' | 'pdf' | null>(null);
+  const [template, setTemplate] = useState<CvTemplate>('classic');
   const [recoverable, setRecoverable] = useState<string[] | null>(null);
   const [refresh, setRefresh] = useState(0);
   // Context without the recheck counter: a focus/timer recheck keeps the last
@@ -533,6 +546,71 @@ export function TailoredCvReview({
   const approvedRevision =
     !!saved && document?.review.approval?.revision === saved.revision;
   const approvedUnchanged = approvedRevision && !dirty;
+  // Step 3 shows the exact approved PDF, regenerated when the template changes.
+  // The previous PDF stays in place while the next one loads, so the viewer
+  // keeps its size and the page does not jump.
+  const [pdf, setPdf] = useState<{
+    key: string;
+    url: string | null;
+    error: string | null;
+  } | null>(null);
+  const [pdfAttempt, setPdfAttempt] = useState(0);
+  const pdfId = wizardStep === 3 && approvedUnchanged ? saved?.id : undefined;
+  const pdfRevision = saved?.revision;
+  const pdfKey = pdfId
+    ? `${pdfId}:${pdfRevision}:${template}:${pdfAttempt}`
+    : null;
+  useEffect(() => {
+    if (!pdfKey || !pdfId || !pdfRevision) return;
+    let live = true;
+    fetchDraftFile(pdfId, pdfRevision, 'pdf', template).then(
+      ({ blob }) => {
+        if (live)
+          setPdf({ key: pdfKey, url: URL.createObjectURL(blob), error: null });
+      },
+      (error: Error) => {
+        // Keep the last good PDF on screen next to the error.
+        if (live)
+          setPdf((last) => ({
+            key: pdfKey,
+            url: last?.url ?? null,
+            error: error.message,
+          }));
+      },
+    );
+    return () => {
+      live = false;
+    };
+  }, [pdfKey, pdfId, pdfRevision, template]);
+  const pdfUrl = pdf?.url ?? null;
+  const pdfLoading = !!pdfKey && pdf?.key !== pdfKey;
+  const pdfError = pdf?.key === pdfKey ? pdf.error : null;
+  // Revoke each PDF once it is replaced or the component unmounts.
+  useEffect(
+    () => () => {
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+    },
+    [pdfUrl],
+  );
+  const templatePicker = (
+    <TextField
+      select
+      size="small"
+      label={tr('CV template')}
+      value={template}
+      onChange={(e) => setTemplate(e.target.value as CvTemplate)}
+      helperText={tr(
+        'Applies to the preview and the PDF. DOCX keeps the Classic layout.',
+      )}
+      sx={{ maxWidth: 360 }}
+    >
+      {CV_TEMPLATES.map((t) => (
+        <MenuItem key={t} value={t}>
+          {templateLabel(t)}
+        </MenuItem>
+      ))}
+    </TextField>
+  );
   const approvalReady =
     !!saved &&
     !dirty &&
@@ -1827,6 +1905,7 @@ export function TailoredCvReview({
                 </Alert>
               )}
               {isWizard && renderApproval(document, saved)}
+              {templatePicker}
               <Stack
                 direction={{ xs: 'column', sm: 'row' }}
                 spacing={1}
@@ -1853,6 +1932,7 @@ export function TailoredCvReview({
                             saved.revision,
                             format,
                             () => token === epoch.current,
+                            template,
                           );
                           if (token === epoch.current)
                             setMessage(
@@ -1890,7 +1970,78 @@ export function TailoredCvReview({
               <Typography id="final-preview-title" variant="h6" component="h3">
                 {tr('Final preview')}
               </Typography>
-              <TailoredCvPreview document={document} />
+              {approvedUnchanged ? (
+                <>
+                  {pdfError && (
+                    <Alert
+                      severity="error"
+                      action={
+                        <Button
+                          color="inherit"
+                          size="small"
+                          onClick={() => setPdfAttempt((n) => n + 1)}
+                        >
+                          {tr('Retry')}
+                        </Button>
+                      }
+                    >
+                      {pdfError}
+                    </Alert>
+                  )}
+                  <Box
+                    aria-busy={pdfLoading}
+                    sx={{
+                      position: 'relative',
+                      height: { xs: '70vh', sm: '85vh' },
+                      border: 1,
+                      borderColor: 'divider',
+                      borderRadius: 1,
+                      bgcolor: '#ffffff',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {pdfLoading && (
+                      <LinearProgress
+                        aria-label={tr('Generating PDF preview')}
+                        sx={{
+                          position: 'absolute',
+                          inset: '0 0 auto',
+                          zIndex: 1,
+                        }}
+                      />
+                    )}
+                    {pdfUrl && (
+                      <Box
+                        component="iframe"
+                        title={tr('PDF preview')}
+                        src={pdfUrl}
+                        sx={{
+                          width: '100%',
+                          height: '100%',
+                          border: 0,
+                          display: 'block',
+                          opacity: pdfLoading ? 0.6 : 1,
+                          transition: 'opacity 150ms',
+                        }}
+                      />
+                    )}
+                  </Box>
+                  {pdfUrl && (
+                    <Link href={pdfUrl} target="_blank" rel="noopener">
+                      {tr('Open the PDF in a new tab')}
+                    </Link>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Alert severity="info">
+                    {tr(
+                      'Approve this revision to see the exact PDF with its page breaks. Until then this is a content preview of the selected template.',
+                    )}
+                  </Alert>
+                  <TailoredCvPreview document={document} template={template} />
+                </>
+              )}
             </Stack>
           )}
           {!isWizard && (
@@ -1908,12 +2059,13 @@ export function TailoredCvReview({
                       'Content preview reflects your current wording and inclusion choices, including unsaved edits. Downloads require the saved, approved revision.',
                     )}
                   </Typography>
-                  <TailoredCvPreview document={document} />
+                  <TailoredCvPreview document={document} template={template} />
                 </Stack>
               )}
             </Box>
           )}
           <Box hidden={wizardStep === 3}>
+            {wizardStep === 2 && <Box sx={{ mb: 2 }}>{templatePicker}</Box>}
             {docReview ? (
               <>
                 <Box
@@ -1931,6 +2083,7 @@ export function TailoredCvReview({
                   <Box sx={{ minWidth: 0 }}>
                     <TailoredCvPreview
                       document={document}
+                      template={template}
                       anchors={{
                         states: anchorStates,
                         activeId,

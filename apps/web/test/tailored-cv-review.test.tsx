@@ -349,6 +349,7 @@ test('downloads use exact saved approval, errors retain work, and inclusion chan
     contractVersion: '1',
     expectedRevision: 3,
     format: 'pdf',
+    template: 'classic',
   });
   state.failExport();
   fireEvent.click(screen.getByRole('button', { name: 'Download DOCX' }));
