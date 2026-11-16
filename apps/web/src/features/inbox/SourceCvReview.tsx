@@ -1,6 +1,7 @@
 import { dateLocale, tr } from '../../app/i18n';
 import {
   ArrowForwardIcon,
+  ArrowBackIcon,
   CheckIcon,
   EditIcon,
   RefreshIcon,
@@ -8,7 +9,13 @@ import {
 } from '../../components/icons';
 import { DialogCloseButton } from '../../components/DialogCloseButton';
 import { useNotify } from '../../components/useNotify';
-import { useEffect, useEffectEvent, useRef, useState } from 'react';
+import {
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import {
   Alert,
   Checkbox,
@@ -24,6 +31,9 @@ import {
   Typography,
   Paper,
   LinearProgress,
+  Link,
+  List,
+  ListItemButton,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -56,7 +66,10 @@ export function SourceCvReview({
   entryState,
   myCv = false,
   autoOpen = false,
+  page = false,
 }: {
+  /** Dedicated review page: section navigation, one panel at a time, sticky actions. */
+  page?: boolean;
   /** Opens the review on mount; the caller owns the entry button. */
   autoOpen?: boolean;
   wizardEntry?: boolean;
@@ -113,6 +126,10 @@ export function SourceCvReview({
   }, [focusField]);
   const [targetKind, setTargetKind] = useState<CvSectionKind>('additional');
   const [newValue, setNewValue] = useState('');
+  // Page mode: the panel being shown; null follows the first item needing work.
+  const [active, setActive] = useState<string | null>(null);
+  const [showAllBlockers, setShowAllBlockers] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
   const epoch = useRef(0);
   const documentDirty =
     !!document &&
@@ -137,12 +154,21 @@ export function SourceCvReview({
     try {
       await action();
     } catch (failure) {
-      if (request === epoch.current)
-        setError(
+      if (request === epoch.current) {
+        const text =
           failure instanceof Error
             ? failure.message
-            : tr('Source review failed. Your inputs are retained.'),
-        );
+            : tr('Source review failed. Your inputs are retained.');
+        // Once the review is loaded, failures are mutation results: a
+        // persistent popup. Load failures stay inline with Retry.
+        if (page && profile)
+          notify({
+            severity: 'error',
+            title: tr('Review action failed'),
+            text,
+          });
+        else setError(text);
+      }
     } finally {
       if (request === epoch.current) {
         setBusy(false);
@@ -398,6 +424,7 @@ export function SourceCvReview({
                   v1: sectionTitles[section.kind],
                 }),
                 go: () => {
+                  setActive(section.id);
                   setEditing(section.id);
                   setFocusField({ id: fact.id });
                 },
@@ -410,7 +437,10 @@ export function SourceCvReview({
                     label: tr('Mark {v0} as checked', {
                       v0: sectionTitles[section.kind],
                     }),
-                    go: () => focusById(`source-section-${section.id}`),
+                    go: () => {
+                      setActive(section.id);
+                      focusById(`source-section-${section.id}`);
+                    },
                   },
                 ];
           }),
@@ -426,6 +456,7 @@ export function SourceCvReview({
                     },
                   ),
                   go: () => {
+                    setActive('unassigned');
                     setIssuesOpen(true);
                     focusById('unassigned-source-content');
                   },
@@ -437,6 +468,16 @@ export function SourceCvReview({
                 {
                   key: 'blank',
                   label: tr('Fill in or remove empty details'),
+                  go: () => {
+                    const section = document.sections.find((s) =>
+                      s.entries.some((e) =>
+                        e.facts.some((f) => !f.value.trim()),
+                      ),
+                    );
+                    if (!section) return;
+                    setActive(section.id);
+                    setEditing(section.id);
+                  },
                 },
               ]
             : []),
@@ -445,10 +486,149 @@ export function SourceCvReview({
                 {
                   key: 'adding',
                   label: tr('Finish or clear the content you are adding'),
+                  go: () => setActive('add'),
                 },
               ]
             : []),
         ];
+  const sectionIssues = (section: CvProfileDocument['sections'][number]) =>
+    section.entries.flatMap((e) => issuesFor(e.facts)).length;
+  const navItems = !document
+    ? []
+    : [
+        ...document.sections.map((section) => {
+          const count = sectionIssues(section);
+          return {
+            id: section.id,
+            label: sectionTitles[section.kind],
+            status: count
+              ? tr('{n} to check', { n: count })
+              : section.review === 'confirmed'
+                ? tr('Reviewed')
+                : tr('Not checked yet'),
+            done: !count && section.review === 'confirmed',
+          };
+        }),
+        {
+          id: 'unassigned',
+          label: tr('Unassigned source content'),
+          status: unresolved.length
+            ? tr('{n} left', { n: unresolved.length })
+            : tr('Done'),
+          done: !unresolved.length,
+        },
+        {
+          id: 'add',
+          label: tr('Add missing details'),
+          status: '',
+          done: false,
+        },
+        {
+          id: 'more',
+          label: tr('Excluded content and history'),
+          status: '',
+          done: false,
+        },
+      ];
+  const firstWork =
+    document?.sections.find(
+      (s) => s.review !== 'confirmed' || sectionIssues(s) > 0,
+    )?.id ?? (unresolved.length ? 'unassigned' : navItems[0]?.id);
+  const panel =
+    active && navItems.some((item) => item.id === active) ? active : firstWork;
+  const show = (id: string) => !page || panel === id;
+  const panelIndex = navItems.findIndex((item) => item.id === panel);
+  function goPanel(id: string) {
+    setActive(id);
+    if (id === 'unassigned') setIssuesOpen(true);
+    requestAnimationFrame(() => {
+      const el = window.document.getElementById('source-review-panel');
+      el?.scrollIntoView?.({ block: 'start' });
+      el?.focus({ preventScroll: true });
+    });
+  }
+  const wrapPage = (body: ReactNode) =>
+    !page ? (
+      body
+    ) : (
+      <Box
+        sx={{
+          display: 'grid',
+          gap: 3,
+          alignItems: 'start',
+          gridTemplateColumns: {
+            xs: 'minmax(0, 1fr)',
+            md: '240px minmax(0, 1fr)',
+          },
+        }}
+      >
+        <Box
+          component="nav"
+          aria-label={tr('Review sections')}
+          sx={{
+            display: { xs: 'none', md: 'block' },
+            position: 'sticky',
+            top: 80,
+          }}
+        >
+          <List disablePadding sx={{ display: 'grid', gap: 0.5 }}>
+            {navItems.map((item) => (
+              <ListItemButton
+                key={item.id}
+                selected={item.id === panel}
+                aria-current={item.id === panel ? 'step' : undefined}
+                onClick={() => goPanel(item.id)}
+                sx={{ borderRadius: 1, display: 'block', py: 1 }}
+              >
+                <Typography
+                  variant="body2"
+                  sx={{ fontWeight: item.id === panel ? 600 : 500 }}
+                >
+                  {item.done && (
+                    <CheckIcon
+                      aria-hidden
+                      sx={{
+                        fontSize: 16,
+                        mr: 0.5,
+                        verticalAlign: 'text-bottom',
+                        color: 'success.main',
+                      }}
+                    />
+                  )}
+                  {item.label}
+                </Typography>
+                {item.status && (
+                  <Typography variant="caption" color="text.secondary">
+                    {item.status}
+                  </Typography>
+                )}
+              </ListItemButton>
+            ))}
+          </List>
+        </Box>
+        <Stack
+          id="source-review-panel"
+          tabIndex={-1}
+          spacing={2}
+          sx={{ minWidth: 0, outline: 'none', scrollMarginTop: 80 }}
+        >
+          <TextField
+            select
+            label={tr('Section')}
+            value={panel ?? ''}
+            onChange={(event) => goPanel(event.target.value)}
+            sx={{ display: { md: 'none' } }}
+          >
+            {navItems.map((item) => (
+              <MenuItem key={item.id} value={item.id}>
+                {item.status ? `${item.label} · ${item.status}` : item.label}
+              </MenuItem>
+            ))}
+          </TextField>
+          {body}
+        </Stack>
+      </Box>
+    );
   const visibleFacts = (facts: CvFact[]) =>
     facts
       .filter((f) => f.field !== 'heading' && !f.replacesFactId)
@@ -657,63 +837,87 @@ export function SourceCvReview({
             </Alert>
           )}
           {!legacy && contactFragments.length > 0 && (
-            <Alert severity="warning" variant="outlined">
+            <Alert
+              severity="warning"
+              variant="outlined"
+              action={
+                page && (
+                  <Button
+                    color="inherit"
+                    size="small"
+                    aria-expanded={contactOpen}
+                    onClick={() => setContactOpen((open) => !open)}
+                  >
+                    {contactOpen ? tr('Hide details') : tr('Show details')}
+                  </Button>
+                )
+              }
+            >
               <Typography>
-                {tr(
-                  'Some contact text needs review. Recognized details are kept separate from unreadable symbols and unassigned text.',
-                )}
-              </Typography>
-              {contactFragments.map((row) => (
-                <Typography
-                  component="blockquote"
-                  key={row.start}
-                  sx={{ whiteSpace: 'pre-wrap', m: 1 }}
-                >
-                  {source.text.slice(row.start, row.end)}
-                </Typography>
-              ))}
-              {!!separatorFragments.length && (
-                <Typography variant="body2">
-                  {tr(
-                    'Icon-only fragments, including email icons, can be excluded separately from their contact values.',
-                  )}
-                </Typography>
-              )}
-              {!!separatorFragments.length && (
-                <Button
-                  disabled={blocked}
-                  onClick={() =>
-                    change((next) => {
-                      for (const row of next.coverage)
-                        if (
-                          row.disposition === 'unresolved' &&
-                          separatorFragments.some(
-                            (fragment) => fragment.start === row.start,
-                          )
-                        ) {
-                          row.disposition = 'excluded';
-                          row.reason =
-                            'User reviewed and excluded PDF icon/separator artifacts; no contact information inferred.';
-                        }
+                {page
+                  ? tr('Contact text needs review ({n})', {
+                      n: contactFragments.length,
                     })
-                  }
-                >
-                  {tr('Exclude reviewed separator symbols')}
-                </Button>
+                  : tr(
+                      'Some contact text needs review. Recognized details are kept separate from unreadable symbols and unassigned text.',
+                    )}
+              </Typography>
+              {/* Page mode starts collapsed to a one-line summary. */}
+              {(!page || contactOpen) && (
+                <>
+                  {contactFragments.map((row) => (
+                    <Typography
+                      component="blockquote"
+                      key={row.start}
+                      sx={{ whiteSpace: 'pre-wrap', m: 1 }}
+                    >
+                      {source.text.slice(row.start, row.end)}
+                    </Typography>
+                  ))}
+                  {!!separatorFragments.length && (
+                    <Typography variant="body2">
+                      {tr(
+                        'Icon-only fragments, including email icons, can be excluded separately from their contact values.',
+                      )}
+                    </Typography>
+                  )}
+                  {!!separatorFragments.length && (
+                    <Button
+                      disabled={blocked}
+                      onClick={() =>
+                        change((next) => {
+                          for (const row of next.coverage)
+                            if (
+                              row.disposition === 'unresolved' &&
+                              separatorFragments.some(
+                                (fragment) => fragment.start === row.start,
+                              )
+                            ) {
+                              row.disposition = 'excluded';
+                              row.reason =
+                                'User reviewed and excluded PDF icon/separator artifacts; no contact information inferred.';
+                            }
+                        })
+                      }
+                    >
+                      {tr('Exclude reviewed separator symbols')}
+                    </Button>
+                  )}
+                  <Button
+                    disabled={blocked}
+                    onClick={() => {
+                      setIssuesOpen(true);
+                      requestAnimationFrame(() =>
+                        window.document
+                          .getElementById('unassigned-source-content')
+                          ?.focus(),
+                      );
+                    }}
+                  >
+                    {tr('Review unassigned contact text')}
+                  </Button>
+                </>
               )}
-              <Button
-                disabled={blocked}
-                onClick={() => {
-                  setIssuesOpen(true);
-                  requestAnimationFrame(() =>
-                    window.document
-                      .getElementById('unassigned-source-content')
-                      ?.focus(),
-                  );
-                }}
-              >
-                {tr('Review unassigned contact text')}
-              </Button>
             </Alert>
           )}
           {legacy && (
@@ -854,496 +1058,650 @@ export function SourceCvReview({
               ))}
             </Box>
           )}
-          {!legacy && (
-            <>
-              {document.sections.map((section) => {
-                const issues = section.entries.flatMap((e) =>
-                  issuesFor(e.facts),
-                );
-                const canConfirm =
-                  !legacy &&
-                  !blocked &&
-                  !section.entries.some((entry) =>
-                    entry.facts.some((fact) => !fact.value.trim()),
-                  ) &&
-                  !issues.length &&
-                  section.review !== 'confirmed';
-                return (
-                  <Paper
-                    component="section"
-                    id={`source-section-${section.id}`}
-                    tabIndex={-1}
-                    aria-label={tr('{v0} section', {
-                      v0: sectionTitles[section.kind],
-                    })}
-                    key={section.id}
-                    variant="outlined"
-                    sx={{ p: { xs: 2, sm: 3 }, minWidth: 0 }}
-                  >
-                    <Stack spacing={2}>
-                      <Stack
-                        direction={{ xs: 'column', sm: 'row' }}
-                        spacing={1}
-                        sx={{
-                          justifyContent: 'space-between',
-                          alignItems: { sm: 'center' },
-                        }}
+          {!legacy &&
+            wrapPage(
+              <>
+                {document.sections
+                  .filter((s) => show(s.id))
+                  .map((section) => {
+                    const issues = section.entries.flatMap((e) =>
+                      issuesFor(e.facts),
+                    );
+                    const canConfirm =
+                      !legacy &&
+                      !blocked &&
+                      !section.entries.some((entry) =>
+                        entry.facts.some((fact) => !fact.value.trim()),
+                      ) &&
+                      !issues.length &&
+                      section.review !== 'confirmed';
+                    return (
+                      <Paper
+                        component="section"
+                        id={`source-section-${section.id}`}
+                        tabIndex={-1}
+                        aria-label={tr('{v0} section', {
+                          v0: sectionTitles[section.kind],
+                        })}
+                        key={section.id}
+                        variant="outlined"
+                        sx={{ p: { xs: 2, sm: 3 }, minWidth: 0 }}
                       >
-                        <Typography
-                          variant="subtitle1"
-                          component="h3"
-                          sx={{ fontWeight: 600 }}
-                        >
-                          {sectionTitles[section.kind]}
-                        </Typography>
-                        <Chip
-                          variant="outlined"
-                          size="small"
-                          label={
-                            section.review === 'confirmed'
-                              ? tr('Reviewed')
-                              : issues.length
-                                ? tr('{length} details to check', {
-                                    length: issues.length,
-                                  })
-                                : tr('Ready to review')
-                          }
-                        />
-                      </Stack>
-                      {section.entries.map((entry, index) => {
-                        const fields = visibleFacts(entry.facts);
-                        if (!fields.length) return null;
-                        const value = (field: string) => {
-                          const fact = fields.find(
-                            (f) => f.shown.field === field,
-                          )?.shown;
-                          return fact ? displayText(fact) : undefined;
-                        };
-                        const shared = sharedEmployer(section, entry);
-                        const titleField = (
-                          {
-                            experience: 'employer',
-                            projects: 'project',
-                            education: 'institution',
-                            skills: 'skill_category',
-                            certifications: 'certification',
-                          } as Partial<Record<CvSectionKind, string>>
-                        )[section.kind];
-                        const title =
-                          section.kind === 'experience'
-                            ? (value('employer') ??
-                              (shared
-                                ? `Employer: ${displayText(
-                                    section.entries
-                                      .flatMap((e) => e.facts)
-                                      .find(
-                                        (f) => f.replacesFactId === shared.id,
-                                      ) ?? shared,
-                                  ).trim()} (shared)`
-                                : tr('Check employer attribution')))
-                            : section.kind === 'projects'
-                              ? (value('project') ?? 'Project')
-                              : section.kind === 'education'
-                                ? (value('institution') ??
-                                  tr('Education record'))
-                                : section.kind === 'skills'
-                                  ? (value('skill_category')?.replace(
-                                      /:\s*$/u,
-                                      '',
-                                    ) ?? 'Skills')
-                                  : section.kind === 'certifications'
-                                    ? (value('certification') ??
-                                      'Certification')
-                                    : null;
-                        return (
+                        <Stack spacing={2}>
                           <Stack
-                            key={entry.id}
+                            direction={{ xs: 'column', sm: 'row' }}
                             spacing={1}
-                            component="article"
-                            aria-label={
-                              title ??
-                              tr('{v0} details {v1}', {
-                                v0: sectionTitles[section.kind],
-                                v1: index + 1,
-                              })
-                            }
                             sx={{
-                              borderTop: index ? '1px solid' : 'none',
-                              borderColor: 'divider',
-                              pt: index ? 2 : 0,
+                              justifyContent: 'space-between',
+                              alignItems: { sm: 'center' },
                             }}
                           >
-                            {title && (
-                              <Typography
-                                component="h4"
-                                variant="subtitle2"
-                                sx={{ fontWeight: 600 }}
+                            <Typography
+                              variant="subtitle1"
+                              component="h3"
+                              sx={{ fontWeight: 600 }}
+                            >
+                              {sectionTitles[section.kind]}
+                            </Typography>
+                            <Chip
+                              variant="outlined"
+                              size="small"
+                              label={
+                                section.review === 'confirmed'
+                                  ? tr('Reviewed')
+                                  : issues.length
+                                    ? tr('{length} details to check', {
+                                        length: issues.length,
+                                      })
+                                    : tr('Ready to review')
+                              }
+                            />
+                          </Stack>
+                          {section.entries.map((entry, index) => {
+                            const fields = visibleFacts(entry.facts);
+                            if (!fields.length) return null;
+                            const value = (field: string) => {
+                              const fact = fields.find(
+                                (f) => f.shown.field === field,
+                              )?.shown;
+                              return fact ? displayText(fact) : undefined;
+                            };
+                            const shared = sharedEmployer(section, entry);
+                            const titleField = (
+                              {
+                                experience: 'employer',
+                                projects: 'project',
+                                education: 'institution',
+                                skills: 'skill_category',
+                                certifications: 'certification',
+                              } as Partial<Record<CvSectionKind, string>>
+                            )[section.kind];
+                            const title =
+                              section.kind === 'experience'
+                                ? (value('employer') ??
+                                  (shared
+                                    ? `Employer: ${displayText(
+                                        section.entries
+                                          .flatMap((e) => e.facts)
+                                          .find(
+                                            (f) =>
+                                              f.replacesFactId === shared.id,
+                                          ) ?? shared,
+                                      ).trim()} (shared)`
+                                    : tr('Check employer attribution')))
+                                : section.kind === 'projects'
+                                  ? (value('project') ?? 'Project')
+                                  : section.kind === 'education'
+                                    ? (value('institution') ??
+                                      tr('Education record'))
+                                    : section.kind === 'skills'
+                                      ? (value('skill_category')?.replace(
+                                          /:\s*$/u,
+                                          '',
+                                        ) ?? 'Skills')
+                                      : section.kind === 'certifications'
+                                        ? (value('certification') ??
+                                          'Certification')
+                                        : null;
+                            return (
+                              <Stack
+                                key={entry.id}
+                                spacing={1}
+                                component="article"
+                                aria-label={
+                                  title ??
+                                  tr('{v0} details {v1}', {
+                                    v0: sectionTitles[section.kind],
+                                    v1: index + 1,
+                                  })
+                                }
+                                sx={{
+                                  borderTop: index ? '1px solid' : 'none',
+                                  borderColor: 'divider',
+                                  pt: index ? 2 : 0,
+                                }}
                               >
-                                {title}
-                              </Typography>
-                            )}
-                            {!legacy &&
-                              section.kind === 'education' &&
-                              fields
-                                .filter(
-                                  ({ original, shown }) =>
-                                    shown === original &&
-                                    original.field === 'institution' &&
-                                    splitDates(original.value),
-                                )
-                                .map(({ original }) => {
-                                  const split = splitDates(original.value)!;
-                                  return (
-                                    <Alert
-                                      key={`split-${original.id}`}
-                                      severity="info"
-                                      variant="outlined"
-                                    >
-                                      <Typography variant="body2">
-                                        {tr('This line also contains dates (')}
-                                        {split.dates}
-                                        {tr(
-                                          '). You can keep it as is or split it. Your original text is kept either way.',
-                                        )}
-                                      </Typography>
-                                      <Button
-                                        size="small"
-                                        sx={{ mt: 1 }}
-                                        disabled={blocked}
-                                        onClick={() => {
-                                          editFact(
-                                            section.id,
-                                            entry.id,
-                                            original.id,
-                                            split.name,
-                                            // Dates go right after the institution, as in the source.
-                                            (target) =>
-                                              target.facts.splice(
-                                                target.facts.findIndex(
-                                                  (f) => f.id === original.id,
-                                                ) + 1,
-                                                0,
-                                                {
-                                                  id: crypto.randomUUID(),
-                                                  field: 'dates',
-                                                  value: split.dates,
-                                                  origin: 'user_entered',
-                                                  review: 'pending',
-                                                  evidence: [],
-                                                },
-                                              ),
-                                          );
-                                        }}
-                                      >
-                                        {tr('Split into institution and dates')}
-                                      </Button>
-                                    </Alert>
-                                  );
-                                })}
-                            {!legacy &&
-                              fields.some(
-                                ({ original, shown }) =>
-                                  needs(original) || needs(shown),
-                              ) && (
-                                <Alert severity="warning" variant="outlined">
-                                  {tr('Check')}{' '}
-                                  {fields
+                                {title && (
+                                  <Typography
+                                    component="h4"
+                                    variant="subtitle2"
+                                    sx={{ fontWeight: 600 }}
+                                  >
+                                    {title}
+                                  </Typography>
+                                )}
+                                {!legacy &&
+                                  section.kind === 'education' &&
+                                  fields
                                     .filter(
                                       ({ original, shown }) =>
-                                        needs(original) || needs(shown),
+                                        shown === original &&
+                                        original.field === 'institution' &&
+                                        splitDates(original.value),
                                     )
-                                    .map(({ shown }) => fieldTitle(shown.field))
-                                    .join(', ')}{' '}
-                                  {tr('before confirming this section.')}
-                                </Alert>
-                              )}
-                            {editing === section.id && !legacy
-                              ? fields.map(({ original, shown }) => (
-                                  <Stack key={original.id} spacing={1}>
-                                    <TextField
-                                      id={`source-field-${original.id}`}
-                                      label={fieldTitle(shown.field)}
-                                      value={shown.value}
-                                      multiline
-                                      fullWidth
-                                      disabled={blocked}
-                                      error={!shown.value.trim()}
-                                      onChange={(event) =>
-                                        editFact(
-                                          section.id,
-                                          entry.id,
-                                          original.id,
-                                          event.target.value,
+                                    .map(({ original }) => {
+                                      const split = splitDates(original.value)!;
+                                      return (
+                                        <Alert
+                                          key={`split-${original.id}`}
+                                          severity="info"
+                                          variant="outlined"
+                                        >
+                                          <Typography variant="body2">
+                                            {tr(
+                                              'This line also contains dates (',
+                                            )}
+                                            {split.dates}
+                                            {tr(
+                                              '). You can keep it as is or split it. Your original text is kept either way.',
+                                            )}
+                                          </Typography>
+                                          <Button
+                                            size="small"
+                                            sx={{ mt: 1 }}
+                                            disabled={blocked}
+                                            onClick={() => {
+                                              editFact(
+                                                section.id,
+                                                entry.id,
+                                                original.id,
+                                                split.name,
+                                                // Dates go right after the institution, as in the source.
+                                                (target) =>
+                                                  target.facts.splice(
+                                                    target.facts.findIndex(
+                                                      (f) =>
+                                                        f.id === original.id,
+                                                    ) + 1,
+                                                    0,
+                                                    {
+                                                      id: crypto.randomUUID(),
+                                                      field: 'dates',
+                                                      value: split.dates,
+                                                      origin: 'user_entered',
+                                                      review: 'pending',
+                                                      evidence: [],
+                                                    },
+                                                  ),
+                                              );
+                                            }}
+                                          >
+                                            {tr(
+                                              'Split into institution and dates',
+                                            )}
+                                          </Button>
+                                        </Alert>
+                                      );
+                                    })}
+                                {!legacy &&
+                                  fields.some(
+                                    ({ original, shown }) =>
+                                      needs(original) || needs(shown),
+                                  ) && (
+                                    <Alert
+                                      severity="warning"
+                                      variant="outlined"
+                                    >
+                                      {tr('Check')}{' '}
+                                      {fields
+                                        .filter(
+                                          ({ original, shown }) =>
+                                            needs(original) || needs(shown),
                                         )
-                                      }
-                                      helperText={
-                                        needs(original)
-                                          ? tr(
-                                              'Check this detail and its attribution against the source, then confirm it.',
+                                        .map(({ shown }) =>
+                                          fieldTitle(shown.field),
+                                        )
+                                        .join(', ')}{' '}
+                                      {tr('before confirming this section.')}
+                                    </Alert>
+                                  )}
+                                {editing === section.id && !legacy
+                                  ? fields.map(({ original, shown }) => (
+                                      <Stack key={original.id} spacing={1}>
+                                        <TextField
+                                          id={`source-field-${original.id}`}
+                                          label={fieldTitle(shown.field)}
+                                          value={shown.value}
+                                          multiline
+                                          fullWidth
+                                          disabled={blocked}
+                                          error={!shown.value.trim()}
+                                          onChange={(event) =>
+                                            editFact(
+                                              section.id,
+                                              entry.id,
+                                              original.id,
+                                              event.target.value,
                                             )
-                                          : shown.origin === 'user_entered'
-                                            ? tr(
-                                                'Your correction; it does not become original-source evidence.',
-                                              )
-                                            : undefined
-                                      }
-                                      slotProps={{
-                                        htmlInput: { maxLength: 4000 },
-                                      }}
-                                    />
-                                    {(needs(original) || needs(shown)) && (
-                                      <Button
-                                        variant="outlined"
-                                        disabled={
-                                          blocked || !shown.value.trim()
-                                        }
-                                        onClick={() =>
-                                          confirm(section.id, original.id)
-                                        }
-                                      >
-                                        {tr('Confirm')}{' '}
-                                        {fieldTitle(shown.field)}
-                                      </Button>
-                                    )}
-                                  </Stack>
-                                ))
-                              : fields
-                                  .filter(
-                                    ({ shown }) =>
-                                      !(title && shown.field === titleField),
-                                  )
-                                  .map(({ original, shown }) => (
-                                    <Box key={original.id}>
-                                      <Typography
-                                        sx={{
-                                          fontWeight: [
-                                            'name',
-                                            'headline',
-                                            'role',
-                                            'qualification',
-                                            'project',
-                                          ].includes(shown.field)
-                                            ? 600
-                                            : 400,
-                                          whiteSpace:
-                                            section.kind === 'summary'
-                                              ? 'normal'
-                                              : 'pre-line',
-                                        }}
-                                      >
-                                        {displayText(shown)}
-                                      </Typography>
-                                      {needs(original) && (
-                                        <Typography
-                                          variant="body2"
-                                          color="text.secondary"
-                                        >
-                                          {tr('Needs your review:')}{' '}
-                                          {fieldTitle(shown.field)}
-                                        </Typography>
-                                      )}
-                                      {shown.origin === 'user_entered' && (
-                                        <Typography
-                                          variant="body2"
-                                          color="text.secondary"
-                                        >
-                                          {tr(
-                                            'Your correction — separate from original wording',
+                                          }
+                                          helperText={
+                                            needs(original)
+                                              ? tr(
+                                                  'Check this detail and its attribution against the source, then confirm it.',
+                                                )
+                                              : shown.origin === 'user_entered'
+                                                ? tr(
+                                                    'Your correction; it does not become original-source evidence.',
+                                                  )
+                                                : undefined
+                                          }
+                                          slotProps={{
+                                            htmlInput: { maxLength: 4000 },
+                                          }}
+                                        />
+                                        {(needs(original) || needs(shown)) && (
+                                          <Button
+                                            variant="outlined"
+                                            disabled={
+                                              blocked || !shown.value.trim()
+                                            }
+                                            onClick={() =>
+                                              confirm(section.id, original.id)
+                                            }
+                                          >
+                                            {tr('Confirm')}{' '}
+                                            {fieldTitle(shown.field)}
+                                          </Button>
+                                        )}
+                                      </Stack>
+                                    ))
+                                  : fields
+                                      .filter(
+                                        ({ shown }) =>
+                                          !(
+                                            title && shown.field === titleField
+                                          ),
+                                      )
+                                      .map(({ original, shown }) => (
+                                        <Box key={original.id}>
+                                          <Typography
+                                            sx={{
+                                              fontWeight: [
+                                                'name',
+                                                'headline',
+                                                'role',
+                                                'qualification',
+                                                'project',
+                                              ].includes(shown.field)
+                                                ? 600
+                                                : 400,
+                                              whiteSpace:
+                                                section.kind === 'summary'
+                                                  ? 'normal'
+                                                  : 'pre-line',
+                                            }}
+                                          >
+                                            {displayText(shown)}
+                                          </Typography>
+                                          {needs(original) && (
+                                            <Typography
+                                              variant="body2"
+                                              color="text.secondary"
+                                            >
+                                              {tr('Needs your review:')}{' '}
+                                              {fieldTitle(shown.field)}
+                                            </Typography>
                                           )}
-                                        </Typography>
-                                      )}
-                                    </Box>
-                                  ))}
-                            <Box component="details">
-                              <Typography component="summary" variant="body2">
-                                {tr('View source evidence')}
-                                {title
-                                  ? tr(' for {title}', { title: title })
-                                  : ''}
-                              </Typography>
-                              <Stack spacing={1} sx={{ mt: 1 }}>
-                                {entry.facts
-                                  .filter((f) => f.origin === 'source')
-                                  .flatMap((f) => f.evidence)
-                                  .map((ref, i) => (
-                                    <Box key={i}>
-                                      <Typography variant="caption">
-                                        {tr('Original text · offsets')}{' '}
-                                        {ref.start}–{ref.end}
-                                      </Typography>
-                                      <Typography
-                                        component="blockquote"
-                                        sx={{
-                                          m: 0,
-                                          p: 1,
-                                          bgcolor: 'action.hover',
-                                          whiteSpace: 'pre-wrap',
-                                        }}
-                                      >
-                                        {ref.quote}
-                                      </Typography>
-                                    </Box>
-                                  ))}
+                                          {shown.origin === 'user_entered' && (
+                                            <Typography
+                                              variant="body2"
+                                              color="text.secondary"
+                                            >
+                                              {tr(
+                                                'Your correction — separate from original wording',
+                                              )}
+                                            </Typography>
+                                          )}
+                                        </Box>
+                                      ))}
+                                <Box component="details">
+                                  <Typography
+                                    component="summary"
+                                    variant="body2"
+                                  >
+                                    {tr('View source evidence')}
+                                    {title
+                                      ? tr(' for {title}', { title: title })
+                                      : ''}
+                                  </Typography>
+                                  <Stack spacing={1} sx={{ mt: 1 }}>
+                                    {entry.facts
+                                      .filter((f) => f.origin === 'source')
+                                      .flatMap((f) => f.evidence)
+                                      .map((ref, i) => (
+                                        <Box key={i}>
+                                          <Typography variant="caption">
+                                            {tr('Original text · offsets')}{' '}
+                                            {ref.start}–{ref.end}
+                                          </Typography>
+                                          <Typography
+                                            component="blockquote"
+                                            sx={{
+                                              m: 0,
+                                              p: 1,
+                                              bgcolor: 'action.hover',
+                                              whiteSpace: 'pre-wrap',
+                                            }}
+                                          >
+                                            {ref.quote}
+                                          </Typography>
+                                        </Box>
+                                      ))}
+                                  </Stack>
+                                </Box>
+                                {editing === section.id && !legacy && (
+                                  <RecordAdjustments
+                                    sectionId={section.id}
+                                    entryId={entry.id}
+                                    document={document}
+                                    blocked={blocked}
+                                    change={change}
+                                  />
+                                )}
                               </Stack>
-                            </Box>
-                            {editing === section.id && !legacy && (
-                              <RecordAdjustments
-                                sectionId={section.id}
-                                entryId={entry.id}
-                                document={document}
-                                blocked={blocked}
-                                change={change}
-                              />
+                            );
+                          })}
+                          {(issues.length > 0 ||
+                            section.review === 'confirmed') && (
+                            <Typography variant="body2" color="text.secondary">
+                              {issues.length
+                                ? tr(
+                                    'Review and confirm the highlighted details to enable section confirmation. Editing is available below.',
+                                  )
+                                : tr(
+                                    'This section is confirmed. Edit it if you need to make a correction.',
+                                  )}
+                            </Typography>
+                          )}
+                          <Stack
+                            direction={{ xs: 'column', sm: 'row' }}
+                            spacing={1}
+                          >
+                            {section.review !== 'confirmed' && (
+                              <Button
+                                variant="outlined"
+                                disabled={!canConfirm}
+                                aria-label={tr('Mark {v0} section as checked', {
+                                  v0: sectionTitles[section.kind],
+                                })}
+                                onClick={() =>
+                                  change((next) => {
+                                    next.sections.find(
+                                      (s) => s.id === section.id,
+                                    )!.review = 'confirmed';
+                                  })
+                                }
+                              >
+                                {tr('Mark section as checked')}
+                              </Button>
+                            )}
+                            <Button
+                              disabled={blocked || legacy}
+                              onClick={() =>
+                                setEditing(
+                                  editing === section.id ? null : section.id,
+                                )
+                              }
+                            >
+                              {editing === section.id
+                                ? tr('Finish editing')
+                                : tr('Edit')}{' '}
+                              {sectionTitles[section.kind]}
+                            </Button>
+                            {!!issues.length && (
+                              <Button
+                                disabled={blocked || legacy}
+                                onClick={() => {
+                                  setEditing(section.id);
+                                  setFocusField({
+                                    id:
+                                      issues[0]!.replacesFactId ??
+                                      issues[0]!.id,
+                                  });
+                                }}
+                              >
+                                {tr('Review issues in')}{' '}
+                                {sectionTitles[section.kind]}
+                              </Button>
                             )}
                           </Stack>
-                        );
-                      })}
-                      {(issues.length > 0 ||
-                        section.review === 'confirmed') && (
-                        <Typography variant="body2" color="text.secondary">
-                          {issues.length
-                            ? tr(
-                                'Review and confirm the highlighted details to enable section confirmation. Editing is available below.',
-                              )
-                            : tr(
-                                'This section is confirmed. Edit it if you need to make a correction.',
-                              )}
-                        </Typography>
-                      )}
-                      <Stack
-                        direction={{ xs: 'column', sm: 'row' }}
-                        spacing={1}
-                      >
-                        {section.review !== 'confirmed' && (
-                          <Button
-                            variant="outlined"
-                            disabled={!canConfirm}
-                            aria-label={tr('Mark {v0} section as checked', {
-                              v0: sectionTitles[section.kind],
-                            })}
-                            onClick={() =>
-                              change((next) => {
-                                next.sections.find(
-                                  (s) => s.id === section.id,
-                                )!.review = 'confirmed';
-                              })
-                            }
-                          >
-                            {tr('Mark section as checked')}
-                          </Button>
-                        )}
-                        <Button
-                          disabled={blocked || legacy}
-                          onClick={() =>
-                            setEditing(
-                              editing === section.id ? null : section.id,
-                            )
-                          }
-                        >
-                          {editing === section.id
-                            ? tr('Finish editing')
-                            : tr('Edit')}{' '}
-                          {sectionTitles[section.kind]}
-                        </Button>
-                        {!!issues.length && (
-                          <Button
-                            disabled={blocked || legacy}
-                            onClick={() => {
-                              setEditing(section.id);
-                              setFocusField({
-                                id: issues[0]!.replacesFactId ?? issues[0]!.id,
-                              });
-                            }}
-                          >
-                            {tr('Review issues in')}{' '}
-                            {sectionTitles[section.kind]}
-                          </Button>
-                        )}
-                      </Stack>
-                    </Stack>
-                  </Paper>
-                );
-              })}
-              <Box>
-                <Typography
-                  id="unassigned-source-content"
-                  tabIndex={-1}
-                  component="h3"
-                  variant="subtitle1"
-                >
-                  {tr('Unassigned source content')}
-                </Typography>
-                {first ? (
-                  <Stack spacing={1}>
-                    <Typography>
-                      {unresolved.length}{' '}
-                      {tr(
-                        'passages still need a decision. Nothing has been dropped.',
-                      )}
-                    </Typography>
-                    <Button
-                      variant="outlined"
-                      disabled={blocked || legacy}
-                      onClick={() => setIssuesOpen(!issuesOpen)}
+                        </Stack>
+                      </Paper>
+                    );
+                  })}
+                {show('unassigned') && (
+                  <Box>
+                    <Typography
+                      id="unassigned-source-content"
+                      tabIndex={-1}
+                      component="h3"
+                      variant="subtitle1"
                     >
-                      {issuesOpen
-                        ? tr('Hide unassigned content')
-                        : tr('Review unassigned content')}
-                    </Button>
-                    {issuesOpen && (
-                      <>
-                        <Typography
-                          component="blockquote"
-                          sx={{
-                            m: 0,
-                            p: 1.5,
-                            bgcolor: 'action.hover',
-                            whiteSpace: 'pre-wrap',
-                          }}
+                      {tr('Unassigned source content')}
+                    </Typography>
+                    {first ? (
+                      <Stack spacing={1}>
+                        <Typography>
+                          {unresolved.length}{' '}
+                          {tr(
+                            'passages still need a decision. Nothing has been dropped.',
+                          )}
+                        </Typography>
+                        <Button
+                          variant="outlined"
+                          disabled={blocked || legacy}
+                          onClick={() => setIssuesOpen(!issuesOpen)}
                         >
-                          {selectedText.trim()
-                            ? selectedText
-                            : tr('(Whitespace separator)')}
-                        </Typography>
-                        <Typography variant="body2">
-                          {first.reason ??
-                            tr(
-                              'Choose where this content belongs, or explicitly exclude it.',
-                            )}
-                        </Typography>
-                        {possibleProfile && (
-                          <Stack spacing={1}>
-                            <Typography variant="body2">
-                              {tr(
-                                'Possible LinkedIn profile reference. Keep the original text using the Link detail type, or confirm the platform to create a URL. The URL will be user-entered wording, not a verified PDF link.',
-                              )}
+                          {issuesOpen
+                            ? tr('Hide unassigned content')
+                            : tr('Review unassigned content')}
+                        </Button>
+                        {issuesOpen && (
+                          <>
+                            <Typography
+                              component="blockquote"
+                              sx={{
+                                m: 0,
+                                p: 1.5,
+                                bgcolor: 'action.hover',
+                                whiteSpace: 'pre-wrap',
+                              }}
+                            >
+                              {selectedText.trim()
+                                ? selectedText
+                                : tr('(Whitespace separator)')}
                             </Typography>
-                            <FormControlLabel
-                              control={
-                                <Checkbox
-                                  checked={linkedinConfirmed}
-                                  disabled={blocked}
-                                  onChange={(event) =>
-                                    setConfirmedProfileKey(
-                                      event.target.checked ? contactKey : '',
-                                    )
+                            <Typography variant="body2">
+                              {first.reason ??
+                                tr(
+                                  'Choose where this content belongs, or explicitly exclude it.',
+                                )}
+                            </Typography>
+                            {possibleProfile && (
+                              <Stack spacing={1}>
+                                <Typography variant="body2">
+                                  {tr(
+                                    'Possible LinkedIn profile reference. Keep the original text using the Link detail type, or confirm the platform to create a URL. The URL will be user-entered wording, not a verified PDF link.',
+                                  )}
+                                </Typography>
+                                <FormControlLabel
+                                  control={
+                                    <Checkbox
+                                      checked={linkedinConfirmed}
+                                      disabled={blocked}
+                                      onChange={(event) =>
+                                        setConfirmedProfileKey(
+                                          event.target.checked
+                                            ? contactKey
+                                            : '',
+                                        )
+                                      }
+                                    />
                                   }
+                                  label={tr(
+                                    'I confirm this is my LinkedIn profile reference',
+                                  )}
                                 />
+                                <Button
+                                  disabled={blocked || !linkedinConfirmed}
+                                  onClick={() =>
+                                    change((next) => {
+                                      const fact: CvFact = {
+                                        id: crypto.randomUUID(),
+                                        field: 'link',
+                                        value: selectedText,
+                                        origin: 'source',
+                                        review: 'confirmed',
+                                        evidence: [
+                                          {
+                                            sourceRevisionId: source.id,
+                                            start: first.start,
+                                            end: selectedEnd,
+                                            quote: selectedText,
+                                          },
+                                        ],
+                                      };
+                                      addFact(next, fact, 'links', '');
+                                      const entry = next.sections
+                                        .flatMap((s) => s.entries)
+                                        .find((e) =>
+                                          e.facts.some((f) => f.id === fact.id),
+                                        )!;
+                                      entry.facts.push({
+                                        id: crypto.randomUUID(),
+                                        field: 'link',
+                                        value: `https://www.linkedin.com/in/${selectedText.trim()}`,
+                                        origin: 'user_entered',
+                                        review: 'confirmed',
+                                        evidence: [],
+                                        replacesFactId: fact.id,
+                                      });
+                                      const index = next.coverage.findIndex(
+                                        (row) => row.start === first.start,
+                                      );
+                                      next.coverage.splice(
+                                        index,
+                                        1,
+                                        {
+                                          start: first.start,
+                                          end: selectedEnd,
+                                          disposition: 'mapped',
+                                          factIds: [fact.id],
+                                          reason: null,
+                                        },
+                                        ...(selectedEnd < first.end
+                                          ? [{ ...first, start: selectedEnd }]
+                                          : []),
+                                      );
+                                    })
+                                  }
+                                >
+                                  {tr('Confirm LinkedIn and use URL')}
+                                </Button>
+                              </Stack>
+                            )}
+                            <TextField
+                              select
+                              label={tr('Detail type for this content')}
+                              value={retainedField}
+                              disabled={blocked}
+                              onChange={(event) =>
+                                setFieldSelection({
+                                  key: contactKey,
+                                  field: event.target.value,
+                                })
                               }
-                              label={tr(
-                                'I confirm this is my LinkedIn profile reference',
-                              )}
-                            />
+                            >
+                              {[
+                                'source_passage',
+                                'email',
+                                'phone',
+                                'location',
+                                'link',
+                                'text',
+                              ].map((field) => (
+                                <MenuItem key={field} value={field}>
+                                  {fieldTitle(field)}
+                                </MenuItem>
+                              ))}
+                            </TextField>
+                            <TextField
+                              select
+                              label={tr('Section for this content')}
+                              value={targetKind}
+                              disabled={blocked}
+                              onChange={(event) => {
+                                setTargetKind(
+                                  event.target.value as CvSectionKind,
+                                );
+                                setTargetRecord('');
+                              }}
+                            >
+                              {cvSectionKinds.map((kind) => (
+                                <MenuItem key={kind} value={kind}>
+                                  {sectionTitles[kind]}
+                                </MenuItem>
+                              ))}
+                            </TextField>
+                            <TextField
+                              select
+                              label={tr('Record for this content')}
+                              value={targetRecord}
+                              disabled={blocked}
+                              onChange={(event) =>
+                                setTargetRecord(event.target.value)
+                              }
+                            >
+                              <MenuItem value="">
+                                {tr('New record — attribution requires review')}
+                              </MenuItem>
+                              {document.sections
+                                .filter((s) => s.kind === targetKind)
+                                .flatMap((s) =>
+                                  s.entries
+                                    .filter((e) =>
+                                      e.facts.some(
+                                        (f) => f.field !== 'heading',
+                                      ),
+                                    )
+                                    .map((e) => (
+                                      <MenuItem key={e.id} value={e.id}>
+                                        {recordTitle(e.facts)}
+                                      </MenuItem>
+                                    )),
+                                )}
+                            </TextField>
                             <Button
-                              disabled={blocked || !linkedinConfirmed}
+                              variant="outlined"
+                              disabled={blocked || !selectedText.trim()}
                               onClick={() =>
                                 change((next) => {
                                   const fact: CvFact = {
                                     id: crypto.randomUUID(),
-                                    field: 'link',
+                                    field: retainedField,
                                     value: selectedText,
                                     origin: 'source',
-                                    review: 'confirmed',
+                                    review: 'needs_clarification',
                                     evidence: [
                                       {
                                         sourceRevisionId: source.id,
@@ -1353,21 +1711,7 @@ export function SourceCvReview({
                                       },
                                     ],
                                   };
-                                  addFact(next, fact, 'links', '');
-                                  const entry = next.sections
-                                    .flatMap((s) => s.entries)
-                                    .find((e) =>
-                                      e.facts.some((f) => f.id === fact.id),
-                                    )!;
-                                  entry.facts.push({
-                                    id: crypto.randomUUID(),
-                                    field: 'link',
-                                    value: `https://www.linkedin.com/in/${selectedText.trim()}`,
-                                    origin: 'user_entered',
-                                    review: 'confirmed',
-                                    evidence: [],
-                                    replacesFactId: fact.id,
-                                  });
+                                  addFact(next, fact);
                                   const index = next.coverage.findIndex(
                                     (row) => row.start === first.start,
                                   );
@@ -1388,457 +1732,474 @@ export function SourceCvReview({
                                 })
                               }
                             >
-                              {tr('Confirm LinkedIn and use URL')}
+                              {tr('Keep in')} {sectionTitles[targetKind]}
                             </Button>
-                          </Stack>
+                            <TextField
+                              label={tr('Reason for excluding this content')}
+                              value={reason}
+                              disabled={blocked}
+                              onChange={(event) =>
+                                setReason(event.target.value)
+                              }
+                              slotProps={{ htmlInput: { maxLength: 1000 } }}
+                            />
+                            <Button
+                              disabled={blocked || !reason.trim()}
+                              onClick={() => {
+                                change((next) => {
+                                  const index = next.coverage.findIndex(
+                                    (row) => row.start === first.start,
+                                  );
+                                  next.coverage.splice(
+                                    index,
+                                    1,
+                                    {
+                                      start: first.start,
+                                      end: selectedEnd,
+                                      disposition: 'excluded',
+                                      factIds: [],
+                                      reason,
+                                    },
+                                    ...(selectedEnd < first.end
+                                      ? [{ ...first, start: selectedEnd }]
+                                      : []),
+                                  );
+                                });
+                                setReason('');
+                              }}
+                            >
+                              {tr('Exclude with reason')}
+                            </Button>
+                            <Box component="details">
+                              <Typography component="summary">
+                                {tr('All remaining unassigned content')}
+                              </Typography>
+                              {unresolved.map((row) => (
+                                <Typography
+                                  key={row.start}
+                                  sx={{ whiteSpace: 'pre-wrap', my: 1 }}
+                                >
+                                  {source.text.slice(row.start, row.end) ||
+                                    tr('(Whitespace separator)')}
+                                </Typography>
+                              ))}
+                            </Box>
+                          </>
                         )}
-                        <TextField
-                          select
-                          label={tr('Detail type for this content')}
-                          value={retainedField}
-                          disabled={blocked}
-                          onChange={(event) =>
-                            setFieldSelection({
-                              key: contactKey,
-                              field: event.target.value,
-                            })
-                          }
-                        >
-                          {[
-                            'source_passage',
-                            'email',
-                            'phone',
-                            'location',
-                            'link',
-                            'text',
-                          ].map((field) => (
+                      </Stack>
+                    ) : (
+                      <Typography>
+                        {tr('All source content is accounted for.')}
+                      </Typography>
+                    )}
+                  </Box>
+                )}
+                {show('add') && (
+                  <Box component="details" open={page || undefined}>
+                    <Typography component="summary">
+                      {tr('Add missing details')}
+                    </Typography>
+                    <Stack spacing={1} sx={{ mt: 1 }}>
+                      <Typography variant="body2">
+                        {tr(
+                          'New details are user-entered facts and need your explicit confirmation.',
+                        )}
+                      </Typography>
+                      <TextField
+                        select
+                        label={tr('Section for new detail')}
+                        value={targetKind}
+                        disabled={blocked || legacy}
+                        onChange={(event) => {
+                          setTargetKind(event.target.value as CvSectionKind);
+                          setTargetRecord('');
+                        }}
+                      >
+                        {cvSectionKinds.map((kind) => (
+                          <MenuItem key={kind} value={kind}>
+                            {sectionTitles[kind]}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                      <TextField
+                        select
+                        label={tr('Type of detail')}
+                        value={newField}
+                        disabled={blocked || legacy}
+                        onChange={(event) => setNewField(event.target.value)}
+                      >
+                        {cvFactFields
+                          .filter(
+                            (f) => f !== 'heading' && f !== 'source_passage',
+                          )
+                          .map((field) => (
                             <MenuItem key={field} value={field}>
                               {fieldTitle(field)}
                             </MenuItem>
                           ))}
-                        </TextField>
-                        <TextField
-                          select
-                          label={tr('Section for this content')}
-                          value={targetKind}
-                          disabled={blocked}
-                          onChange={(event) => {
-                            setTargetKind(event.target.value as CvSectionKind);
-                            setTargetRecord('');
-                          }}
-                        >
-                          {cvSectionKinds.map((kind) => (
-                            <MenuItem key={kind} value={kind}>
-                              {sectionTitles[kind]}
-                            </MenuItem>
-                          ))}
-                        </TextField>
-                        <TextField
-                          select
-                          label={tr('Record for this content')}
-                          value={targetRecord}
-                          disabled={blocked}
-                          onChange={(event) =>
-                            setTargetRecord(event.target.value)
-                          }
-                        >
-                          <MenuItem value="">
-                            {tr('New record — attribution requires review')}
-                          </MenuItem>
-                          {document.sections
-                            .filter((s) => s.kind === targetKind)
-                            .flatMap((s) =>
-                              s.entries
-                                .filter((e) =>
-                                  e.facts.some((f) => f.field !== 'heading'),
-                                )
-                                .map((e) => (
-                                  <MenuItem key={e.id} value={e.id}>
-                                    {recordTitle(e.facts)}
-                                  </MenuItem>
-                                )),
-                            )}
-                        </TextField>
+                      </TextField>
+                      <TextField
+                        label={tr('New detail')}
+                        multiline
+                        value={newValue}
+                        disabled={blocked || legacy}
+                        onChange={(event) => setNewValue(event.target.value)}
+                        slotProps={{ htmlInput: { maxLength: 4000 } }}
+                      />
+                      <Button
+                        variant="outlined"
+                        disabled={blocked || legacy || !newValue.trim()}
+                        onClick={() => {
+                          change((next) =>
+                            addFact(next, {
+                              id: crypto.randomUUID(),
+                              field: newField,
+                              value: newValue,
+                              origin: 'user_entered',
+                              review: 'pending',
+                              evidence: [],
+                            }),
+                          );
+                          setNewValue('');
+                        }}
+                      >
+                        {tr('Add detail for review')}
+                      </Button>
+                    </Stack>
+                  </Box>
+                )}
+                {show('more') && (
+                  <>
+                    <Box component="details" open={page || undefined}>
+                      <Typography component="summary">
+                        {tr('Excluded source content')}
+                      </Typography>
+                      {document.coverage
+                        .filter((row) => row.disposition === 'excluded')
+                        .map((row) => (
+                          <Box key={row.start} sx={{ my: 1 }}>
+                            <Typography variant="body2">
+                              {row.reason}
+                            </Typography>
+                            <Typography sx={{ whiteSpace: 'pre-wrap' }}>
+                              {source.text.slice(row.start, row.end)}
+                            </Typography>
+                          </Box>
+                        ))}
+                    </Box>
+                    {document.reconstruction?.previousRevisionId && (
+                      <Box component="details">
+                        <Typography component="summary">
+                          {tr('Earlier review and corrections')}
+                        </Typography>
                         <Button
-                          variant="outlined"
-                          disabled={blocked || !selectedText.trim()}
+                          disabled={blocked}
                           onClick={() =>
-                            change((next) => {
-                              const fact: CvFact = {
-                                id: crypto.randomUUID(),
-                                field: retainedField,
-                                value: selectedText,
-                                origin: 'source',
-                                review: 'needs_clarification',
-                                evidence: [
-                                  {
-                                    sourceRevisionId: source.id,
-                                    start: first.start,
-                                    end: selectedEnd,
-                                    quote: selectedText,
-                                  },
-                                ],
-                              };
-                              addFact(next, fact);
-                              const index = next.coverage.findIndex(
-                                (row) => row.start === first.start,
+                            void run(async () => {
+                              const token = epoch.current;
+                              const value = decodeCvProfile(
+                                await sourceCvRequest(
+                                  `/profile-revisions/${document.reconstruction!.previousRevisionId}`,
+                                ),
+                                source,
                               );
-                              next.coverage.splice(
-                                index,
-                                1,
-                                {
-                                  start: first.start,
-                                  end: selectedEnd,
-                                  disposition: 'mapped',
-                                  factIds: [fact.id],
-                                  reason: null,
-                                },
-                                ...(selectedEnd < first.end
-                                  ? [{ ...first, start: selectedEnd }]
-                                  : []),
-                              );
+                              if (token === epoch.current) setPrevious(value);
                             })
                           }
                         >
-                          {tr('Keep in')} {sectionTitles[targetKind]}
+                          {tr('Load earlier review')}
                         </Button>
-                        <TextField
-                          label={tr('Reason for excluding this content')}
-                          value={reason}
-                          disabled={blocked}
-                          onChange={(event) => setReason(event.target.value)}
-                          slotProps={{ htmlInput: { maxLength: 1000 } }}
-                        />
+                        {previous && (
+                          <Stack spacing={1}>
+                            <Typography>
+                              {tr('Earlier revision')} {previous.revision}
+                              {tr('; preserved without changes.')}
+                            </Typography>
+                            {previous.document.sections.flatMap((s) =>
+                              s.entries.flatMap((e) =>
+                                e.facts
+                                  .filter((f) => f.field !== 'heading')
+                                  .map((f) => (
+                                    <Typography key={f.id}>
+                                      {f.origin === 'user_entered'
+                                        ? tr('Your earlier correction: ')
+                                        : ''}
+                                      {f.value}
+                                    </Typography>
+                                  )),
+                              ),
+                            )}
+                          </Stack>
+                        )}
+                      </Box>
+                    )}
+                  </>
+                )}
+                {page && (
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    sx={{ justifyContent: 'space-between' }}
+                  >
+                    <Button
+                      startIcon={<ArrowBackIcon />}
+                      disabled={panelIndex <= 0}
+                      onClick={() => goPanel(navItems[panelIndex - 1]!.id)}
+                    >
+                      {tr('Previous')}
+                    </Button>
+                    <Button
+                      endIcon={<ArrowForwardIcon />}
+                      disabled={
+                        panelIndex < 0 || panelIndex >= navItems.length - 1
+                      }
+                      onClick={() => goPanel(navItems[panelIndex + 1]!.id)}
+                    >
+                      {tr('Next')}
+                    </Button>
+                  </Stack>
+                )}
+                {blockers.length > 0 && (!page || showAllBlockers) && (
+                  <Box
+                    id="source-review-blockers"
+                    tabIndex={-1}
+                    component="section"
+                    aria-label={tr('Before you can complete the review')}
+                    sx={{
+                      p: 2,
+                      borderRadius: 1,
+                      border: 1,
+                      borderColor: completeAttempted
+                        ? 'warning.main'
+                        : 'divider',
+                    }}
+                  >
+                    <Stack
+                      direction="row"
+                      sx={{
+                        justifyContent: 'space-between',
+                        alignItems: 'baseline',
+                      }}
+                    >
+                      <Typography variant="subtitle2" component="h3">
+                        {tr('Before you can complete the review')}
+                      </Typography>
+                      {page && (
                         <Button
-                          disabled={blocked || !reason.trim()}
+                          size="small"
+                          onClick={() => setShowAllBlockers(false)}
+                        >
+                          {tr('Hide list')}
+                        </Button>
+                      )}
+                    </Stack>
+                    <Box component="ul" sx={{ m: 0, pl: 3 }}>
+                      {blockers.map((item) => (
+                        <li key={item.key}>
+                          {item.go ? (
+                            <Button
+                              variant="text"
+                              size="small"
+                              sx={{ minHeight: 32, p: 0.5, textAlign: 'left' }}
+                              onClick={item.go}
+                            >
+                              {item.label}
+                            </Button>
+                          ) : (
+                            <Typography variant="body2">
+                              {item.label}
+                            </Typography>
+                          )}
+                        </li>
+                      ))}
+                    </Box>
+                  </Box>
+                )}
+                <Stack
+                  spacing={1.5}
+                  sx={
+                    page
+                      ? {
+                          // Sticky in the page flow, so it never hides the last content.
+                          position: 'sticky',
+                          bottom: 0,
+                          zIndex: 1,
+                          mx: { xs: -2, sm: -3 },
+                          px: { xs: 2, sm: 3 },
+                          pt: 1.5,
+                          pb: {
+                            xs: 'max(16px, env(safe-area-inset-bottom))',
+                            sm: 2,
+                          },
+                          bgcolor: 'background.default',
+                          borderTop: 1,
+                          borderColor: 'divider',
+                        }
+                      : undefined
+                  }
+                >
+                  {page && (
+                    <Stack
+                      direction={{ xs: 'column', sm: 'row' }}
+                      spacing={1}
+                      useFlexGap
+                      sx={{ alignItems: { sm: 'center' }, flexWrap: 'wrap' }}
+                    >
+                      <Typography
+                        id="source-review-remaining"
+                        role="status"
+                        sx={{ fontWeight: 600 }}
+                      >
+                        {blockers.length
+                          ? tr(
+                              '{n} items left before you can complete the review',
+                              {
+                                n: blockers.length,
+                              },
+                            )
+                          : tr(
+                              'Everything is checked. You can complete the review.',
+                            )}
+                      </Typography>
+                      {blockers.length > 0 && (
+                        <Link
+                          component="button"
+                          type="button"
+                          variant="body2"
+                          aria-expanded={showAllBlockers}
+                          aria-controls="source-review-blockers"
+                          sx={{ alignSelf: 'flex-start' }}
                           onClick={() => {
-                            change((next) => {
-                              const index = next.coverage.findIndex(
-                                (row) => row.start === first.start,
-                              );
-                              next.coverage.splice(
-                                index,
-                                1,
-                                {
-                                  start: first.start,
-                                  end: selectedEnd,
-                                  disposition: 'excluded',
-                                  factIds: [],
-                                  reason,
-                                },
-                                ...(selectedEnd < first.end
-                                  ? [{ ...first, start: selectedEnd }]
-                                  : []),
-                              );
-                            });
-                            setReason('');
+                            setShowAllBlockers(true);
+                            focusById('source-review-blockers');
                           }}
                         >
-                          {tr('Exclude with reason')}
-                        </Button>
-                        <Box component="details">
-                          <Typography component="summary">
-                            {tr('All remaining unassigned content')}
-                          </Typography>
-                          {unresolved.map((row) => (
-                            <Typography
-                              key={row.start}
-                              sx={{ whiteSpace: 'pre-wrap', my: 1 }}
-                            >
-                              {source.text.slice(row.start, row.end) ||
-                                tr('(Whitespace separator)')}
-                            </Typography>
-                          ))}
-                        </Box>
-                      </>
-                    )}
-                  </Stack>
-                ) : (
-                  <Typography>
-                    {tr('All source content is accounted for.')}
-                  </Typography>
-                )}
-              </Box>
-              <Box component="details">
-                <Typography component="summary">
-                  {tr('Add missing details')}
-                </Typography>
-                <Stack spacing={1} sx={{ mt: 1 }}>
-                  <Typography variant="body2">
-                    {tr(
-                      'New details are user-entered facts and need your explicit confirmation.',
-                    )}
-                  </Typography>
-                  <TextField
-                    select
-                    label={tr('Section for new detail')}
-                    value={targetKind}
-                    disabled={blocked || legacy}
-                    onChange={(event) => {
-                      setTargetKind(event.target.value as CvSectionKind);
-                      setTargetRecord('');
-                    }}
-                  >
-                    {cvSectionKinds.map((kind) => (
-                      <MenuItem key={kind} value={kind}>
-                        {sectionTitles[kind]}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                  <TextField
-                    select
-                    label={tr('Type of detail')}
-                    value={newField}
-                    disabled={blocked || legacy}
-                    onChange={(event) => setNewField(event.target.value)}
-                  >
-                    {cvFactFields
-                      .filter((f) => f !== 'heading' && f !== 'source_passage')
-                      .map((field) => (
-                        <MenuItem key={field} value={field}>
-                          {fieldTitle(field)}
-                        </MenuItem>
-                      ))}
-                  </TextField>
-                  <TextField
-                    label={tr('New detail')}
-                    multiline
-                    value={newValue}
-                    disabled={blocked || legacy}
-                    onChange={(event) => setNewValue(event.target.value)}
-                    slotProps={{ htmlInput: { maxLength: 4000 } }}
-                  />
-                  <Button
-                    variant="outlined"
-                    disabled={blocked || legacy || !newValue.trim()}
-                    onClick={() => {
-                      change((next) =>
-                        addFact(next, {
-                          id: crypto.randomUUID(),
-                          field: newField,
-                          value: newValue,
-                          origin: 'user_entered',
-                          review: 'pending',
-                          evidence: [],
-                        }),
-                      );
-                      setNewValue('');
-                    }}
-                  >
-                    {tr('Add detail for review')}
-                  </Button>
-                </Stack>
-              </Box>
-              <Box component="details">
-                <Typography component="summary">
-                  {tr('Excluded source content')}
-                </Typography>
-                {document.coverage
-                  .filter((row) => row.disposition === 'excluded')
-                  .map((row) => (
-                    <Box key={row.start} sx={{ my: 1 }}>
-                      <Typography variant="body2">{row.reason}</Typography>
-                      <Typography sx={{ whiteSpace: 'pre-wrap' }}>
-                        {source.text.slice(row.start, row.end)}
-                      </Typography>
-                    </Box>
-                  ))}
-              </Box>
-              {document.reconstruction?.previousRevisionId && (
-                <Box component="details">
-                  <Typography component="summary">
-                    {tr('Earlier review and corrections')}
-                  </Typography>
-                  <Button
-                    disabled={blocked}
-                    onClick={() =>
-                      void run(async () => {
-                        const token = epoch.current;
-                        const value = decodeCvProfile(
-                          await sourceCvRequest(
-                            `/profile-revisions/${document.reconstruction!.previousRevisionId}`,
-                          ),
-                          source,
-                        );
-                        if (token === epoch.current) setPrevious(value);
-                      })
-                    }
-                  >
-                    {tr('Load earlier review')}
-                  </Button>
-                  {previous && (
-                    <Stack spacing={1}>
-                      <Typography>
-                        {tr('Earlier revision')} {previous.revision}
-                        {tr('; preserved without changes.')}
-                      </Typography>
-                      {previous.document.sections.flatMap((s) =>
-                        s.entries.flatMap((e) =>
-                          e.facts
-                            .filter((f) => f.field !== 'heading')
-                            .map((f) => (
-                              <Typography key={f.id}>
-                                {f.origin === 'user_entered'
-                                  ? tr('Your earlier correction: ')
-                                  : ''}
-                                {f.value}
-                              </Typography>
-                            )),
-                        ),
+                          {tr('View items to resolve')}
+                        </Link>
                       )}
                     </Stack>
                   )}
-                </Box>
-              )}
-              {blockers.length > 0 && (
-                <Box
-                  id="source-review-blockers"
-                  tabIndex={-1}
-                  component="section"
-                  aria-label={tr('Before you can complete the review')}
-                  sx={{
-                    p: 2,
-                    borderRadius: 1,
-                    border: 1,
-                    borderColor: completeAttempted ? 'warning.main' : 'divider',
-                  }}
-                >
-                  <Typography variant="subtitle2" component="h3">
-                    {tr('Before you can complete the review')}
-                  </Typography>
-                  <Box component="ul" sx={{ m: 0, pl: 3 }}>
-                    {blockers.map((item) => (
-                      <li key={item.key}>
-                        {item.go ? (
-                          <Button
-                            variant="text"
-                            size="small"
-                            sx={{ minHeight: 32, p: 0.5, textAlign: 'left' }}
-                            onClick={item.go}
-                          >
-                            {item.label}
-                          </Button>
-                        ) : (
-                          <Typography variant="body2">{item.label}</Typography>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                    <Button
+                      startIcon={<CheckIcon />}
+                      variant="contained"
+                      aria-describedby={
+                        page ? 'source-review-remaining' : undefined
+                      }
+                      disabled={blocked || (page && blockers.length > 0)}
+                      onClick={() => {
+                        if (blockers.length) {
+                          setCompleteAttempted(true);
+                          focusById('source-review-blockers');
+                          return;
+                        }
+                        setCompleteAttempted(false);
+                        void run(async () => {
+                          const token = epoch.current;
+                          if (documentDirty) {
+                            const value = await sourceCvRequest(
+                              `/profiles/${profile.profileId}/revisions`,
+                              { expectedRevision: profile.revision, document },
+                            );
+                            if (token !== epoch.current) return;
+                            accept(value, source);
+                          }
+                          setEditing(null);
+                          // The app-level toast outlives the step change.
+                          setMessage(
+                            onContinue
+                              ? tr('Source CV review complete.')
+                              : tr(
+                                  'Source review complete. Tailored CVs will use this review.',
+                                ),
+                          );
+                          onContinue?.();
+                        });
+                      }}
+                    >
+                      {tr('Complete review')}
+                    </Button>
+                    {completeAttempted && blockers.length > 0 && (
+                      <Alert severity="warning" role="alert" sx={{ flex: 1 }}>
+                        {tr('Not ready yet:')} {blockers.length} {tr('item')}
+                        {blockers.length === 1 ? '' : tr('s')}{' '}
+                        {tr(
+                          'left. Choose an item in the list above to go straight to it.',
                         )}
-                      </li>
-                    ))}
-                  </Box>
-                </Box>
-              )}
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                <Button
-                  startIcon={<CheckIcon />}
-                  variant="contained"
-                  disabled={blocked}
-                  onClick={() => {
-                    if (blockers.length) {
-                      setCompleteAttempted(true);
-                      focusById('source-review-blockers');
-                      return;
-                    }
-                    setCompleteAttempted(false);
-                    void run(async () => {
-                      const token = epoch.current;
-                      if (documentDirty) {
-                        const value = await sourceCvRequest(
-                          `/profiles/${profile.profileId}/revisions`,
-                          { expectedRevision: profile.revision, document },
-                        );
-                        if (token !== epoch.current) return;
-                        accept(value, source);
-                      }
-                      setEditing(null);
-                      // The app-level toast outlives the step change.
-                      setMessage(
-                        onContinue
-                          ? tr('Source CV review complete.')
-                          : tr(
-                              'Source review complete. Tailored CVs will use this review.',
-                            ),
-                      );
-                      onContinue?.();
-                    });
-                  }}
-                >
-                  {tr('Complete review')}
-                </Button>
-                {completeAttempted && blockers.length > 0 && (
-                  <Alert severity="warning" role="alert" sx={{ flex: 1 }}>
-                    {tr('Not ready yet:')} {blockers.length} {tr('item')}
-                    {blockers.length === 1 ? '' : tr('s')}{' '}
-                    {tr(
-                      'left. Choose an item in the list above to go straight to it.',
+                      </Alert>
                     )}
-                  </Alert>
-                )}
-                <Button
-                  startIcon={<SaveIcon />}
-                  variant="outlined"
-                  disabled={
-                    blocked ||
-                    !documentDirty ||
-                    blank ||
-                    Boolean(newValue || reason)
-                  }
-                  onClick={() =>
-                    void run(async () => {
-                      const token = epoch.current;
-                      const value = await sourceCvRequest(
-                        `/profiles/${profile.profileId}/revisions`,
-                        { expectedRevision: profile.revision, document },
-                      );
-                      if (token === epoch.current) {
-                        accept(value, source);
-                        setMessage(
-                          tr('Draft saved. You can finish the review later.'),
-                        );
+                    <Button
+                      startIcon={<SaveIcon />}
+                      variant="outlined"
+                      disabled={
+                        blocked ||
+                        !documentDirty ||
+                        blank ||
+                        Boolean(newValue || reason)
                       }
-                    })
-                  }
-                >
-                  {tr('Save draft')}
-                </Button>
-              </Stack>
-              <Typography variant="body2" color="text.secondary">
-                {dirty
-                  ? tr(
-                      'You have unsaved changes. Save draft keeps them; Complete review saves and continues when everything is checked.',
-                    )
-                  : tr('All changes saved.')}
-              </Typography>
-              <Box component="details">
-                <Typography component="summary" variant="body2">
-                  {tr('More actions')}
-                </Typography>
-                <Stack
-                  direction={{ xs: 'column', sm: 'row' }}
-                  spacing={1}
-                  sx={{ mt: 1 }}
-                >
-                  <Button
-                    disabled={blocked || !dirty}
-                    onClick={() => {
-                      setDocument(structuredClone(profile.document));
-                      setReason('');
-                      setNewValue('');
-                      setError('');
-                      setEditing(null);
-                    }}
-                  >
-                    {tr('Discard unsaved changes')}
-                  </Button>
-                  <Button
-                    startIcon={<RefreshIcon />}
-                    disabled={blocked || dirty}
-                    onClick={() => void run(openReview)}
-                  >
-                    {tr('Reload saved review')}
-                  </Button>
+                      onClick={() =>
+                        void run(async () => {
+                          const token = epoch.current;
+                          const value = await sourceCvRequest(
+                            `/profiles/${profile.profileId}/revisions`,
+                            { expectedRevision: profile.revision, document },
+                          );
+                          if (token === epoch.current) {
+                            accept(value, source);
+                            setMessage(
+                              tr(
+                                'Draft saved. You can finish the review later.',
+                              ),
+                            );
+                          }
+                        })
+                      }
+                    >
+                      {tr('Save draft')}
+                    </Button>
+                  </Stack>
+                  {!page && (
+                    <Typography variant="body2" color="text.secondary">
+                      {dirty
+                        ? tr(
+                            'You have unsaved changes. Save draft keeps them; Complete review saves and continues when everything is checked.',
+                          )
+                        : tr('All changes saved.')}
+                    </Typography>
+                  )}
                 </Stack>
-              </Box>
-            </>
-          )}
+                <Box component="details">
+                  <Typography component="summary" variant="body2">
+                    {tr('More actions')}
+                  </Typography>
+                  <Stack
+                    direction={{ xs: 'column', sm: 'row' }}
+                    spacing={1}
+                    sx={{ mt: 1 }}
+                  >
+                    <Button
+                      disabled={blocked || !dirty}
+                      onClick={() => {
+                        setDocument(structuredClone(profile.document));
+                        setReason('');
+                        setNewValue('');
+                        setError('');
+                        setEditing(null);
+                      }}
+                    >
+                      {tr('Discard unsaved changes')}
+                    </Button>
+                    <Button
+                      startIcon={<RefreshIcon />}
+                      disabled={blocked || dirty}
+                      onClick={() => void run(openReview)}
+                    >
+                      {tr('Reload saved review')}
+                    </Button>
+                  </Stack>
+                </Box>
+              </>,
+            )}
         </>
       )}
     </Stack>
