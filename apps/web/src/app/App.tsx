@@ -1,4 +1,4 @@
-import { theme } from './theme';
+import { surface, theme } from './theme';
 import {
   ArrowBackIcon,
   CloseIcon,
@@ -73,7 +73,11 @@ export function App() {
       >
         <Typography
           variant="subtitle1"
-          sx={{ fontWeight: 600, letterSpacing: '-0.01em' }}
+          sx={{
+            fontWeight: 700,
+            letterSpacing: '-0.01em',
+            color: 'primary.main',
+          }}
         >
           AI Job Hunter
         </Typography>
@@ -109,10 +113,13 @@ export function App() {
               px: 1.5,
               color: 'text.secondary',
               fontWeight: 500,
+              '&:hover': { bgcolor: 'action.hover', color: 'text.primary' },
+              // Inset indicator: no width change, so the label never shifts.
               '&.active': {
-                bgcolor: 'action.selected',
-                color: 'text.primary',
+                bgcolor: surface.primaryTint,
+                color: 'primary.dark',
                 fontWeight: 600,
+                boxShadow: (t) => `inset 3px 0 0 ${t.palette.primary.main}`,
               },
             }}
           >
@@ -194,7 +201,9 @@ export function App() {
             position: 'sticky',
             top: 0,
             zIndex: 'appBar',
-            bgcolor: 'background.default',
+            // Frosted bar keeps content readable under it while scrolling.
+            bgcolor: 'rgba(245, 248, 255, 0.92)',
+            backdropFilter: 'saturate(180%) blur(8px)',
             borderBottom: 1,
             borderColor: 'divider',
             px: { xs: 2, sm: 3 },
@@ -233,7 +242,11 @@ export function App() {
               </IconButton>
               <Typography
                 variant="subtitle2"
-                sx={{ fontWeight: 600, display: { md: 'none' } }}
+                sx={{
+                  fontWeight: 700,
+                  color: 'primary.main',
+                  display: { md: 'none' },
+                }}
               >
                 AI Job Hunter
               </Typography>

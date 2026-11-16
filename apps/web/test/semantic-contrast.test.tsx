@@ -26,7 +26,7 @@ const chip = (label: string) =>
 test('filled warning Chips retain orange with normal-text contrast; other variants and standard Alerts retain defaults', () => {
   const baseline = createTheme({
     palette: {
-      primary: { main: '#2f5bd3', dark: '#2447a8', contrastText: '#ffffff' },
+      primary: { main: '#2563eb', dark: '#1d4ed8', contrastText: '#ffffff' },
       background: { default: '#f6f6f3' },
     },
   });
