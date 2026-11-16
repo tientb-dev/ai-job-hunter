@@ -58,6 +58,10 @@ export function validateEnvironment(env: NodeJS.ProcessEnv = process.env) {
   } else if (env.PUBLIC_ORIGIN) {
     throw new Error('PUBLIC_ORIGIN is for production only');
   }
+  // Per-source link import; off unless explicitly enabled (content-use review).
+  for (const name of ['JOB_URL_FETCH_TOPCV', 'JOB_URL_FETCH_VIETNAMWORKS'])
+    if (env[name] !== undefined && !['0', '1'].includes(env[name]))
+      throw new Error(`${name} must be 0 or 1`);
   databaseOptions(databaseTarget(env), env);
   return {
     port: Number(port),

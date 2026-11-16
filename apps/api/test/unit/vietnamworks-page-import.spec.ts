@@ -5,7 +5,10 @@ import { importTopcvPage } from '../../src/opportunities/topcv-page-import.js';
 import { JobImportService } from '../../src/opportunities/job-import.service.js';
 import { validateImportReview } from '../../src/opportunities/job-import.contract.js';
 import { validateOpportunity } from '../../src/opportunities/opportunity.validation.js';
-import { permittedLiveJobUrl } from '../../src/opportunities/job-url.transport.js';
+import {
+  liveJobSources,
+  permittedLiveJobUrl,
+} from '../../src/opportunities/job-url.transport.js';
 const url =
   'https://www.vietnamworks.com/synthetic-fullstack-java-1793350235119486825-2126090-jv';
 const alternative = 'At least one of Java, React, Node.js';
@@ -137,10 +140,15 @@ test.each([
     expect(() => importTopcvPage({ ...payload(), sourceUrl })).toThrow();
   },
 );
-test('server-side VietnamWorks fetching stays disabled', () => {
-  expect(() => permittedLiveJobUrl(url)).toThrow(
-    'VietnamWorks URL fetching is disabled',
+test('server-side VietnamWorks fetching is off unless its flag is set', () => {
+  expect(() => permittedLiveJobUrl(url, liveJobSources({}))).toThrow(
+    'VietnamWorks link import is turned off',
   );
+  const on = liveJobSources({ JOB_URL_FETCH_VIETNAMWORKS: '1' });
+  expect(permittedLiveJobUrl(url, on)).toBe(url);
+  expect(() =>
+    permittedLiveJobUrl('https://www.vietnamworks.com/viec-lam?q=x', on),
+  ).toThrow('ending in -jv');
 });
 
 test('older bookmark payload with unknown structured experience imports JD without inventing months', () => {

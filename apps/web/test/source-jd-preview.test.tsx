@@ -4,6 +4,14 @@ import { MemoryRouter } from 'react-router-dom';
 import { JobEditor } from '../src/features/inbox/JobEditor';
 import { SourceJdPreview } from '../src/features/inbox/SourceJdPreview';
 import * as bridge from '../src/features/inbox/topcv-bookmarklet';
+
+// The link card is always shown; returning to it closes the open alternative.
+function showLinkImport() {
+  const open = screen
+    .queryAllByRole('button', { pressed: true })
+    .find((button) => /^(Paste JD|Upload JD)/.test(button.textContent ?? ''));
+  if (open) fireEvent.click(open);
+}
 const raw =
   'Original source heading\nResponsibilities: system architecture\nRequirements: education, TOEIC 550 / IELTS 5.5\nEnd of full source';
 const preview = {
@@ -36,11 +44,14 @@ test('ITviec preview shows full actual extraction source before AI, survives swi
   fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
     target: { value: preview.originalLink },
   });
-  fireEvent.click(screen.getByRole('button', { name: 'Fetch from URL' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Fetch JD' }));
   const text = await screen.findByLabelText('Source JD text (read-only)');
   expect(text).toHaveValue(raw);
   expect(text).toHaveAttribute('readonly');
-  expect(text).toBeVisible();
+  // Collapsed by default behind the job summary; one click shows it.
+  expect(text).not.toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: /Preview source JD/ }));
+  await waitFor(() => expect(text).toBeVisible());
   expect(text).not.toHaveValue(preview.description);
   select('Paste JD');
   expect(
@@ -50,7 +61,7 @@ test('ITviec preview shows full actual extraction source before AI, survives swi
   fireEvent.change(screen.getByLabelText('Recruitment post'), {
     target: { value: `${raw}\nManual source correction` },
   });
-  select('Job URL');
+  showLinkImport();
   expect(screen.getByLabelText('Source JD text (read-only)')).toHaveValue(
     `${raw}\nManual source correction`,
   );
@@ -80,7 +91,12 @@ test('bookmarklet preview uses transferred source text with its known platform a
   expect(
     await screen.findByLabelText('Source JD text (read-only)'),
   ).toHaveValue(raw);
-  expect(screen.getByText(/VietnamWorks · Original source text/)).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: /Preview source JD/ }));
+  await waitFor(() =>
+    expect(
+      screen.getByText(/VietnamWorks · Original source text/),
+    ).toBeVisible(),
+  );
   expect(fetch).toHaveBeenCalledTimes(1);
   expect(fetch.mock.calls[0]).toBeDefined();
 });
@@ -102,7 +118,7 @@ test('upload calls existing parse-only endpoint once, shows real parsed text, an
     await screen.findByLabelText('Source JD text (read-only)'),
   ).toHaveValue(raw);
   await waitFor(() =>
-    expect(screen.getByRole('button', { name: /^Job URL/ })).toBeEnabled(),
+    expect(screen.getByRole('button', { name: /^Paste JD/ })).toBeEnabled(),
   );
   expect(fetch.mock.calls[0]![0]).toBe('/api/v1/opportunities/parse-document');
   expect(fetch.mock.calls[0]![1]!.headers).toMatchObject({
@@ -110,7 +126,7 @@ test('upload calls existing parse-only endpoint once, shows real parsed text, an
   });
   expect(fetch.mock.calls[0]![1]!.body).toBeInstanceOf(Blob);
   select('Paste JD');
-  select('Job URL');
+  showLinkImport();
   select('Upload JD');
   expect(
     screen.queryByLabelText('Source JD text (read-only)'),
@@ -146,24 +162,30 @@ test('parse failure shows an actionable preview error without inventing parsed c
   expect(screen.queryByText('synthetic.pdf')).not.toBeInTheDocument();
 });
 
-test('preview can collapse and automatically expands when new source text arrives', async () => {
+test('preview starts collapsed, opens on demand, stays put on new text and opens for errors', async () => {
   const { rerender } = render(
     <SourceJdPreview text={raw} source="Synthetic source" />,
   );
+  const text = () => screen.getByLabelText('Source JD text (read-only)');
+  expect(text()).not.toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: /Preview source JD/ }));
-  await waitFor(() =>
-    expect(
-      screen.getByLabelText('Source JD text (read-only)'),
-    ).not.toBeVisible(),
-  );
+  await waitFor(() => expect(text()).toBeVisible());
+  fireEvent.click(screen.getByRole('button', { name: /Preview source JD/ }));
+  await waitFor(() => expect(text()).not.toBeVisible());
   rerender(
     <SourceJdPreview text={`${raw}\nNew section`} source="Synthetic source" />,
   );
-  await waitFor(() =>
-    expect(screen.getByLabelText('Source JD text (read-only)')).toBeVisible(),
+  expect(text()).toHaveValue(`${raw}\nNew section`);
+  expect(text()).not.toBeVisible();
+  rerender(
+    <SourceJdPreview
+      text={`${raw}\nNew section`}
+      source="Synthetic source"
+      error="Synthetic failure"
+    />,
   );
-  expect(screen.getByLabelText('Source JD text (read-only)')).toHaveValue(
-    `${raw}\nNew section`,
+  await waitFor(() =>
+    expect(screen.getByText(/Synthetic failure/)).toBeVisible(),
   );
 });
 

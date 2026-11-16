@@ -13,3 +13,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
+
+// Add Job loads enabled link sources on mount; keep that request out of the
+// per-test fetch mocks. test/link-sources.test.tsx covers the real request.
+vi.mock('../src/features/inbox/link-sources', () => ({
+  loadLinkSources: vi.fn(async () => ['ITviec', 'TopCV', 'VietnamWorks']),
+}));

@@ -22,17 +22,19 @@ Development (`pnpm db:up`, `pnpm dev`, `compose.yaml`) is unchanged.
 Copy `.env.production.example` to `.env.production` on the server and
 `chmod 600` it. It is git-ignored; never commit it.
 
-| Variable                         | Purpose                                                                                    |
-| -------------------------------- | ------------------------------------------------------------------------------------------ |
-| `SITE_ADDRESS`                   | Caddy site, e.g. `beta.example.com` (automatic HTTPS)                                      |
-| `PUBLIC_ORIGIN`                  | The browser origin, e.g. `https://beta.example.com`. The API accepts only this Host/Origin |
-| `DB_PASSWORD`                    | PostgreSQL password (long and random)                                                      |
-| `GEMINI_API_KEY`                 | Server-side Gemini key; never sent to browsers                                             |
-| `AI_REQUEST_TIMEOUT_MS`          | Optional, default 120000                                                                   |
-| `AI_DAILY_USER_LIMIT`            | Gemini requests per account per day, default 100                                           |
-| `AI_DAILY_GLOBAL_LIMIT`          | Gemini requests for the whole beta per day, default 500                                    |
-| `AI_MAX_CONCURRENT`              | Gemini requests in flight at once, default 4                                               |
-| `PUBLISH_HTTP` / `PUBLISH_HTTPS` | Optional host ports, default 80 / 443                                                      |
+| Variable                         | Purpose                                                                                                            |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `SITE_ADDRESS`                   | Caddy site, e.g. `beta.example.com` (automatic HTTPS)                                                              |
+| `PUBLIC_ORIGIN`                  | The browser origin, e.g. `https://beta.example.com`. The API accepts only this Host/Origin                         |
+| `DB_PASSWORD`                    | PostgreSQL password (long and random)                                                                              |
+| `GEMINI_API_KEY`                 | Server-side Gemini key; never sent to browsers                                                                     |
+| `AI_REQUEST_TIMEOUT_MS`          | Optional, default 120000                                                                                           |
+| `AI_DAILY_USER_LIMIT`            | Gemini requests per account per day, default 100                                                                   |
+| `AI_DAILY_GLOBAL_LIMIT`          | Gemini requests for the whole beta per day, default 500                                                            |
+| `AI_MAX_CONCURRENT`              | Gemini requests in flight at once, default 4                                                                       |
+| `JOB_URL_FETCH_TOPCV`            | `1` lets users import TopCV job links; default `0` (off). See [job link sources](architecture.md#job-link-sources) |
+| `JOB_URL_FETCH_VIETNAMWORKS`     | `1` lets users import VietnamWorks job links; default `0` (off)                                                    |
+| `PUBLISH_HTTP` / `PUBLISH_HTTPS` | Optional host ports, default 80 / 443                                                                              |
 
 Fixed in `compose.prod.yaml`: `NODE_ENV=production`, `AI_PROVIDER=gemini`, the
 `ai_job_hunter` database identity, `DB_HOST=postgres`, `TRUST_PROXY=1`.

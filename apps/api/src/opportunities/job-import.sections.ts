@@ -122,37 +122,40 @@ export function requirementLines(text: string): {
                 ),
             )
         : [line];
-      return clauses.map((clause) => {
-        const inlinePreferred = structuredLine
-          ? /is a plus|(?:prior )?experience.*(?:is )?preferred|ưu tiên|điểm cộng|là (?:một )?lợi thế|nice[- ]to[- ]have/iu.test(
-              clause,
-            )
-          : /ưu tiên|preferred|nice[- ]to[- ]have|desirable|is a plus|điểm cộng|là (?:một )?lợi thế/iu.test(
+      // A list marker split off by the sentence split ("8." from "8. Am hiểu…") is not a clause.
+      return clauses
+        .filter((clause) => !/^\d+[.)]?$/u.test(clause.trim()))
+        .map((clause) => {
+          const inlinePreferred = structuredLine
+            ? /is a plus|(?:prior )?experience.*(?:is )?preferred|ưu tiên|điểm cộng|là (?:một )?lợi thế|nice[- ]to[- ]have/iu.test(
+                clause,
+              )
+            : /ưu tiên|preferred|nice[- ]to[- ]have|desirable|is a plus|điểm cộng|là (?:một )?lợi thế/iu.test(
+                clause,
+              );
+          const inlineRequired =
+            /bắt buộc|thành thạo|required|must[- ]have|(?:ít nhất|tối thiểu|at least|minimum)\s*\d+\s*(?:năm|years?)\s*(?:kinh nghiệm|experience)/iu.test(
               clause,
             );
-        const inlineRequired =
-          /bắt buộc|thành thạo|required|must[- ]have|(?:ít nhất|tối thiểu|at least|minimum)\s*\d+\s*(?:năm|years?)\s*(?:kinh nghiệm|experience)/iu.test(
-            clause,
-          );
-        const competence =
-          /^(?:có kinh nghiệm|có kiến thức|hiểu biết|thành thạo|bắt buộc)/iu.test(
-            clause.trim(),
-          );
-        return {
-          excluded: false,
-          line: structuredLine
-            ? clause.replace(/\s*\([^)]*not required[^)]*\).*$/iu, '')
-            : clause,
-          kind: inlinePreferred
-            ? ('preferredSkills' as const)
-            : section === 'preferredSkills'
-              ? section
-              : inlineRequired || competence
-                ? ('skills' as const)
-                : section,
-          structured: structuredLine,
-        };
-      });
+          const competence =
+            /^(?:có kinh nghiệm|có kiến thức|hiểu biết|thành thạo|bắt buộc)/iu.test(
+              clause.trim(),
+            );
+          return {
+            excluded: false,
+            line: structuredLine
+              ? clause.replace(/\s*\([^)]*not required[^)]*\).*$/iu, '')
+              : clause,
+            kind: inlinePreferred
+              ? ('preferredSkills' as const)
+              : section === 'preferredSkills'
+                ? section
+                : inlineRequired || competence
+                  ? ('skills' as const)
+                  : section,
+            structured: structuredLine,
+          };
+        });
     });
 }
 export function skillSourceKind(

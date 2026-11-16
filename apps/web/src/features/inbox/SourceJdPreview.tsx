@@ -23,11 +23,13 @@ export function SourceJdPreview({
   loading?: boolean;
   error?: string;
 }) {
-  const [expanded, setExpanded] = useState(true);
-  const [previousText, setPreviousText] = useState(text);
-  if (text !== previousText) {
-    setPreviousText(text);
-    if (text) setExpanded(true);
+  // Collapsed by default: the job summary is the primary view; the raw text
+  // stays one click away. Errors open it so the message is not hidden.
+  const [expanded, setExpanded] = useState(false);
+  const [previousError, setPreviousError] = useState(error);
+  if (error !== previousError) {
+    setPreviousError(error);
+    if (error) setExpanded(true);
   }
   return (
     <Accordion

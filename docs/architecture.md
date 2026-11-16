@@ -2277,3 +2277,22 @@ Grounding decisions:
 - DOCX keeps the Classic layout.
 - Alternative rejected: HTML-to-PDF rendering through a headless browser, which would add heavy infrastructure for three themes.
 - Scrollbar shift: `html` reserves the scrollbar gutter, so MUI's scroll-lock `padding-right` on `body` (added when a menu or dialog opens) is neutralised in `CssBaseline`. Scroll lock itself still applies.
+
+## Job link sources
+
+| Source       | Link import                  | Enabled by                     | Default (dev and hosted) |
+| ------------ | ---------------------------- | ------------------------------ | ------------------------ |
+| ITviec       | `/it-jobs/…`                 | always on                      | on                       |
+| TopCV        | `/viec-lam/<slug>/<id>.html` | `JOB_URL_FETCH_TOPCV=1`        | off                      |
+| VietnamWorks | `/<slug>-<id>-jv`            | `JOB_URL_FETCH_VIETNAMWORKS=1` | off                      |
+
+`GET /api/v1/opportunities/import-sources` returns the enabled list; Add Job shows it on the recommended "Paste job URL" card and disables Fetch for a disabled source with bookmark/paste guidance. Users can always import any job by paste or upload (and, locally, the page-import bookmark). Values other than `0`/`1` stop the API at startup. Production compose passes both flags with default `0`, so enabling a source is an explicit operator change.
+
+## One-link JD import (PR87)
+
+`POST /api/v1/opportunities/import-url` fetches one user-supplied job URL through the existing pinned, SSRF-checked transport (public IPs only, no redirects, 2 MiB and 5 s limits, one request at a time) and returns a preview for the existing review step. Nothing is saved until the user saves.
+
+- **ITviec** and **TopCV** expose one JSON-LD `JobPosting`; the shared `parseJobPosting` reads it.
+- **VietnamWorks** has no JSON-LD. `vietnamworks-page.ts` reads the job object from the server-rendered Next.js flight data (`self.__next_f`) and turns title, company, description, requirements, skill tags, expiry and a visible salary into a `JobPosting` for the same parser. This format is undocumented; anything unrecognised fails closed with bookmark/paste guidance. Alternative considered: a headless browser — rejected (new infrastructure, heavier anti-bot footprint).
+- Accepted paths: ITviec `/it-jobs/…`, TopCV `/viec-lam/<slug>/<id>.html`, VietnamWorks `/<slug>-<id>-jv`. Query strings are dropped for TopCV/VietnamWorks.
+- **Content-use flags:** TopCV and VietnamWorks terms prohibit copying or exploiting their content and give no explicit permission for third-party fetching (reviewed 2026-11-16). Fetching for those sources is therefore off unless `JOB_URL_FETCH_TOPCV=1` / `JOB_URL_FETCH_VIETNAMWORKS=1`. Keep them off in hosted production until permission is obtained. When off, the API returns 403 and the UI points to the page-import bookmark or manual paste.

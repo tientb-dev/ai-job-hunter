@@ -236,6 +236,10 @@ test.each([
 
 test('Confirm and Save submits the original form from the persistent action row', async () => {
   mount();
+  // Continue requires JD content (PR87); mount() already opened Paste JD.
+  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+    target: { value: 'Synthetic JD' },
+  });
   fireEvent.click(
     screen.getByRole('button', { name: 'Continue to Review & Save' }),
   );

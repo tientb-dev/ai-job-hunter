@@ -49,6 +49,11 @@ test('adds a job, sends persistent fields, then loads its detail', async () => {
   );
   vi.stubGlobal('fetch', fetch);
   mount('/jobs/new');
+  // Continue requires JD content (PR87).
+  fireEvent.click(screen.getByRole('button', { name: /Paste JD/ }));
+  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+    target: { value: 'Synthetic JD' },
+  });
   fireEvent.click(
     screen.getByRole('button', { name: 'Continue to Review & Save' }),
   );
@@ -137,6 +142,11 @@ test('last HR contact survives create, save, reopen and replacement without chan
   });
   vi.stubGlobal('fetch', fetch);
   let view = mount('/jobs/new');
+  // Continue requires JD content (PR87).
+  fireEvent.click(screen.getByRole('button', { name: /Paste JD/ }));
+  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+    target: { value: 'Synthetic JD' },
+  });
   fireEvent.click(
     screen.getByRole('button', { name: 'Continue to Review & Save' }),
   );

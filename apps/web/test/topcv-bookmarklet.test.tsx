@@ -253,6 +253,7 @@ test('received page populates existing review without inference/save and preserv
   await userEvent.click(
     screen.getByRole('button', { name: 'Continue to Review & Save' }),
   );
+  fireEvent.click(screen.getByRole('button', { name: 'Edit Main details' }));
   expect(screen.getByLabelText('Company')).toBeVisible();
   expect(screen.getByLabelText(/Job title/)).toHaveValue('My edited title');
   expect(screen.getByLabelText('Experience')).toHaveValue('36 months');

@@ -1,6 +1,21 @@
 import { tr } from '../../app/i18n';
-import { importFields, type OpportunityInput } from './opportunities-api';
+import {
+  importFields,
+  type ImportField,
+  type ImportFieldName,
+  type OpportunityInput,
+} from './opportunities-api';
 
+// Mirrors the server's per-source job path rules; the server still decides
+// whether a source is enabled.
+const JOB_PAGES: Record<string, RegExp> = {
+  'itviec.com': /^\/it-jobs\//u,
+  'www.itviec.com': /^\/it-jobs\//u,
+  'topcv.vn': /^\/viec-lam\/[^/]+\/\d+\.html$/u,
+  'www.topcv.vn': /^\/viec-lam\/[^/]+\/\d+\.html$/u,
+  'vietnamworks.com': /^\/[^/]+-\d+-jv$/u,
+  'www.vietnamworks.com': /^\/[^/]+-\d+-jv$/u,
+};
 export function canFetchJobUrl(value: string): boolean {
   try {
     const url = new URL(value);
@@ -10,30 +25,30 @@ export function canFetchJobUrl(value: string): boolean {
       !url.port &&
       !url.username &&
       !url.password &&
-      ['itviec.com', 'www.itviec.com'].includes(url.hostname) &&
-      url.pathname.startsWith('/it-jobs/')
+      Object.hasOwn(JOB_PAGES, url.hostname) &&
+      JOB_PAGES[url.hostname]!.test(url.pathname)
     );
   } catch {
     return false;
   }
 }
-export function urlImportHelp(value: string): string {
-  try {
-    const host = new URL(value).hostname;
-    if (host === 'vietnamworks.com' || host === 'www.vietnamworks.com')
-      return tr(
-        'VietnamWorks URL fetching is disabled. Use the installed page-import bookmark or paste an authorized JD.',
-      );
-    if (host === 'topcv.vn' || host === 'www.topcv.vn')
-      return tr(
-        'TopCV URL fetching is disabled due to published content-use restrictions. Use the installed page-import bookmark or paste an authorized JD.',
-      );
-  } catch {
-    /* Use the general guidance. */
-  }
+export function urlImportHelp(sources: string[] = ['ITviec']): string {
   return tr(
-    'Fetch supports individual HTTPS ITviec job URLs. Requests run only when clicked; manual paste and document upload remain available.',
+    'Use the link of a single job posting on {sources}. If it cannot be loaded, use the page-import bookmark or paste the JD.',
+    { sources: sources.join(', ') },
   );
+}
+/** Localised guidance when the server has link import turned off for a source. */
+export function urlImportError(message: string): string {
+  const platform = /^(TopCV|VietnamWorks) link import is turned off/.exec(
+    message,
+  )?.[1];
+  return platform
+    ? tr(
+        '{platform} link import is turned off on this server. Use the page-import bookmark or paste the JD.',
+        { platform },
+      )
+    : message;
 }
 export interface UrlJobPreview {
   originalLink: string;
@@ -55,6 +70,8 @@ export interface UrlJobPreview {
   experience?: string;
   workMode?: string;
   importWarnings?: string[];
+  /** Deterministic (no-AI) suggestions parsed from sourceText by the server. */
+  fields?: ImportField[];
   salaryDetails?: {
     originalText: string;
     currency: string | null;
@@ -112,5 +129,23 @@ export function applyUrlJobPreview(
         (previous && form[field] === previous[field]))
     )
       next[field] = preview[field] ?? '';
+  // Fill the remaining blanks from source-quoted parser suggestions. Domain is
+  // left to AI/manual entry: its heuristic can pick up company-profile text.
+  const suggested = (row: UrlJobPreview | null | undefined, field: string) =>
+    row?.fields?.find(
+      (item) => item.field === field && item.status === 'SUPPORTED',
+    )?.value ?? '';
+  for (const field of importFields) {
+    const value = suggested(preview, field);
+    if (
+      field === 'domain' ||
+      field === 'originalLink' ||
+      !value ||
+      edited.has(field) ||
+      (next[field] && !(previous && next[field] === suggested(previous, field)))
+    )
+      continue;
+    next[field as ImportFieldName] = value;
+  }
   return next;
 }

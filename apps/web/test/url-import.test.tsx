@@ -12,6 +12,14 @@ import {
   canFetchJobUrl,
   type UrlJobPreview,
 } from '../src/features/inbox/job-url-import';
+
+// The link card is always shown; returning to it closes the open alternative.
+function showLinkImport() {
+  const open = screen
+    .queryAllByRole('button', { pressed: true })
+    .find((button) => /^(Paste JD|Upload JD)/.test(button.textContent ?? ''));
+  if (open) fireEvent.click(open);
+}
 const preview: UrlJobPreview = {
   title: 'Synthetic backend engineer',
   company: 'Synthetic company',
@@ -64,7 +72,7 @@ test('rejects oversized combined sources without mutating existing inputs', () =
   );
   expect(form).toEqual(before);
 });
-test('fetch enables only for permitted URLs, never on paste, and leaves TopCV disabled', () => {
+test('fetch enables only for single-job URLs on supported sites, never on paste', async () => {
   const fetch = vi.fn();
   vi.stubGlobal('fetch', fetch);
   render(
@@ -72,7 +80,7 @@ test('fetch enables only for permitted URLs, never on paste, and leaves TopCV di
       <JobEditor />
     </MemoryRouter>,
   );
-  const button = screen.getByRole('button', { name: 'Fetch from URL' });
+  const button = screen.getByRole('button', { name: 'Fetch JD' });
   expect(button).toBeDisabled();
   fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
     target: { value: 'https://itviec.com/it-jobs/synthetic' },
@@ -83,11 +91,26 @@ test('fetch enables only for permitted URLs, never on paste, and leaves TopCV di
     target: { value: preview.originalLink },
   });
   expect(button).toBeDisabled();
-  expect(screen.getByText(/TopCV URL fetching is disabled/)).toBeVisible();
+  // Sources arrive asynchronously from the server (stubbed in setup).
+  expect(
+    await screen.findByText(
+      /single job posting on ITviec, TopCV, VietnamWorks/,
+    ),
+  ).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: /Paste JD/ }));
   expect(screen.getByLabelText('Recruitment post')).toBeEnabled();
 });
 test.each([
+  'https://itviec.com/it-jobs/a',
+  'https://www.topcv.vn/viec-lam/brand-manager/2353489.html?ta_source=x',
+  'https://www.vietnamworks.com/business-development-staff-2130695-jv',
+])('supported single-job URLs enable fetch: %s', (value) => {
+  expect(canFetchJobUrl(value)).toBe(true);
+});
+test.each([
+  'https://www.topcv.vn/tim-viec-lam-it',
+  'https://www.vietnamworks.com/viec-lam?q=marketing',
+  'https://topcv.vn.evil.example/viec-lam/a/1.html',
   'https://itviec.com.evil.example/it-jobs/a',
   'http://itviec.com/it-jobs/a',
   'https://itviec.com:3000/it-jobs/a',
@@ -128,7 +151,7 @@ test('click imports fixture content into review, preserves edits, warns about ex
   fireEvent.change(screen.getByLabelText('Recruiter / contact notes'), {
     target: { value: 'My contact' },
   });
-  await userEvent.click(screen.getByRole('button', { name: 'Fetch from URL' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Fetch JD' }));
   expect(await screen.findByText(/This listing is expired/)).toBeVisible();
   expect(screen.getByLabelText(/Job title/)).toHaveValue('My edited title');
   expect(screen.getByLabelText('Company')).toHaveValue(result.company);
@@ -184,8 +207,8 @@ test('busy fetch prevents overlap and blocked response preserves manual inputs',
   fireEvent.change(screen.getByLabelText('Recruitment post'), {
     target: { value: 'Original post' },
   });
-  fireEvent.click(screen.getByRole('button', { name: /Job URL/ }));
-  const button = screen.getByRole('button', { name: 'Fetch from URL' });
+  showLinkImport();
+  const button = screen.getByRole('button', { name: 'Fetch JD' });
   await userEvent.click(button);
   expect(button).toBeDisabled();
   fireEvent.click(button);
@@ -201,8 +224,8 @@ test('busy fetch prevents overlap and blocked response preserves manual inputs',
   expect(screen.getByLabelText('Recruitment post')).toHaveValue(
     'Original post',
   );
-  fireEvent.click(screen.getByRole('button', { name: /Job URL/ }));
-  expect(screen.getByRole('button', { name: 'Fetch from URL' })).toBeEnabled();
+  showLinkImport();
+  expect(screen.getByRole('button', { name: 'Fetch JD' })).toBeEnabled();
 });
 
 test('repeat preview replaces tracked source without duplication; replacement preserves manual fields and separate text', () => {
@@ -271,13 +294,9 @@ test('failed fetch retains draft and retry is idempotent; different URL requires
   );
   const url = screen.getByLabelText('Original Job URL (optional)');
   const run = async () => {
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Fetch from URL' }),
-    );
+    await userEvent.click(screen.getByRole('button', { name: 'Fetch JD' }));
     await waitFor(() =>
-      expect(
-        screen.getByRole('button', { name: 'Fetch from URL' }),
-      ).toBeEnabled(),
+      expect(screen.getByRole('button', { name: 'Fetch JD' })).toBeEnabled(),
     );
   };
   fireEvent.change(url, { target: { value: first.originalLink } });
@@ -326,9 +345,7 @@ test.each(['method', 'url'])(
     fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
       target: { value: 'https://itviec.com/it-jobs/a' },
     });
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Fetch from URL' }),
-    );
+    await userEvent.click(screen.getByRole('button', { name: 'Fetch JD' }));
     if (target === 'method') {
       expect(screen.getByRole('button', { name: /Paste JD/ })).toBeEnabled();
       await userEvent.click(screen.getByRole('button', { name: /Paste JD/ }));
@@ -372,7 +389,7 @@ test('successful pending fetch preserves edits made after the request began', as
   fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
     target: { value: originalLink },
   });
-  await userEvent.click(screen.getByRole('button', { name: 'Fetch from URL' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Fetch JD' }));
   fireEvent.change(screen.getByLabelText(/Job title/), {
     target: { value: 'Title edited while fetching' },
   });
@@ -437,4 +454,95 @@ test('domain taxonomy maps atomically, protects manual edits and clears obsolete
   expect(applyUrlJobPreview(form, replacement, new Set(), first).domain).toBe(
     '',
   );
+});
+
+test('a source turned off on the server shows localised bookmark/paste guidance and keeps the form', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () =>
+      Response.json(
+        {
+          message:
+            'TopCV link import is turned off on this server. Use the page-import bookmark or paste the JD.',
+        },
+        { status: 403 },
+      ),
+    ),
+  );
+  render(
+    <MemoryRouter>
+      <JobEditor />
+    </MemoryRouter>,
+  );
+  const link = 'https://www.topcv.vn/viec-lam/synthetic-brand-manager/1.html';
+  fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
+    target: { value: link },
+  });
+  await userEvent.click(screen.getByRole('button', { name: 'Fetch JD' }));
+  expect(
+    (await screen.findAllByText(/TopCV link import is turned off/))[0],
+  ).toBeVisible();
+  expect(screen.getByLabelText('Original Job URL (optional)')).toHaveValue(
+    link,
+  );
+});
+
+test('parser suggestions fill blank fields only; structured values, edits and domain are kept', () => {
+  const next = applyUrlJobPreview(
+    { ...emptyOpportunity(), seniority: 'User level' },
+    {
+      ...preview,
+      experience: 'Minimum 3 years',
+      fields: [
+        ['title', 'Shortened title'],
+        ['skills', 'Từ 3 năm kinh nghiệm Marketing\nCó Portfolio'],
+        ['preferredSkills', 'Biết tiếng Nhật'],
+        ['seniority', 'Parser level'],
+        ['domain', 'Ngân hàng'],
+        ['experience', 'Parser experience'],
+      ].map(([field, value]) => ({
+        field: field as 'title',
+        value: value!,
+        status: 'SUPPORTED' as const,
+        reviewed: false,
+        candidates: [],
+      })),
+    },
+    new Set(['seniority']),
+  );
+  expect(next).toMatchObject({
+    title: preview.title,
+    experience: 'Minimum 3 years',
+    skills: 'Từ 3 năm kinh nghiệm Marketing\nCó Portfolio',
+    preferredSkills: 'Biết tiếng Nhật',
+    seniority: 'User level',
+    domain: '',
+    postText: preview.sourceText,
+  });
+});
+test('Continue to Review stays disabled without JD content, even with a URL', () => {
+  vi.stubGlobal('fetch', vi.fn());
+  render(
+    <MemoryRouter>
+      <JobEditor />
+    </MemoryRouter>,
+  );
+  const next = () =>
+    screen.getByRole('button', { name: 'Continue to Review & Save' });
+  expect(next()).toBeDisabled();
+  expect(screen.getByText(/Add the JD first/)).toBeVisible();
+  fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
+    target: { value: 'https://itviec.com/it-jobs/synthetic' },
+  });
+  expect(next()).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: /Paste JD/ }));
+  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+    target: { value: '   ' },
+  });
+  expect(next()).toBeDisabled();
+  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+    target: { value: 'Synthetic JD' },
+  });
+  expect(next()).toBeEnabled();
+  expect(screen.queryByText(/Add the JD first/)).not.toBeInTheDocument();
 });
