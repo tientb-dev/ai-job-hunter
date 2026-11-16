@@ -50,7 +50,7 @@ export function JobCvPicker({
         disabled={disabled}
         sx={{ textTransform: 'none', flexShrink: 0, minHeight: 44 }}
       >
-        {cvs.length ? tr('Upload another CV') : emptyLabel}
+        {cvs.length ? tr('Upload new CV') : emptyLabel}
         <input
           disabled={disabled}
           hidden

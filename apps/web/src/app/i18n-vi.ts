@@ -2117,4 +2117,5 @@ export const VI_TEXT: Record<string, string> = {
     'Hãy chọn CV mặc định khác trước khi xóa CV này.',
   'Use a CV name of 1 to 120 characters.': 'Dùng tên CV từ 1 đến 120 ký tự.',
   'CV not found.': 'Không tìm thấy CV.',
+  'Upload new CV': 'Tải lên CV mới',
 };
