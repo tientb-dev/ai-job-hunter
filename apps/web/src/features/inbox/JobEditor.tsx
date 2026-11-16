@@ -28,6 +28,7 @@ import { receiveTopcvPage } from './topcv-bookmarklet';
 import {
   applyUrlJobPreview,
   canFetchJobUrl,
+  urlImportError,
   urlImportHelp,
   type UrlJobPreview,
 } from './job-url-import';
@@ -521,8 +522,9 @@ export function JobEditor() {
       );
     } catch (error) {
       if (generation !== sourceGeneration.current) return;
-      setError(message(error));
-      setSourceErrors((errors) => ({ ...errors, url: message(error) }));
+      const text = urlImportError(message(error));
+      setError(text);
+      setSourceErrors((errors) => ({ ...errors, url: text }));
     } finally {
       if (generation === sourceGeneration.current) {
         urlFetchRunning.current = false;
@@ -843,9 +845,9 @@ export function JobEditor() {
                 >
                   {!form.originalLink || canFetchJobUrl(form.originalLink)
                     ? tr(
-                        'Direct fetch supports ITviec only and runs when you click Fetch from URL.',
+                        'Paste a job link from ITviec, TopCV or VietnamWorks, then click Fetch from URL. You review the JD before saving.',
                       )
-                    : urlImportHelp(form.originalLink)}
+                    : urlImportHelp()}
                 </Typography>
               </Stack>
             )}

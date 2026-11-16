@@ -5,6 +5,7 @@ import {
   type SalaryEvidence,
 } from './job-import.salary.js';
 import { BadRequestException, HttpException } from '@nestjs/common';
+import { vietnamworksJsonLd } from './vietnamworks-page.js';
 
 const MAX_BYTES = 2 * 1024 * 1024;
 export function validateJobUrl(value: unknown): {
@@ -33,7 +34,7 @@ export function validateJobUrl(value: unknown): {
     return { url: value, platform: hosts[url.hostname]! };
   } catch {
     throw new BadRequestException(
-      'Use a public HTTPS ITviec or TopCV job URL without credentials or a custom port.',
+      'Use a public HTTPS ITviec, TopCV or VietnamWorks job URL without credentials or a custom port.',
     );
   }
 }
@@ -349,7 +350,7 @@ export async function previewJobUrl(
   transport: JobPageTransport,
   timeoutMs = 5000,
 ): Promise<UrlJobPreview> {
-  const { url } = validateJobUrl(value);
+  const { url, platform } = validateJobUrl(value);
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const operation = async () => {
@@ -400,7 +401,11 @@ export async function previewJobUrl(
       controller.signal.removeEventListener('abort', cancel);
       await reader.cancel();
     }
-    return parseJobPosting(Buffer.concat(chunks).toString('utf8'), url);
+    const html = Buffer.concat(chunks).toString('utf8');
+    return parseJobPosting(
+      platform === 'VietnamWorks' ? vietnamworksJsonLd(html) : html,
+      url,
+    );
   };
   try {
     return await Promise.race([

@@ -42,17 +42,42 @@ export function isPublicJobAddress(address: string): boolean {
     return globalV6.check(address, 'ipv6') && !denied.check(address, 'ipv6');
   return false;
 }
-export function permittedLiveJobUrl(value: unknown): string {
+/** ITviec is always on; TopCV/VietnamWorks need JOB_URL_FETCH_<SOURCE>=1 (content-use review pending). */
+export function liveJobSources(
+  env: NodeJS.ProcessEnv = process.env,
+): ReadonlySet<string> {
+  return new Set([
+    'ITviec',
+    ...(env.JOB_URL_FETCH_TOPCV === '1' ? ['TopCV'] : []),
+    ...(env.JOB_URL_FETCH_VIETNAMWORKS === '1' ? ['VietnamWorks'] : []),
+  ]);
+}
+const JOB_PATHS: Record<string, { pattern: RegExp; hint: string }> = {
+  ITviec: {
+    pattern: /^\/it-jobs\//u,
+    hint: 'an individual ITviec job URL under /it-jobs/',
+  },
+  TopCV: {
+    pattern: /^\/viec-lam\/[^/]+\/\d+\.html$/u,
+    hint: 'an individual TopCV job URL such as /viec-lam/<title>/<id>.html',
+  },
+  VietnamWorks: {
+    pattern: /^\/[^/]+-\d+-jv$/u,
+    hint: 'an individual VietnamWorks job URL ending in -jv',
+  },
+};
+export function permittedLiveJobUrl(
+  value: unknown,
+  sources: ReadonlySet<string> = liveJobSources(),
+): string {
   const { url, platform } = validateJobUrl(value);
-  if (platform !== 'ITviec')
+  if (!sources.has(platform))
     throw new ForbiddenException(
-      `${platform} URL fetching is disabled due to published content-use restrictions. Use the page-import bookmark or paste an authorized JD.`,
+      `${platform} link import is turned off on this server. Use the page-import bookmark or paste the JD.`,
     );
-  const parsed = new URL(url);
-  if (!parsed.pathname.startsWith('/it-jobs/'))
-    throw new BadRequestException(
-      'Use an individual ITviec job URL under /it-jobs/, or paste the JD.',
-    );
+  const rule = JOB_PATHS[platform]!;
+  if (!rule.pattern.test(new URL(url).pathname))
+    throw new BadRequestException(`Use ${rule.hint}, or paste the JD.`);
   return url;
 }
 type Destination = { address: string; family: number };
@@ -71,12 +96,13 @@ const liveDependencies: JobHttpDependencies = {
 export class PinnedJobPageTransport implements JobPageTransport {
   constructor(
     private readonly dependencies: JobHttpDependencies = liveDependencies,
+    private readonly sources: ReadonlySet<string> = liveJobSources(),
   ) {}
   async get(
     value: string,
     options: Parameters<JobPageTransport['get']>[1],
   ): Promise<Response> {
-    const url = new URL(permittedLiveJobUrl(value));
+    const url = new URL(permittedLiveJobUrl(value, this.sources));
     options.signal.throwIfAborted();
     const addresses = await this.dependencies.resolve(url.hostname);
     options.signal.throwIfAborted();
@@ -104,7 +130,15 @@ export class PinnedJobPageTransport implements JobPageTransport {
           // proxy, redirect, cookie jar, or caller-supplied headers are involved.
           agent: false,
           method: 'GET',
-          path: `${url.pathname}${url.search}`,
+          // Tracking parameters are dropped for TopCV/VietnamWorks; ITviec keeps its query.
+          path: [
+            'topcv.vn',
+            'www.topcv.vn',
+            'vietnamworks.com',
+            'www.vietnamworks.com',
+          ].includes(url.hostname)
+            ? url.pathname
+            : `${url.pathname}${url.search}`,
           signal: options.signal,
           rejectUnauthorized: true,
           checkServerIdentity: (_hostname, certificate) =>

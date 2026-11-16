@@ -6,7 +6,10 @@ import { OpportunitiesController } from '../../src/opportunities/opportunities.c
 import type { OpportunitiesService } from '../../src/opportunities/opportunities.service.js';
 import type { JobImportService } from '../../src/opportunities/job-import.service.js';
 import type { JobMatchService } from '../../src/matching/job-match.service.js';
-import { permittedLiveJobUrl } from '../../src/opportunities/job-url.transport.js';
+import {
+  liveJobSources,
+  permittedLiveJobUrl,
+} from '../../src/opportunities/job-url.transport.js';
 const job = {
   '@type': 'JobPosting',
   title: 'Synthetic Java Engineer',
@@ -135,7 +138,13 @@ test('import-page route accepts local app only, never TopCV-origin direct reques
   expect(
     controller.importPage(request('http://127.0.0.1:5173'), payload()).title,
   ).toBe(job.title);
-  expect(() => permittedLiveJobUrl(payload().sourceUrl)).toThrow(
-    'TopCV URL fetching is disabled',
-  );
+  expect(() =>
+    permittedLiveJobUrl(payload().sourceUrl, liveJobSources({})),
+  ).toThrow('TopCV link import is turned off');
+  expect(
+    permittedLiveJobUrl(
+      payload().sourceUrl,
+      liveJobSources({ JOB_URL_FETCH_TOPCV: '1' }),
+    ),
+  ).toBe(payload().sourceUrl);
 });

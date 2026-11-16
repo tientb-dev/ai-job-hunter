@@ -381,8 +381,6 @@ export const VI_TEXT: Record<string, string> = {
   'Detail to adjust': 'Chi tiết cần điều chỉnh',
   'Detail type for this content': 'Loại chi tiết cho nội dung này',
   'Details to double-check': 'Chi tiết cần kiểm tra lại',
-  'Direct fetch supports ITviec only and runs when you click Fetch from URL.':
-    'Tải trực tiếp chỉ hỗ trợ ITviec và chỉ chạy khi bạn bấm Tải từ URL.',
   Discard: 'Bỏ',
   'Discard and leave': 'Bỏ và rời đi',
   'Discard changes': 'Bỏ thay đổi',
@@ -530,8 +528,12 @@ export const VI_TEXT: Record<string, string> = {
     'Hiện chưa có nhận xét. Văn bản của bạn được giữ — hãy thử lại.',
   'Feedback on your transcript': 'Nhận xét về bản ghi lời nói',
   'Fetch from URL': 'Tải từ URL',
-  'Fetch supports individual HTTPS ITviec job URLs. Requests run only when clicked; manual paste and document upload remain available.':
-    'Tải hỗ trợ từng URL việc làm ITviec dạng HTTPS. Yêu cầu chỉ chạy khi bạn bấm; vẫn có thể dán thủ công và tải tài liệu lên.',
+  'Paste a job link from ITviec, TopCV or VietnamWorks, then click Fetch from URL. You review the JD before saving.':
+    'Dán link tin tuyển dụng từ ITviec, TopCV hoặc VietnamWorks rồi bấm Tải từ URL. Bạn sẽ xem lại JD trước khi lưu.',
+  'Use the link of a single job posting on ITviec, TopCV or VietnamWorks. If it cannot be loaded, use the page-import bookmark or paste the JD.':
+    'Hãy dùng link của một tin tuyển dụng trên ITviec, TopCV hoặc VietnamWorks. Nếu không tải được, hãy dùng bookmark nhập trang hoặc dán JD.',
+  '{platform} link import is turned off on this server. Use the page-import bookmark or paste the JD.':
+    'Nhập bằng link {platform} đang tắt trên máy chủ này. Hãy dùng bookmark nhập trang hoặc dán JD.',
   'Fetched listings': 'Tin đã tải',
   'Fetching JD…': 'Đang tải JD…',
   'Fewer questions than usual ({length}). The job description may not have enough technical detail for more.':
@@ -1618,8 +1620,6 @@ export const VI_TEXT: Record<string, string> = {
   'To approve:': 'Để duyệt:',
   'To do': 'Cần làm',
   'Today or overdue': 'Hôm nay hoặc quá hạn',
-  'TopCV URL fetching is disabled due to published content-use restrictions. Use the installed page-import bookmark or paste an authorized JD.':
-    'Tải URL TopCV đang tắt do giới hạn sử dụng nội dung đã công bố. Hãy dùng bookmark nhập trang đã cài hoặc dán JD được phép.',
   'Total:': 'Tổng:',
   'Totals cover available feeds only. Source responses may be cached for five minutes. Fetch time is not a listing update time. Retry later after source failures.':
     'Tổng số chỉ tính các nguồn khả dụng. Phản hồi nguồn có thể được lưu đệm năm phút. Thời điểm tải không phải thời điểm cập nhật tin. Hãy thử lại sau khi nguồn lỗi.',
@@ -1703,8 +1703,6 @@ export const VI_TEXT: Record<string, string> = {
   'Verified technology mention': 'Công nghệ được nhắc đến đã xác minh',
   'Vietnam scope, including unspecified and global remote locations.':
     'Phạm vi Việt Nam, bao gồm địa điểm không xác định và làm từ xa toàn cầu.',
-  'VietnamWorks URL fetching is disabled. Use the installed page-import bookmark or paste an authorized JD.':
-    'Tải URL VietnamWorks đang tắt. Hãy dùng bookmark nhập trang đã cài hoặc dán JD được phép.',
   'View / Edit review': 'Xem / Sửa rà soát',
   'View Jobs': 'Xem Việc làm',
   'View all jobs': 'Xem tất cả việc làm',

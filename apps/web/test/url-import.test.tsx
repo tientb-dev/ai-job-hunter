@@ -64,7 +64,7 @@ test('rejects oversized combined sources without mutating existing inputs', () =
   );
   expect(form).toEqual(before);
 });
-test('fetch enables only for permitted URLs, never on paste, and leaves TopCV disabled', () => {
+test('fetch enables only for single-job URLs on supported sites, never on paste', () => {
   const fetch = vi.fn();
   vi.stubGlobal('fetch', fetch);
   render(
@@ -83,11 +83,23 @@ test('fetch enables only for permitted URLs, never on paste, and leaves TopCV di
     target: { value: preview.originalLink },
   });
   expect(button).toBeDisabled();
-  expect(screen.getByText(/TopCV URL fetching is disabled/)).toBeVisible();
+  expect(
+    screen.getByText(/single job posting on ITviec, TopCV or VietnamWorks/),
+  ).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: /Paste JD/ }));
   expect(screen.getByLabelText('Recruitment post')).toBeEnabled();
 });
 test.each([
+  'https://itviec.com/it-jobs/a',
+  'https://www.topcv.vn/viec-lam/brand-manager/2353489.html?ta_source=x',
+  'https://www.vietnamworks.com/business-development-staff-2130695-jv',
+])('supported single-job URLs enable fetch: %s', (value) => {
+  expect(canFetchJobUrl(value)).toBe(true);
+});
+test.each([
+  'https://www.topcv.vn/tim-viec-lam-it',
+  'https://www.vietnamworks.com/viec-lam?q=marketing',
+  'https://topcv.vn.evil.example/viec-lam/a/1.html',
   'https://itviec.com.evil.example/it-jobs/a',
   'http://itviec.com/it-jobs/a',
   'https://itviec.com:3000/it-jobs/a',
@@ -436,5 +448,36 @@ test('domain taxonomy maps atomically, protects manual edits and clears obsolete
   };
   expect(applyUrlJobPreview(form, replacement, new Set(), first).domain).toBe(
     '',
+  );
+});
+
+test('a source turned off on the server shows localised bookmark/paste guidance and keeps the form', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () =>
+      Response.json(
+        {
+          message:
+            'TopCV link import is turned off on this server. Use the page-import bookmark or paste the JD.',
+        },
+        { status: 403 },
+      ),
+    ),
+  );
+  render(
+    <MemoryRouter>
+      <JobEditor />
+    </MemoryRouter>,
+  );
+  const link = 'https://www.topcv.vn/viec-lam/synthetic-brand-manager/1.html';
+  fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
+    target: { value: link },
+  });
+  await userEvent.click(screen.getByRole('button', { name: 'Fetch from URL' }));
+  expect(
+    (await screen.findAllByText(/TopCV link import is turned off/))[0],
+  ).toBeVisible();
+  expect(screen.getByLabelText('Original Job URL (optional)')).toHaveValue(
+    link,
   );
 });
