@@ -24,7 +24,7 @@ export function PageHeader({ title, description, actions }: PageHeaderProps) {
           {title}
         </Typography>
         {description && (
-          <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+          <Typography color="text.secondary" sx={{ mt: 0.5, maxWidth: '72ch' }}>
             {description}
           </Typography>
         )}

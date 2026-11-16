@@ -1,17 +1,28 @@
 import { createTheme } from '@mui/material/styles';
 
+// Shared surface tokens: panels, dialogs and menus share one radius; controls
+// (buttons, fields, alerts) keep the tighter shape radius.
+export const surface = {
+  radius: 8,
+  controlRadius: 6,
+  controlBorder: '#c9cac3',
+  // Panel outline: a step darker than divider so white panels read clearly on
+  // the tinted page without shadows.
+  panelBorder: '#dcdcd5',
+} as const;
+
 // Ledger: neutral surfaces and one ink-blue accent. Status colors keep MUI's
 // defaults, whose filled-Chip contrast is covered by semantic-contrast tests.
 export const theme = createTheme({
   palette: {
     primary: { main: '#2f5bd3', dark: '#2447a8', contrastText: '#ffffff' },
-    background: { default: '#f6f6f3', paper: '#ffffff' },
+    background: { default: '#f0f0eb', paper: '#ffffff' },
     text: { primary: '#16181d', secondary: '#575c69' },
     divider: '#e3e3dd',
     action: { hover: '#f0f0ec', selected: '#eceef3' },
   },
   spacing: 8,
-  shape: { borderRadius: 6 },
+  shape: { borderRadius: surface.controlRadius },
   typography: {
     fontFamily: '"IBM Plex Sans", system-ui, sans-serif',
     h4: { fontSize: '1.5rem', fontWeight: 600, lineHeight: 1.3 },
@@ -41,7 +52,7 @@ export const theme = createTheme({
       defaultProps: { disableElevation: true },
       styleOverrides: {
         root: ({ theme }) => ({
-          borderRadius: 6,
+          borderRadius: surface.controlRadius,
           '&.Mui-focusVisible': {
             outline: `2px solid ${theme.palette.primary.main}`,
             outlineOffset: 2,
@@ -100,7 +111,12 @@ export const theme = createTheme({
     },
     MuiPaper: {
       styleOverrides: {
-        outlined: { borderRadius: 8 },
+        outlined: ({ theme }) => ({
+          borderRadius: surface.radius,
+          borderColor: surface.panelBorder,
+          // Panels nested inside a panel keep the lighter divider outline.
+          '& .MuiPaper-outlined': { borderColor: theme.palette.divider },
+        }),
       },
     },
     // Compact form controls everywhere: 40px single-line fields from sm up,
@@ -111,9 +127,11 @@ export const theme = createTheme({
     MuiOutlinedInput: {
       styleOverrides: {
         root: ({ theme }) => ({
-          borderRadius: 6,
+          borderRadius: surface.controlRadius,
           backgroundColor: theme.palette.background.paper,
-          '& .MuiOutlinedInput-notchedOutline': { borderColor: '#c9cac3' },
+          '& .MuiOutlinedInput-notchedOutline': {
+            borderColor: surface.controlBorder,
+          },
           '&:hover:not(.Mui-disabled):not(.Mui-error) .MuiOutlinedInput-notchedOutline':
             { borderColor: theme.palette.text.secondary },
           '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderWidth: 2 },
@@ -164,14 +182,24 @@ export const theme = createTheme({
         }),
       },
     },
-    MuiAlert: { styleOverrides: { root: { borderRadius: 6 } } },
+    MuiAlert: {
+      styleOverrides: { root: { borderRadius: surface.controlRadius } },
+    },
+    MuiDialog: {
+      styleOverrides: { paper: { borderRadius: surface.radius } },
+    },
+    MuiPopover: {
+      styleOverrides: { paper: { borderRadius: surface.radius } },
+    },
     MuiTab: {
       styleOverrides: {
         root: { textTransform: 'none', fontWeight: 500, minHeight: 44 },
       },
     },
     MuiToggleButton: {
-      styleOverrides: { root: { textTransform: 'none', borderRadius: 6 } },
+      styleOverrides: {
+        root: { textTransform: 'none', borderRadius: surface.controlRadius },
+      },
     },
   },
 });
