@@ -29,11 +29,12 @@ test('defaults to Vietnamese and persists the chosen language', async () => {
   ).toBeVisible();
   expect(document.documentElement.lang).toBe('vi');
 
-  await userEvent.click(screen.getByRole('combobox', { name: 'Ngôn ngữ' }));
+  const switcher = screen.getByRole('group', { name: 'Ngôn ngữ' });
+  expect(
+    within(switcher).getByRole('button', { name: 'Tiếng Việt' }),
+  ).toHaveAttribute('aria-pressed', 'true');
   await userEvent.click(
-    within(screen.getByRole('listbox')).getByRole('option', {
-      name: 'English',
-    }),
+    within(switcher).getByRole('button', { name: 'English' }),
   );
   expect(screen.getByRole('heading', { name: 'Sign in' })).toBeVisible();
   expect(screen.getByRole('button', { name: 'Show password' })).toBeVisible();

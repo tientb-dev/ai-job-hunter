@@ -38,7 +38,7 @@ import { InterviewPrep } from '../features/interview-prep/InterviewPrep';
 import { JobPractice } from '../features/interview-prep/JobPractice';
 import { MockInterview } from '../features/interview-prep/MockInterview';
 import { ApiReadiness } from '../features/health/ApiReadiness';
-import { SignOutButton } from '../features/auth/session';
+import { AccountMenu } from '../features/auth/session';
 import { useI18n, type MessageKey } from './i18n';
 import { LanguageSwitcher } from './LanguageSwitcher';
 
@@ -118,9 +118,6 @@ export function App() {
             {t(label)}
           </Button>
         ))}
-      </Stack>
-      <Stack sx={{ mt: 'auto', pt: 2, alignItems: 'flex-start' }}>
-        <ApiReadiness />
       </Stack>
     </>
   );
@@ -241,7 +238,7 @@ export function App() {
               sx={{ alignItems: 'center', ml: 'auto' }}
             >
               <LanguageSwitcher />
-              <SignOutButton iconOnly={!desktop} />
+              <AccountMenu compact={!desktop} />
             </Stack>
           </Stack>
         </Container>
@@ -259,6 +256,7 @@ export function App() {
             }),
           }}
         >
+          <ApiReadiness />
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Home />} />

@@ -1,5 +1,5 @@
 import { beforeEach, expect, test, vi } from 'vitest';
-import { act, render, screen, within } from './render';
+import { act, render, screen, waitFor, within } from './render';
 import userEvent from '@testing-library/user-event';
 import {
   createMemoryRouter,
@@ -91,7 +91,14 @@ test('root defaults to the Dashboard', async () => {
   expect(
     screen.getByRole('heading', { name: 'Dashboard' }),
   ).toBeInTheDocument();
-  expect(await screen.findByText('API ready')).toBeInTheDocument();
+  // A reachable API shows no status banner.
+  await waitFor(() =>
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      '/api/v1/health/ready',
+      expect.anything(),
+    ),
+  );
+  expect(screen.queryByText(/Cannot reach the server/)).not.toBeInTheDocument();
 });
 test.each(['/candidates', '/matches', '/settings'])(
   'retired placeholder %s redirects to Jobs',

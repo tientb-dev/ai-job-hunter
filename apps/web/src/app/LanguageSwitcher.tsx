@@ -1,22 +1,42 @@
-import { MenuItem, TextField } from '@mui/material';
-import { LOCALES, setLocale, useI18n, type Locale } from './i18n';
+import { ToggleButton, ToggleButtonGroup } from '@mui/material';
+import { setLocale, useI18n, type Locale } from './i18n';
 
+const OPTIONS: [Locale, string][] = [
+  ['vi-VN', 'VI'],
+  ['en-US', 'EN'],
+];
+
+/** Compact VI / EN switch; setLocale persists the choice across reloads. */
 export function LanguageSwitcher() {
   const { locale, t } = useI18n();
   return (
-    <TextField
-      select
+    <ToggleButtonGroup
+      exclusive
       size="small"
-      label={t('language.label')}
       value={locale}
-      onChange={(event) => setLocale(event.target.value as Locale)}
-      sx={{ minWidth: 140 }}
+      aria-label={t('language.label')}
+      onChange={(_, value: Locale | null) => value && setLocale(value)}
+      sx={{
+        '& .MuiToggleButton-root': {
+          px: 1.25,
+          py: 0.25,
+          minWidth: 40,
+          minHeight: { xs: 36, md: 32 },
+          fontWeight: 600,
+          lineHeight: 1.2,
+        },
+      }}
     >
-      {Object.entries(LOCALES).map(([value, name]) => (
-        <MenuItem key={value} value={value} lang={value.slice(0, 2)}>
-          {name}
-        </MenuItem>
+      {OPTIONS.map(([value, label]) => (
+        <ToggleButton
+          key={value}
+          value={value}
+          lang={value.slice(0, 2)}
+          aria-label={value === 'vi-VN' ? 'Tiếng Việt' : 'English'}
+        >
+          {label}
+        </ToggleButton>
       ))}
-    </TextField>
+    </ToggleButtonGroup>
   );
 }

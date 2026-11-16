@@ -1,6 +1,6 @@
 import { RefreshIcon } from '../../components/icons';
 import { useEffect, useState } from 'react';
-import { Button, Chip, Stack } from '@mui/material';
+import { Alert, Button } from '@mui/material';
 import { useI18n } from '../../app/i18n';
 
 type Status = 'loading' | 'ready' | 'unavailable';
@@ -9,6 +9,7 @@ export function ApiReadiness() {
   const { t } = useI18n();
   const [status, setStatus] = useState<Status>('loading');
   const [attempt, setAttempt] = useState(0);
+  const [retrying, setRetrying] = useState(false);
   useEffect(() => {
     let stopped = false;
     let controller: AbortController;
@@ -37,6 +38,7 @@ export function ApiReadiness() {
         if (!stopped) setStatus('unavailable');
       } finally {
         clearTimeout(deadline);
+        if (!stopped) setRetrying(false);
         if (!stopped)
           poll = setTimeout(() => {
             void check();
@@ -51,47 +53,31 @@ export function ApiReadiness() {
       clearTimeout(poll);
     };
   }, [attempt]);
+  // Silent while the server answers; only an unreachable server is reported.
   return (
-    <Stack
-      direction="row"
-      spacing={1}
-      sx={{ alignItems: 'center', flexWrap: 'wrap' }}
-      useFlexGap
-    >
-      <span role="status" aria-live="polite">
-        <Chip
-          variant={status === 'unavailable' ? 'filled' : 'outlined'}
-          size="small"
-          sx={{ border: 0, fontWeight: 500, '& .MuiChip-label': { px: 0.5 } }}
-          color={
-            status === 'ready'
-              ? 'success'
-              : status === 'unavailable'
-                ? 'warning'
-                : 'default'
+    <div role="status" aria-live="polite" style={{ flexShrink: 0 }}>
+      {status === 'unavailable' && (
+        <Alert
+          severity="warning"
+          sx={{ mb: 2 }}
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              startIcon={<RefreshIcon />}
+              disabled={retrying}
+              onClick={() => {
+                setRetrying(true);
+                setAttempt((value) => value + 1);
+              }}
+            >
+              {t('api.retry')}
+            </Button>
           }
-          label={
-            status === 'ready'
-              ? t('api.ready')
-              : status === 'unavailable'
-                ? t('api.unavailable')
-                : t('api.checking')
-          }
-        />
-      </span>
-      <Button
-        startIcon={<RefreshIcon />}
-        variant="text"
-        size="small"
-        sx={{ minHeight: { xs: 44, md: 32 } }}
-        disabled={status === 'loading'}
-        onClick={() => {
-          setStatus('loading');
-          setAttempt((value) => value + 1);
-        }}
-      >
-        {t('api.checkAgain')}
-      </Button>
-    </Stack>
+        >
+          {t('api.unreachable')}
+        </Alert>
+      )}
+    </div>
   );
 }

@@ -10,14 +10,15 @@ test('shows loading until a request resolves', () => {
     vi.fn(() => new Promise(() => {})),
   );
   render(<ApiReadiness />);
-  expect(screen.getByRole('status')).toHaveTextContent('Checking API');
-  expect(screen.getByRole('button', { name: 'Check again' })).toBeDisabled();
+  // Nothing is shown while the first check is pending.
+  expect(screen.getByRole('status')).toBeEmptyDOMElement();
 });
-test('shows success and requests the readiness endpoint', async () => {
+test('stays silent when ready and requests the readiness endpoint', async () => {
   const fetch = vi.fn().mockResolvedValue(ready());
   vi.stubGlobal('fetch', fetch);
   render(<ApiReadiness />);
-  expect(await screen.findByText('API ready')).toBeInTheDocument();
+  await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
+  expect(screen.getByRole('status')).toBeEmptyDOMElement();
   expect(fetch).toHaveBeenCalledWith(
     '/api/v1/health/ready',
     expect.objectContaining({
@@ -39,7 +40,10 @@ test.each(['http', 'network', 'invalid-body'])(
       );
     vi.stubGlobal('fetch', fetch);
     render(<ApiReadiness />);
-    expect(await screen.findByText('API unavailable')).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Cannot reach the server/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeEnabled();
   },
 );
 test('manual retry makes a fresh request and recovers', async () => {
@@ -49,11 +53,11 @@ test('manual retry makes a fresh request and recovers', async () => {
     .mockResolvedValueOnce(ready());
   vi.stubGlobal('fetch', fetch);
   render(<ApiReadiness />);
-  await screen.findByText('API unavailable');
-  await userEvent
-    .setup()
-    .click(screen.getByRole('button', { name: 'Check again' }));
-  expect(await screen.findByText('API ready')).toBeInTheDocument();
+  await screen.findByText(/Cannot reach the server/);
+  await userEvent.setup().click(screen.getByRole('button', { name: 'Retry' }));
+  await vi.waitFor(() =>
+    expect(screen.getByRole('status')).toBeEmptyDOMElement(),
+  );
   expect(fetch).toHaveBeenCalledTimes(2);
 });
 test('periodic refresh recovers without real-time delays', async () => {
@@ -67,11 +71,11 @@ test('periodic refresh recovers without real-time delays', async () => {
   await act(async () => {
     await vi.advanceTimersByTimeAsync(0);
   });
-  expect(screen.getByText('API unavailable')).toBeInTheDocument();
+  expect(screen.getByText(/Cannot reach the server/)).toBeInTheDocument();
   await act(async () => {
     await vi.advanceTimersByTimeAsync(30000);
   });
-  expect(screen.getByText('API ready')).toBeInTheDocument();
+  expect(screen.getByRole('status')).toBeEmptyDOMElement();
   expect(fetch).toHaveBeenCalledTimes(2);
 });
 test('aborts a stalled request at 3 seconds', async () => {
@@ -91,11 +95,11 @@ test('aborts a stalled request at 3 seconds', async () => {
   await act(async () => {
     await vi.advanceTimersByTimeAsync(2999);
   });
-  expect(screen.getByText('Checking API…')).toBeInTheDocument();
+  expect(screen.getByRole('status')).toBeEmptyDOMElement();
   await act(async () => {
     await vi.advanceTimersByTimeAsync(1);
   });
-  expect(screen.getByText('API unavailable')).toBeInTheDocument();
+  expect(screen.getByText(/Cannot reach the server/)).toBeInTheDocument();
 });
 test('unmount aborts the current request and prevents polling', async () => {
   vi.useFakeTimers();
