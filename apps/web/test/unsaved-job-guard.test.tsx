@@ -102,7 +102,7 @@ test('Escape and the X dismiss like Stay, Tab stays trapped, and only explicit D
   expect(stay).toHaveClass('MuiButton-contained', 'MuiButton-colorPrimary');
   expect(discard).toHaveClass('MuiButton-outlined', 'MuiButton-colorError');
   // Destructive stays neutral at rest; the theme turns it red only on hover/focus.
-  expect(discard).toHaveStyle({ color: 'rgb(22, 24, 29)' });
+  expect(discard).toHaveStyle({ color: 'rgb(23, 43, 77)' });
   const link = screen.getByRole('link', {
     name: 'Back to Inbox',
     hidden: true,

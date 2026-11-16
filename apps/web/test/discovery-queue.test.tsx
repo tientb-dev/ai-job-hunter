@@ -530,7 +530,7 @@ test.each(['NEW', 'SEEN', 'SAVED', 'DISMISSED'] as const)(
       expect(button).not.toHaveClass('MuiButton-contained');
     }
     expect(within(filters).getByRole('button', { name: 'All' })).toHaveStyle({
-      backgroundColor: 'rgba(47, 91, 211, 0.08)',
+      backgroundColor: 'rgba(37, 99, 235, 0.08)',
     });
     await userEvent.click(review);
     const dialog = await screen.findByRole('dialog', {
@@ -547,7 +547,7 @@ test.each(['NEW', 'SEEN', 'SAVED', 'DISMISSED'] as const)(
     if (status === 'NEW' || status === 'SEEN') {
       expect(dismiss).toHaveClass('MuiButton-outlined', 'MuiButton-colorError');
       // Neutral at rest; the theme adds red only on hover and focus.
-      expect(dismiss).toHaveStyle({ color: 'rgb(22, 24, 29)' });
+      expect(dismiss).toHaveStyle({ color: 'rgb(23, 43, 77)' });
     } else expect(dismiss).toBeNull();
     if (status === 'SAVED') {
       expect(

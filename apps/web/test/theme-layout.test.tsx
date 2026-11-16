@@ -3,7 +3,7 @@ import { MenuItem, Paper, ThemeProvider, TextField } from '@mui/material';
 import { MemoryRouter } from 'react-router-dom';
 import { App } from '../src/app/App';
 import { render, screen } from '@testing-library/react';
-import { theme } from '../src/app/theme';
+import { surface, theme } from '../src/app/theme';
 
 test('page reserves scrollbar space so content does not shift when it appears', () => {
   const overrides = theme.components?.MuiCssBaseline?.styleOverrides as {
@@ -47,7 +47,7 @@ test('desktop sidebar stays in view and scrolls its own overflowing navigation',
   expect(sidebar.overflowY).toBe('auto');
 });
 
-test('outlined panels stand out from the tinted page without shadows', () => {
+test('outlined panels stand out from the tinted page with a subtle static shadow', () => {
   render(
     <ThemeProvider theme={theme}>
       <Paper variant="outlined" data-testid="panel">
@@ -59,10 +59,11 @@ test('outlined panels stand out from the tinted page without shadows', () => {
     theme.palette.background.paper,
   );
   const panel = getComputedStyle(screen.getByTestId('panel'));
-  expect(panel.borderColor).toBe('rgb(220, 220, 213)'); // surface.panelBorder
-  expect(panel.boxShadow).toBe('none');
+  expect(panel.borderColor).toBe('rgb(220, 227, 238)'); // surface.panelBorder
+  expect(panel.boxShadow).toBe(surface.panelShadow);
   // Nested panels fall back to the lighter divider so borders don't stack up.
   expect(getComputedStyle(screen.getByTestId('nested')).borderColor).toBe(
-    'rgb(227, 227, 221)', // palette.divider
+    'rgb(228, 233, 242)', // palette.divider
   );
+  expect(getComputedStyle(screen.getByTestId('nested')).boxShadow).toBe('none');
 });
