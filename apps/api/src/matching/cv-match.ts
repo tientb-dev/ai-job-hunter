@@ -3,6 +3,7 @@ import {
   requirementGroup,
   simpleSkillList,
   simpleEvidenceStatus,
+  roleExperience,
   simpleContradictions,
   recoverSimpleQuote,
   type ComponentEvidence,
@@ -432,10 +433,28 @@ export function canonicalRequirements(job: Opportunity): MatchRequirement[] {
     )
       grouped.push(next);
   }
-  return grouped.map((row, index) => ({
-    ...row,
-    parentId: `p${index + 1}`,
-  }));
+  // A bare "Minimum 2 years" experience field restating a role-specific
+  // requirement ("2+ years of experience in digital marketing") is that same
+  // requirement; alone it would let years in any other field satisfy it.
+  const bareYears = (text: string) =>
+    /^(?:(?:minimum|at least|min\.?)\s+)?(\d+)\+?\s*(?:years?|yrs?|năm)$/iu.exec(
+      text.trim(),
+    )?.[1];
+  return grouped
+    .filter(
+      (row) =>
+        row.category !== 'experience' ||
+        !bareYears(row.requirement) ||
+        !grouped.some(
+          (other) =>
+            roleExperience(other.requirement)?.years ===
+            Number(bareYears(row.requirement)),
+        ),
+    )
+    .map((row, index) => ({
+      ...row,
+      parentId: `p${index + 1}`,
+    }));
 }
 export function matchPrompt(
   cv: string,
@@ -626,7 +645,10 @@ export function validateMatchAssessment(
           at,
         );
       ids.add(component.componentId);
-      if (!jd.includes(component.jdQuote))
+      // The span is pinned to the server's component seed above; a derived
+      // label ("Experience with backend development") is verified through
+      // its parent's verbatim JD quote instead.
+      if (!jd.includes(component.jdQuote) && !jd.includes(parent!.jdQuote))
         throw new CvMatchError(
           'CV_MATCH_EVIDENCE_REJECTED',
           'COMPONENT_JD_QUOTE_NOT_IN_JD',
@@ -652,6 +674,19 @@ export function validateMatchAssessment(
   // Use source-backed canonical context (or the verified JD quote), not the
   // model's shorthand label, to distinguish tooling from production AI.
   let reason: MatchEvidenceReason = 'JD_QUOTE_NOT_VERBATIM';
+  // A linked parent's quote that differs from the canonical verbatim quote only
+  // by list marker, case or whitespace is restored to the canonical text.
+  const quoteKey = (text: string) =>
+    normalize(text.replace(/^\s*[-*•–]\s+/u, '')).replace(/[.;]+$/u, '');
+  proposals = proposals.map((item) => {
+    if (jd.includes(item.jdQuote)) return item;
+    const seed = canonical.find((row) => linksCanonicalRequirement(item, row));
+    return seed &&
+      jd.includes(seed.jdQuote) &&
+      quoteKey(seed.jdQuote) === quoteKey(item.jdQuote)
+      ? { ...item, jdQuote: seed.jdQuote }
+      : item;
+  });
   const rejectedIndex = proposals.findIndex((item) => {
     if (!item.jdQuote.trim()) {
       reason = 'JD_QUOTE_EMPTY';
