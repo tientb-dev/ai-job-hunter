@@ -547,31 +547,51 @@ export function TailoredCvReview({
     !!saved && document?.review.approval?.revision === saved.revision;
   const approvedUnchanged = approvedRevision && !dirty;
   // Step 3 shows the exact approved PDF, regenerated when the template changes.
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-  const [pdfError, setPdfError] = useState<string | null>(null);
+  // The previous PDF stays in place while the next one loads, so the viewer
+  // keeps its size and the page does not jump.
+  const [pdf, setPdf] = useState<{
+    key: string;
+    url: string | null;
+    error: string | null;
+  } | null>(null);
+  const [pdfAttempt, setPdfAttempt] = useState(0);
   const pdfId = wizardStep === 3 && approvedUnchanged ? saved?.id : undefined;
   const pdfRevision = saved?.revision;
+  const pdfKey = pdfId
+    ? `${pdfId}:${pdfRevision}:${template}:${pdfAttempt}`
+    : null;
   useEffect(() => {
-    if (!pdfId || !pdfRevision) return;
-    let live = true,
-      url: string | null = null;
+    if (!pdfKey || !pdfId || !pdfRevision) return;
+    let live = true;
     fetchDraftFile(pdfId, pdfRevision, 'pdf', template).then(
       ({ blob }) => {
-        if (!live) return;
-        url = URL.createObjectURL(blob);
-        setPdfError(null);
-        setPdfUrl(url);
+        if (live)
+          setPdf({ key: pdfKey, url: URL.createObjectURL(blob), error: null });
       },
       (error: Error) => {
-        if (live) setPdfError(error.message);
+        // Keep the last good PDF on screen next to the error.
+        if (live)
+          setPdf((last) => ({
+            key: pdfKey,
+            url: last?.url ?? null,
+            error: error.message,
+          }));
       },
     );
     return () => {
       live = false;
-      setPdfUrl(null);
-      if (url) URL.revokeObjectURL(url);
     };
-  }, [pdfId, pdfRevision, template]);
+  }, [pdfKey, pdfId, pdfRevision, template]);
+  const pdfUrl = pdf?.url ?? null;
+  const pdfLoading = !!pdfKey && pdf?.key !== pdfKey;
+  const pdfError = pdf?.key === pdfKey ? pdf.error : null;
+  // Revoke each PDF once it is replaced or the component unmounts.
+  useEffect(
+    () => () => {
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+    },
+    [pdfUrl],
+  );
   const templatePicker = (
     <TextField
       select
@@ -1951,30 +1971,67 @@ export function TailoredCvReview({
                 {tr('Final preview')}
               </Typography>
               {approvedUnchanged ? (
-                pdfError ? (
-                  <Alert severity="error">{pdfError}</Alert>
-                ) : pdfUrl ? (
-                  <>
-                    <Box
-                      component="iframe"
-                      title={tr('PDF preview')}
-                      src={pdfUrl}
-                      sx={{
-                        width: '100%',
-                        height: { xs: '70vh', sm: '85vh' },
-                        border: 1,
-                        borderColor: 'divider',
-                        borderRadius: 1,
-                        bgcolor: '#ffffff',
-                      }}
-                    />
+                <>
+                  {pdfError && (
+                    <Alert
+                      severity="error"
+                      action={
+                        <Button
+                          color="inherit"
+                          size="small"
+                          onClick={() => setPdfAttempt((n) => n + 1)}
+                        >
+                          {tr('Retry')}
+                        </Button>
+                      }
+                    >
+                      {pdfError}
+                    </Alert>
+                  )}
+                  <Box
+                    aria-busy={pdfLoading}
+                    sx={{
+                      position: 'relative',
+                      height: { xs: '70vh', sm: '85vh' },
+                      border: 1,
+                      borderColor: 'divider',
+                      borderRadius: 1,
+                      bgcolor: '#ffffff',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {pdfLoading && (
+                      <LinearProgress
+                        aria-label={tr('Generating PDF preview')}
+                        sx={{
+                          position: 'absolute',
+                          inset: '0 0 auto',
+                          zIndex: 1,
+                        }}
+                      />
+                    )}
+                    {pdfUrl && (
+                      <Box
+                        component="iframe"
+                        title={tr('PDF preview')}
+                        src={pdfUrl}
+                        sx={{
+                          width: '100%',
+                          height: '100%',
+                          border: 0,
+                          display: 'block',
+                          opacity: pdfLoading ? 0.6 : 1,
+                          transition: 'opacity 150ms',
+                        }}
+                      />
+                    )}
+                  </Box>
+                  {pdfUrl && (
                     <Link href={pdfUrl} target="_blank" rel="noopener">
                       {tr('Open the PDF in a new tab')}
                     </Link>
-                  </>
-                ) : (
-                  <LinearProgress aria-label={tr('Generating PDF preview')} />
-                )
+                  )}
+                </>
               ) : (
                 <>
                   <Alert severity="info">

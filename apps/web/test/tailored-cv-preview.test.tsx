@@ -66,3 +66,20 @@ test('when every link is a verified profile, no empty Links section is shown', (
   ).toHaveAttribute('href', 'https://github.com/synthetic-person');
   expect(screen.queryByRole('heading', { name: 'Links' })).toBeNull();
 });
+
+test('CV headings stay in the document language when the UI is Vietnamese', async () => {
+  const { setLocale } = await import('../src/app/i18n');
+  setLocale('vi-VN');
+  try {
+    render(<TailoredCvPreview document={tailoredDraftFixture().document} />);
+    expect(screen.getByRole('heading', { name: 'Experience' })).toHaveAttribute(
+      'lang',
+      'en',
+    );
+    expect(
+      screen.queryByRole('heading', { name: 'Kinh nghiệm' }),
+    ).not.toBeInTheDocument();
+  } finally {
+    setLocale('en-US');
+  }
+});

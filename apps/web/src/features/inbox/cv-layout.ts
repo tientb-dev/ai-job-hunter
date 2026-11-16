@@ -50,6 +50,24 @@ const TITLES: Record<string, string> = {
     return tr('Additional information');
   },
 };
+// CV headings belong to the document, not the UI: they stay English (the
+// language of the CV content and of the PDF/DOCX export) in every UI locale.
+const CV_HEADINGS: Record<string, string> = {
+  contact: 'Contact',
+  summary: 'Summary',
+  skills: 'Skills',
+  experience: 'Experience',
+  projects: 'Projects',
+  education: 'Education',
+  certifications: 'Certifications',
+  languages: 'Languages',
+  links: 'Links',
+  additional: 'Additional information',
+};
+export const cvHeading = (kind: string) =>
+  CV_HEADINGS[kind] ??
+  kind.charAt(0).toUpperCase() + kind.slice(1).replaceAll('_', ' ');
+
 export const sectionTitle = (kind: string) =>
   TITLES[kind] ??
   kind.charAt(0).toUpperCase() + kind.slice(1).replaceAll('_', ' ');

@@ -17,7 +17,6 @@ import {
   Box,
   Button,
   Container,
-  Divider,
   Drawer,
   IconButton,
   useMediaQuery,
@@ -120,10 +119,8 @@ export function App() {
           </Button>
         ))}
       </Stack>
-      <Stack spacing={1} sx={{ mt: 'auto', pt: 2, alignItems: 'flex-start' }}>
-        <LanguageSwitcher />
-        <SignOutButton />
-        {desktop && <ApiReadiness />}
+      <Stack sx={{ mt: 'auto', pt: 2, alignItems: 'flex-start' }}>
+        <ApiReadiness />
       </Stack>
     </>
   );
@@ -189,10 +186,16 @@ export function App() {
         <Container
           component="header"
           maxWidth="lg"
+          // Sticky so language and sign-out stay reachable on long pages.
           sx={{
-            display: { xs: 'block', md: 'none' },
+            position: 'sticky',
+            top: 0,
+            zIndex: 'appBar',
+            bgcolor: 'background.default',
+            borderBottom: 1,
+            borderColor: 'divider',
             px: { xs: 2, sm: 3 },
-            py: 0.5,
+            py: 1,
             flexShrink: 0,
           }}
         >
@@ -225,14 +228,23 @@ export function App() {
               >
                 <MenuIcon sx={{ fontSize: 20 }} />
               </IconButton>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+              <Typography
+                variant="subtitle2"
+                sx={{ fontWeight: 600, display: { md: 'none' } }}
+              >
                 AI Job Hunter
               </Typography>
             </Stack>
-            {!desktop && <ApiReadiness />}
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{ alignItems: 'center', ml: 'auto' }}
+            >
+              <LanguageSwitcher />
+              <SignOutButton iconOnly={!desktop} />
+            </Stack>
           </Stack>
         </Container>
-        <Divider sx={{ flexShrink: 0, display: { md: 'none' } }} />
         <Container
           component="main"
           maxWidth="lg"

@@ -9,7 +9,7 @@ import {
   reflow,
   professionalProfileHref,
   promotedLinks,
-  sectionTitle,
+  cvHeading,
   sortSections,
   structuredRows,
   type Document,
@@ -405,9 +405,10 @@ export function TailoredCvPreview({
                   <Typography
                     variant="subtitle1"
                     component="h3"
+                    lang="en"
                     sx={{ fontWeight: 600, ...styles.heading }}
                   >
-                    {sectionTitle(section.kind)}
+                    {cvHeading(section.kind)}
                   </Typography>
                 )}
                 <CvSectionView document={document} section={section} />
