@@ -60,6 +60,7 @@ export function simpleSkillList(line: string): boolean {
     !/\b(?:and|or|experience|knowledge|understanding|design\w*|ability|skills|degree|built|delivered|working|strong|proficien\w*|including|such as|at least)\b/iu.test(
       line,
     ) &&
+    !/\d,\d{3}|\b(?:abilit(?:y|ies)|mindset)\b|kỹ năng/iu.test(line) &&
     line.split(/[,;]+/u).every((part) => part.trim().split(/\s+/u).length <= 3)
   );
 }
@@ -266,6 +267,8 @@ export function requirementGroup(
     body = text.slice(prefix[0].length);
   }
   body = body.replace(/^(?:(?:at least )?one of|either)\s+/iu, '');
+  // A digit-grouping comma ("1,000,000 VND") is not a list separator.
+  if (/\d,\d{3}/u.test(body)) return group('SINGLE', [text], context);
   const hasAnd = /\band\b/iu.test(body);
   const hasOr = /\bor\b/iu.test(body);
   if (hasAnd && hasOr) return group('UNKNOWN', [text], context);
