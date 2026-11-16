@@ -102,3 +102,29 @@ export const LogoutIcon = createSvgIcon(
   <path d="m17 7-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4z" />,
   'Logout',
 );
+
+// Dashboard KPI and section glyphs.
+export const MailIcon = createSvgIcon(
+  <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2m0 4-8 5-8-5V6l8 5 8-5z" />,
+  'Mail',
+);
+export const EventIcon = createSvgIcon(
+  <path d="M17 12h-5v5h5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1zm3 18H5V8h14z" />,
+  'Event',
+);
+export const NotificationsIcon = createSvgIcon(
+  <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2m6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1z" />,
+  'Notifications',
+);
+export const BoltIcon = createSvgIcon(
+  <path d="M11 21h-1l1-7H7.5c-.58 0-.57-.32-.38-.66s.05-.08.07-.12C8.48 10.94 10.42 7.54 13 3h1l-1 7h3.5c.49 0 .56.33.47.51l-.07.15C12.96 17.55 11 21 11 21" />,
+  'Bolt',
+);
+export const FlagIcon = createSvgIcon(
+  <path d="M14.4 6 14 4H5v17h2v-7h5.6l.4 2h7V6z" />,
+  'Flag',
+);
+export const PlayCircleIcon = createSvgIcon(
+  <path d="m10 16.5 6-4.5-6-4.5zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2m0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8" />,
+  'PlayCircle',
+);

@@ -324,9 +324,15 @@ test('every follow-up row shows title, company if set, due date and its action',
   );
   const followUps = await screen.findByRole('region', { name: 'Follow-ups' });
   const rows = within(followUps).getAllByRole('listitem');
-  expect(rows).toHaveLength(2);
-  const [withCompany, withoutCompany] = rows as [HTMLElement, HTMLElement];
+  // The oldest follow-up is highlighted but stays in the same list.
+  expect(rows).toHaveLength(3);
+  const [first, withCompany, withoutCompany] = rows as [
+    HTMLElement,
+    HTMLElement,
+    HTMLElement,
+  ];
   for (const [row, n] of [
+    [first, 1],
     [withCompany, 2],
     [withoutCompany, 3],
   ] as const) {
