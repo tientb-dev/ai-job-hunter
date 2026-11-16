@@ -13,6 +13,8 @@ import { StatusChip } from '../../components/StatusChip';
 import { useNotify } from '../../components/useNotify';
 import { JobInterviewTab } from './JobInterviewTab';
 import { SourceJdPreview } from './SourceJdPreview';
+import { JobSummary } from './JobSummary';
+import { loadLinkSources } from './link-sources';
 import { ImportMethodCards, type ImportMethod } from './ImportMethodCards';
 import { JobActionLayout } from './JobActionLayout';
 import { nextJobAction } from './next-action';
@@ -83,6 +85,38 @@ import type {
   Opportunity,
   OpportunityInput,
 } from './opportunities-api';
+// Review & Save groups. Every import field appears exactly once.
+const FIELD_GROUPS: {
+  key: 'overview' | 'requirements' | 'description' | 'optional';
+  title: () => string;
+  fields: ImportFieldName[];
+}[] = [
+  {
+    key: 'overview',
+    title: () => tr('Main details'),
+    fields: [
+      'title',
+      'company',
+      'location',
+      'workMode',
+      'employmentType',
+      'seniority',
+      'salary',
+      'originalLink',
+    ],
+  },
+  {
+    key: 'requirements',
+    title: () => tr('Candidate requirements'),
+    fields: ['experience', 'skills', 'preferredSkills'],
+  },
+  { key: 'description', title: () => tr('Job description'), fields: [] },
+  {
+    key: 'optional',
+    title: () => tr('Optional details'),
+    fields: ['agency', 'contactNotes', 'domain'],
+  },
+];
 const message = (error: unknown) =>
   error instanceof Error
     ? error.message
@@ -205,6 +239,18 @@ export function JobEditor() {
     stepper.current?.scrollIntoView?.({ block: 'start' });
   }, [step]);
   const [importMethod, setImportMethod] = useState<ImportMethod>('url');
+  // Link sources the server fetches; ITviec is always on, others are flag-gated.
+  const [linkSources, setLinkSources] = useState<string[]>(['ITviec']);
+  useEffect(() => {
+    if (id) return;
+    let active = true;
+    void loadLinkSources().then((sources) => {
+      if (active) setLinkSources(sources);
+    });
+    return () => {
+      active = false;
+    };
+  }, [id]);
   const theme = useTheme();
   const phoneTabs = useMediaQuery(theme.breakpoints.down('sm'));
   const applicationPanel = useRef<HTMLDivElement>(null);
@@ -767,6 +813,181 @@ export function JobEditor() {
     };
   }, [id, view, loading, theme.breakpoints.values.md]);
   if (loading) return <CircularProgress aria-label={tr('Loading job')} />;
+  const renderField = (field: ImportFieldName) => {
+    const review = form.importReview.find((item) => item.field === field);
+    const conflict = review?.status === 'CONFLICT';
+    const multiline = ['contactNotes', 'skills', 'preferredSkills'].includes(
+      field,
+    );
+    const maxLength =
+      field === 'title' || field === 'company'
+        ? 300
+        : field === 'originalLink'
+          ? 2048
+          : multiline
+            ? 10000
+            : 2000;
+    return (
+      <Stack
+        spacing={1}
+        key={field}
+        sx={{
+          minWidth: 0,
+          gridColumn: multiline ? '1 / -1' : undefined,
+        }}
+      >
+        {field === 'skills' || field === 'preferredSkills' ? (
+          <RequirementInputs
+            label={fieldLabels[field]}
+            value={form[field]}
+            maxLength={maxLength}
+            error={Boolean(conflict && !review.reviewed)}
+            helperText={
+              conflict
+                ? tr('Review conflicting source values below.')
+                : review?.status === 'MISSING'
+                  ? tr('Missing / unknown — no supported value found.')
+                  : undefined
+            }
+            onChange={(value) => {
+              change(field, value);
+              if (conflict)
+                change(
+                  'importReview',
+                  form.importReview.map((item) =>
+                    item.field === field ? { ...item, reviewed: false } : item,
+                  ),
+                );
+            }}
+          />
+        ) : (
+          <TextField
+            label={fieldLabels[field]}
+            placeholder={field === 'title' ? undefined : tr('Unknown')}
+            required={field === 'title'}
+            type={field === 'originalLink' ? 'url' : 'text'}
+            multiline={multiline}
+            minRows={multiline ? 2 : undefined}
+            maxRows={multiline ? 8 : undefined}
+            value={form[field]}
+            onChange={(e) => {
+              change(field, e.target.value);
+              if (conflict)
+                change(
+                  'importReview',
+                  form.importReview.map((item) =>
+                    item.field === field ? { ...item, reviewed: false } : item,
+                  ),
+                );
+            }}
+            slotProps={{ htmlInput: { maxLength } }}
+            error={Boolean(conflict && !review.reviewed)}
+            helperText={
+              conflict
+                ? tr(
+                    'Conflicting source values. Choose a value, type a correction, or leave unknown; acknowledge below.',
+                  )
+                : review?.status === 'MISSING'
+                  ? tr('Missing / unknown — no supported value found.')
+                  : review
+                    ? field === 'company'
+                      ? tr(
+                          'Suggested company or JD issuer. This does not identify an unnamed end-client.',
+                        )
+                      : undefined
+                    : undefined
+            }
+          />
+        )}
+        {review && review.candidates.length > 0 && (
+          <Box component="details" open={conflict}>
+            <Typography component="summary" variant="subtitle2">
+              {conflict ? tr('Conflicting evidence') : tr('Source evidence')}
+            </Typography>
+            <Stack spacing={1}>
+              {review.candidates.map((candidate, index) => (
+                <Box
+                  key={index}
+                  sx={{
+                    p: 1,
+                    bgcolor: 'action.hover',
+                    overflowWrap: 'anywhere',
+                  }}
+                >
+                  <Typography variant="body2">
+                    {candidate.source === 'post'
+                      ? tr('Recruitment post')
+                      : tr('JD document')}
+                    : {candidate.value}
+                  </Typography>
+                  <Typography
+                    component="blockquote"
+                    variant="body2"
+                    sx={{ m: 1, whiteSpace: 'pre-wrap' }}
+                  >
+                    {candidate.quote}
+                  </Typography>
+                  {conflict && (
+                    <Button
+                      variant="outlined"
+                      type="button"
+                      onClick={() => {
+                        change(field, candidate.value);
+                        change(
+                          'importReview',
+                          form.importReview.map((item) =>
+                            item.field === field
+                              ? { ...item, reviewed: true }
+                              : item,
+                          ),
+                        );
+                      }}
+                    >
+                      {tr('Use this value for')} {fieldLabels[field]}
+                    </Button>
+                  )}
+                </Box>
+              ))}
+            </Stack>
+          </Box>
+        )}
+        {conflict && (
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={review.reviewed}
+                onChange={(e) =>
+                  change(
+                    'importReview',
+                    form.importReview.map((item) =>
+                      item.field === field
+                        ? {
+                            ...item,
+                            reviewed: e.target.checked,
+                          }
+                        : item,
+                    ),
+                  )
+                }
+              />
+            }
+            label={tr('I reviewed the conflict for {v0}', {
+              v0: fieldLabels[field],
+            })}
+          />
+        )}
+      </Stack>
+    );
+  };
+  const linkPlatform = jobUrlInfo(form.originalLink).platform;
+  const linkOff =
+    canFetchJobUrl(form.originalLink) &&
+    !!linkPlatform &&
+    !linkSources.includes(linkPlatform);
+  const fetchedSummary = fetchedJob.current &&
+    form.postText.includes(fetchedJob.current.sourceText) && (
+      <JobSummary form={form} platform={fetchedJob.current.platform} />
+    );
   const importSources = (
     <Box hidden={!id && step !== 0}>
       <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
@@ -797,6 +1018,7 @@ export function JobEditor() {
               setImportMethod(method);
             }}
             panelId="job-import-panel"
+            linkSources={linkSources}
             disabled={extracting || loadFailed || saving.current}
           />
           <Box
@@ -830,7 +1052,9 @@ export function JobEditor() {
                   startIcon={<DownloadIcon />}
                   variant="outlined"
                   sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
-                  disabled={disabled || !canFetchJobUrl(form.originalLink)}
+                  disabled={
+                    disabled || !canFetchJobUrl(form.originalLink) || linkOff
+                  }
                   onClick={() => void fetchFromUrl()}
                   aria-describedby="url-import-help"
                 >
@@ -843,15 +1067,26 @@ export function JobEditor() {
                   variant="body2"
                   color="text.secondary"
                 >
-                  {!form.originalLink || canFetchJobUrl(form.originalLink)
-                    ? tr(
-                        'Paste a job link from ITviec, TopCV or VietnamWorks, then click Fetch from URL. You review the JD before saving.',
+                  {linkOff
+                    ? urlImportError(
+                        `${linkPlatform} link import is turned off`,
                       )
-                    : urlImportHelp()}
+                    : !form.originalLink || canFetchJobUrl(form.originalLink)
+                      ? tr(
+                          'Paste a job link from {sources}, then click Fetch from URL. You review the JD before saving.',
+                          { sources: linkSources.join(', ') },
+                        )
+                      : urlImportHelp(linkSources)}
                 </Typography>
+                {fetchedSummary}
               </Stack>
             )}
-            {importMethod === 'bookmarklet' && <TopcvBookmarkletInstall />}
+            {importMethod === 'bookmarklet' && (
+              <Stack spacing={1.5}>
+                <TopcvBookmarkletInstall />
+                {fetchedSummary}
+              </Stack>
+            )}
             {importMethod === 'paste' && (
               <Stack spacing={1.5}>
                 <TextField
@@ -929,7 +1164,7 @@ export function JobEditor() {
                   : (fetchedJob.current?.platform ??
                     jobUrlInfo(form.originalLink).platform ??
                     (importMethod === 'bookmarklet'
-                      ? 'Bookmarklet'
+                      ? tr('Page-import bookmark')
                       : tr('Job URL')))
               }
               loading={
@@ -1677,244 +1912,112 @@ export function JobEditor() {
                         'Unknown values can stay blank. Only job title is required. Quotes show textual support; verify that each value describes this job.',
                       )}
                     </Typography>
-                    <Box
-                      sx={{
-                        display: 'grid',
-                        gridTemplateColumns: {
-                          xs: '1fr',
-                          sm: 'repeat(2, minmax(0, 1fr))',
-                        },
-                        gap: 2,
-                      }}
-                    >
-                      {importFields.map((field) => {
-                        const review = form.importReview.find(
-                          (item) => item.field === field,
-                        );
-                        const conflict = review?.status === 'CONFLICT';
-                        const multiline = [
-                          'contactNotes',
-                          'skills',
-                          'preferredSkills',
-                        ].includes(field);
-                        const maxLength =
-                          field === 'title' || field === 'company'
-                            ? 300
-                            : field === 'originalLink'
-                              ? 2048
-                              : multiline
-                                ? 10000
-                                : 2000;
+                    {!id && (
+                      <JobSummary
+                        form={form}
+                        platform={fetchedJob.current?.platform}
+                        showRequirements
+                      />
+                    )}
+                    {FIELD_GROUPS.map((group) => {
+                      const fields = (
+                        <Box
+                          sx={{
+                            display: 'grid',
+                            gridTemplateColumns: {
+                              xs: '1fr',
+                              sm: 'repeat(2, minmax(0, 1fr))',
+                            },
+                            gap: 2,
+                          }}
+                        >
+                          {group.fields.map(renderField)}
+                        </Box>
+                      );
+                      const heading = (
+                        <Typography
+                          variant="subtitle1"
+                          component="h3"
+                          sx={{ fontWeight: 600 }}
+                        >
+                          {group.title()}
+                        </Typography>
+                      );
+                      if (group.key === 'optional')
                         return (
-                          <Stack
-                            spacing={1}
-                            key={field}
+                          <Box
+                            key={group.key}
+                            component="details"
+                            open={
+                              group.fields.some((field) =>
+                                conflicts.some((item) => item.field === field),
+                              ) || undefined
+                            }
                             sx={{
-                              minWidth: 0,
-                              gridColumn: multiline ? '1 / -1' : undefined,
+                              '& > summary': { cursor: 'pointer', py: 0.5 },
                             }}
                           >
-                            {field === 'skills' ||
-                            field === 'preferredSkills' ? (
-                              <RequirementInputs
-                                label={fieldLabels[field]}
-                                value={form[field]}
-                                maxLength={maxLength}
-                                error={Boolean(conflict && !review.reviewed)}
-                                helperText={
-                                  conflict
-                                    ? tr(
-                                        'Review conflicting source values below.',
-                                      )
-                                    : review?.status === 'MISSING'
-                                      ? tr(
-                                          'Missing / unknown — no supported value found.',
-                                        )
-                                      : undefined
-                                }
-                                onChange={(value) => {
-                                  change(field, value);
-                                  if (conflict)
-                                    change(
-                                      'importReview',
-                                      form.importReview.map((item) =>
-                                        item.field === field
-                                          ? { ...item, reviewed: false }
-                                          : item,
-                                      ),
-                                    );
-                                }}
-                              />
-                            ) : (
-                              <TextField
-                                label={fieldLabels[field]}
-                                placeholder={
-                                  field === 'title' ? undefined : tr('Unknown')
-                                }
-                                required={field === 'title'}
-                                type={field === 'originalLink' ? 'url' : 'text'}
-                                multiline={multiline}
-                                minRows={multiline ? 2 : undefined}
-                                maxRows={multiline ? 8 : undefined}
-                                value={form[field]}
-                                onChange={(e) => {
-                                  change(field, e.target.value);
-                                  if (conflict)
-                                    change(
-                                      'importReview',
-                                      form.importReview.map((item) =>
-                                        item.field === field
-                                          ? { ...item, reviewed: false }
-                                          : item,
-                                      ),
-                                    );
-                                }}
-                                slotProps={{ htmlInput: { maxLength } }}
-                                error={Boolean(conflict && !review.reviewed)}
-                                helperText={
-                                  conflict
-                                    ? tr(
-                                        'Conflicting source values. Choose a value, type a correction, or leave unknown; acknowledge below.',
-                                      )
-                                    : review?.status === 'MISSING'
-                                      ? tr(
-                                          'Missing / unknown — no supported value found.',
-                                        )
-                                      : review
-                                        ? field === 'company'
-                                          ? tr(
-                                              'Suggested company or JD issuer. This does not identify an unnamed end-client.',
-                                            )
-                                          : undefined
-                                        : undefined
-                                }
-                              />
-                            )}
-                            {review && review.candidates.length > 0 && (
-                              <Box component="details" open={conflict}>
-                                <Typography
-                                  component="summary"
-                                  variant="subtitle2"
-                                >
-                                  {conflict
-                                    ? tr('Conflicting evidence')
-                                    : tr('Source evidence')}
-                                </Typography>
-                                <Stack spacing={1}>
-                                  {review.candidates.map((candidate, index) => (
-                                    <Box
-                                      key={index}
-                                      sx={{
-                                        p: 1,
-                                        bgcolor: 'action.hover',
-                                        overflowWrap: 'anywhere',
-                                      }}
-                                    >
-                                      <Typography variant="body2">
-                                        {candidate.source === 'post'
-                                          ? tr('Recruitment post')
-                                          : tr('JD document')}
-                                        : {candidate.value}
-                                      </Typography>
-                                      <Typography
-                                        component="blockquote"
-                                        variant="body2"
-                                        sx={{ m: 1, whiteSpace: 'pre-wrap' }}
-                                      >
-                                        {candidate.quote}
-                                      </Typography>
-                                      {conflict && (
-                                        <Button
-                                          variant="outlined"
-                                          type="button"
-                                          onClick={() => {
-                                            change(field, candidate.value);
-                                            change(
-                                              'importReview',
-                                              form.importReview.map((item) =>
-                                                item.field === field
-                                                  ? { ...item, reviewed: true }
-                                                  : item,
-                                              ),
-                                            );
-                                          }}
-                                        >
-                                          {tr('Use this value for')}{' '}
-                                          {fieldLabels[field]}
-                                        </Button>
-                                      )}
-                                    </Box>
-                                  ))}
-                                </Stack>
-                              </Box>
-                            )}
-                            {conflict && (
-                              <FormControlLabel
-                                control={
-                                  <Checkbox
-                                    checked={review.reviewed}
-                                    onChange={(e) =>
-                                      change(
-                                        'importReview',
-                                        form.importReview.map((item) =>
-                                          item.field === field
-                                            ? {
-                                                ...item,
-                                                reviewed: e.target.checked,
-                                              }
-                                            : item,
-                                        ),
-                                      )
-                                    }
-                                  />
-                                }
-                                label={tr('I reviewed the conflict for {v0}', {
-                                  v0: fieldLabels[field],
-                                })}
-                              />
-                            )}
-                          </Stack>
+                            <Box component="summary">{heading}</Box>
+                            <Stack spacing={2} sx={{ mt: 1.5 }}>
+                              {fields}
+                            </Stack>
+                          </Box>
                         );
-                      })}
-                    </Box>
-                    {id && (
-                      <TextField
-                        select
-                        label={tr('Source')}
-                        value={form.source}
-                        onChange={(e) =>
-                          change(
-                            'source',
-                            e.target.value as OpportunityInput['source'],
-                          )
-                        }
-                        helperText={tr('Where this job was originally found.')}
-                      >
-                        {sources.map((value) => (
-                          <MenuItem key={value} value={value}>
-                            {value}
-                          </MenuItem>
-                        ))}
-                      </TextField>
-                    )}
-                    <TextField
-                      label={tr('Job description')}
-                      multiline
-                      minRows={6}
-                      maxRows={14}
-                      value={form.description}
-                      onChange={(e) => change('description', e.target.value)}
-                      slotProps={{ htmlInput: { maxLength: 26000 } }}
-                      helperText={
-                        id
-                          ? tr(
-                              'Edit this job description manually. Original imported source text and documents are preserved separately.',
-                            )
-                          : tr(
-                              'Both source texts are included after extraction; edit the description as needed. The original sources are preserved separately.',
-                            )
-                      }
-                    />
+                      return (
+                        <Stack
+                          key={group.key}
+                          component="section"
+                          spacing={1.5}
+                        >
+                          {heading}
+                          {group.fields.length > 0 && fields}
+                          {group.key === 'overview' && id && (
+                            <TextField
+                              select
+                              label={tr('Source')}
+                              value={form.source}
+                              onChange={(e) =>
+                                change(
+                                  'source',
+                                  e.target.value as OpportunityInput['source'],
+                                )
+                              }
+                              helperText={tr(
+                                'Where this job was originally found.',
+                              )}
+                            >
+                              {sources.map((value) => (
+                                <MenuItem key={value} value={value}>
+                                  {value}
+                                </MenuItem>
+                              ))}
+                            </TextField>
+                          )}
+                          {group.key === 'description' && (
+                            <TextField
+                              label={tr('Job description')}
+                              multiline
+                              minRows={6}
+                              maxRows={14}
+                              value={form.description}
+                              onChange={(e) =>
+                                change('description', e.target.value)
+                              }
+                              slotProps={{ htmlInput: { maxLength: 26000 } }}
+                              helperText={
+                                id
+                                  ? tr(
+                                      'Edit this job description manually. Original imported source text and documents are preserved separately.',
+                                    )
+                                  : tr(
+                                      'Both source texts are included after extraction; edit the description as needed. The original sources are preserved separately.',
+                                    )
+                              }
+                            />
+                          )}
+                        </Stack>
+                      );
+                    })}
                   </Stack>
                   <Stack
                     spacing={2}

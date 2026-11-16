@@ -32,9 +32,10 @@ export function canFetchJobUrl(value: string): boolean {
     return false;
   }
 }
-export function urlImportHelp(): string {
+export function urlImportHelp(sources: string[] = ['ITviec']): string {
   return tr(
-    'Use the link of a single job posting on ITviec, TopCV or VietnamWorks. If it cannot be loaded, use the page-import bookmark or paste the JD.',
+    'Use the link of a single job posting on {sources}. If it cannot be loaded, use the page-import bookmark or paste the JD.',
+    { sources: sources.join(', ') },
   );
 }
 /** Localised guidance when the server has link import turned off for a source. */

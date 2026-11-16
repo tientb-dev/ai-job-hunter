@@ -85,6 +85,8 @@ an empty workspace of its own.
 - Free Gemini usage has per-minute and daily limits.
 - CV upload accepts text-based PDF or DOCX, not scans.
 - Discover covers only a few configured company job boards.
+- Job links import from ITviec. TopCV and VietnamWorks link import is off
+  unless the operator enables it; paste the JD for any other site.
 - Voice answers need whisper.cpp, which is optional and for technical users.
 
 ## For developers

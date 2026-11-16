@@ -4,6 +4,7 @@ import { CheckIcon } from '../../components/icons';
 import {
   Box,
   CardActionArea,
+  Chip,
   Paper,
   Stack,
   SvgIcon,
@@ -14,16 +15,17 @@ const methods = [
   {
     value: 'url',
     get title() {
-      return tr('Job URL');
+      return tr('Paste job URL');
     },
-    get subtitle() {
-      return tr('ITviec');
-    },
+    // Replaced by the server's enabled link sources at render time.
+    subtitle: '',
     path: 'M3 3h7v2H5v14h14v-5h2v7H3V3zm10 0h8v8h-2V6.4l-8.3 8.3-1.4-1.4L17.6 5H13V3z',
   },
   {
     value: 'bookmarklet',
-    title: 'Bookmarklet',
+    get title() {
+      return tr('Page-import bookmark');
+    },
     subtitle: 'TopCV · VietnamWorks',
     path: 'M6 3h12v18l-6-4-6 4V3zm2 2v12.3l4-2.7 4 2.7V5H8z',
   },
@@ -53,11 +55,13 @@ export function ImportMethodCards({
   onChange,
   panelId,
   disabled,
+  linkSources = ['ITviec'],
 }: {
   value: ImportMethod;
   onChange: (method: ImportMethod) => void;
   panelId: string;
   disabled: boolean;
+  linkSources?: string[];
 }) {
   return (
     <Box
@@ -80,6 +84,8 @@ export function ImportMethodCards({
             variant="outlined"
             sx={{
               minWidth: 0,
+              // The recommended method spans the row so it reads as the default path.
+              gridColumn: method.value === 'url' ? '1 / -1' : undefined,
               borderColor: value === method.value ? 'primary.main' : 'divider',
               bgcolor:
                 value === method.value ? 'action.selected' : 'background.paper',
@@ -111,11 +117,29 @@ export function ImportMethodCards({
                   <path d={method.path} />
                 </SvgIcon>
                 <Box sx={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                    {method.title}
-                  </Typography>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    sx={{ alignItems: 'center', flexWrap: 'wrap' }}
+                  >
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                      {method.title}
+                    </Typography>
+                    {method.value === 'url' && (
+                      <Chip
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                        label={tr('Recommended')}
+                      />
+                    )}
+                  </Stack>
                   <Typography variant="body2" color="text.secondary">
-                    {method.subtitle}
+                    {method.value === 'url'
+                      ? tr('Supported: {sources}', {
+                          sources: linkSources.join(' · '),
+                        })
+                      : method.subtitle}
                   </Typography>
                 </Box>
                 {value === method.value && <CheckIcon color="primary" />}

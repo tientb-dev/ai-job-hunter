@@ -64,7 +64,7 @@ test('rejects oversized combined sources without mutating existing inputs', () =
   );
   expect(form).toEqual(before);
 });
-test('fetch enables only for single-job URLs on supported sites, never on paste', () => {
+test('fetch enables only for single-job URLs on supported sites, never on paste', async () => {
   const fetch = vi.fn();
   vi.stubGlobal('fetch', fetch);
   render(
@@ -83,8 +83,11 @@ test('fetch enables only for single-job URLs on supported sites, never on paste'
     target: { value: preview.originalLink },
   });
   expect(button).toBeDisabled();
+  // Sources arrive asynchronously from the server (stubbed in setup).
   expect(
-    screen.getByText(/single job posting on ITviec, TopCV or VietnamWorks/),
+    await screen.findByText(
+      /single job posting on ITviec, TopCV, VietnamWorks/,
+    ),
   ).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: /Paste JD/ }));
   expect(screen.getByLabelText('Recruitment post')).toBeEnabled();
@@ -196,7 +199,7 @@ test('busy fetch prevents overlap and blocked response preserves manual inputs',
   fireEvent.change(screen.getByLabelText('Recruitment post'), {
     target: { value: 'Original post' },
   });
-  fireEvent.click(screen.getByRole('button', { name: /Job URL/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Paste job URL/ }));
   const button = screen.getByRole('button', { name: 'Fetch from URL' });
   await userEvent.click(button);
   expect(button).toBeDisabled();
@@ -213,7 +216,7 @@ test('busy fetch prevents overlap and blocked response preserves manual inputs',
   expect(screen.getByLabelText('Recruitment post')).toHaveValue(
     'Original post',
   );
-  fireEvent.click(screen.getByRole('button', { name: /Job URL/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Paste job URL/ }));
   expect(screen.getByRole('button', { name: 'Fetch from URL' })).toBeEnabled();
 });
 

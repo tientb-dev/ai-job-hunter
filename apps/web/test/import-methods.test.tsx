@@ -97,8 +97,8 @@ test('four method cards are keyboard buttons with selected states and no radio/d
   render(<Harness />);
   const buttons = screen.getAllByRole('button');
   expect(buttons.map((button) => button.textContent)).toEqual([
-    'Job URLITviec',
-    'BookmarkletTopCV · VietnamWorks',
+    'Paste job URLRecommendedSupported: ITviec',
+    'Page-import bookmarkTopCV · VietnamWorks',
     'Paste JDRecruiter post or text',
     'Upload JDPDF · DOCX',
   ]);
@@ -151,7 +151,7 @@ test('one contextual panel retains text but clears the document when leaving Upl
       screen.getByRole('button', { name: 'Extract with AI' }),
     ).toBeEnabled(),
   );
-  select('Job URL');
+  select('Paste job URL');
   expect(screen.getByLabelText('Original Job URL (optional)')).toHaveValue(
     sourceUrl,
   );
@@ -190,7 +190,7 @@ test('ITviec fetch loads once without AI, extraction remains explicit, and manua
   expect(screen.getByLabelText('Recruitment post')).toHaveValue(
     preview.sourceText,
   );
-  select('Job URL');
+  select('Paste job URL');
   fireEvent.click(
     screen.getByRole('button', { name: 'Continue to Review & Save' }),
   );
@@ -201,7 +201,7 @@ test('ITviec fetch loads once without AI, extraction remains explicit, and manua
     screen.getByRole('button', { name: 'Back to Import sources' }),
   );
   select('Paste JD');
-  select('Job URL');
+  select('Paste job URL');
   fireEvent.click(screen.getByRole('button', { name: 'Extract with AI' }));
   await screen.findByRole('button', { name: 'Confirm and save job' });
   expect(screen.getByLabelText(/Job title/)).toHaveValue('My reviewed title');
@@ -234,16 +234,15 @@ test('validated bookmark transfer selects Bookmarklet and keeps the original URL
   );
   act(() => receive(payload));
   expect(await screen.findByText(/JD loaded from TopCV/)).toBeVisible();
-  expect(screen.getByRole('button', { name: /^Bookmarklet/ })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  expect(
+    screen.getByRole('button', { name: /^Page-import bookmark/ }),
+  ).toHaveAttribute('aria-pressed', 'true');
   expect(screen.getByRole('button', { name: 'Extract with AI' })).toBeEnabled();
   select('Paste JD');
   expect(screen.getByLabelText('Recruitment post')).toHaveValue(
     preview.sourceText,
   );
-  select('Job URL');
+  select('Paste job URL');
   expect(screen.getByLabelText('Original Job URL (optional)')).toHaveValue(
     payload.sourceUrl,
   );

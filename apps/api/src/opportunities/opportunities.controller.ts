@@ -2,7 +2,7 @@ import { replyAiLimit } from '../ai/ai-usage.js';
 import { CurrentOwner } from '../auth/current-owner.js';
 import { CvSuggestionsError } from '../matching/cv-suggestions.error.js';
 import { importTopcvPage } from './topcv-page-import.js';
-import { PinnedJobPageTransport } from './job-url.transport.js';
+import { liveJobSources, PinnedJobPageTransport } from './job-url.transport.js';
 import { JobUrlImportService, withSourceFields } from './job-url-import.js';
 import { CvMatchError } from '../matching/cv-match.error.js';
 import { JobMatchService } from '../matching/job-match.service.js';
@@ -65,8 +65,9 @@ export class OpportunityErrors implements ExceptionFilter {
 @Controller('opportunities')
 @UseFilters(OpportunityErrors)
 export class OpportunitiesController {
+  private readonly linkSources = liveJobSources();
   private readonly urlImports = new JobUrlImportService(
-    new PinnedJobPageTransport(),
+    new PinnedJobPageTransport(undefined, this.linkSources),
   );
   constructor(
     private readonly opportunities: OpportunitiesService,
@@ -82,6 +83,12 @@ export class OpportunitiesController {
   @Header('Cache-Control', 'no-store')
   duplicateUrl(@CurrentOwner() owner: string, @Query('url') url: unknown) {
     return this.opportunities.duplicateUrl(owner, url);
+  }
+  /** Sources whose job links this server fetches (TopCV/VietnamWorks are flag-gated). */
+  @Get('import-sources')
+  @Header('Cache-Control', 'no-store')
+  importSources() {
+    return { sources: [...this.linkSources] };
   }
   @Post('import-url')
   @HttpCode(200)

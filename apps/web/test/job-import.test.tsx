@@ -655,7 +655,7 @@ test('manual URL survives extraction, save and reopen without fetching the URL',
   );
   mount();
   const url = 'https://www.itviec.com/it-jobs/synthetic-role?utm_source=manual';
-  fireEvent.click(screen.getByRole('button', { name: /Job URL/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Paste job URL/ }));
   fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
     target: { value: url },
   });
@@ -685,7 +685,7 @@ test('manual URL survives extraction, save and reopen without fetching the URL',
 test('invalid job URL blocks save with actionable feedback and retains inputs', async () => {
   const fetch = mock(preview({}));
   mount();
-  fireEvent.click(screen.getByRole('button', { name: /Job URL/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Paste job URL/ }));
   fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
     target: { value: 'javascript:alert(1)' },
   });

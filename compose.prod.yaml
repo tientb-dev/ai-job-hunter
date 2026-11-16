@@ -43,6 +43,10 @@ services:
       AI_DAILY_USER_LIMIT: ${AI_DAILY_USER_LIMIT:-100}
       AI_DAILY_GLOBAL_LIMIT: ${AI_DAILY_GLOBAL_LIMIT:-500}
       AI_MAX_CONCURRENT: ${AI_MAX_CONCURRENT:-4}
+      # Job-link import: ITviec is always on. TopCV/VietnamWorks stay off unless
+      # explicitly enabled (content-use permission pending).
+      JOB_URL_FETCH_TOPCV: ${JOB_URL_FETCH_TOPCV:-0}
+      JOB_URL_FETCH_VIETNAMWORKS: ${JOB_URL_FETCH_VIETNAMWORKS:-0}
 
   web:
     build: { context: ., target: web }

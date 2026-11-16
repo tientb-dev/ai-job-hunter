@@ -528,12 +528,29 @@ export const VI_TEXT: Record<string, string> = {
     'Hiện chưa có nhận xét. Văn bản của bạn được giữ — hãy thử lại.',
   'Feedback on your transcript': 'Nhận xét về bản ghi lời nói',
   'Fetch from URL': 'Tải từ URL',
+  'Main details': 'Thông tin chính',
+  '/month': '/tháng',
+  '/year': '/năm',
+  '/day': '/ngày',
+  '/hour': '/giờ',
+  'Up to': 'Tối đa',
+  'At least {n} year(s)': 'Tối thiểu {n} năm',
+  'At least {n} month(s)': 'Tối thiểu {n} tháng',
+  'Job summary': 'Tóm tắt công việc',
+  'Untitled job': 'Chưa có tên công việc',
+  'Company and location not found': 'Không tìm thấy công ty và địa điểm',
+  'Open original posting': 'Mở tin tuyển dụng gốc',
+  'Paste job URL': 'Dán link việc làm',
+  'Page-import bookmark': 'Bookmark nhập trang',
+  'Supported: {sources}': 'Hỗ trợ: {sources}',
+  'Paste a job link from {sources}, then click Fetch from URL. You review the JD before saving.':
+    'Dán link tin tuyển dụng từ {sources} rồi bấm Tải từ URL. Bạn sẽ xem lại JD trước khi lưu.',
+  'Use the link of a single job posting on {sources}. If it cannot be loaded, use the page-import bookmark or paste the JD.':
+    'Hãy dùng link của một tin tuyển dụng trên {sources}. Nếu không tải được, hãy dùng bookmark nhập trang hoặc dán JD.',
+  'Candidate requirements': 'Yêu cầu ứng viên',
+  'Optional details': 'Thông tin bổ sung (không bắt buộc)',
   'Add the JD first: fetch a job link, paste the post, use the page-import bookmark or upload a document.':
     'Hãy thêm JD trước: tải từ link việc làm, dán tin tuyển dụng, dùng bookmark nhập trang hoặc tải tài liệu lên.',
-  'Paste a job link from ITviec, TopCV or VietnamWorks, then click Fetch from URL. You review the JD before saving.':
-    'Dán link tin tuyển dụng từ ITviec, TopCV hoặc VietnamWorks rồi bấm Tải từ URL. Bạn sẽ xem lại JD trước khi lưu.',
-  'Use the link of a single job posting on ITviec, TopCV or VietnamWorks. If it cannot be loaded, use the page-import bookmark or paste the JD.':
-    'Hãy dùng link của một tin tuyển dụng trên ITviec, TopCV hoặc VietnamWorks. Nếu không tải được, hãy dùng bookmark nhập trang hoặc dán JD.',
   '{platform} link import is turned off on this server. Use the page-import bookmark or paste the JD.':
     'Nhập bằng link {platform} đang tắt trên máy chủ này. Hãy dùng bookmark nhập trang hoặc dán JD.',
   'Fetched listings': 'Tin đã tải',

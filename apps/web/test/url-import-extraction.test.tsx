@@ -88,7 +88,7 @@ function pasteSource() {
   fireEvent.click(screen.getByRole('button', { name: /Paste JD/ }));
 }
 async function fetchJob() {
-  fireEvent.click(screen.getByRole('button', { name: /Job URL/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Paste job URL/ }));
   fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
     target: { value: link },
   });
