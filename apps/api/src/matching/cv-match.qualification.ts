@@ -8,8 +8,20 @@ export type QualificationPredicate =
   | { kind: 'experience'; relevant: true; minimumMonths: number }
   | { kind: 'bootcamp'; completed: true };
 
-const bachelor = String.raw`(?:bachelor(?:['’]s)?\s+(?:degree|of science|of engineering)|b\.?sc\.?|bs)`;
-const field = String.raw`(?:computer science|computer engineering|software engineering|information technology|information systems|engineering)`;
+const bachelor = String.raw`(?:bachelor(?:['’]s)?\s+(?:degree|of science|of engineering|of arts|of business administration)|b\.?sc\.?|bs|cử nhân)`;
+const field = String.raw`(?:computer science|computer engineering|software engineering|information technology|information systems|engineering|business administration|business|marketing|economics|communications|quản trị kinh doanh|kinh doanh)`;
+// Vietnamese degree fields name the same qualification as their English field.
+const fieldAlias: Record<string, string> = {
+  'quản trị kinh doanh': 'business administration',
+  'kinh doanh': 'business',
+};
+const businessFields = [
+  'business',
+  'business administration',
+  'marketing',
+  'economics',
+  'communications',
+];
 // "A related technical discipline" is bounded to these fields, never any degree.
 const technicalFields = [
   'computer science',
@@ -48,7 +60,12 @@ export function qualificationGroup(text: string): RequirementGroup | null {
       .split(/\s*,\s*/u)
       .concat(
         /related/iu.test(listed[2]!)
-          ? technicalFields
+          ? listed[1]!
+              .toLowerCase()
+              .split(/\s*,\s*/u)
+              .some((name) => businessFields.includes(name))
+            ? businessFields
+            : technicalFields
           : [listed[2]!.toLowerCase()],
       );
     return {
@@ -120,7 +137,7 @@ const denial =
 const unfinished =
   /\b(?:incomplete|pending|pursuing|candidate|expected|in.progress|ongoing|enrolled|attending|attended|studying|awaiting|will|would|want|intend|if|wish|aim|planning|hoping|plans?|seeking|aspiring|interested|learning|claim(?:ed|s)?)\b/iu;
 const degreeEvidence = new RegExp(
-  String.raw`\b${bachelor}\s+(?:in\s+)?(${field})(?=\s*(?:[.!?,;\r\n]|$|from\b))`,
+  String.raw`\b${bachelor}\s+(?:in\s+)?(${field})(?=\s*(?:[.!?,;|\r\n]|$|from\b))`,
   'iu',
 );
 const bootEvidence = /\b(?:coding|software development)\s+boot\s*camp\b/iu;
@@ -179,7 +196,13 @@ function relevantDegree(p: QualificationPredicate, quote: string): boolean {
   const match = degreeEvidence.exec(
     quote.replace(/\s+(?:field|major)\s*:\s*/iu, ' in '),
   );
-  return !!match && p.acceptedFields.includes(match[1]!.toLowerCase());
+  if (!match) return false;
+  const found = match[1]!.toLowerCase();
+  const name = fieldAlias[found] ?? found;
+  // "Business Administration" is a business degree.
+  return p.acceptedFields.some(
+    (accepted) => name === accepted || name.startsWith(`${accepted} `),
+  );
 }
 function supported(p: QualificationPredicate, quote: string): boolean {
   if (

@@ -269,8 +269,21 @@ export function requirementGroup(
   body = body.replace(/^(?:(?:at least )?one of|either)\s+/iu, '');
   // A digit-grouping comma ("1,000,000 VND") is not a list separator.
   if (/\d,\d{3}/u.test(body)) return group('SINGLE', [text], context);
+  // "VND 1 billion or more" is a threshold, not an alternative.
+  body = body.replace(
+    /,?\s+or\s+(?:more|above|higher|greater|later)\b\.?$/iu,
+    '',
+  );
   const hasAnd = /\band\b/iu.test(body);
   const hasOr = /\bor\b/iu.test(body);
+  // A stated duration ("2–3 years in … Sales or Account Management", "1-2 năm
+  // … Performance Marketing OR Digital Marketing") applies to every component.
+  const groupYears =
+    /(?<![\p{L}\p{N}])(\d+)\s*(?:\+|[-–]\s*\d+)?\s*(?:years?|năm)(?!\p{L})/iu.exec(
+      text,
+    );
+  const withDuration = (value: RequirementGroup): RequirementGroup =>
+    groupYears ? { ...value, minimumYears: Number(groupYears[1]) } : value;
   if (hasAnd && hasOr) return group('UNKNOWN', [text], context);
   if (hasAnd || hasOr || (prefix && /[,;]/u.test(body))) {
     const labels = body
@@ -286,7 +299,7 @@ export function requirementGroup(
       )
     )
       return group('UNKNOWN', [text], context);
-    return group(hasOr ? 'OR' : 'AND', labels, context);
+    return withDuration(group(hasOr ? 'OR' : 'AND', labels, context));
   }
   return group('SINGLE', [text], context);
 }
@@ -352,10 +365,16 @@ const uncertain = (text: string) =>
   /\b(?:seeking|aspiring|interested|hope|plan to|learning|uncertain|maybe|familiarity only)\b/iu.test(
     text,
   );
+// Vietnamese work/experience verbs: CVs are often Vietnamese while the JD is
+// English (or the reverse); the same evidence gate must apply to both.
+const vietnameseWork =
+  /(?<!\p{L})(?:kinh nghiệm|triển khai|thực hiện|xây dựng|phát triển|quản lý|vận hành|tối ưu|lập kế hoạch|phụ trách|đạt|ký mới|ký kết|tư vấn|sử dụng|tạo|phối hợp|trình bày|thiết lập|đàm phán)(?!\p{L})/iu;
 const active = (text: string) =>
   /\b(?:built|build|designed|design|architected|developed|delivered|implemented|used|using|worked|experience|skills|knowledge|understand|proficient|integrated|deployed|led|created)\b/iu.test(
     text,
-  );
+  ) || vietnameseWork.test(text);
+// "5 years" / "5 năm" (Vietnamese).
+const statedYears = /(?<![\p{L}\p{N}])(\d+)\+?\s*(?:years?|năm)(?!\p{L})/iu;
 const passages = (text: string) =>
   text
     .split(/(?<=[.!?])\s+|[\r\n;]+/u)
@@ -568,7 +587,7 @@ function supports(
   )
     return false;
   if (group.minimumYears !== undefined) {
-    const years = /\b(\d+)\+?\s+years?\b/iu.exec(text);
+    const years = statedYears.exec(text);
     if (!years || Number(years[1]) < group.minimumYears) return false;
   }
   if (group.managedLanguage) return supportsManagedLanguage(label, text);

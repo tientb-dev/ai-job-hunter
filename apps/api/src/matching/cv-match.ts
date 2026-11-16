@@ -30,7 +30,10 @@ import {
   databaseAttributedQuoteChoices,
 } from './cv-match.evidence.js';
 import { normalize } from './matching.policy.js';
-import { requirementLines } from '../opportunities/job-import.sections.js';
+import {
+  requirementHeading,
+  requirementLines,
+} from '../opportunities/job-import.sections.js';
 import type { Opportunity } from '../opportunities/opportunity.entity.js';
 
 export interface MatchRequirement {
@@ -299,6 +302,29 @@ export function canonicalRequirementsUnverified(job: Opportunity): boolean {
   );
   return candidates > canonicalRequirements(job).length;
 }
+// Saved requirement fields may carry sub-headings and PDF line wraps
+// ("- …at FMCG, Beauty or Fashion" / "brands" / "including past clients…").
+// Headings are dropped; a lowercase continuation of a bulleted line rejoins it with the
+// original newline, so the JD quote stays verbatim in the saved field.
+function savedRequirementLines(value: string): string[] {
+  const lines: string[] = [];
+  for (const line of value.split(/\n/u)) {
+    if (requirementHeading(line)) continue;
+    const previous = lines.at(-1);
+    // Only after a bulleted line: unbulleted saved rows ("Information Systems" /
+    // "or a related technical discipline") are pre-v5 fragments, repaired below.
+    if (
+      previous !== undefined &&
+      /^\s*[-•*–]\s/u.test(previous) &&
+      /^\s*\p{Ll}/u.test(line) &&
+      !/^\s*(?:or|and)\b/iu.test(line) &&
+      !/[.;:!?]\s*$/u.test(previous)
+    )
+      lines[lines.length - 1] = `${previous}\n${line}`;
+    else lines.push(line);
+  }
+  return lines;
+}
 export function canonicalRequirements(job: Opportunity): MatchRequirement[] {
   const rows: MatchRequirement[] = [];
   // JD-first when no skills fields were saved: JD qualification sections replace
@@ -359,22 +385,20 @@ export function canonicalRequirements(job: Opportunity): MatchRequirement[] {
     'skill' | 'experience' | 'domain',
   ])[]) {
     for (const requirement of (category === 'skill'
-      ? value
-          .split(/\n/u)
-          .flatMap((line) =>
-            (priority === 'required'
-              ? generatedRequired
-              : generatedPreferred) || !simpleSkillList(line)
-              ? [line]
-              : line.split(/[,;]+/u),
-          )
+      ? savedRequirementLines(value).flatMap((line) =>
+          (priority === 'required' ? generatedRequired : generatedPreferred) ||
+          !simpleSkillList(line)
+            ? [line]
+            : line.split(/[,;]+/u),
+        )
       : [value]
     )
       .map((text) => text.trim())
       .filter(Boolean))
       rows.push({
-        // The label drops list bullets and priority annotations; jdQuote keeps the original line.
-        requirement: requirementLabel(requirement),
+        // The label drops list bullets and priority annotations (and reflows a
+        // rejoined wrap); jdQuote keeps the original line.
+        requirement: requirementLabel(requirement.replace(/\s*\n\s*/gu, ' ')),
         priority,
         category:
           category === 'skill' &&
