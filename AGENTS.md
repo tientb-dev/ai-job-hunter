@@ -24,11 +24,11 @@
 - Validate external input and required configuration at boundaries. Do not expose internal errors in API responses.
 - Keep development and test databases isolated. Refuse integration tests against development or production targets.
 - Do not delete persistent data or run destructive operations without explicit authorization.
+- Never deploy without explicit approval.
 
 ## Quality and communication
 
 - For frontend UI work, follow [docs/ux-guidelines.md](docs/ux-guidelines.md); preserve screen-specific behavior and implement only the approved UX checkpoint.
-
 - Use strict TypeScript, explicit module boundaries, and readable code.
 - Run formatting, lint, type checks, and builds for scaffold/configuration changes. Add meaningful Jest, Vitest, and PostgreSQL integration tests as behavior is introduced.
 - Verify migrations in TypeScript development and compiled JavaScript execution, including apply, revert, reapply, and repeat-run behavior.
@@ -42,6 +42,16 @@
 - Avoid repository-wide scans unless necessary.
 - Keep MCP responses concise.
 - Do not perform broad architecture analysis for small fixes.
+
+## UI/UX Development Guidelines
+
+- Agree on the visual reference and UX layout before implementing. No major redesign without an approved reference.
+- Build on the MUI theme and shared UI foundation (`apps/web/src/app/theme.ts` `surface` tokens, app shell, `PageHeader`); do not add parallel styling.
+- One screen or user flow per PR. Preserve business logic, API contracts, vi-VN/en-US strings and existing data.
+- Notifications: every user-initiated create/update/delete shows a result popup through the shared `useNotify` (`components/Notifications.tsx`). Success is compact and auto-dismisses after about 2.5s; errors stay until the user acknowledges them and give a short title plus details. Confirmation dialogs (before an action) and inline field validation stay separate; load failures stay inline with Retry. Popup text follows vi-VN/en-US localization. Adopt per screen as it is redesigned; do not migrate unrelated screens.
+- Screenshots: normally one desktop and one 375px mobile view of the affected screen.
+- PR description: changes, tests, known limitations. Keep it short.
+- No screenshot/evidence branches, committed proof images or long reports unless explicitly requested.
 
 ## Development Workflow — Fast Iteration
 
