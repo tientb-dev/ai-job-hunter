@@ -3,6 +3,7 @@ import {
   requirementGroup,
   simpleSkillList,
   simpleEvidenceStatus,
+  roleExperience,
   simpleContradictions,
   recoverSimpleQuote,
   type ComponentEvidence,
@@ -432,10 +433,28 @@ export function canonicalRequirements(job: Opportunity): MatchRequirement[] {
     )
       grouped.push(next);
   }
-  return grouped.map((row, index) => ({
-    ...row,
-    parentId: `p${index + 1}`,
-  }));
+  // A bare "Minimum 2 years" experience field restating a role-specific
+  // requirement ("2+ years of experience in digital marketing") is that same
+  // requirement; alone it would let years in any other field satisfy it.
+  const bareYears = (text: string) =>
+    /^(?:(?:minimum|at least|min\.?)\s+)?(\d+)\+?\s*(?:years?|yrs?|năm)$/iu.exec(
+      text.trim(),
+    )?.[1];
+  return grouped
+    .filter(
+      (row) =>
+        row.category !== 'experience' ||
+        !bareYears(row.requirement) ||
+        !grouped.some(
+          (other) =>
+            roleExperience(other.requirement)?.years ===
+            Number(bareYears(row.requirement)),
+        ),
+    )
+    .map((row, index) => ({
+      ...row,
+      parentId: `p${index + 1}`,
+    }));
 }
 export function matchPrompt(
   cv: string,
@@ -451,6 +470,7 @@ Required skills carry more importance; do not relabel them as preferred. Do not 
 Use a concise requirement label and a verbatim jdQuote. For support SELECT cvQuote from the JSON schema's allowed CV passages, preserving its text exactly. Never compose, paraphrase, summarize or combine separate CV passages. Use an empty cvQuote when none of the passages supports the qualification.
 PostgreSQL and SQL Server are SQL database evidence. AI-assisted coding-tool use supports development-tooling requirements, not production AI/ML model engineering.
 Preserve alternative groups as ONE requirement with the full JD quote, including Vietnamese ít nhất một trong / một trong clauses. An explicitly stated one-of requirement accepts an evidenced alternative; respect quantities such as multiple languages rather than assuming one language satisfies them. Never turn search tags or role titles into mandatory requirements.
+Jobs may be technical or non-technical (marketing, sales, business). Treat competencies, channels, tools and measurable targets (campaign performance, reach, conversion, revenue, sales quota, customer acquisition) as ordinary requirements. Support a target or metric only with a CV passage that states that activity or a comparable stated result; never infer or compute numbers, and a different metric is not support.
 An explicit technical skills declaration is CV evidence; Java Spring Boot development supports Java backend experience. AI-assisted coding tools are not production AI/ML experience.
 Seniority preferences are not qualifications and must not change the CV score. Do not infer duration or skills from a seniority label.
 For the exact familiarity-or-interest AI-assisted development family, contextual development-tool use or explicitly relevant interest is acceptable; interest is not professional experience. Keep its two predicates scoped to the supplied activities, not a demand for every activity. For recognized database-proficiency requirements, select concrete professional use even if the level remains unverified; the server distinguishes Partial from Matched.
@@ -625,7 +645,10 @@ export function validateMatchAssessment(
           at,
         );
       ids.add(component.componentId);
-      if (!jd.includes(component.jdQuote))
+      // The span is pinned to the server's component seed above; a derived
+      // label ("Experience with backend development") is verified through
+      // its parent's verbatim JD quote instead.
+      if (!jd.includes(component.jdQuote) && !jd.includes(parent!.jdQuote))
         throw new CvMatchError(
           'CV_MATCH_EVIDENCE_REJECTED',
           'COMPONENT_JD_QUOTE_NOT_IN_JD',
@@ -651,6 +674,19 @@ export function validateMatchAssessment(
   // Use source-backed canonical context (or the verified JD quote), not the
   // model's shorthand label, to distinguish tooling from production AI.
   let reason: MatchEvidenceReason = 'JD_QUOTE_NOT_VERBATIM';
+  // A linked parent's quote that differs from the canonical verbatim quote only
+  // by list marker, case or whitespace is restored to the canonical text.
+  const quoteKey = (text: string) =>
+    normalize(text.replace(/^\s*[-*•–]\s+/u, '')).replace(/[.;]+$/u, '');
+  proposals = proposals.map((item) => {
+    if (jd.includes(item.jdQuote)) return item;
+    const seed = canonical.find((row) => linksCanonicalRequirement(item, row));
+    return seed &&
+      jd.includes(seed.jdQuote) &&
+      quoteKey(seed.jdQuote) === quoteKey(item.jdQuote)
+      ? { ...item, jdQuote: seed.jdQuote }
+      : item;
+  });
   const rejectedIndex = proposals.findIndex((item) => {
     if (!item.jdQuote.trim()) {
       reason = 'JD_QUOTE_EMPTY';

@@ -60,6 +60,7 @@ export function simpleSkillList(line: string): boolean {
     !/\b(?:and|or|experience|knowledge|understanding|design\w*|ability|skills|degree|built|delivered|working|strong|proficien\w*|including|such as|at least)\b/iu.test(
       line,
     ) &&
+    !/\d,\d{3}|\b(?:abilit(?:y|ies)|mindset)\b|kỹ năng/iu.test(line) &&
     line.split(/[,;]+/u).every((part) => part.trim().split(/\s+/u).length <= 3)
   );
 }
@@ -254,7 +255,7 @@ export function requirementGroup(
   let context: RequirementGroup['context'] = 'skill';
   let body = text;
   const prefix =
-    /^(?:Experience designing|Working knowledge of|Understanding of|Experience (?:with|in|using)|Knowledge of)\s+/iu.exec(
+    /^(?:Experience designing|Working knowledge of|Understanding of|Experience (?:with|in|using)|Knowledge of|(?:(?:strong|solid|good|excellent)\s+)?proficiency (?:in|with))\s+/iu.exec(
       text,
     );
   if (prefix) {
@@ -266,6 +267,8 @@ export function requirementGroup(
     body = text.slice(prefix[0].length);
   }
   body = body.replace(/^(?:(?:at least )?one of|either)\s+/iu, '');
+  // A digit-grouping comma ("1,000,000 VND") is not a list separator.
+  if (/\d,\d{3}/u.test(body)) return group('SINGLE', [text], context);
   const hasAnd = /\band\b/iu.test(body);
   const hasOr = /\bor\b/iu.test(body);
   if (hasAnd && hasOr) return group('UNKNOWN', [text], context);
@@ -604,7 +607,40 @@ function supports(
     );
   return (
     active(text) ||
+    recoveryWork.test(text) ||
     /^\s*(?:technical skills[:\s]*|(?:backend|databases)\s*[:—–-])/iu.test(text)
+  );
+}
+// A plain list line directly under a "SKILLS" heading is a skills declaration,
+// like "Skills: …" on one line. Only for plain skill/experience components.
+const skillsHeading =
+  /^\s*(?:(?:technical|core|key)\s+)?skills(?:\s*(?:&|and)\s*tools)?\s*:?\s*$|^\s*kỹ năng(?:\s+chuyên môn)?\s*:?\s*$/iu;
+function headedSkillsLine(
+  label: string,
+  quote: string,
+  cv: string,
+  group: RequirementGroup,
+): boolean {
+  if (
+    !['skill', 'experience', 'knowledge'].includes(group.context) ||
+    group.minimumYears !== undefined ||
+    group.demonstratedUse ||
+    group.managedLanguage ||
+    group.languageProficiency ||
+    group.personalDelivery ||
+    group.aiFamiliarityOrInterest ||
+    !componentMention(label, quote, group) ||
+    negative(quote) ||
+    uncertain(quote)
+  )
+    return false;
+  const lines = cv.split(/\r?\n/u).map((line) => line.trim());
+  return lines.some(
+    (line, index) =>
+      line === quote.trim() &&
+      skillsHeading.test(
+        lines.slice(0, index).findLast((before) => before) ?? '',
+      ),
   );
 }
 
@@ -1173,7 +1209,11 @@ export function evaluateCoverage(
                   (selection.includes(quote) || quote.includes(selection)),
               )),
         )
-      : (quotes.find((quote) => supports(component.label, quote, group)) ??
+      : (quotes.find(
+          (quote) =>
+            supports(component.label, quote, group) ||
+            headedSkillsLine(component.label, quote, cv, group),
+        ) ??
         recovered ??
         (allowRecovery && group.minimumYears !== undefined
           ? all.find(
@@ -1363,6 +1403,33 @@ const simpleLabel = (requirement: string) =>
       /^(?:(?:(?:strong|solid|proven|hands-on)\s+)?experience (?:with|in|using)|familiarity with|working knowledge of|knowledge of|understanding of|proficiency (?:with|in)|backend)\s+/iu,
       '',
     );
+const genericExperienceWord =
+  /^(?:experience|years?|development|work|working|professional|relevant|hands-on|proven|practical|field|industry|roles?|positions?|the|a|an|in|of|with|as|and|or|related|similar|at|least|minimum|plus|kinh|nghiệm)$/iu;
+/** Years of experience in a named field ("3+ years of experience in backend
+ * development" → backend); null for bare durations ("Minimum 2 years"). */
+export function roleExperience(
+  requirement: string,
+): { years: number; words: string[] } | null {
+  const match =
+    /^(?:(?:minimum|at least|min\.?)\s+)?(\d+)\+?\s*(?:years?|yrs?|năm)\s+(?:of\s+)?(.+)$/iu.exec(
+      simpleLabel(requirement).replace(/[.;]+$/u, ''),
+    );
+  // shortcut: only a simple field (≤3 words, no alternatives or clauses);
+  // compound role lists keep the model-link behavior until reviewed goldens cover them.
+  if (
+    !match ||
+    !/\bexperience\b|kinh nghiệm/iu.test(match[2]!) ||
+    /[,;()]|\b(?:or|and|including|such as)\b|hoặc/iu.test(match[2]!)
+  )
+    return null;
+  const words = match[2]!
+    .split(/[\s,/()]+/u)
+    .map((word) => word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}+#]+$/gu, ''))
+    .filter((word) => word && !genericExperienceWord.test(word));
+  return words.length && words.length <= 3
+    ? { years: Number(match[1]), words }
+    : null;
+}
 const recoveryWork =
   /\b(?:built|designed|architected|developed|delivered|implemented|used|worked|integrated|deployed|led|created|maintained|wrote|administered|migrated|operated|containeri[sz]ed|consumed|consuming|published|publishing)\b/iu;
 const aiToolUse =
@@ -1570,6 +1637,16 @@ export function simpleEvidenceStatus(
   category = 'skill',
 ): CoverageStatus {
   if (!quote) return 'NOT_EVIDENCED';
+  // "2+ years of B2B sales experience": years in another field are not support;
+  // a selected passage must name the field itself.
+  const role = roleExperience(requirement);
+  if (
+    role &&
+    !passages(quote).some((line) =>
+      role.words.every((word) => mentions(word, line)),
+    )
+  )
+    return 'NOT_EVIDENCED';
   // Legacy generic Experience rows are semantic duration assessments, not a skill token.
   // A single named skill, bare or behind a generic prefix ("Experience with
   // Kubernetes"), needs a passage that names it; an exact CV substring alone is not evidence.

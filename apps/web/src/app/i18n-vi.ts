@@ -1097,8 +1097,8 @@ export const VI_TEXT: Record<string, string> = {
   Preparing: 'Đang chuẩn bị',
   'Preparing audio…': 'Đang chuẩn bị âm thanh…',
   'Preparing source review…': 'Đang chuẩn bị rà soát nguồn…',
-  'Preserved as a qualification, separately from technical skills.':
-    'Được giữ như một bằng cấp, tách khỏi kỹ năng kỹ thuật.',
+  'Preserved as a qualification, separately from core skills.':
+    'Được giữ như một bằng cấp, tách khỏi kỹ năng chính.',
   'Preview assembled CV': 'Xem trước CV đã ghép',
   'Preview error': 'Lỗi xem trước',
   'Preview source JD': 'Xem trước JD nguồn',

@@ -120,13 +120,28 @@ describe('ambiguous component quotes fail closed without failing the analysis', 
     });
     expect(verified.row(or)).toMatchObject({ status: 'EVIDENCED', credit: 1 });
     expect(verified.component(or, 'Kafka').cvQuote).toBe(kafka);
-    expect(verified.component(or, 'RabbitMQ').status).not.toBe('EVIDENCED');
+    // PR88: the fragment occurs once, in the list under SKILLS, so it aligns to
+    // that skills declaration (same rule as "Technical skills: …" lines).
+    expect(verified.component(or, 'RabbitMQ')).toMatchObject({
+      status: 'EVIDENCED',
+      cvQuote: skills,
+    });
 
-    const neither = assess(jobOf(or), cvRepeated, {
+    const fragments = assess(jobOf(or), cvRepeated, {
       Kafka: 'Kafka',
       RabbitMQ: 'RabbitMQ',
     });
-    expect(neither.row(or).credit).toBe(0);
+    // The repeated "Kafka" fragment is never evidence itself; credit comes only
+    // from the uniquely aligned skills declaration that names both options.
+    expect(fragments.component(or, 'RabbitMQ').cvQuote).toBe(skills);
+    expect(fragments.component(or, 'Kafka').cvQuote).not.toBe('Kafka');
+    expect(
+      fragments.result.requirements
+        .flatMap((r) => r.coverage.components)
+        .map((c) => c.cvQuote)
+        .filter(Boolean)
+        .every((quote) => quote === skills),
+    ).toBe(true);
   });
 
   test('rejected ambiguous evidence is not restored by recovery', () => {

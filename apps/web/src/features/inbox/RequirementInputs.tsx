@@ -21,7 +21,7 @@ function groupRequirements(value: string): Groups {
               line,
             )
           ? 'language'
-          : /\b(?:autonomy|proactive|problem-solving|eagerness|collaboration|teamwork|security mindset|willingness to support)\b/iu.test(
+          : /\b(?:autonomy|proactive|problem-solving|eagerness|collaboration|teamwork|security mindset|willingness to support|communication|negotiation|presentation|interpersonal|customer service|leadership)\b|giao tiếp|đàm phán|thuyết trình/iu.test(
                 line,
               )
             ? 'other'
@@ -92,9 +92,7 @@ export function RequirementInputs({
           helperText={
             category === 'technical'
               ? helperText
-              : tr(
-                  'Preserved as a qualification, separately from technical skills.',
-                )
+              : tr('Preserved as a qualification, separately from core skills.')
           }
           slotProps={{
             htmlInput: {

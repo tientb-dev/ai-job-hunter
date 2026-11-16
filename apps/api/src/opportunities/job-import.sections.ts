@@ -37,7 +37,7 @@ export function requirementLines(text: string): {
         return [{ line, kind: null, structured, excluded: true }];
       }
       if (
-        /^(?:must[- ]have|requirements?|required skills?|qualifications?|your skills and experience|yêu cầu(?: ứng viên| công việc)?)\s*[:：]?$/iu.test(
+        /^(?:must[- ]have|(?:job |candidate )?requirements?|required skills?|qualifications?|your skills and experience|what we(?:'|’)re looking for|yêu cầu(?: ứng viên| công việc)?)\s*[:：]?$/iu.test(
           clean,
         )
       ) {
@@ -279,8 +279,12 @@ export function continuedAlternatives(line: string): boolean {
     (/^or\b/iu.test(parts.at(-1)!) || /\bsuch as\b/iu.test(parts[0]!))
   );
 }
+// A digit-grouping comma ("1,000,000 VND") never separates requirements.
+const groupedNumber = /\d,\d{3}/u;
 function structuredParts(line: string): string[] {
-  return continuedAlternatives(line) ? [line] : legacyStructuredParts(line);
+  return continuedAlternatives(line) || groupedNumber.test(line)
+    ? [line]
+    : legacyStructuredParts(line);
 }
 
 function conciseParts(line: string): string[] {
@@ -308,7 +312,9 @@ function conciseParts(line: string): string[] {
     value = proficiencyList;
   if (
     /^[\p{L}\p{N}+#/& .-]+(?:,\s*[\p{L}\p{N}+#/& .-]+)+$/u.test(value) &&
-    !/\b(?:or|and|with|for|via|using|experience|knowledge|understanding|familiarity)\b|hoặc|kinh nghiệm|kiến thức|thành thạo|tốt nghiệp|đại học|học viện|degree|university|college|bachelor|master|các |có /iu.test(
+    !groupedNumber.test(value) &&
+    // "Communication, negotiation skills": a shared head noun makes one requirement.
+    !/\b(?:or|and|with|for|via|using|experience|knowledge|understanding|familiarity|skills?|abilit(?:y|ies)|mindset)\b|kỹ năng|hoặc|kinh nghiệm|kiến thức|thành thạo|tốt nghiệp|đại học|học viện|degree|university|college|bachelor|master|các |có /iu.test(
       value,
     )
   )
