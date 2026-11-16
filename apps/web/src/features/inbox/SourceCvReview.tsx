@@ -55,7 +55,10 @@ export function SourceCvReview({
   wizardEntry = false,
   entryState,
   myCv = false,
+  autoOpen = false,
 }: {
+  /** Opens the review on mount; the caller owns the entry button. */
+  autoOpen?: boolean;
   wizardEntry?: boolean;
   /** My CV: review progress is still loading, or failed so the entry point is unknown. */
   entryState?: 'loading' | 'unknown';
@@ -340,6 +343,12 @@ export function SourceCvReview({
     /^[a-z0-9]+(?:-[a-z0-9]+){1,8}$/u.test(selectedText.trim()) &&
     selectedText.trim().length <= 100;
   const blocked = disabled || busy;
+  const opened = useRef(false);
+  useEffect(() => {
+    if (!autoOpen || opened.current || !cv) return;
+    opened.current = true;
+    void run(openReview);
+  });
   const blank =
     document?.sections.some((s) =>
       s.entries.some((e) => e.facts.some((f) => !f.value.trim())),
@@ -537,7 +546,7 @@ export function SourceCvReview({
           </Stack>
         </Alert>
       )}
-      {!profile && !reuseOffer && entryState === 'loading' && (
+      {!autoOpen && !profile && !reuseOffer && entryState === 'loading' && (
         // Same footprint as the action, so it appears without moving anything.
         <Skeleton
           variant="rounded"
@@ -546,7 +555,7 @@ export function SourceCvReview({
           sx={{ width: { xs: '100%', sm: 180 } }}
         />
       )}
-      {!profile && !reuseOffer && entryState === 'unknown' && (
+      {!autoOpen && !profile && !reuseOffer && entryState === 'unknown' && (
         <Button
           startIcon={<EditIcon />}
           variant="outlined"
@@ -557,7 +566,7 @@ export function SourceCvReview({
           {tr('Open review')}
         </Button>
       )}
-      {!profile && !reuseOffer && !entryState && (
+      {!autoOpen && !profile && !reuseOffer && !entryState && (
         <Button
           startIcon={<EditIcon />}
           variant={wizardEntry ? 'contained' : 'outlined'}

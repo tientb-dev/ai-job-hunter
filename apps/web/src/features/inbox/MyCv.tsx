@@ -127,6 +127,15 @@ export function MyCv() {
   const [reviewBusy, setReviewBusy] = useState(false);
   const saved = useRef(false);
   const review = useRef<HTMLDivElement>(null);
+  // 0: review closed; each increment (re)opens it for the selected CV.
+  const [reviewKey, setReviewKey] = useState(0);
+  const focusReview = () => {
+    review.current?.scrollIntoView?.({ block: 'start' });
+    review.current?.focus({ preventScroll: true });
+  };
+  useEffect(() => {
+    if (reviewKey) focusReview();
+  }, [reviewKey]);
   useEffect(() => {
     let active = true;
     opportunityRequest<SavedCv[]>('/cv').then(
@@ -154,6 +163,7 @@ export function MyCv() {
     if (id === cv?.id) return;
     setProgress(undefined);
     setRenaming(null);
+    setReviewKey(0);
     setSelectedId(id);
   }
   async function upload(file: File) {
@@ -167,6 +177,7 @@ export function MyCv() {
       });
       setProgress(undefined);
       setRenaming(null);
+      setReviewKey(0);
       setCvs((rows) => [...rows, next]);
       setSelectedId(next.id);
     } catch (failure) {
@@ -483,9 +494,11 @@ export function MyCv() {
                       flexShrink: 0,
                       alignSelf: { xs: 'stretch', sm: 'flex-start' },
                     }}
+                    disabled={uploading}
                     onClick={() => {
-                      review.current?.scrollIntoView({ block: 'start' });
-                      review.current?.focus({ preventScroll: true });
+                      // Unsaved review edits are kept; otherwise (re)open for this CV.
+                      if (reviewDirty || reviewBusy) focusReview();
+                      else setReviewKey((key) => key + 1);
                     }}
                   >
                     {tr('Review CV')}
@@ -682,37 +695,33 @@ export function MyCv() {
                 </Alert>
               </Stack>
             </Paper>
-            <Paper
-              ref={review}
-              tabIndex={-1}
-              variant="outlined"
-              sx={{
-                p: { xs: 2, sm: 3 },
-                minWidth: 0,
-                scrollMarginTop: 80,
-                outline: 'none',
-              }}
-            >
-              <SourceCvReview
-                key={cv.id}
-                myCv
-                wizardEntry={!reviewed}
-                entryState={
-                  progress === undefined
-                    ? 'loading'
-                    : progress === 'error'
-                      ? 'unknown'
-                      : undefined
-                }
-                cv={cv}
-                disabled={uploading}
-                onDirtyChange={setReviewDirty}
-                onBusyChange={setReviewBusy}
-                onSaved={refreshProgress}
-              />
-            </Paper>
           </Stack>
         </Box>
+      )}
+      {cv && reviewKey > 0 && (
+        // Opened from the details header; spans the full content width below the library.
+        <Paper
+          ref={review}
+          tabIndex={-1}
+          variant="outlined"
+          sx={{
+            p: { xs: 2, sm: 3 },
+            minWidth: 0,
+            scrollMarginTop: 80,
+            outline: 'none',
+          }}
+        >
+          <SourceCvReview
+            key={`${cv.id}:${reviewKey}`}
+            myCv
+            autoOpen
+            cv={cv}
+            disabled={uploading}
+            onDirtyChange={setReviewDirty}
+            onBusyChange={setReviewBusy}
+            onSaved={refreshProgress}
+          />
+        </Paper>
       )}
       <Menu
         anchorEl={menu?.anchor}

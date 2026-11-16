@@ -92,7 +92,7 @@ test('empty state offers one primary save action and no job description fields',
   expect(document.querySelectorAll('.MuiButton-contained')).toHaveLength(1);
   expect(screen.queryByLabelText(/job description/i)).toBeNull();
   expect(
-    screen.queryByRole('region', { name: 'Source CV review' }),
+    screen.queryByRole('heading', { name: 'Source CV review' }),
   ).not.toBeInTheDocument();
   expect(calls(fetch, '/sources')).toBe(0);
 });
@@ -135,10 +135,13 @@ test('saved state shows the library, details, file facts and review progress', a
   expect(screen.getByText('Add CV', { selector: 'label' })).toHaveClass(
     'MuiButton-contained',
   );
-  // The shared review stays primary until it is complete.
-  expect(screen.getByRole('button', { name: 'Review source CV' })).toHaveClass(
-    'MuiButton-contained',
-  );
+  // One review entry point: the details header. The review opens on demand.
+  expect(screen.getAllByRole('button', { name: /review/i })).toEqual([
+    within(summary).getByRole('button', { name: 'Review CV' }),
+  ]);
+  expect(
+    screen.queryByRole('heading', { name: 'Source CV review' }),
+  ).not.toBeInTheDocument();
   await userEvent
     .setup()
     .click(screen.getByRole('link', { name: 'Quick CV and job analysis' }));
@@ -153,27 +156,29 @@ test('a fully reviewed CV reads as reviewed', async () => {
     await screen.findByText(`Reviewed · ${total} of ${total} sections`),
   ).toBeVisible();
   expect(
-    screen.getByRole('button', { name: 'View / Edit review' }),
-  ).toHaveClass('MuiButton-outlined');
-  expect(
-    screen.queryByRole('button', { name: 'Review source CV' }),
+    screen.queryByRole('button', {
+      name: /Review source CV|View \/ Edit review/,
+    }),
   ).not.toBeInTheDocument();
 });
 
-test('opening the shared review refreshes progress from the same saved profile', async () => {
+test('Review CV opens the shared review below the library and refreshes progress', async () => {
   const { fetch } = mount(savedCv);
   await screen.findByText(/sections reviewed/);
-  expect(
-    screen.getByText(
-      'Check and correct your CV details before using them to tailor applications. Your review is shared across jobs.',
-    ),
-  ).toBeVisible();
-  // The verification safeguard lives inside the opened review.
-  expect(screen.queryByText(/not independent verification/)).toBeNull();
   const before = calls(fetch, '/profile');
   await userEvent
     .setup()
-    .click(screen.getByRole('button', { name: 'Review source CV' }));
+    .click(screen.getByRole('button', { name: 'Review CV' }));
+  const section = (
+    await screen.findByRole('heading', { name: 'Source CV review' })
+  ).parentElement!;
+  // Full width: the review is outside the library/details grid.
+  expect(section.closest('[aria-labelledby="cv-details-title"]')).toBeNull();
+  expect(
+    within(section).getByText(
+      'Check and correct your CV details before using them to tailor applications. Your review is shared across jobs.',
+    ),
+  ).toBeVisible();
   await waitFor(() =>
     expect(calls(fetch, '/profile')).toBeGreaterThan(before + 1),
   );
@@ -182,6 +187,12 @@ test('opening the shared review refreshes progress from the same saved profile',
       /Confirmation records your review, not independent verification/,
     ),
   ).toBeVisible();
+  // No second entry button inside the review.
+  expect(
+    within(section).queryByRole('button', {
+      name: /Review source CV|View \/ Edit review|Open review/,
+    }),
+  ).toBeNull();
 });
 
 test('adding a CV shows it without replacing the default and never touches tailored drafts', async () => {
@@ -207,7 +218,7 @@ test('adding a CV shows it without replacing the default and never touches tailo
   ).toBe(false);
 });
 
-test('a reviewed CV that loads slowly never shows a guessed status or action', async () => {
+test('a reviewed CV that loads slowly never shows a guessed status', async () => {
   let release!: () => void;
   const { total } = mount(
     savedCv,
@@ -223,18 +234,10 @@ test('a reviewed CV that loads slowly never shows a guessed status or action', a
   await waitFor(() => expect(release).toBeDefined());
   expect(screen.getByLabelText('Loading review status')).toBeInTheDocument();
   expect(screen.queryByText('Not reviewed yet')).not.toBeInTheDocument();
-  expect(
-    screen.queryByRole('button', {
-      name: /Review source CV|View \/ Edit review/,
-    }),
-  ).not.toBeInTheDocument();
   release();
   expect(
     await screen.findByText(`Reviewed · ${total} of ${total} sections`),
   ).toBeVisible();
-  expect(
-    screen.getByRole('button', { name: 'View / Edit review' }),
-  ).toHaveClass('MuiButton-outlined');
 });
 
 test('a failed profile request reads as unavailable and can be retried', async () => {
@@ -247,19 +250,16 @@ test('a failed profile request reads as unavailable and can be retried', async (
   });
   expect(await screen.findByText('Review status unavailable.')).toBeVisible();
   expect(screen.queryByText('Not reviewed yet')).not.toBeInTheDocument();
-  // The review stays reachable without guessing its entry point.
-  expect(screen.getByRole('button', { name: 'Open review' })).toHaveClass(
-    'MuiButton-outlined',
-  );
+  // The review stays reachable from the header without guessing its state.
+  expect(screen.getByRole('button', { name: 'Review CV' })).toBeEnabled();
   fail = false;
   await userEvent.setup().click(screen.getByRole('button', { name: 'Retry' }));
   expect(
     await screen.findByText(`Reviewed · ${total} of ${total} sections`),
   ).toBeVisible();
-  expect(screen.queryByRole('button', { name: 'Open review' })).toBeNull();
 });
 
-test('Open review after a status failure never creates or resets a review', async () => {
+test('Review CV after a status failure never creates or resets a review', async () => {
   let fail = true;
   const { fetch, total } = mount(savedCv, Infinity, async () => {
     if (fail) return new Response(null, { status: 503 });
@@ -274,14 +274,15 @@ test('Open review after a status failure never creates or resets a review', asyn
         (init as RequestInit | undefined)?.method === 'POST',
     ).length;
   const user = userEvent.setup();
-  const open = await screen.findByRole('button', { name: 'Open review' });
+  const open = await screen.findByRole('button', { name: 'Review CV' });
   // Still failing: the error is reported, nothing is created.
   await user.click(open);
+  await screen.findByRole('heading', { name: 'Source CV review' });
   await waitFor(() => expect(open).toBeEnabled());
   expect(creates()).toBe(0);
   // Recovered: the existing reviewed profile opens unchanged.
   fail = false;
-  await user.click(screen.getByRole('button', { name: 'Open review' }));
+  await user.click(open);
   expect(
     await screen.findByText(
       /Confirmation records your review, not independent verification/,
