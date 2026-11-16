@@ -21,6 +21,7 @@ import { FollowUpStatus1794500000000 } from './migrations/1794500000000-FollowUp
 import { Auth1794600000000 } from './migrations/1794600000000-Auth.js';
 import { AiUsage1794700000000 } from './migrations/1794700000000-AiUsage.js';
 import { MultiCv1794800000000 } from './migrations/1794800000000-MultiCv.js';
+import { CvOriginalFile1794900000000 } from './migrations/1794900000000-CvOriginalFile.js';
 import { InterviewSession } from '../interview-prep/interview-session.entity.js';
 import { SavedCv1793500000000 } from './migrations/1793500000000-SavedCv.js';
 import { CompleteJobImportFields1793490000000 } from './migrations/1793490000000-CompleteJobImportFields.js';
@@ -122,6 +123,7 @@ export function databaseOptions(
       Auth1794600000000,
       AiUsage1794700000000,
       MultiCv1794800000000,
+      CvOriginalFile1794900000000,
     ],
     synchronize: false,
     migrationsRun: false,

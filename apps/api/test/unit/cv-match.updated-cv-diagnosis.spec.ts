@@ -124,6 +124,12 @@ function setup(
       };
       return { identifiers: [{ id: 'synthetic-cv-2' }] };
     },
+    countBy: async () => 1,
+    // saveCv inserts inside a transaction; this fake runs it against itself.
+    manager: {
+      transaction: (run: (m: unknown) => Promise<unknown>) =>
+        run({ query: async () => [], getRepository: () => cvs }),
+    },
   };
   const service = new JobMatchService(
     cvs as unknown as Repository<SavedCv>,

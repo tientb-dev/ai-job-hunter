@@ -3,6 +3,7 @@ import type { GenerationRequest } from '../../src/ai/ai-provider.js';
 import type { MatchRequirement } from '../../src/matching/cv-match.js';
 import { SavedCv1793500000000 } from '../../src/database/migrations/1793500000000-SavedCv.js';
 import { MultiCv1794800000000 } from '../../src/database/migrations/1794800000000-MultiCv.js';
+import { CvOriginalFile1794900000000 } from '../../src/database/migrations/1794900000000-CvOriginalFile.js';
 import 'reflect-metadata';
 import { afterAll, beforeAll, expect, test } from '@jest/globals';
 import { Test } from '@nestjs/testing';
@@ -94,6 +95,7 @@ test('new migration reverses reapplies and repeat-runs without touching jobs', a
   // Exercise this historical migration without discarding later additive columns.
   await runner.startTransaction();
   try {
+    await new CvOriginalFile1794900000000().down(runner);
     await new MultiCv1794800000000().down(runner);
     await migration.down(runner);
     expect(
@@ -106,6 +108,7 @@ test('new migration reverses reapplies and repeat-runs without touching jobs', a
       await runner.query('SELECT "ownerId" FROM ai_job_hunter.saved_cvs'),
     ).toEqual([]);
     await new MultiCv1794800000000().up(runner);
+    await new CvOriginalFile1794900000000().up(runner);
   } finally {
     await runner.rollbackTransaction();
     await runner.release();
@@ -255,6 +258,8 @@ test('beta sample DOCX and PDF upload over HTTP as separate CVs', async () => {
             fileName,
             isDefault: false,
             updatedAt: expect.any(String),
+            fileSize: expect.any(Number),
+            originalAvailable: true,
           },
         ]),
       );
@@ -286,13 +291,103 @@ const uploadCv = async (line: string) =>
       })
       .expect(200)
   ).body as { id: string; isDefault: boolean; updatedAt: string };
+// Spec tests accumulate synthetic CVs; free the ones no job uses before adding more.
+const freeUnusedCvs = async () => {
+  const server = app.getHttpServer();
+  for (const cv of (await request(server).get('/api/v1/opportunities/cv'))
+    .body as { id: string }[])
+    await request(server)
+      .delete(`/api/v1/opportunities/cv/${cv.id}`)
+      .set(origin);
+};
 const selectCv = (job: string, cvId: string, status = 200) =>
   request(app.getHttpServer())
     .put(`/api/v1/opportunities/${job}/cv/current`)
     .set(origin)
     .send({ cvId })
     .expect(status);
+test('CV originals download byte-for-byte and accounts keep at most 5 CVs, even under concurrent uploads', async () => {
+  const server = app.getHttpServer();
+  ownsCv = true;
+  const added: string[] = [];
+  const upload = (name: string, bytes: Buffer) =>
+    request(server)
+      .post('/api/v1/opportunities/cv')
+      .set(origin)
+      .field('record', '{}')
+      .attach('document', bytes, {
+        filename: name,
+        contentType: 'application/pdf',
+      });
+  const count = async () =>
+    (await request(server).get('/api/v1/opportunities/cv').expect(200)).body
+      .length as number;
+  try {
+    const bytes = Buffer.from(pdfFixture(['Built Download services.']));
+    const name = 'CV Tiến – bản gốc.pdf';
+    await freeUnusedCvs();
+    if ((await count()) >= 5) throw new Error('Fixture needs a free CV slot.');
+    const saved = await upload(name, bytes).expect(200);
+    added.push(saved.body.id);
+    expect(saved.body).toMatchObject({
+      fileName: name,
+      fileSize: bytes.length,
+      originalAvailable: true,
+    });
+    const file = await request(server)
+      .get(`/api/v1/opportunities/cv/${saved.body.id}/file`)
+      .buffer(true)
+      .parse((res, done) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (c: Buffer) => chunks.push(c));
+        res.on('end', () => done(null, Buffer.concat(chunks)));
+      })
+      .expect(200);
+    expect(Buffer.compare(file.body as Buffer, bytes)).toBe(0);
+    expect(file.headers['content-disposition']).toBe(
+      `attachment; filename*=UTF-8''${encodeURIComponent(name)}`,
+    );
+    // CVs saved before originals were kept report it and cannot be downloaded.
+    const legacy = await insertCv('Built legacy services.');
+    added.push(legacy.id);
+    expect(
+      (await request(server).get('/api/v1/opportunities/cv')).body,
+    ).toContainEqual(
+      expect.objectContaining({ id: legacy.id, originalAvailable: false }),
+    );
+    await request(server)
+      .get(`/api/v1/opportunities/cv/${legacy.id}/file`)
+      .expect(404);
+    // Fill to 4, then race two uploads for the last slot.
+    while ((await count()) < 4)
+      added.push((await insertCv('Built filler services.')).id);
+    const race = await Promise.all([
+      upload(syntheticName, bytes),
+      upload(syntheticName, bytes),
+    ]);
+    // The loser is refused either by the one-at-a-time parser (400) or the limit (409).
+    expect(race.filter((r) => r.status === 200)).toHaveLength(1);
+    expect([400, 409]).toContain(race.map((r) => r.status).sort()[1]);
+    added.push(...race.filter((r) => r.status === 200).map((r) => r.body.id));
+    expect(await count()).toBe(5);
+    const blocked = await upload(syntheticName, bytes).expect(409);
+    expect(blocked.body.message).toMatch(/up to 5 CVs/);
+    expect(await count()).toBe(5);
+    // Deleting one frees a slot again.
+    await request(server)
+      .delete(`/api/v1/opportunities/cv/${added.pop()}`)
+      .set(origin)
+      .expect(200);
+    added.push((await upload(syntheticName, bytes).expect(200)).body.id);
+  } finally {
+    await database.query(
+      'DELETE FROM ai_job_hunter.saved_cvs WHERE "ownerId"=$1 AND id = ANY($2)',
+      [LOCAL_OWNER_ID, added],
+    );
+  }
+});
 test('saved matches persist across restart and go stale only when this job changes CV or job', async () => {
+  await freeUnusedCvs();
   const python = await uploadCv('Built Python services.');
   ownsCv = true;
   const input = {

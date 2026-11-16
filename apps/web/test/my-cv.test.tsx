@@ -1,4 +1,5 @@
 import { ThemeProvider } from '@mui/material';
+import { StrictMode } from 'react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { expect, test, vi } from 'vitest';
@@ -13,6 +14,8 @@ const savedCv = {
   isDefault: true,
   fileName: sourceCvFixture.fileName,
   updatedAt: sourceCvFixture.savedCvUpdatedAt,
+  fileSize: 274_432 as number | null,
+  originalAvailable: true,
 };
 const otherCv = {
   ...savedCv,
@@ -30,6 +33,8 @@ function mount(
   confirmed = 0,
   profileResponse?: () => Promise<Response>,
   currentResponse?: () => Promise<Response>,
+  // The app runs in StrictMode; its double effects caught the stuck review.
+  strict = false,
 ) {
   const profile = cvProfileFixture();
   profile.document.sections.forEach((section, index) => {
@@ -72,11 +77,12 @@ function mount(
     ],
     { initialEntries: ['/cv'] },
   );
-  render(
+  const app = (
     <ThemeProvider theme={theme}>
       <RouterProvider router={router} />
-    </ThemeProvider>,
+    </ThemeProvider>
   );
+  render(strict ? <StrictMode>{app}</StrictMode> : app);
   return { fetch, router, total: profile.document.sections.length };
 }
 const calls = (fetch: ReturnType<typeof vi.fn>, suffix: string) =>
@@ -90,7 +96,7 @@ test('empty state offers one primary save action and no job description fields',
   expect(document.querySelectorAll('.MuiButton-contained')).toHaveLength(1);
   expect(screen.queryByLabelText(/job description/i)).toBeNull();
   expect(
-    screen.queryByRole('region', { name: 'Source CV review' }),
+    screen.queryByRole('heading', { name: 'Source CV review' }),
   ).not.toBeInTheDocument();
   expect(calls(fetch, '/sources')).toBe(0);
 });
@@ -118,22 +124,28 @@ test.each([
   expect(await screen.findByText(loadError)).toBeVisible();
 });
 
-test('saved state shows name, file, date and review progress with Upload another as secondary', async () => {
+test('saved state shows the library, details, file facts and review progress', async () => {
   const { total } = mount(savedCv, 1);
-  const summary = await screen.findByRole('region', { name: 'Source CV' });
+  const library = await screen.findByRole('region', { name: 'Your CVs' });
+  expect(within(library).getByLabelText('1 of 5 CVs saved')).toBeVisible();
+  const summary = screen.getByRole('region', { name: 'Main CV' });
+  // The original file name appears once, only because the CV was renamed.
   expect(within(summary).getByText(savedCv.fileName)).toBeVisible();
-  expect(within(summary).getByText(/^Main CV/)).toBeVisible();
-  expect(within(summary).getByText(/^Saved /)).toBeVisible();
+  expect(within(summary).getByText('Updated')).toBeVisible();
+  expect(within(summary).getByText('268 KB')).toBeVisible();
   expect(
     await within(summary).findByText(`1 of ${total} sections reviewed`),
   ).toBeVisible();
-  expect(
-    within(summary).getByText('Upload another CV', { selector: 'label' }),
-  ).toHaveClass('MuiButton-outlined');
-  // The shared review stays primary until it is complete.
-  expect(screen.getByRole('button', { name: 'Review source CV' })).toHaveClass(
+  expect(screen.getByText('Add CV', { selector: 'label' })).toHaveClass(
     'MuiButton-contained',
   );
+  // One review entry point: the details header. The review opens on demand.
+  expect(screen.getAllByRole('button', { name: /review/i })).toEqual([
+    within(summary).getByRole('button', { name: 'Review CV' }),
+  ]);
+  expect(
+    screen.queryByRole('heading', { name: 'Source CV review' }),
+  ).not.toBeInTheDocument();
   await userEvent
     .setup()
     .click(screen.getByRole('link', { name: 'Quick CV and job analysis' }));
@@ -148,27 +160,29 @@ test('a fully reviewed CV reads as reviewed', async () => {
     await screen.findByText(`Reviewed · ${total} of ${total} sections`),
   ).toBeVisible();
   expect(
-    screen.getByRole('button', { name: 'View / Edit review' }),
-  ).toHaveClass('MuiButton-outlined');
-  expect(
-    screen.queryByRole('button', { name: 'Review source CV' }),
+    screen.queryByRole('button', {
+      name: /Review source CV|View \/ Edit review/,
+    }),
   ).not.toBeInTheDocument();
 });
 
-test('opening the shared review refreshes progress from the same saved profile', async () => {
+test('Review CV opens the shared review below the library and refreshes progress', async () => {
   const { fetch } = mount(savedCv);
   await screen.findByText(/sections reviewed/);
-  expect(
-    screen.getByText(
-      'Check and correct your CV details before using them to tailor applications. Your review is shared across jobs.',
-    ),
-  ).toBeVisible();
-  // The verification safeguard lives inside the opened review.
-  expect(screen.queryByText(/not independent verification/)).toBeNull();
   const before = calls(fetch, '/profile');
   await userEvent
     .setup()
-    .click(screen.getByRole('button', { name: 'Review source CV' }));
+    .click(screen.getByRole('button', { name: 'Review CV' }));
+  const section = (
+    await screen.findByRole('heading', { name: 'Source CV review' })
+  ).parentElement!;
+  // Full width: the review is outside the library/details grid.
+  expect(section.closest('[aria-labelledby="cv-details-title"]')).toBeNull();
+  expect(
+    within(section).getByText(
+      'Check and correct your CV details before using them to tailor applications. Your review is shared across jobs.',
+    ),
+  ).toBeVisible();
   await waitFor(() =>
     expect(calls(fetch, '/profile')).toBeGreaterThan(before + 1),
   );
@@ -177,13 +191,19 @@ test('opening the shared review refreshes progress from the same saved profile',
       /Confirmation records your review, not independent verification/,
     ),
   ).toBeVisible();
+  // No second entry button inside the review.
+  expect(
+    within(section).queryByRole('button', {
+      name: /Review source CV|View \/ Edit review|Open review/,
+    }),
+  ).toBeNull();
 });
 
 test('adding a CV shows it without replacing the default and never touches tailored drafts', async () => {
   const { fetch } = mount(savedCv);
   await screen.findByText(/sections reviewed/);
   await userEvent.setup().upload(
-    screen.getByLabelText('Upload another CV'),
+    screen.getByLabelText('Add CV'),
     new File(['synthetic'], 'added-cv.pdf', {
       type: 'application/pdf',
     }),
@@ -202,7 +222,7 @@ test('adding a CV shows it without replacing the default and never touches tailo
   ).toBe(false);
 });
 
-test('a reviewed CV that loads slowly never shows a guessed status or action', async () => {
+test('a reviewed CV that loads slowly never shows a guessed status', async () => {
   let release!: () => void;
   const { total } = mount(
     savedCv,
@@ -218,18 +238,10 @@ test('a reviewed CV that loads slowly never shows a guessed status or action', a
   await waitFor(() => expect(release).toBeDefined());
   expect(screen.getByLabelText('Loading review status')).toBeInTheDocument();
   expect(screen.queryByText('Not reviewed yet')).not.toBeInTheDocument();
-  expect(
-    screen.queryByRole('button', {
-      name: /Review source CV|View \/ Edit review/,
-    }),
-  ).not.toBeInTheDocument();
   release();
   expect(
     await screen.findByText(`Reviewed · ${total} of ${total} sections`),
   ).toBeVisible();
-  expect(
-    screen.getByRole('button', { name: 'View / Edit review' }),
-  ).toHaveClass('MuiButton-outlined');
 });
 
 test('a failed profile request reads as unavailable and can be retried', async () => {
@@ -242,19 +254,16 @@ test('a failed profile request reads as unavailable and can be retried', async (
   });
   expect(await screen.findByText('Review status unavailable.')).toBeVisible();
   expect(screen.queryByText('Not reviewed yet')).not.toBeInTheDocument();
-  // The review stays reachable without guessing its entry point.
-  expect(screen.getByRole('button', { name: 'Open review' })).toHaveClass(
-    'MuiButton-outlined',
-  );
+  // The review stays reachable from the header without guessing its state.
+  expect(screen.getByRole('button', { name: 'Review CV' })).toBeEnabled();
   fail = false;
   await userEvent.setup().click(screen.getByRole('button', { name: 'Retry' }));
   expect(
     await screen.findByText(`Reviewed · ${total} of ${total} sections`),
   ).toBeVisible();
-  expect(screen.queryByRole('button', { name: 'Open review' })).toBeNull();
 });
 
-test('Open review after a status failure never creates or resets a review', async () => {
+test('Review CV after a status failure never creates or resets a review', async () => {
   let fail = true;
   const { fetch, total } = mount(savedCv, Infinity, async () => {
     if (fail) return new Response(null, { status: 503 });
@@ -269,14 +278,15 @@ test('Open review after a status failure never creates or resets a review', asyn
         (init as RequestInit | undefined)?.method === 'POST',
     ).length;
   const user = userEvent.setup();
-  const open = await screen.findByRole('button', { name: 'Open review' });
+  const open = await screen.findByRole('button', { name: 'Review CV' });
   // Still failing: the error is reported, nothing is created.
   await user.click(open);
+  await screen.findByRole('heading', { name: 'Source CV review' });
   await waitFor(() => expect(open).toBeEnabled());
   expect(creates()).toBe(0);
   // Recovered: the existing reviewed profile opens unchanged.
   fail = false;
-  await user.click(screen.getByRole('button', { name: 'Open review' }));
+  await user.click(open);
   expect(
     await screen.findByText(
       /Confirmation records your review, not independent verification/,
@@ -291,23 +301,23 @@ test('Open review after a status failure never creates or resets a review', asyn
 test('a non-default CV can become the default; a CV still used by a job is not deleted', async () => {
   const user = userEvent.setup();
   const { fetch } = mount([savedCv, otherCv]);
-  await screen.findByText('Main CV · Default');
+  await screen.findByRole('region', { name: 'Main CV' });
   // The default CV offers neither Make default nor Delete.
   expect(screen.queryByRole('button', { name: 'Make default' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull();
-  await user.click(screen.getByRole('combobox', { name: 'CV' }));
-  await user.click(screen.getByRole('option', { name: 'Data CV' }));
+  await user.click(screen.getByRole('button', { name: /^Data CV/ }));
   await user.click(screen.getByRole('button', { name: 'Delete' }));
   await user.click(
     within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }),
   );
   expect(await screen.findByText(inUse)).toBeVisible();
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-  expect(screen.getByRole('combobox', { name: 'CV' })).toHaveTextContent(
-    'Data CV',
-  );
+  expect(screen.getByRole('region', { name: 'Data CV' })).toBeVisible();
   await user.click(screen.getByRole('button', { name: 'Make default' }));
-  expect(await screen.findByText('Data CV · Default')).toBeVisible();
+  await waitFor(() =>
+    expect(screen.queryByRole('button', { name: 'Make default' })).toBeNull(),
+  );
+  expect(screen.getByText('Default CV')).toBeVisible();
   expect(
     fetch.mock.calls.some(
       ([url, init]) =>
@@ -315,4 +325,149 @@ test('a non-default CV can become the default; a CV still used by a job is not d
         (init as RequestInit | undefined)?.method === 'PATCH',
     ),
   ).toBe(true);
+});
+
+test('the default CV and the CV being viewed are labelled separately', async () => {
+  const user = userEvent.setup();
+  mount([savedCv, otherCv]);
+  const library = await screen.findByRole('region', { name: 'Your CVs' });
+  const main = within(library).getByRole('button', { name: /^Main CV/ });
+  expect(main).toHaveAttribute('aria-current', 'true');
+  expect(within(main).getByText('Viewing')).toBeVisible();
+  expect(within(main).getByText('Default')).toBeVisible();
+  await user.click(within(library).getByRole('button', { name: /^Data CV/ }));
+  const data = within(library).getByRole('button', { name: /^Data CV/ });
+  expect(data).toHaveAttribute('aria-current', 'true');
+  expect(within(data).getByText('Viewing')).toBeVisible();
+  expect(within(data).queryByText('Default')).toBeNull();
+  expect(within(main).queryByText('Viewing')).toBeNull();
+  expect(within(main).getByText('Default')).toBeVisible();
+  expect(
+    screen.getByText(/not the default\. New jobs use Main CV\./),
+  ).toBeVisible();
+});
+
+test('download links to the exact original file, or explains why it is unavailable', async () => {
+  const user = userEvent.setup();
+  mount([savedCv, { ...otherCv, originalAvailable: false, fileSize: null }]);
+  const download = await screen.findByRole('link', {
+    name: 'Download original',
+  });
+  expect(download).toHaveAttribute(
+    'href',
+    `/api/v1/opportunities/cv/${savedCv.id}/file`,
+  );
+  expect(download).toHaveAttribute('download', savedCv.fileName);
+  await user.click(screen.getByRole('button', { name: /^Data CV/ }));
+  const summary = screen.getByRole('region', { name: 'Data CV' });
+  expect(
+    within(summary).getByRole('button', { name: 'Download original' }),
+  ).toBeDisabled();
+  expect(within(summary).getByText(/original file was not kept/)).toBeVisible();
+  expect(within(summary).getByText('—')).toBeVisible();
+});
+
+test('at 5 CVs adding is disabled with a clear message', async () => {
+  const five = Array.from({ length: 5 }, (_, i) => ({
+    ...otherCv,
+    id: `00000000-0000-4000-8000-0000000000d${i}`,
+    name: `CV ${i}`,
+    isDefault: i === 0,
+  }));
+  mount(five);
+  const library = await screen.findByRole('region', { name: 'Your CVs' });
+  expect(within(library).getByLabelText('5 of 5 CVs saved')).toBeVisible();
+  expect(within(library).getByText(/up to 5 CVs/)).toBeVisible();
+  expect(screen.getByLabelText('Add CV')).toBeDisabled();
+});
+
+test('the row menu opens that CV and offers its actions', async () => {
+  const user = userEvent.setup();
+  mount([savedCv, otherCv]);
+  await user.click(
+    await screen.findByRole('button', { name: 'More actions for Data CV' }),
+  );
+  const menu = screen.getByRole('menu');
+  expect(
+    within(menu)
+      .getAllByRole('menuitem')
+      .map((item) => item.textContent),
+  ).toEqual(['Make default', 'Rename', 'Download original', 'Delete']);
+  await user.click(within(menu).getByRole('menuitem', { name: 'Rename' }));
+  expect(screen.getByRole('textbox', { name: 'CV name' })).toHaveValue(
+    'Data CV',
+  );
+});
+
+test('under StrictMode, Review CV shows the review content instead of loading forever', async () => {
+  mount(savedCv, 1, undefined, undefined, true);
+  await screen.findByText(/sections reviewed/);
+  await userEvent
+    .setup()
+    .click(screen.getByRole('button', { name: 'Review CV' }));
+  expect(
+    await screen.findByText(
+      /Confirmation records your review, not independent verification/,
+    ),
+  ).toBeVisible();
+  await waitFor(() =>
+    expect(screen.queryByText('Preparing source review…')).toBeNull(),
+  );
+});
+
+test('a failed review load shows an error with Retry', async () => {
+  let fail = true;
+  mount(savedCv, 1, async () =>
+    fail
+      ? new Response(null, { status: 503 })
+      : Response.json(cvProfileFixture()),
+  );
+  const user = userEvent.setup();
+  await user.click(await screen.findByRole('button', { name: 'Review CV' }));
+  const heading = await screen.findByRole('heading', {
+    name: 'Source CV review',
+  });
+  const section = heading.parentElement!;
+  const retry = await within(section).findByRole('button', { name: 'Retry' });
+  expect(within(section).queryByText('Preparing source review…')).toBeNull();
+  fail = false;
+  await user.click(retry);
+  expect(
+    await screen.findByText(
+      /Confirmation records your review, not independent verification/,
+    ),
+  ).toBeVisible();
+});
+
+test('an open or loading review never locks the library; switching CV closes it', async () => {
+  let release!: () => void;
+  let hold = false;
+  mount([savedCv, otherCv], 1, () => {
+    if (!hold) return Promise.resolve(Response.json(cvProfileFixture()));
+    // Hold the review load open while the user keeps working.
+    return new Promise<Response>((resolve) => {
+      release = () => resolve(Response.json(cvProfileFixture()));
+    });
+  });
+  const user = userEvent.setup();
+  await screen.findByText(/sections reviewed/);
+  hold = true;
+  await user.click(screen.getByRole('button', { name: 'Review CV' }));
+  await screen.findByText('Preparing source review…');
+  expect(screen.getByRole('button', { name: /^Data CV/ })).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'Rename' })).toBeEnabled();
+  expect(screen.getByLabelText('Add CV')).toBeEnabled();
+  await user.click(screen.getByRole('button', { name: /^Data CV/ }));
+  expect(screen.getByRole('region', { name: 'Data CV' })).toBeVisible();
+  expect(
+    screen.queryByRole('heading', { name: 'Source CV review' }),
+  ).toBeNull();
+  // The old CV's late response changes nothing on the new selection.
+  release();
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Rename' })).toBeEnabled(),
+  );
+  expect(
+    screen.queryByRole('heading', { name: 'Source CV review' }),
+  ).toBeNull();
 });
