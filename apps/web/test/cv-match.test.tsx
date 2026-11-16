@@ -35,12 +35,18 @@ const result = {
 test('loads saved CV, displays local analysis and clears stale results after job edits', async () => {
   const fetch = vi.fn(async (url: string) =>
     Response.json(
-      url.endsWith('/cv/current') ? { fileName: 'synthetic.pdf' } : result,
+      url.endsWith('/cv/current')
+        ? { id: 'synthetic-cv', fileName: 'synthetic.pdf' }
+        : result,
     ),
   );
   vi.stubGlobal('fetch', fetch);
   const view = render(<CvMatchPanel jobId="synthetic-job" revision="1" />);
-  await screen.findByText('Saved CV: synthetic.pdf');
+  expect(
+    await screen.findByRole('combobox', { name: 'CV for this job' }),
+  ).toHaveTextContent('synthetic.pdf');
+  // The selector is the only place the job's CV is named.
+  expect(screen.queryByText(/Saved CV:/)).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
   await screen.findByLabelText(/Fit score: 75\/100/);
   expect(screen.getByText('Consider')).toBeVisible();
@@ -93,15 +99,19 @@ test('failed analysis leaves saved CV available for manual retry', async () => {
     'fetch',
     vi.fn(async (url: string) =>
       url.endsWith('/cv/current')
-        ? Response.json({ fileName: 'synthetic.pdf' })
+        ? Response.json({ id: 'synthetic-cv', fileName: 'synthetic.pdf' })
         : Response.json({}, { status: 503 }),
     ),
   );
   render(<CvMatchPanel jobId="synthetic-job" revision="1" />);
-  await screen.findByText('Saved CV: synthetic.pdf');
+  expect(
+    await screen.findByRole('combobox', { name: 'CV for this job' }),
+  ).toHaveTextContent('synthetic.pdf');
   fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
   await screen.findByRole('alert');
-  expect(screen.getByText('Saved CV: synthetic.pdf')).toBeVisible();
+  expect(
+    screen.getByRole('combobox', { name: 'CV for this job' }),
+  ).toHaveTextContent('synthetic.pdf');
   expect(
     screen.getByRole('button', { name: 'Analyze CV Match' }),
   ).toBeEnabled();
@@ -125,12 +135,16 @@ test('unknown score and long multiline evidence preserve exact source text', asy
     'fetch',
     vi.fn(async (url: string) =>
       Response.json(
-        url.endsWith('/cv/current') ? { fileName: 'synthetic.pdf' } : preview,
+        url.endsWith('/cv/current')
+          ? { id: 'synthetic-cv', fileName: 'synthetic.pdf' }
+          : preview,
       ),
     ),
   );
   render(<CvMatchPanel jobId="synthetic-job" revision="1" />);
-  await screen.findByText('Saved CV: synthetic.pdf');
+  expect(
+    await screen.findByRole('combobox', { name: 'CV for this job' }),
+  ).toHaveTextContent('synthetic.pdf');
   fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
   await screen.findByLabelText('Fit score: Not enough evidence (heuristic)');
   expect(screen.getByText(/Preferred · Experience/)).toBeVisible();
@@ -157,7 +171,10 @@ test.each([
       'fetch',
       vi.fn(async (url: string) => {
         if (url.endsWith('/cv/current'))
-          return Response.json({ fileName: 'synthetic.pdf' });
+          return Response.json({
+            id: 'synthetic-cv',
+            fileName: 'synthetic.pdf',
+          });
         if (url.endsWith('/opportunities/cv')) return Response.json([]);
         return ++attempts === 1
           ? Response.json(result)
@@ -171,7 +188,9 @@ test.each([
       }),
     );
     render(<CvMatchPanel jobId="synthetic-job" revision="1" />);
-    await screen.findByText('Saved CV: synthetic.pdf');
+    expect(
+      await screen.findByRole('combobox', { name: 'CV for this job' }),
+    ).toHaveTextContent('synthetic.pdf');
     fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
     await screen.findByLabelText(/Fit score: 75\/100/);
     fireEvent.click(screen.getByRole('button', { name: 'Reanalyze CV Match' }));
@@ -188,13 +207,15 @@ test('a malformed success response cannot masquerade as a legitimate zero result
     vi.fn(async (url: string) =>
       Response.json(
         url.endsWith('/cv/current')
-          ? { fileName: 'synthetic.pdf' }
+          ? { id: 'synthetic-cv', fileName: 'synthetic.pdf' }
           : { ...result, score: 0, requirements: [] },
       ),
     ),
   );
   render(<CvMatchPanel jobId="synthetic-job" revision="1" />);
-  await screen.findByText('Saved CV: synthetic.pdf');
+  expect(
+    await screen.findByRole('combobox', { name: 'CV for this job' }),
+  ).toHaveTextContent('synthetic.pdf');
   fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
   await screen.findByText(/API returned an invalid matching result/);
   expect(screen.queryByLabelText(/Fit score:/)).toBeNull();
@@ -232,13 +253,15 @@ test('Axon-style API result preserves verified Java, experience, SQL and tooling
     vi.fn(async (url: string) =>
       Response.json(
         url.endsWith('/cv/current')
-          ? { fileName: 'synthetic.pdf' }
+          ? { id: 'synthetic-cv', fileName: 'synthetic.pdf' }
           : { ...result, score, requirements: rows },
       ),
     ),
   );
   render(<CvMatchPanel jobId="synthetic-axon" revision="1" />);
-  await screen.findByText('Saved CV: synthetic.pdf');
+  expect(
+    await screen.findByRole('combobox', { name: 'CV for this job' }),
+  ).toHaveTextContent('synthetic.pdf');
   fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
   await screen.findByLabelText(`Fit score: ${score}/100 (heuristic)`);
   const matched = screen.getByRole('region', { name: 'Requirements' });
@@ -275,13 +298,15 @@ test('filters, stable priority/status ordering and keyboard disclosure use exist
     vi.fn(async (url: string) =>
       Response.json(
         url.endsWith('/cv/current')
-          ? { fileName: 'synthetic.pdf' }
+          ? { id: 'synthetic-cv', fileName: 'synthetic.pdf' }
           : { ...result, requirements },
       ),
     ),
   );
   render(<CvMatchPanel jobId="synthetic" revision="1" />);
-  await screen.findByText('Saved CV: synthetic.pdf');
+  expect(
+    await screen.findByRole('combobox', { name: 'CV for this job' }),
+  ).toHaveTextContent('synthetic.pdf');
   await user.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
   await screen.findByText('Total: 5');
   const list = screen.getByRole('region', { name: 'Requirements' });
@@ -350,13 +375,15 @@ test('overview surfaces source labels for strengths and required gaps with a neu
     vi.fn(async (url: string) =>
       Response.json(
         url.endsWith('/cv/current')
-          ? { fileName: 'synthetic.pdf' }
+          ? { id: 'synthetic-cv', fileName: 'synthetic.pdf' }
           : { ...result, score: 39, recommendation: 'Low Fit', requirements },
       ),
     ),
   );
   render(<CvMatchPanel jobId="synthetic" revision="1" />);
-  await screen.findByText('Saved CV: synthetic.pdf');
+  expect(
+    await screen.findByRole('combobox', { name: 'CV for this job' }),
+  ).toHaveTextContent('synthetic.pdf');
   fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
   await screen.findByLabelText('Fit score: 39/100 (heuristic)');
   const strengths = screen.getByRole('region', { name: 'Key strengths' });
@@ -410,13 +437,15 @@ test('preview links reveal the exact requirement across filters and support keyb
     vi.fn(async (url: string) =>
       Response.json(
         url.endsWith('/cv/current')
-          ? { fileName: 'synthetic.pdf' }
+          ? { id: 'synthetic-cv', fileName: 'synthetic.pdf' }
           : { ...result, requirements },
       ),
     ),
   );
   render(<CvMatchPanel jobId="synthetic" revision="1" />);
-  await screen.findByText('Saved CV: synthetic.pdf');
+  expect(
+    await screen.findByRole('combobox', { name: 'CV for this job' }),
+  ).toHaveTextContent('synthetic.pdf');
   await user.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
   const strengths = await screen.findByRole('region', {
     name: 'Key strengths',
@@ -475,7 +504,7 @@ test('preferred gap previews retain their actual priority and disclose no requir
     vi.fn(async (url: string) =>
       Response.json(
         url.endsWith('/cv/current')
-          ? { fileName: 'synthetic.pdf' }
+          ? { id: 'synthetic-cv', fileName: 'synthetic.pdf' }
           : {
               ...result,
               requirements: [
@@ -487,7 +516,9 @@ test('preferred gap previews retain their actual priority and disclose no requir
     ),
   );
   render(<CvMatchPanel jobId="synthetic" revision="1" />);
-  await screen.findByText('Saved CV: synthetic.pdf');
+  expect(
+    await screen.findByRole('combobox', { name: 'CV for this job' }),
+  ).toHaveTextContent('synthetic.pdf');
   fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
   const gaps = await screen.findByRole('region', { name: 'Preferred gaps' });
   expect(within(gaps).getByText(/No required gaps reported/)).toBeVisible();
@@ -506,12 +537,16 @@ test('preview aligns an expanded target at the top and focuses without a second 
     'fetch',
     vi.fn(async (url: string) =>
       Response.json(
-        url.endsWith('/cv/current') ? { fileName: 'synthetic.pdf' } : result,
+        url.endsWith('/cv/current')
+          ? { id: 'synthetic-cv', fileName: 'synthetic.pdf' }
+          : result,
       ),
     ),
   );
   render(<CvMatchPanel jobId="synthetic" revision="1" />);
-  await screen.findByText('Saved CV: synthetic.pdf');
+  expect(
+    await screen.findByRole('combobox', { name: 'CV for this job' }),
+  ).toHaveTextContent('synthetic.pdf');
   await user.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
   const row = await screen.findByRole('button', { name: 'Matched: Python' });
   const scroll = vi.fn(() => {
@@ -543,12 +578,14 @@ test('a result arriving after a saved-job revision change stays invalidated and 
   });
   const fetch = vi.fn(async (url: string) =>
     url.endsWith('/cv/current')
-      ? Response.json({ fileName: 'synthetic.pdf' })
+      ? Response.json({ id: 'synthetic-cv', fileName: 'synthetic.pdf' })
       : pending,
   );
   vi.stubGlobal('fetch', fetch);
   const view = render(<CvMatchPanel jobId="synthetic" revision="1" />);
-  await screen.findByText('Saved CV: synthetic.pdf');
+  expect(
+    await screen.findByRole('combobox', { name: 'CV for this job' }),
+  ).toHaveTextContent('synthetic.pdf');
   fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
   expect(screen.getByText('Processing locally…')).toBeVisible();
   view.rerender(<CvMatchPanel jobId="synthetic" revision="2" />);
@@ -622,13 +659,15 @@ test('compound states, component evidence and conflict passages survive filterin
     vi.fn(async (url: string) =>
       Response.json(
         url.endsWith('/cv/current')
-          ? { fileName: 'synthetic.pdf' }
+          ? { id: 'synthetic-cv', fileName: 'synthetic.pdf' }
           : { ...result, score: 38, recommendation: 'Low Fit', requirements },
       ),
     ),
   );
   const view = render(<CvMatchPanel jobId="synthetic" revision="1" />);
-  await screen.findByText('Saved CV: synthetic.pdf');
+  expect(
+    await screen.findByRole('combobox', { name: 'CV for this job' }),
+  ).toHaveTextContent('synthetic.pdf');
   await user.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
   await screen.findByText('Partial: 1');
   expect(screen.getByText('Unknown: 1')).toBeVisible();
@@ -682,7 +721,7 @@ test('partial response with malformed component evidence is rejected rather than
     vi.fn(async (url: string) =>
       Response.json(
         url.endsWith('/cv/current')
-          ? { fileName: 'synthetic.pdf' }
+          ? { id: 'synthetic-cv', fileName: 'synthetic.pdf' }
           : {
               ...result,
               requirements: [
@@ -697,7 +736,9 @@ test('partial response with malformed component evidence is rejected rather than
     ),
   );
   render(<CvMatchPanel jobId="synthetic" revision="1" />);
-  await screen.findByText('Saved CV: synthetic.pdf');
+  expect(
+    await screen.findByRole('combobox', { name: 'CV for this job' }),
+  ).toHaveTextContent('synthetic.pdf');
   fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
   await screen.findByText(/API returned an invalid matching result/);
   expect(screen.queryByLabelText(/Fit score:/)).toBeNull();
@@ -715,12 +756,16 @@ test('an unverified requirement set shows a review state, not a numeric Low Fit'
     'fetch',
     vi.fn(async (url: string) =>
       Response.json(
-        url.endsWith('/cv/current') ? { fileName: 'synthetic.pdf' } : review,
+        url.endsWith('/cv/current')
+          ? { id: 'synthetic-cv', fileName: 'synthetic.pdf' }
+          : review,
       ),
     ),
   );
   render(<CvMatchPanel jobId="synthetic-job" revision="1" />);
-  await screen.findByText('Saved CV: synthetic.pdf');
+  expect(
+    await screen.findByRole('combobox', { name: 'CV for this job' }),
+  ).toHaveTextContent('synthetic.pdf');
   fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
   await screen.findByLabelText(
     'Fit score: requirements may be incomplete (heuristic)',

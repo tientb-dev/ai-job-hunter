@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { JD_QUESTION_ID, resolveQuestion } from './job-questions.js';
+import {
+  JD_QUESTION_ID,
+  resolveQuestion,
+  questionJobId,
+} from './job-questions.js';
 import { AiService } from '../ai/ai.service.js';
 import { AiError } from '../ai/ai.errors.js';
 import { TailoredDraftService } from '../tailored-cv/tailored-draft.service.js';
@@ -80,7 +84,14 @@ export class InterviewPrepService {
     this.active = true;
     try {
       // Fact check is optional context; a read failure must not block practice.
-      const facts = await this.cv.reviewedFacts(ownerId).catch(() => null);
+      // Job questions check against that job's CV; curated ones use the default.
+      const facts = await questionJobId(
+        this.db,
+        ownerId,
+        (body as { questionId?: unknown } | null)?.questionId,
+      )
+        .then((jobId) => this.cv.reviewedFacts(ownerId, jobId))
+        .catch(() => null);
       const text = questionText;
       const output = (await this.ai.generateStructured(
         mode === 'express'

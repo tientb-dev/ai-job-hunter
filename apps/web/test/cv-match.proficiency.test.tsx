@@ -53,12 +53,16 @@ async function mount(result: unknown) {
     'fetch',
     vi.fn(async (url: string) =>
       Response.json(
-        url.endsWith('/cv/current') ? { fileName: 'synthetic.pdf' } : result,
+        url.endsWith('/cv/current')
+          ? { id: 'synthetic-cv', fileName: 'synthetic.pdf' }
+          : result,
       ),
     ),
   );
   render(<CvMatchPanel jobId="synthetic-job" revision="1" />);
-  await screen.findByText('Saved CV: synthetic.pdf');
+  expect(
+    await screen.findByRole('combobox', { name: 'CV for this job' }),
+  ).toHaveTextContent('synthetic.pdf');
   fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
 }
 test('Partial database evidence displays exact attributed work, mentions and unverified proficiency without claiming absence', async () => {

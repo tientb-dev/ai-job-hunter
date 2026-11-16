@@ -1083,6 +1083,31 @@ test('reviewedFacts is read-only, owner-scoped and excludes contact details', as
   expect(await drafts.reviewedFacts(randomUUID())).toBeNull();
 });
 
+test('reviewedFacts for a job uses the CV selected for that job, not the default', async () => {
+  await ready();
+  const jobId = current.job.id;
+  const [{ id: other }] = await db.query(
+    `INSERT INTO ai_job_hunter.saved_cvs ("ownerId", name, "fileName", text)
+      VALUES ($1, 'Unreviewed CV', $2, 'Synthetic unreviewed CV text.') RETURNING id`,
+    [owner, filename],
+  );
+  try {
+    expect(await drafts.reviewedFacts(owner, jobId)).not.toBeNull();
+    await matches.selectJobCv(owner, jobId, { cvId: other });
+    // The job's CV has no review yet; the default's review is not borrowed.
+    expect(await drafts.reviewedFacts(owner, jobId)).toBeNull();
+    expect(await drafts.reviewedFacts(owner)).not.toBeNull();
+  } finally {
+    await db.query(
+      'UPDATE ai_job_hunter.opportunities SET "cvId" = NULL WHERE id = $1',
+      [jobId],
+    );
+    await db.query('DELETE FROM ai_job_hunter.saved_cvs WHERE id = $1', [
+      other,
+    ]);
+  }
+});
+
 test('a draft made before a matching-policy change stays viewable, reviewable and exportable; a new draft needs a current match', async () => {
   await ready();
   const generated = await post().expect(201);

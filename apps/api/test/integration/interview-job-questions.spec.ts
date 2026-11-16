@@ -1,3 +1,4 @@
+import { INTERVIEW_QUESTIONS } from '../../src/interview-prep/interview-prep.questions.js';
 import { asLocalOwner } from '../support/as-local-owner.js';
 import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
@@ -370,6 +371,40 @@ test('feedback resolves the owner generated question and maps it to the PR14 con
     ),
   ).toMatchObject({ errorCode: 'INTERVIEW_INVALID_REQUEST' });
   expect(prompts).toHaveLength(1);
+});
+
+test('feedback checks a job question against that job’s CV; curated questions use the default', async () => {
+  const ai = {
+    generateStructured: () =>
+      Promise.resolve({ suggestion: '', followUpQuestions: [], phrases: [] }),
+  } as unknown as AiService;
+  const calls: unknown[][] = [];
+  const cv = {
+    reviewedFacts: (...args: unknown[]) => {
+      calls.push(args);
+      return Promise.resolve(null);
+    },
+  } as unknown as TailoredDraftService;
+  const service = new InterviewPrepService(ai, cv, db);
+  const jobId = await job(ownerA);
+  const [{ id }] = await question(ownerA, await set(ownerA, jobId), {
+    kind: 'general',
+  });
+  await service.feedback(ownerA, {
+    questionId: `jd-${id as string}`,
+    mode: 'express',
+    answer: 'x',
+  });
+  const curated = INTERVIEW_QUESTIONS[0]!.id;
+  await service.feedback(ownerA, {
+    questionId: curated,
+    mode: 'express',
+    answer: 'x',
+  });
+  expect(calls).toEqual([
+    [ownerA, jobId],
+    [ownerA, null],
+  ]);
 });
 
 test('HTTP: guarded PUT, list and DELETE work for the local owner generated question', async () => {

@@ -2318,5 +2318,7 @@ Grounding decisions:
 - Routes: `GET/POST /opportunities/cv`, `PATCH/DELETE /opportunities/cv/:cvId`,
   `GET /opportunities/cv/current` (default), `GET/PUT /opportunities/:id/cv/current`.
   The old in-place replace (`POST /opportunities/cv/current`) is removed.
-- Known limits: Interview Prep fact checks and the dashboard's review readiness use
-  the default CV; there is no per-job CV list in the dashboard.
+- Interview Prep feedback on a job's generated question checks facts from that
+  job's CV (`JobMatchService.jobCv`); curated questions use the default CV.
+- Known limits: the dashboard's review readiness uses the default CV; there is no
+  per-job CV list in the dashboard.

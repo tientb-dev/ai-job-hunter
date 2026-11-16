@@ -406,7 +406,8 @@ describe('response assembly', () => {
 // ------------------------------------------------------------------ HTTP
 const generateStructured =
   jest.fn<(r: { prompt: string }) => Promise<unknown>>();
-const reviewedFacts = jest.fn<(owner: string) => Promise<string[] | null>>();
+const reviewedFacts =
+  jest.fn<(owner: string, jobId: string | null) => Promise<string[] | null>>();
 const dbQuery = jest.fn<(sql: string, params: unknown[]) => Promise<unknown>>();
 const origin = { Host: '127.0.0.1:3000', Origin: 'http://127.0.0.1:5173' };
 const answersService = {
@@ -470,7 +471,7 @@ describe('HTTP', () => {
       output({ suggestion: 'I am good at analysing problems.' }),
     );
     const res = await post(body).expect(200);
-    expect(reviewedFacts).toHaveBeenCalledWith(LOCAL_OWNER_ID);
+    expect(reviewedFacts).toHaveBeenCalledWith(LOCAL_OWNER_ID, null);
     expect(generateStructured.mock.calls[0]![0].prompt).toMatch(
       /say THEIR OWN ideas/u,
     );

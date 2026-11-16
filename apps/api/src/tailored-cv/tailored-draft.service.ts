@@ -225,11 +225,16 @@ export class TailoredDraftService {
    * drafts: current CV, its latest profile revision, and a complete review.
    * Contact details and links are excluded. Returns null when unavailable.
    */
-  async reviewedFacts(ownerId: string): Promise<string[] | null> {
+  async reviewedFacts(
+    ownerId: string,
+    jobId: string | null = null,
+  ): Promise<string[] | null> {
     const manager = this.db.manager;
-    // shortcut: Interview Prep has no job CV context yet, so it uses the default CV.
+    // A job's facts come from that job's CV; otherwise the default CV.
+    const jobCv = jobId ? await this.matches.jobCv(ownerId, jobId) : null;
+    if (jobId && !jobCv) return null;
     const cv = await manager.getRepository(SavedCv).findOne({
-      where: { ownerId, isDefault: true },
+      where: jobCv ? { ownerId, id: jobCv.id } : { ownerId, isDefault: true },
       select: { ownerId: true, text: true, fileName: true, updatedAt: true },
     });
     if (!cv?.text.trim()) return null;

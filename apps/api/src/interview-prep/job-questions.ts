@@ -21,6 +21,23 @@ const CATEGORY_LABEL: Record<string, string> = {
  * set and job is guaranteed by the composite foreign keys on ownerId.
  * Database errors propagate; callers map them to their storage error.
  */
+/** The job a generated "jd-<uuid>" question belongs to; null for curated or unknown IDs. */
+export async function questionJobId(
+  db: DataSource,
+  ownerId: string,
+  id: unknown,
+): Promise<string | null> {
+  const uuid = typeof id === 'string' ? JD_QUESTION_ID.exec(id)?.[1] : null;
+  if (!uuid) return null;
+  const [row] = (await db.query(
+    `SELECT s."jobId" FROM ai_job_hunter.interview_job_questions q
+     JOIN ai_job_hunter.interview_question_sets s
+       ON s."ownerId" = q."ownerId" AND s.id = q."setId"
+     WHERE q."ownerId" = $1 AND q.id = $2`,
+    [ownerId, uuid],
+  )) as { jobId: string }[];
+  return row?.jobId ?? null;
+}
 export async function resolveQuestion(
   db: DataSource,
   ownerId: string,

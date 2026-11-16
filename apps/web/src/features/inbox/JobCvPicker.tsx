@@ -16,7 +16,12 @@ export function JobCvPicker({
   emptyLabel?: string;
   inputLabel?: string;
 }) {
-  const { cv, cvs, select, upload } = match;
+  const { cv, select, upload } = match;
+  // The job's CV is always listed, even if the list failed to load.
+  const cvs =
+    cv && !match.cvs.some((row) => row.id === cv.id)
+      ? [cv, ...match.cvs]
+      : match.cvs;
   return (
     <Stack
       direction={{ xs: 'column', sm: 'row' }}
@@ -37,8 +42,8 @@ export function JobCvPicker({
           {cvs.map((row) => (
             <MenuItem key={row.id} value={row.id} sx={{ whiteSpace: 'normal' }}>
               {row.isDefault
-                ? tr('{name} (default)', { name: row.name })
-                : row.name}
+                ? tr('{name} (default)', { name: row.name || row.fileName })
+                : row.name || row.fileName}
             </MenuItem>
           ))}
         </TextField>

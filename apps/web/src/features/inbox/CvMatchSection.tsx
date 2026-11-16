@@ -123,15 +123,12 @@ export function CvMatchSection({
             </Button>
           </Stack>
           <Box>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{ overflowWrap: 'anywhere', mb: 1 }}
-            >
-              {cv
-                ? tr('Saved CV: {fileName}', { fileName: cv.fileName })
-                : tr('No saved CV yet.')}
-            </Typography>
+            {/* The selector shows the job's CV; text only when none exists. */}
+            {!cv && (
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                {tr('No saved CV yet.')}
+              </Typography>
+            )}
             <JobCvPicker match={match} disabled={busy || uploadBlocked} />
             <Typography variant="caption" color="text.secondary">
               {tr(
