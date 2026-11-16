@@ -1,5 +1,10 @@
 import { tr } from '../../app/i18n';
-import { importFields, type OpportunityInput } from './opportunities-api';
+import {
+  importFields,
+  type ImportField,
+  type ImportFieldName,
+  type OpportunityInput,
+} from './opportunities-api';
 
 // Mirrors the server's per-source job path rules; the server still decides
 // whether a source is enabled.
@@ -64,6 +69,8 @@ export interface UrlJobPreview {
   experience?: string;
   workMode?: string;
   importWarnings?: string[];
+  /** Deterministic (no-AI) suggestions parsed from sourceText by the server. */
+  fields?: ImportField[];
   salaryDetails?: {
     originalText: string;
     currency: string | null;
@@ -121,5 +128,23 @@ export function applyUrlJobPreview(
         (previous && form[field] === previous[field]))
     )
       next[field] = preview[field] ?? '';
+  // Fill the remaining blanks from source-quoted parser suggestions. Domain is
+  // left to AI/manual entry: its heuristic can pick up company-profile text.
+  const suggested = (row: UrlJobPreview | null | undefined, field: string) =>
+    row?.fields?.find(
+      (item) => item.field === field && item.status === 'SUPPORTED',
+    )?.value ?? '';
+  for (const field of importFields) {
+    const value = suggested(preview, field);
+    if (
+      field === 'domain' ||
+      field === 'originalLink' ||
+      !value ||
+      edited.has(field) ||
+      (next[field] && !(previous && next[field] === suggested(previous, field)))
+    )
+      continue;
+    next[field as ImportFieldName] = value;
+  }
   return next;
 }

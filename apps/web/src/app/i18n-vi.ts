@@ -528,6 +528,8 @@ export const VI_TEXT: Record<string, string> = {
     'Hiện chưa có nhận xét. Văn bản của bạn được giữ — hãy thử lại.',
   'Feedback on your transcript': 'Nhận xét về bản ghi lời nói',
   'Fetch from URL': 'Tải từ URL',
+  'Add the JD first: fetch a job link, paste the post, use the page-import bookmark or upload a document.':
+    'Hãy thêm JD trước: tải từ link việc làm, dán tin tuyển dụng, dùng bookmark nhập trang hoặc tải tài liệu lên.',
   'Paste a job link from ITviec, TopCV or VietnamWorks, then click Fetch from URL. You review the JD before saving.':
     'Dán link tin tuyển dụng từ ITviec, TopCV hoặc VietnamWorks rồi bấm Tải từ URL. Bạn sẽ xem lại JD trước khi lưu.',
   'Use the link of a single job posting on ITviec, TopCV or VietnamWorks. If it cannot be loaded, use the page-import bookmark or paste the JD.':

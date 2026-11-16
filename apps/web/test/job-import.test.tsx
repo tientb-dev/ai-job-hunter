@@ -689,6 +689,11 @@ test('invalid job URL blocks save with actionable feedback and retains inputs', 
   fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
     target: { value: 'javascript:alert(1)' },
   });
+  // Continue requires JD content (PR87).
+  fireEvent.click(screen.getByRole('button', { name: /Paste JD/ }));
+  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+    target: { value: 'Synthetic JD' },
+  });
   fireEvent.click(
     screen.getByRole('button', { name: 'Continue to Review & Save' }),
   );

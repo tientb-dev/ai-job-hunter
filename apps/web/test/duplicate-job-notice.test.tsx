@@ -129,6 +129,11 @@ test('Add Job warns before review, stays editable and preserves save-time 409 pr
   expect(fetch.mock.calls[0]![0]).toBe(
     `/api/v1/opportunities/duplicate-url?url=${encodeURIComponent(url)}`,
   );
+  // Continue requires JD content (PR87).
+  fireEvent.click(screen.getByRole('button', { name: /Paste JD/ }));
+  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+    target: { value: 'Synthetic JD' },
+  });
   fireEvent.click(
     screen.getByRole('button', { name: 'Continue to Review & Save' }),
   );

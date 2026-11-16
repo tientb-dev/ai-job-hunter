@@ -61,6 +61,11 @@ test('Add Job marks current, completed and upcoming steps', () => {
   expect(icon(importStep)).toHaveAttribute('data-step-state', 'current');
   expect(within(importStep).getByText('Current')).toBeVisible();
   expect(icon(reviewStep)).toHaveAttribute('data-step-state', 'upcoming');
+  // Continue requires JD content (PR87).
+  fireEvent.click(screen.getByRole('button', { name: /Paste JD/ }));
+  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+    target: { value: 'Synthetic JD' },
+  });
   fireEvent.click(
     screen.getByRole('button', { name: 'Continue to Review & Save' }),
   );

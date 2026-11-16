@@ -6,6 +6,11 @@ import {
 } from './job-import.salary.js';
 import { BadRequestException, HttpException } from '@nestjs/common';
 import { vietnamworksJsonLd } from './vietnamworks-page.js';
+import { mergeCandidates, type ImportField } from './job-import.contract.js';
+import {
+  recruiterContactCandidates,
+  sourceCandidates,
+} from './job-import.evidence.js';
 
 const MAX_BYTES = 2 * 1024 * 1024;
 export function validateJobUrl(value: unknown): {
@@ -448,4 +453,19 @@ export class JobUrlImportService {
       this.busy = false;
     }
   }
+}
+
+/**
+ * Field suggestions from the imported text with the extraction's deterministic
+ * parsers only (its no-AI fallback path); values are quoted source evidence.
+ */
+export function withSourceFields<T extends { sourceText: string }>(
+  preview: T,
+): T & { fields: ImportField[] } {
+  const text = preview.sourceText;
+  const candidates = recruiterContactCandidates(sourceCandidates(text, ''), '');
+  return {
+    ...preview,
+    fields: mergeCandidates({ candidates }, text, '').fields,
+  };
 }

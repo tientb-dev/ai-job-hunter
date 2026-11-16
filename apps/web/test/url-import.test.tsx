@@ -481,3 +481,63 @@ test('a source turned off on the server shows localised bookmark/paste guidance 
     link,
   );
 });
+
+test('parser suggestions fill blank fields only; structured values, edits and domain are kept', () => {
+  const next = applyUrlJobPreview(
+    { ...emptyOpportunity(), seniority: 'User level' },
+    {
+      ...preview,
+      experience: 'Minimum 3 years',
+      fields: [
+        ['title', 'Shortened title'],
+        ['skills', 'Từ 3 năm kinh nghiệm Marketing\nCó Portfolio'],
+        ['preferredSkills', 'Biết tiếng Nhật'],
+        ['seniority', 'Parser level'],
+        ['domain', 'Ngân hàng'],
+        ['experience', 'Parser experience'],
+      ].map(([field, value]) => ({
+        field: field as 'title',
+        value: value!,
+        status: 'SUPPORTED' as const,
+        reviewed: false,
+        candidates: [],
+      })),
+    },
+    new Set(['seniority']),
+  );
+  expect(next).toMatchObject({
+    title: preview.title,
+    experience: 'Minimum 3 years',
+    skills: 'Từ 3 năm kinh nghiệm Marketing\nCó Portfolio',
+    preferredSkills: 'Biết tiếng Nhật',
+    seniority: 'User level',
+    domain: '',
+    postText: preview.sourceText,
+  });
+});
+test('Continue to Review stays disabled without JD content, even with a URL', () => {
+  vi.stubGlobal('fetch', vi.fn());
+  render(
+    <MemoryRouter>
+      <JobEditor />
+    </MemoryRouter>,
+  );
+  const next = () =>
+    screen.getByRole('button', { name: 'Continue to Review & Save' });
+  expect(next()).toBeDisabled();
+  expect(screen.getByText(/Add the JD first/)).toBeVisible();
+  fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
+    target: { value: 'https://itviec.com/it-jobs/synthetic' },
+  });
+  expect(next()).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: /Paste JD/ }));
+  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+    target: { value: '   ' },
+  });
+  expect(next()).toBeDisabled();
+  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+    target: { value: 'Synthetic JD' },
+  });
+  expect(next()).toBeEnabled();
+  expect(screen.queryByText(/Add the JD first/)).not.toBeInTheDocument();
+});

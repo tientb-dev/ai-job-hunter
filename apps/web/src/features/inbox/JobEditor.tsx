@@ -999,10 +999,18 @@ export function JobEditor() {
           endIcon={<ArrowForwardIcon />}
           sx={{ mt: 2 }}
           variant="contained"
+          disabled={!form.postText.trim() && !file}
           onClick={() => setStep(1)}
         >
           {tr('Continue to Review & Save')}
         </Button>
+      )}
+      {!id && !form.postText.trim() && !file && (
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+          {tr(
+            'Add the JD first: fetch a job link, paste the post, use the page-import bookmark or upload a document.',
+          )}
+        </Typography>
       )}
     </Box>
   );

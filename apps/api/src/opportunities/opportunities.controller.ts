@@ -3,7 +3,7 @@ import { CurrentOwner } from '../auth/current-owner.js';
 import { CvSuggestionsError } from '../matching/cv-suggestions.error.js';
 import { importTopcvPage } from './topcv-page-import.js';
 import { PinnedJobPageTransport } from './job-url.transport.js';
-import { JobUrlImportService } from './job-url-import.js';
+import { JobUrlImportService, withSourceFields } from './job-url-import.js';
 import { CvMatchError } from '../matching/cv-match.error.js';
 import { JobMatchService } from '../matching/job-match.service.js';
 import { JobDocumentError } from './job-document.error.js';
@@ -92,14 +92,14 @@ export class OpportunitiesController {
       body && typeof body === 'object' && !Array.isArray(body)
         ? (body as Record<string, unknown>).url
         : undefined;
-    return this.urlImports.preview(url);
+    return this.urlImports.preview(url).then(withSourceFields);
   }
   @Post('import-page')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
   importPage(@Req() req: IncomingMessage, @Body() body: unknown) {
     localWrite(req);
-    return importTopcvPage(body);
+    return withSourceFields(importTopcvPage(body));
   }
   @Post('discover')
   @HttpCode(200)

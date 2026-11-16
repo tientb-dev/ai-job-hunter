@@ -261,6 +261,11 @@ test('manual creation validates title and keeps fields after save failure', asyn
     'aria-hidden',
     'true',
   );
+  // Continue requires JD content (PR87).
+  fireEvent.click(screen.getByRole('button', { name: /Paste JD/ }));
+  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+    target: { value: 'Synthetic JD' },
+  });
   fireEvent.click(
     screen.getByRole('button', { name: 'Continue to Review & Save' }),
   );
