@@ -33,6 +33,7 @@ import {
 } from 'react-router-dom';
 import { Dashboard } from '../features/dashboard/Dashboard';
 import { MyCv } from '../features/inbox/MyCv';
+import { SourceCvReviewPage } from '../features/inbox/SourceCvReviewPage';
 import { Home } from '../features/home/Home';
 import { InterviewPrep } from '../features/interview-prep/InterviewPrep';
 import { JobPractice } from '../features/interview-prep/JobPractice';
@@ -274,6 +275,7 @@ export function App() {
               }
             />
             <Route path="/cv" element={<MyCv />} />
+            <Route path="/cv/:cvId/review" element={<SourceCvReviewPage />} />
             <Route path="/interview-prep" element={<InterviewPrep />} />
             <Route path="/interview-prep/mock" element={<MockInterview />} />
             <Route

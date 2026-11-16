@@ -73,3 +73,43 @@ test('one portal host queues notifications without replacing persistent errors',
   });
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
+
+test('success closes after about 2.5s; an error with a title stays until dismissed', async () => {
+  vi.useFakeTimers();
+  try {
+    function Titled() {
+      const notify = useNotify();
+      return (
+        <button
+          onClick={() =>
+            notify({
+              severity: 'error',
+              title: 'Review action failed',
+              text: 'Check the local API and retry.',
+            })
+          }
+        >
+          Titled error
+        </button>
+      );
+    }
+    render(
+      <>
+        <Controls />
+        <Titled />
+      </>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Success' }));
+    await act(() => vi.advanceTimersByTimeAsync(2000));
+    expect(screen.getByText('Saved successfully')).toBeInTheDocument();
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    expect(screen.queryByText('Saved successfully')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Titled error' }));
+    await act(() => vi.advanceTimersByTimeAsync(30000));
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent('Review action failed');
+    expect(alert).toHaveTextContent('Check the local API and retry.');
+  } finally {
+    vi.useRealTimers();
+  }
+});

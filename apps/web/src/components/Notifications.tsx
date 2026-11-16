@@ -1,6 +1,10 @@
-import { Notifications, type Notification } from './useNotify';
+import {
+  Notifications,
+  SUCCESS_NOTIFICATION_MS,
+  type Notification,
+} from './useNotify';
 import { useCallback, useRef, useState, type ReactNode } from 'react';
-import { Alert, Portal, Snackbar } from '@mui/material';
+import { Alert, AlertTitle, Portal, Snackbar } from '@mui/material';
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const sequence = useRef(0);
@@ -34,7 +38,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
             current?.severity === 'error' || current?.severity === 'warning'
               ? null
               : current?.severity === 'success'
-                ? 3000
+                ? SUCCESS_NOTIFICATION_MS
                 : 6000
           }
           onClose={(_, reason) => {
@@ -75,6 +79,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
               overflowY: 'auto',
             }}
           >
+            {current?.title && <AlertTitle>{current.title}</AlertTitle>}
             {current?.text}
           </Alert>
         </Snackbar>

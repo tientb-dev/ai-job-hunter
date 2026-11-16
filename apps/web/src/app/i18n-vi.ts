@@ -2143,4 +2143,24 @@ export const VI_TEXT: Record<string, string> = {
     'Việc làm mới dùng CV này cho phân tích độ phù hợp và CV tùy chỉnh. Mỗi việc làm có thể chọn CV riêng trên trang việc làm.',
   'You are viewing a CV that is not the default. New jobs use {name}.':
     'Bạn đang xem một CV không phải mặc định. Việc làm mới dùng {name}.',
+  // Source CV review page (PR #93)
+  'Review action failed': 'Thao tác rà soát không thành công',
+  '{n} to check': '{n} mục cần kiểm tra',
+  'Not checked yet': 'Chưa kiểm tra',
+  '{n} left': 'Còn {n}',
+  'Excluded content and history': 'Nội dung bị loại trừ và lịch sử',
+  'Review sections': 'Các phần rà soát',
+  Section: 'Phần',
+  '{n} items left before you can complete the review':
+    'Còn {n} mục cần xử lý trước khi hoàn tất rà soát',
+  'Everything is checked. You can complete the review.':
+    'Đã kiểm tra tất cả. Bạn có thể hoàn tất rà soát.',
+  'Hide list': 'Ẩn danh sách',
+  'Review: {name}': 'Rà soát: {name}',
+  'View items to resolve': 'Xem mục cần xử lý',
+  'Contact text needs review ({n})': 'Thông tin liên hệ cần rà soát ({n})',
+  'Show details': 'Xem chi tiết',
+  'Hide details': 'Ẩn chi tiết',
+  'This CV no longer exists. Go back to My CV to choose another.':
+    'CV này không còn tồn tại. Hãy quay lại CV của tôi để chọn CV khác.',
 };

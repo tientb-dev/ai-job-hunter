@@ -34,8 +34,6 @@ import { Link } from 'react-router-dom';
 import { PageHeader } from '../../components/PageHeader';
 import { importUpload, opportunityRequest } from './opportunities-api';
 import { sourceCvRequest } from './source-cv-review.contract';
-import { SourceCvReview } from './SourceCvReview';
-import { UnsavedJobGuard } from './UnsavedJobGuard';
 import type { SavedCv } from './useCvMatch';
 
 /** Matches the API limit; uploads from individual jobs count too. */
@@ -123,19 +121,6 @@ export function MyCv() {
   const [error, setError] = useState('');
   // undefined while loading; 'error' must never read as "not reviewed".
   const [progress, setProgress] = useState<Progress | 'error'>();
-  const [reviewDirty, setReviewDirty] = useState(false);
-  const [reviewBusy, setReviewBusy] = useState(false);
-  const saved = useRef(false);
-  const review = useRef<HTMLDivElement>(null);
-  // 0: review closed; each increment (re)opens it for the selected CV.
-  const [reviewKey, setReviewKey] = useState(0);
-  const focusReview = () => {
-    review.current?.scrollIntoView?.({ block: 'start' });
-    review.current?.focus({ preventScroll: true });
-  };
-  useEffect(() => {
-    if (reviewKey) focusReview();
-  }, [reviewKey]);
   useEffect(() => {
     let active = true;
     opportunityRequest<SavedCv[]>('/cv').then(
@@ -173,8 +158,6 @@ export function MyCv() {
     setProgress(undefined);
     setRenaming(null);
     // Closing the review unmounts it; its pending requests are discarded.
-    setReviewKey(0);
-    setReviewBusy(false);
     setSelectedId(id);
   }
   async function upload(file: File) {
@@ -188,8 +171,6 @@ export function MyCv() {
       });
       setProgress(undefined);
       setRenaming(null);
-      setReviewKey(0);
-      setReviewBusy(false);
       setCvs((rows) => [...rows, next]);
       setSelectedId(next.id);
     } catch (failure) {
@@ -226,7 +207,7 @@ export function MyCv() {
     });
   // An open or loading review never locks the library; only unsaved review
   // edits do, so switching or adding a CV cannot silently discard them.
-  const locked = uploading || reviewDirty || managing;
+  const locked = uploading || managing;
   const full = cvs.length >= MAX_CVS;
   const reviewed =
     typeof progress === 'object' &&
@@ -236,11 +217,6 @@ export function MyCv() {
   const addLabel = cvs.length ? tr('Add CV') : tr('Save source CV');
   return (
     <Stack spacing={3} sx={{ minWidth: 0 }}>
-      <UnsavedJobGuard
-        dirty={false}
-        sourceCvDirty={reviewDirty}
-        savedNavigation={saved}
-      />
       <PageHeader
         title={tr('My CV')}
         description={tr(
@@ -508,12 +484,8 @@ export function MyCv() {
                       flexShrink: 0,
                       alignSelf: { xs: 'stretch', sm: 'flex-start' },
                     }}
-                    disabled={uploading}
-                    onClick={() => {
-                      // Unsaved review edits are kept; otherwise (re)open for this CV.
-                      if (reviewDirty || reviewBusy) focusReview();
-                      else setReviewKey((key) => key + 1);
-                    }}
+                    component={Link}
+                    to={`/cv/${cv.id}/review`}
                   >
                     {tr('Review CV')}
                   </Button>
@@ -678,17 +650,6 @@ export function MyCv() {
                       )}
                     </Typography>
                   )}
-                  {reviewDirty && (
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{ mt: 1 }}
-                    >
-                      {tr(
-                        'Save or discard your review changes before switching or adding a CV.',
-                      )}
-                    </Typography>
-                  )}
                 </Box>
                 <Alert severity="info">
                   {cv.isDefault ? (
@@ -711,31 +672,6 @@ export function MyCv() {
             </Paper>
           </Stack>
         </Box>
-      )}
-      {cv && reviewKey > 0 && (
-        // Opened from the details header; spans the full content width below the library.
-        <Paper
-          ref={review}
-          tabIndex={-1}
-          variant="outlined"
-          sx={{
-            p: { xs: 2, sm: 3 },
-            minWidth: 0,
-            scrollMarginTop: 80,
-            outline: 'none',
-          }}
-        >
-          <SourceCvReview
-            key={`${cv.id}:${reviewKey}`}
-            myCv
-            autoOpen
-            cv={cv}
-            disabled={uploading}
-            onDirtyChange={setReviewDirty}
-            onBusyChange={setReviewBusy}
-            onSaved={refreshProgress}
-          />
-        </Paper>
       )}
       <Menu
         anchorEl={menu?.anchor}
