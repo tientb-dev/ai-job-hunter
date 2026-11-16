@@ -1,17 +1,35 @@
 import { dateLocale, tr } from '../../app/i18n';
-import { AddIcon, ExploreIcon, RefreshIcon } from '../../components/icons';
+import {
+  AddIcon,
+  ArrowForwardIcon,
+  BoltIcon,
+  DescriptionIcon,
+  EventIcon,
+  ExploreIcon,
+  FlagIcon,
+  ForumIcon,
+  MailIcon,
+  NotificationsIcon,
+  PlayCircleIcon,
+  RefreshIcon,
+  WorkIcon,
+} from '../../components/icons';
 import { useEffect, useState } from 'react';
 import {
   Alert,
   Box,
   Button,
+  Chip,
   Link as MuiLink,
   Paper,
   Skeleton,
   Stack,
   Typography,
 } from '@mui/material';
+import { alpha, keyframes } from '@mui/material/styles';
+import type { Theme } from '@mui/material/styles';
 import type { ReactNode } from 'react';
+import { surface } from '../../app/theme';
 import { Link } from 'react-router-dom';
 import { PageHeader } from '../../components/PageHeader';
 import { StatusChip } from '../../components/StatusChip';
@@ -156,7 +174,78 @@ const copy = {
   get cvReviewAction() {
     return tr('Review in My CV');
   },
+  get welcome() {
+    return tr('Welcome back');
+  },
+  tracking: (count: number) => tr('You are tracking {count} jobs.', { count }),
+  needAttention: (count: number) =>
+    tr('{count} follow-ups need your attention today.', { count }),
+  allClear: () => tr('No follow-ups are waiting. Keep the momentum going.'),
+  dueCount: (count: number) => tr('{count} due', { count }),
+  get quickActions() {
+    return tr('Quick actions');
+  },
+  get discoverHint() {
+    return tr('Find new roles to review');
+  },
+  get cvHint() {
+    return tr('Manage CVs and tailored versions');
+  },
+  get interviewHint() {
+    return tr('Prepare for your next round');
+  },
+  get interviewPractice() {
+    return tr('Interview practice');
+  },
+  get myCv() {
+    return tr('My CV');
+  },
 };
+
+// One entrance for every card; the theme's reduced-motion rule turns it off.
+const rise = keyframes`
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+`;
+const enter = (step: number) => ({
+  animation: `${rise} 260ms ease-out both`,
+  animationDelay: `${step * 50}ms`,
+});
+const card = {
+  borderRadius: `${surface.radius}px`,
+  borderColor: surface.panelBorder,
+  boxShadow: surface.panelShadow,
+} as const;
+type Tone = 'primary' | 'success' | 'secondary' | 'warning' | 'error';
+
+function IconBadge({
+  tone,
+  size = 40,
+  children,
+}: {
+  tone: Tone;
+  size?: number;
+  children: ReactNode;
+}) {
+  return (
+    <Box
+      aria-hidden
+      sx={{
+        width: size,
+        height: size,
+        flexShrink: 0,
+        borderRadius: '50%',
+        display: 'grid',
+        placeItems: 'center',
+        color: `${tone}.main`,
+        bgcolor: (theme: Theme) => alpha(theme.palette[tone].main, 0.1),
+        '& svg': { fontSize: size * 0.55 },
+      }}
+    >
+      {children}
+    </Box>
+  );
+}
 const FOLLOW_UP_PREVIEW = 3;
 
 // Persisted dates are local YYYY-MM-DD values; never parse them as UTC.
@@ -171,12 +260,18 @@ const shortDate = (value: string) => {
 function Panel({
   id,
   title,
+  icon,
+  badge,
   action,
+  step = 0,
   children,
 }: {
   id: string;
   title: string;
+  icon: ReactNode;
+  badge?: ReactNode;
   action?: ReactNode;
+  step?: number;
   children: ReactNode;
 }) {
   return (
@@ -184,7 +279,7 @@ function Panel({
       component="section"
       variant="outlined"
       aria-labelledby={id}
-      sx={{ minWidth: 0 }}
+      sx={{ ...card, ...enter(step), minWidth: 0, overflow: 'hidden' }}
     >
       <Stack
         // Phones stack the heading above its action instead of wrapping both.
@@ -192,15 +287,22 @@ function Panel({
         spacing={{ xs: 0.5, sm: 1 }}
         sx={{
           px: 2,
-          py: 1.5,
+          pt: { xs: 2, md: 1.5 },
+          pb: { xs: 1.5, md: 1 },
           minHeight: 44,
           alignItems: { xs: 'flex-start', sm: 'center' },
           justifyContent: 'space-between',
         }}
       >
-        <Typography id={id} component="h2" variant="h6">
-          {title}
-        </Typography>
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+          <Box aria-hidden sx={{ color: 'primary.main', display: 'flex' }}>
+            {icon}
+          </Box>
+          <Typography id={id} component="h2" variant="h6">
+            {title}
+          </Typography>
+          {badge}
+        </Stack>
         {action}
       </Stack>
       {children}
@@ -216,83 +318,118 @@ function Summary({
   total: number;
 }) {
   const { metrics, due, counts } = sections;
-  const cells = [
-    { label: copy.active, value: metrics.active, hint: copy.activeHint },
+  const cells: {
+    label: string;
+    value: number;
+    hint: string;
+    tone: Tone;
+    icon: ReactNode;
+    alert?: boolean;
+  }[] = [
+    {
+      label: copy.active,
+      value: metrics.active,
+      hint: copy.activeHint,
+      tone: 'primary',
+      icon: <WorkIcon />,
+    },
     {
       label: copy.inProgress,
       value: metrics.inProgress,
       hint: copy.inProgressHint,
+      tone: 'success',
+      icon: <MailIcon />,
     },
     {
       label: copy.interview,
       value: metrics.interview,
       hint: copy.currentStatus,
+      tone: 'secondary',
+      icon: <EventIcon />,
     },
     {
       label: copy.due,
       value: due.length,
       hint: metrics.overdue ? copy.overdue(metrics.overdue) : copy.dueHint,
+      tone: 'warning',
+      icon: <NotificationsIcon />,
       alert: metrics.overdue > 0,
     },
   ];
   return (
-    <Paper
-      component="section"
-      variant="outlined"
-      aria-label={copy.summary}
-      sx={{ overflow: 'hidden' }}
-    >
-      {/* 1px gaps over the divider colour draw the cell borders at any column count. */}
+    <Box component="section" aria-label={copy.summary} sx={{ minWidth: 0 }}>
       <Box
         component="dl"
         sx={{
           m: 0,
           display: 'grid',
           gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' },
-          gap: '1px',
-          bgcolor: 'divider',
-          borderBottom: 1,
-          borderColor: 'divider',
+          gap: { xs: 1.5, md: 2 },
+          // Desktop: icon, number and label on one line keeps the row short.
         }}
       >
-        {cells.map(({ label, value, hint, alert }) => (
-          <Box
+        {cells.map(({ label, value, hint, tone, icon, alert }, index) => (
+          <Paper
             key={label}
+            variant="outlined"
             sx={{
-              bgcolor: 'background.paper',
-              px: 2,
-              py: 1.5,
+              ...card,
+              ...enter(index),
+              px: { xs: 1.5, sm: 2 },
+              py: { xs: 2, md: 1.25 },
               display: 'flex',
-              flexDirection: 'column-reverse',
-              justifyContent: 'flex-end',
+              flexDirection: { xs: 'column', sm: 'row' },
+              gap: { xs: 1, sm: 1.5 },
+              alignItems: { xs: 'flex-start', sm: 'center' },
+              bgcolor: (theme: Theme) => alpha(theme.palette[tone].main, 0.035),
+              transition: 'transform 160ms ease-out, border-color 160ms',
+              '&:hover': {
+                transform: 'translateY(-2px)',
+                borderColor: (theme: Theme) =>
+                  alpha(theme.palette[tone].main, 0.35),
+              },
             }}
           >
-            <Typography component="dt" variant="body2" sx={{ fontWeight: 500 }}>
-              {label}
-              <Typography
-                component="span"
-                variant="caption"
-                color={alert ? 'error' : 'text.secondary'}
-                sx={{ display: 'block', fontWeight: alert ? 600 : 400 }}
-              >
-                {hint}
-              </Typography>
-            </Typography>
-            <Typography
-              component="dd"
-              variant="h4"
-              sx={{ m: 0, fontWeight: 600, lineHeight: 1.2 }}
+            <IconBadge tone={tone}>{icon}</IconBadge>
+            <Box
+              sx={{
+                minWidth: 0,
+                display: 'flex',
+                flexDirection: 'column-reverse',
+                justifyContent: 'flex-end',
+              }}
             >
-              {value}
-            </Typography>
-          </Box>
+              <Typography
+                component="dt"
+                variant="body2"
+                sx={{ fontWeight: 500 }}
+              >
+                {label}
+                <Typography
+                  component="span"
+                  variant="caption"
+                  color={alert ? 'error' : 'text.secondary'}
+                  sx={{ display: 'block', fontWeight: alert ? 600 : 400 }}
+                >
+                  {hint}
+                </Typography>
+              </Typography>
+              <Typography
+                component="dd"
+                variant="h4"
+                sx={{ m: 0, fontWeight: 700, lineHeight: 1.15 }}
+              >
+                {value}
+              </Typography>
+            </Box>
+          </Paper>
         ))}
       </Box>
       <Stack
         direction="row"
         spacing={1}
         useFlexGap
-        sx={{ px: 2, py: 1.5, alignItems: 'center', flexWrap: 'wrap' }}
+        sx={{ pt: 1, px: 0.5, alignItems: 'center', flexWrap: 'wrap' }}
       >
         <Typography variant="body2" color="text.secondary">
           {copy.byStatus} ({total})
@@ -320,7 +457,55 @@ function Summary({
           ))}
         </Stack>
       </Stack>
-    </Paper>
+    </Box>
+  );
+}
+
+const rowSx = {
+  px: 2,
+  py: { xs: 1.5, md: 1 },
+  borderTop: 1,
+  borderColor: 'divider',
+  transition: 'background-color 160ms',
+  '&:hover': { bgcolor: 'action.hover' },
+} as const;
+
+function JobRow({
+  job,
+  children,
+  aside,
+  sx,
+}: {
+  job: Opportunity;
+  children: ReactNode;
+  // Actions: beside the text from md up, below it on smaller screens.
+  aside?: ReactNode;
+  sx?: object;
+}) {
+  return (
+    <Stack
+      component="li"
+      direction="row"
+      spacing={1.5}
+      sx={{ ...rowSx, ...sx }}
+    >
+      <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+        <IconBadge tone="primary" size={32}>
+          <WorkIcon />
+        </IconBadge>
+      </Box>
+      <Stack
+        direction={{ xs: 'column', md: 'row' }}
+        spacing={{ xs: 0.75, md: 2 }}
+        sx={{ minWidth: 0, flex: 1, alignItems: { md: 'center' } }}
+      >
+        <Stack spacing={0.25} sx={{ minWidth: 0, flex: 1 }}>
+          <JobTitle job={job} />
+          {children}
+        </Stack>
+        {aside}
+      </Stack>
+    </Stack>
   );
 }
 
@@ -419,8 +604,12 @@ function FollowUps({
   const actions = (job: Opportunity, variant: 'outlined' | 'text') => (
     <Stack
       direction="row"
-      spacing={1}
-      sx={{ flexShrink: 0, width: { xs: '100%', sm: 'auto' } }}
+      spacing={0.5}
+      sx={{
+        flexShrink: 0,
+        width: { xs: '100%', md: 'auto' },
+        '& .MuiButton-root': { px: 1.25 },
+      }}
     >
       <Button
         size="small"
@@ -453,78 +642,67 @@ function FollowUps({
       to={`/jobs/${job.id}/application`}
       size="small"
       aria-label={copy.openApplicationFor(job.title)}
-      sx={{ flexShrink: 0, ml: 'auto' }}
+      sx={{ flexShrink: 0, ml: { xs: 'auto', md: 0 } }}
     >
       {copy.openApplication}
     </Button>
   );
   return (
-    <Panel id="follow-ups-heading" title={copy.followUps}>
+    <Panel
+      id="follow-ups-heading"
+      title={copy.followUps}
+      icon={<FlagIcon />}
+      step={4}
+      badge={
+        due.length > 0 && (
+          <Chip
+            size="small"
+            label={copy.dueCount(due.length)}
+            color={
+              due.some(({ label }) => label === 'Overdue') ? 'error' : 'warning'
+            }
+            variant="outlined"
+          />
+        )
+      }
+    >
       {!first ? (
         <Typography color="text.secondary" sx={{ px: 2, pb: 2 }}>
           {copy.followUpsEmpty}
         </Typography>
       ) : (
         <>
-          {/* The oldest follow-up is the one to act on now. */}
-          <Stack
-            spacing={1.5}
-            sx={{
-              mx: 2,
-              mb: 1,
-              p: 2,
-              borderRadius: 1,
-              bgcolor: 'action.hover',
-            }}
+          <Box
+            component="ul"
+            id="more-follow-ups"
+            sx={{ m: 0, p: 0, listStyle: 'none' }}
           >
-            <JobTitle job={first.job} />
-            <Stack
-              direction={{ xs: 'column', sm: 'row' }}
-              spacing={1}
-              sx={{
-                alignItems: { xs: 'stretch', sm: 'center' },
-                justifyContent: 'space-between',
-              }}
-            >
-              <FollowUpDate
-                label={first.label}
-                date={first.job.followUpDate!}
-              />
-              {actions(first.job, 'outlined')}
-            </Stack>
-          </Stack>
-          {shown.length > 0 && (
-            <Box
-              component="ul"
-              id="more-follow-ups"
-              sx={{ m: 0, px: 0, pb: 0, pt: 0, listStyle: 'none' }}
-            >
-              {shown.map(({ job, label }) => (
-                <Stack
-                  component="li"
-                  key={job.id}
-                  spacing={0.5}
-                  sx={{ px: 2, py: 1, borderTop: 1, borderColor: 'divider' }}
-                >
-                  {/* Title and company get the full row; date and action sit below. */}
-                  <JobTitle job={job} />
-                  <Stack
-                    direction="row"
-                    useFlexGap
-                    sx={{
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      flexWrap: 'wrap',
-                      columnGap: 1,
-                    }}
-                  >
-                    <FollowUpDate label={label} date={job.followUpDate!} />
-                    {actions(job, 'text')}
-                  </Stack>
-                </Stack>
-              ))}
-            </Box>
-          )}
+            {[first, ...shown].map(({ job, label }, index) => (
+              <JobRow
+                key={job.id}
+                job={job}
+                aside={actions(job, index === 0 ? 'outlined' : 'text')}
+                // The oldest follow-up is the one to act on now.
+                sx={
+                  index === 0
+                    ? {
+                        boxShadow: (theme: Theme) =>
+                          `inset 3px 0 0 ${theme.palette[label === 'Overdue' ? 'error' : 'warning'].main}`,
+                        bgcolor: (theme: Theme) =>
+                          alpha(
+                            theme.palette[
+                              label === 'Overdue' ? 'error' : 'warning'
+                            ].main,
+                            0.05,
+                          ),
+                      }
+                    : undefined
+                }
+              >
+                <FollowUpDate label={label} date={job.followUpDate!} />
+              </JobRow>
+            ))}
+          </Box>
           {rest.length > FOLLOW_UP_PREVIEW - 1 && (
             <Box sx={{ px: 1, py: 0.5, borderTop: 1, borderColor: 'divider' }}>
               <Button
@@ -554,8 +732,15 @@ function Continue({
     <Panel
       id="continue-heading"
       title={copy.continueTitle}
+      icon={<PlayCircleIcon />}
+      step={5}
       action={
-        <Button component={Link} to="/jobs" size="small">
+        <Button
+          component={Link}
+          to="/jobs"
+          size="small"
+          endIcon={<ArrowForwardIcon />}
+        >
           {copy.viewAll}
         </Button>
       }
@@ -563,7 +748,7 @@ function Continue({
       {items === 'loading' ? (
         <Stack spacing={1} sx={{ px: 2, pb: 2 }} aria-busy="true">
           {[0, 1, 2].map((row) => (
-            <Skeleton key={row} variant="rounded" height={88} />
+            <Skeleton key={row} variant="rounded" height={84} />
           ))}
         </Stack>
       ) : items === 'error' ? (
@@ -591,25 +776,31 @@ function Continue({
       ) : (
         <Box component="ul" sx={{ m: 0, p: 0, listStyle: 'none' }}>
           {items.map(({ job, action }) => (
-            <Stack
-              component="li"
+            <JobRow
               key={job.id}
-              spacing={0.5}
-              sx={{ px: 2, py: 1.5, borderTop: 1, borderColor: 'divider' }}
+              job={job}
+              aside={
+                <Button
+                  component={Link}
+                  // Same destination as the job Overview's next step.
+                  to={`/jobs/${job.id}/${action.to}`}
+                  size="small"
+                  variant="outlined"
+                  endIcon={<ArrowForwardIcon />}
+                  aria-label={copy.actionFor(action.label, job.title)}
+                  sx={{
+                    alignSelf: { xs: 'flex-start', md: 'center' },
+                    flexShrink: 0,
+                  }}
+                >
+                  {action.label}
+                </Button>
+              }
             >
-              <JobTitle job={job} />
-              <Typography variant="body2">{action.text}</Typography>
-              <Button
-                component={Link}
-                // Same destination as the job Overview's next step.
-                to={`/jobs/${job.id}/${action.to}`}
-                size="small"
-                aria-label={copy.actionFor(action.label, job.title)}
-                sx={{ alignSelf: 'flex-start', ml: -1 }}
-              >
-                {action.label}
-              </Button>
-            </Stack>
+              <Typography variant="body2" color="text.secondary">
+                {action.text}
+              </Typography>
+            </JobRow>
           ))}
         </Box>
       )}
@@ -659,8 +850,14 @@ export function Home() {
   const sections = rows && homeSections(rows, today);
   const known = progress && progress !== 'error' ? progress : null;
   const cvGuide = known && cvStep(known);
+  const cvNotice = cvGuide && {
+    title: known.cv.saved ? copy.cvReviewTitle : copy.cvTitle,
+    body: known.cv.saved ? copy.cvReviewBody : copy.cvBody,
+    action: known.cv.saved ? copy.cvReviewAction : copy.cvAction,
+  };
+  const loaded = sections && rows.length > 0;
   return (
-    <Stack spacing={3} sx={{ minWidth: 0 }}>
+    <Stack spacing={{ xs: 3, md: 2 }} sx={{ minWidth: 0 }}>
       <PageHeader
         title={copy.title}
         description={copy.description}
@@ -675,17 +872,17 @@ export function Home() {
           </Button>
         }
       />
-      {cvGuide && (
+      {/* With jobs loaded the CV step moves into the side column. */}
+      {cvNotice && !loaded && (
         <Alert
           severity="info"
           action={
             <Button component={Link} to="/cv" color="inherit" size="small">
-              {known.cv.saved ? copy.cvReviewAction : copy.cvAction}
+              {cvNotice.action}
             </Button>
           }
         >
-          <strong>{known.cv.saved ? copy.cvReviewTitle : copy.cvTitle}.</strong>{' '}
-          {known.cv.saved ? copy.cvReviewBody : copy.cvBody}
+          <strong>{cvNotice.title}.</strong> {cvNotice.body}
         </Alert>
       )}
       {error ? (
@@ -713,56 +910,136 @@ export function Home() {
           aria-busy="true"
           aria-label={tr('Loading dashboard')}
         >
-          <Skeleton variant="rounded" height={140} />
+          {/* Same footprint as the loaded page, so nothing jumps on arrival. */}
+          <Skeleton variant="rounded" height={80} />
+          <Box
+            sx={{
+              display: 'grid',
+              gap: 2,
+              gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' },
+            }}
+          >
+            {[0, 1, 2, 3].map((cell) => (
+              <Skeleton key={cell} variant="rounded" height={84} />
+            ))}
+          </Box>
           <Box sx={layout}>
-            <Skeleton variant="rounded" height={240} />
-            <Skeleton variant="rounded" height={240} />
+            <Skeleton variant="rounded" height={280} />
+            <Skeleton variant="rounded" height={280} />
           </Box>
         </Stack>
       ) : rows.length === 0 ? (
-        <Paper variant="outlined" component="section" sx={{ p: 3 }}>
-          <Typography component="h2" variant="h6">
+        <Paper
+          variant="outlined"
+          component="section"
+          sx={{
+            ...card,
+            ...enter(0),
+            p: { xs: 3, sm: 5 },
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+          }}
+        >
+          <IconBadge tone="primary" size={56}>
+            <WorkIcon />
+          </IconBadge>
+          <Typography component="h2" variant="h6" sx={{ mt: 2 }}>
             {copy.emptyTitle}
           </Typography>
-          <Typography color="text.secondary" sx={{ mt: 0.5, mb: 2 }}>
+          <Typography color="text.secondary" sx={{ mt: 0.5, mb: 2.5 }}>
             {copy.emptyBody}
           </Typography>
-          <Button
-            startIcon={<ExploreIcon />}
-            component={Link}
-            to="/discover"
-            variant="outlined"
-          >
-            {copy.discover}
-          </Button>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+            <Button
+              startIcon={<AddIcon />}
+              component={Link}
+              to="/jobs/new"
+              variant="contained"
+            >
+              {copy.addJob}
+            </Button>
+            <Button
+              startIcon={<ExploreIcon />}
+              component={Link}
+              to="/discover"
+              variant="outlined"
+            >
+              {copy.discover}
+            </Button>
+          </Stack>
         </Paper>
       ) : (
         <>
+          <Welcome total={rows.length} due={sections.due.length} />
           <Summary sections={sections} total={rows.length} />
           <Box sx={layout}>
-            <FollowUps
-              due={sections.due}
-              onResolved={(row) =>
-                setRows(
-                  (current) =>
-                    current?.map((item) => (item.id === row.id ? row : item)) ??
-                    current,
-                )
-              }
-            />
-            <Continue
-              items={
-                progress === undefined
-                  ? 'loading'
-                  : progress === 'error'
-                    ? 'error'
-                    : continueItems(rows, progress, today)
-              }
-              onRetry={() => {
-                setProgress(undefined);
-                setProgressAttempt((value) => value + 1);
-              }}
-            />
+            <Stack spacing={2} sx={{ minWidth: 0 }}>
+              <FollowUps
+                due={sections.due}
+                onResolved={(row) =>
+                  setRows(
+                    (current) =>
+                      current?.map((item) =>
+                        item.id === row.id ? row : item,
+                      ) ?? current,
+                  )
+                }
+              />
+              <Continue
+                items={
+                  progress === undefined
+                    ? 'loading'
+                    : progress === 'error'
+                      ? 'error'
+                      : continueItems(rows, progress, today)
+                }
+                onRetry={() => {
+                  setProgress(undefined);
+                  setProgressAttempt((value) => value + 1);
+                }}
+              />
+            </Stack>
+            <Stack spacing={2} sx={{ minWidth: 0 }}>
+              {cvNotice && (
+                <Paper
+                  component="section"
+                  variant="outlined"
+                  aria-labelledby="cv-step-heading"
+                  sx={{ ...card, ...enter(4), p: 2.5 }}
+                >
+                  <Stack direction="row" spacing={1.5}>
+                    <IconBadge tone="primary">
+                      <DescriptionIcon />
+                    </IconBadge>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography
+                        id="cv-step-heading"
+                        component="h2"
+                        variant="h6"
+                      >
+                        {cvNotice.title}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {cvNotice.body}
+                      </Typography>
+                      <Button
+                        component={Link}
+                        to="/cv"
+                        variant="outlined"
+                        size="small"
+                        endIcon={<ArrowForwardIcon />}
+                        sx={{ mt: 1.5 }}
+                      >
+                        {cvNotice.action}
+                      </Button>
+                    </Box>
+                  </Stack>
+                </Paper>
+              )}
+              <QuickActions />
+            </Stack>
           </Box>
         </>
       )}
@@ -772,7 +1049,131 @@ export function Home() {
 
 const layout = {
   display: 'grid',
-  gap: 3,
+  gap: { xs: 3, md: 2 },
   alignItems: 'start',
-  gridTemplateColumns: { xs: '1fr', md: '3fr 2fr' },
+  gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' },
 } as const;
+
+function Welcome({ total, due }: { total: number; due: number }) {
+  return (
+    <Box
+      component="section"
+      aria-labelledby="welcome-heading"
+      sx={{
+        ...enter(0),
+        position: 'relative',
+        overflow: 'hidden',
+        borderRadius: `${surface.radius}px`,
+        px: { xs: 2.5, sm: 4 },
+        py: { xs: 2.5, md: 2 },
+        color: 'primary.contrastText',
+        background: (theme: Theme) =>
+          `linear-gradient(120deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main} 55%, ${alpha(theme.palette.primary.main, 0.75)})`,
+      }}
+    >
+      {/* Decorative glyph standing in for the mockup illustration. */}
+      <Box
+        aria-hidden
+        sx={{
+          position: 'absolute',
+          right: { xs: -16, sm: 32 },
+          top: '50%',
+          transform: 'translateY(-50%) rotate(-8deg)',
+          opacity: 0.18,
+          display: 'flex',
+          '& svg': { fontSize: { xs: 96, md: 88 } },
+        }}
+      >
+        <WorkIcon />
+      </Box>
+      <Typography
+        id="welcome-heading"
+        component="h2"
+        variant="h5"
+        sx={{ position: 'relative', fontWeight: 600, fontSize: '1.375rem' }}
+      >
+        {copy.welcome}
+      </Typography>
+      <Typography
+        sx={{ mt: 0.5, opacity: 0.92, position: 'relative', maxWidth: '60ch' }}
+      >
+        {copy.tracking(total)}{' '}
+        {due > 0 ? copy.needAttention(due) : copy.allClear()}
+      </Typography>
+    </Box>
+  );
+}
+
+function QuickActions() {
+  const items = [
+    {
+      to: '/discover',
+      label: copy.discover,
+      hint: copy.discoverHint,
+      icon: <ExploreIcon />,
+    },
+    {
+      to: '/cv',
+      label: copy.myCv,
+      hint: copy.cvHint,
+      icon: <DescriptionIcon />,
+    },
+    {
+      to: '/interview-prep',
+      label: copy.interviewPractice,
+      hint: copy.interviewHint,
+      icon: <ForumIcon />,
+    },
+  ];
+  return (
+    <Panel
+      id="quick-actions-heading"
+      title={copy.quickActions}
+      icon={<BoltIcon />}
+      step={5}
+    >
+      <Box component="ul" sx={{ m: 0, p: 0, listStyle: 'none' }}>
+        {items.map(({ to, label, hint, icon }) => (
+          <li key={to}>
+            <Box
+              component={Link}
+              to={to}
+              sx={{
+                ...rowSx,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+                color: 'text.primary',
+                textDecoration: 'none',
+                '& .arrow': { transition: 'transform 160ms' },
+                '&:hover .arrow': { transform: 'translateX(3px)' },
+                '&:focus-visible': {
+                  outline: (theme: Theme) =>
+                    `2px solid ${theme.palette.primary.main}`,
+                  outlineOffset: -2,
+                },
+              }}
+            >
+              <IconBadge tone="primary" size={36}>
+                {icon}
+              </IconBadge>
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  {label}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {hint}
+                </Typography>
+              </Box>
+              <ArrowForwardIcon
+                className="arrow"
+                fontSize="small"
+                color="action"
+              />
+            </Box>
+          </li>
+        ))}
+      </Box>
+    </Panel>
+  );
+}
