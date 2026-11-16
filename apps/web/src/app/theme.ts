@@ -6,6 +6,9 @@ export const surface = {
   radius: 8,
   controlRadius: 6,
   controlBorder: '#c9cac3',
+  // Panel outline: a step darker than divider so white panels read clearly on
+  // the tinted page without shadows.
+  panelBorder: '#dcdcd5',
 } as const;
 
 // Ledger: neutral surfaces and one ink-blue accent. Status colors keep MUI's
@@ -13,7 +16,7 @@ export const surface = {
 export const theme = createTheme({
   palette: {
     primary: { main: '#2f5bd3', dark: '#2447a8', contrastText: '#ffffff' },
-    background: { default: '#f6f6f3', paper: '#ffffff' },
+    background: { default: '#f0f0eb', paper: '#ffffff' },
     text: { primary: '#16181d', secondary: '#575c69' },
     divider: '#e3e3dd',
     action: { hover: '#f0f0ec', selected: '#eceef3' },
@@ -108,7 +111,12 @@ export const theme = createTheme({
     },
     MuiPaper: {
       styleOverrides: {
-        outlined: { borderRadius: surface.radius },
+        outlined: ({ theme }) => ({
+          borderRadius: surface.radius,
+          borderColor: surface.panelBorder,
+          // Panels nested inside a panel keep the lighter divider outline.
+          '& .MuiPaper-outlined': { borderColor: theme.palette.divider },
+        }),
       },
     },
     // Compact form controls everywhere: 40px single-line fields from sm up,

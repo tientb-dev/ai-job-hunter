@@ -140,8 +140,13 @@ export function App() {
         component="aside"
         sx={{
           display: { xs: 'none', md: 'flex' },
-          minHeight: bounded ? 0 : undefined,
-          overflowY: bounded ? 'auto' : undefined,
+          // Stays in view while the document scrolls; long navigation scrolls itself.
+          position: 'sticky',
+          top: 0,
+          alignSelf: 'start',
+          height: '100dvh',
+          overflowY: 'auto',
+          overscrollBehavior: 'contain',
           bgcolor: 'background.paper',
           borderRight: 1,
           borderColor: 'divider',
