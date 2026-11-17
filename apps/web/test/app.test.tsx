@@ -143,9 +143,10 @@ test('keeps CV review accessible and discovery off the inbox', async () => {
   expect(
     screen.queryByRole('button', { name: 'Use CV to find jobs' }),
   ).not.toBeInTheDocument();
-  await userEvent
-    .setup()
-    .click(screen.getByRole('link', { name: 'Quick CV and job analysis' }));
+});
+
+test('the quick CV analysis stays reachable at /cv/analyze', () => {
+  show('/cv/analyze');
   expect(
     screen.getByRole('heading', { name: 'Quick CV and job analysis' }),
   ).toBeInTheDocument();
