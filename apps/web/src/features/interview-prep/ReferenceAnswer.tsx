@@ -227,48 +227,23 @@ export function UnsavedAnswerDialog({
   );
 }
 
-/** One numbered step of the Prepare → Save → Practice flow. */
+/** One section of the answer workspace (Prepare, Save or Practice). */
 export function Step({
-  n,
   id,
   title,
   intro,
   children,
 }: {
-  n: number;
   id: string;
   title: string;
   intro: string;
   children: ReactNode;
 }) {
+  // Steps render flat inside the shared answer workspace card (InterviewPrep).
   return (
-    <Paper
-      variant="outlined"
-      component="section"
-      aria-labelledby={id}
-      sx={{ p: { xs: 2, sm: 3 } }}
-    >
+    <Box component="section" aria-labelledby={id}>
       <Stack spacing={2}>
         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'flex-start' }}>
-          <Box
-            aria-hidden="true"
-            sx={{
-              flexShrink: 0,
-              width: 28,
-              height: 28,
-              mt: 0.25,
-              borderRadius: '50%',
-              display: 'grid',
-              placeItems: 'center',
-              fontSize: 14,
-              fontWeight: 600,
-              color: 'primary.main',
-              border: 1,
-              borderColor: 'primary.main',
-            }}
-          >
-            {n}
-          </Box>
           <Box sx={{ minWidth: 0 }}>
             <Typography
               id={id}
@@ -277,9 +252,6 @@ export function Step({
               tabIndex={-1}
               sx={{ '&:focus': { outline: 'none' }, scrollMarginTop: 16 }}
             >
-              <Box component="span" sx={{ position: 'absolute', left: -9999 }}>
-                {tr('Step {n}: ', { n: n })}
-              </Box>
               {title}
             </Typography>
             <Typography variant="body2" color="text.secondary">
@@ -289,7 +261,7 @@ export function Step({
         </Stack>
         {children}
       </Stack>
-    </Paper>
+    </Box>
   );
 }
 
@@ -368,19 +340,22 @@ export function ReferenceAnswer(props: {
     );
   else if (!saved)
     body = (
-      <Stack spacing={1.5} sx={{ alignItems: 'flex-start' }}>
-        <Typography color="text.secondary">
-          {tr(
-            'Start from your own words or the AI suggestion. Nothing is saved until you choose Save.',
-          )}
-        </Typography>
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={1.5}
+        sx={{ alignItems: { sm: 'center' } }}
+      >
         <Button
           startIcon={<CheckIcon />}
           variant="contained"
           onClick={props.onFinalize}
+          sx={{ alignSelf: 'flex-start', flexShrink: 0 }}
         >
           {tr('Finalize answer')}
         </Button>
+        <Typography variant="body2" color="text.secondary">
+          {tr('Nothing is saved until you choose Save.')}
+        </Typography>
       </Stack>
     );
   else
@@ -420,94 +395,108 @@ export function ReferenceAnswer(props: {
         />
       </Stack>
     );
+  const notice = props.notice && (
+    <Alert severity="info" role="status">
+      {props.notice}
+    </Alert>
+  );
   return (
     <>
-      <Step
-        n={2}
-        id="reference-answer"
-        title={tr('Save your reference answer')}
-        intro={tr('Keep a version you feel comfortable saying.')}
-      >
-        {props.notice && (
-          <Alert severity="info" role="status">
-            {props.notice}
-          </Alert>
-        )}
-        {body}
-      </Step>
-      <Step
-        n={3}
-        id="speaking-practice"
-        title={tr('Practice speaking')}
-        intro={tr('Read along first, then try without looking.')}
-      >
-        {practising ? (
-          <Stack spacing={2}>
-            <ToggleButtonGroup
-              exclusive
-              value={props.view}
-              onChange={(_e, v: PracticeView | null) => v && props.onView(v)}
-              aria-label={tr('Practice mode')}
-              sx={{ flexWrap: 'wrap' }}
-            >
-              <ToggleButton
-                value="read"
-                sx={{ textTransform: 'none', minHeight: 44 }}
+      {/* Unsaved: only the Finalize row, closing the Prepare workspace. */}
+      {status === 'ready' && !saved && !editor ? (
+        <Box
+          component="section"
+          id="reference-answer"
+          aria-label={tr('Save your reference answer')}
+          sx={{ scrollMarginTop: 16 }}
+        >
+          <Stack spacing={1.5}>
+            {notice}
+            {body}
+          </Stack>
+        </Box>
+      ) : (
+        <Step
+          id="reference-answer"
+          title={tr('Save your reference answer')}
+          intro={tr('Keep a version you feel comfortable saying.')}
+        >
+          {notice}
+          {body}
+        </Step>
+      )}
+      {/* Speaking practice appears once an answer is saved (or saved answers failed to load). */}
+      {status === 'ready' && !practising ? null : (
+        <Step
+          id="speaking-practice"
+          title={tr('Practice speaking')}
+          intro={tr('Read along first, then try without looking.')}
+        >
+          {practising ? (
+            <Stack spacing={2}>
+              <ToggleButtonGroup
+                exclusive
+                value={props.view}
+                onChange={(_e, v: PracticeView | null) => v && props.onView(v)}
+                aria-label={tr('Practice mode')}
+                sx={{ flexWrap: 'wrap' }}
               >
-                {tr('Read Along')}
-              </ToggleButton>
-              <ToggleButton
-                value="free"
-                sx={{ textTransform: 'none', minHeight: 44 }}
-              >
-                {tr('Speak Freely')}
-              </ToggleButton>
-            </ToggleButtonGroup>
-            {props.view === 'read' || props.revealed ? (
-              <Paper variant="outlined" sx={{ p: 2, bgcolor: 'action.hover' }}>
-                <Typography sx={pre} lang="en">
-                  {saved.answer}
+                <ToggleButton
+                  value="read"
+                  sx={{ textTransform: 'none', minHeight: 44 }}
+                >
+                  {tr('Read Along')}
+                </ToggleButton>
+                <ToggleButton
+                  value="free"
+                  sx={{ textTransform: 'none', minHeight: 44 }}
+                >
+                  {tr('Speak Freely')}
+                </ToggleButton>
+              </ToggleButtonGroup>
+              {props.view === 'read' || props.revealed ? (
+                <Paper
+                  variant="outlined"
+                  sx={{ p: 2, bgcolor: 'action.hover' }}
+                >
+                  <Typography sx={pre} lang="en">
+                    {saved.answer}
+                  </Typography>
+                </Paper>
+              ) : (
+                <Typography color="text.secondary">
+                  {tr(
+                    'Your answer is hidden. Say it in your own words — paraphrasing is fine.',
+                  )}
                 </Typography>
-              </Paper>
-            ) : (
+              )}
+              {props.view === 'free' && (
+                <Box>
+                  <Button
+                    variant="text"
+                    onClick={props.onReveal}
+                    aria-expanded={props.revealed}
+                  >
+                    {props.revealed ? tr('Hide answer') : tr('Show answer')}
+                  </Button>
+                </Box>
+              )}
+              {props.recorder}
+            </Stack>
+          ) : status === 'error' ? (
+            // PR16: speaking needs only the question, never the saved-answer list.
+            // No saved text is shown, so nothing stale can appear.
+            <Stack spacing={2}>
               <Typography color="text.secondary">
                 {tr(
-                  'Your answer is hidden. Say it in your own words — paraphrasing is fine.',
+                  'Read Along is unavailable until your saved answers load. You can still record, transcribe or type your answer, and get AI feedback.',
                 )}
               </Typography>
-            )}
-            {props.view === 'free' && (
-              <Box>
-                <Button
-                  variant="text"
-                  onClick={props.onReveal}
-                  aria-expanded={props.revealed}
-                >
-                  {props.revealed ? tr('Hide answer') : tr('Show answer')}
-                </Button>
-              </Box>
-            )}
-            {props.recorder}
-          </Stack>
-        ) : status === 'error' ? (
-          // PR16: speaking needs only the question, never the saved-answer list.
-          // No saved text is shown, so nothing stale can appear.
-          <Stack spacing={2}>
-            <Typography color="text.secondary">
-              {tr(
-                'Read Along is unavailable until your saved answers load. You can still record, transcribe or type your answer, and get AI feedback.',
-              )}
-            </Typography>
-            {props.recorder}
-          </Stack>
-        ) : (
-          <Typography color="text.secondary">
-            {tr(
-              'Saving a reference answer unlocks Read Along and Speak Freely. You can already try speaking in step 1.',
-            )}
-          </Typography>
-        )}
-      </Step>
+              {props.recorder}
+            </Stack>
+          ) : null}
+        </Step>
+      )}
     </>
   );
 }
