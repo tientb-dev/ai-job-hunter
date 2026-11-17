@@ -1,3 +1,4 @@
+import { reviewedAsIs } from '../support/reviewed-cv.stub.js';
 import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js';
 import 'reflect-metadata';
 import { memoryMatchRows } from '../support/memory-match-rows.js';
@@ -138,6 +139,7 @@ function setup(
     new MatchingService(),
     { get: async () => job } as unknown as OpportunitiesService,
     memoryMatchRows(),
+    reviewedAsIs(),
   );
   return { job, service, prompts, saved: () => ({ ...saved }) };
 }

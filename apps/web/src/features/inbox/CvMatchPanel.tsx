@@ -126,8 +126,11 @@ function JobMatchPanel({
             // never existed (or has no CV) is "not analyzed", not outdated.
             rejected={
               contextRejected &&
-              !['MISSING', 'CV_UNAVAILABLE'].includes(match.matchStatus)
+              !['MISSING', 'CV_UNAVAILABLE', 'CV_REVIEW_REQUIRED'].includes(
+                match.matchStatus,
+              )
             }
+            reviewRequired={match.matchStatus === 'CV_REVIEW_REQUIRED'}
             onBusyChange={setSuggesting}
             onGoToMatch={() => onGoToMatch?.()}
             onInvalidContext={rejectContext}

@@ -1,3 +1,4 @@
+import { reviewedAsIs } from '../support/reviewed-cv.stub.js';
 import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js';
 import 'reflect-metadata';
 import { afterEach, describe, expect, jest, test } from '@jest/globals';
@@ -73,6 +74,7 @@ function run(
     new MatchingService(),
     { get: jest.fn(async () => job) } as unknown as OpportunitiesService,
     memoryMatchRows(),
+    reviewedAsIs(),
     { provider } as AiConfig,
   );
 }

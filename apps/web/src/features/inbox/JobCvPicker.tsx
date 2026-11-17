@@ -9,9 +9,12 @@ export function JobCvPicker({
   disabled,
   emptyLabel = tr('Save CV'),
   inputLabel = tr('Save CV for matching'),
+  onUploaded,
 }: {
   match: Pick<CvMatchState, 'cv' | 'cvs' | 'select' | 'upload'>;
   disabled: boolean;
+  /** Job Detail: opens the new CV's Source CV Review. */
+  onUploaded?: (cvId: string) => void;
   /** Button text before any CV exists. */
   emptyLabel?: string;
   inputLabel?: string;
@@ -65,7 +68,7 @@ export function JobCvPicker({
           onChange={(event) => {
             const file = event.target.files?.[0];
             event.target.value = '';
-            if (file) void upload(file);
+            if (file) void upload(file).then((id) => id && onUploaded?.(id));
           }}
         />
       </Button>

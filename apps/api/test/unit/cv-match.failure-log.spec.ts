@@ -1,3 +1,4 @@
+import { reviewedAsIs } from '../support/reviewed-cv.stub.js';
 import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js';
 import 'reflect-metadata';
 import { afterEach, describe, expect, jest, test } from '@jest/globals';
@@ -112,6 +113,7 @@ function setup(
     new MatchingService(),
     { get } as unknown as OpportunitiesService,
     matchRows as Repository<CvMatchRecord>,
+    reviewedAsIs(),
     { provider: options.provider ?? 'gemini' } as AiConfig,
   );
 }

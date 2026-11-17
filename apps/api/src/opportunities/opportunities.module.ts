@@ -9,6 +9,7 @@ import { JobMatchService } from '../matching/job-match.service.js';
 import { AiModule } from '../ai/ai.module.js';
 import { JobImportService } from './job-import.service.js';
 import { Module } from '@nestjs/common';
+import { ReviewedCvModule } from '../reviewed-cv/reviewed-cv.module.js';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Opportunity } from './opportunity.entity.js';
 import { OpportunitiesService } from './opportunities.service.js';
@@ -18,6 +19,7 @@ import { OpportunitiesController } from './opportunities.controller.js';
     AiModule,
     ExtractionModule,
     MatchingModule,
+    ReviewedCvModule,
     TypeOrmModule.forFeature([Opportunity, SavedCv, CvMatchRecord]),
   ],
   providers: [

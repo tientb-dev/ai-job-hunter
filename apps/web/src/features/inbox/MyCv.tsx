@@ -34,7 +34,7 @@ import {
   SvgIcon,
   Typography,
 } from '@mui/material';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { PageHeader } from '../../components/PageHeader';
 import { importUpload, opportunityRequest } from './opportunities-api';
 import { sourceCvRequest } from './source-cv-review.contract';
@@ -98,6 +98,7 @@ function CvChips({
 
 export function MyCv() {
   const notify = useNotify();
+  const navigate = useNavigate();
   const [cvs, setCvs] = useState<SavedCv[]>([]);
   const [selectedId, setSelectedId] = useState('');
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -160,7 +161,14 @@ export function MyCv() {
       setRenaming(null);
       setCvs((rows) => [...rows, next]);
       setSelectedId(next.id);
-      notify({ severity: 'success', text: tr('CV saved.') });
+      notify({
+        severity: 'success',
+        text: tr(
+          'CV saved. Review it next; CV Match needs a completed review.',
+        ),
+      });
+      // Source CV Review is the mandatory next step for every new CV.
+      navigate(`/cv/${next.id}/review`);
     } catch (failure) {
       notify({
         severity: 'error',
@@ -217,9 +225,9 @@ export function MyCv() {
     <Stack spacing={3} sx={{ minWidth: 0 }}>
       <PageHeader
         title={tr('My CV')}
-        description={tr(
+        description={`${tr(
           'Manage your CVs and choose the default used for new jobs.',
-        )}
+        )} ${tr('Each new CV opens Source CV Review, required once before CV Match.')}`}
         actions={
           loaded && (
             <Button

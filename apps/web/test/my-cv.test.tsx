@@ -84,9 +84,13 @@ function mount(
     throw Error(`Unexpected request: ${url}`);
   });
   vi.stubGlobal('fetch', fetch);
-  const router = createMemoryRouter([{ path: '/cv', element: <MyCv /> }], {
-    initialEntries: ['/cv'],
-  });
+  const router = createMemoryRouter(
+    [
+      { path: '/cv', element: <MyCv /> },
+      { path: '/cv/:cvId/review', element: <p>Synthetic review page</p> },
+    ],
+    { initialEntries: ['/cv'] },
+  );
   const app = (
     <ThemeProvider theme={theme}>
       <RouterProvider router={router} />
@@ -175,7 +179,7 @@ test('a fully reviewed CV reads as reviewed', async () => {
   ).not.toBeInTheDocument();
 });
 
-test('adding a CV shows it without replacing the default and never touches tailored drafts', async () => {
+test('adding a CV opens its mandatory review without replacing the default or touching drafts', async () => {
   const { fetch } = mount(savedCv);
   await screen.findByText(/sections reviewed/);
   await userEvent.setup().upload(
@@ -184,8 +188,15 @@ test('adding a CV shows it without replacing the default and never touches tailo
       type: 'application/pdf',
     }),
   );
-  expect(await screen.findAllByText('added-cv.pdf')).not.toHaveLength(0);
-  expect(screen.getByRole('button', { name: 'Make default' })).toBeVisible();
+  // Source CV Review is the next step for every new CV.
+  expect(await screen.findByText('Synthetic review page')).toBeVisible();
+  expect(
+    fetch.mock.calls.some(
+      ([url, init]) =>
+        String(url).includes('/cv/') &&
+        (init as RequestInit | undefined)?.method === 'PATCH',
+    ),
+  ).toBe(false);
   expect(
     fetch.mock.calls.some(
       ([url, init]) =>

@@ -43,6 +43,8 @@ export function useCvMatch(
   const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState('');
   const [result, setResult] = useState<MatchResult | null>(null);
+  /** CV whose Source CV Review must be completed before matching. */
+  const [reviewCvId, setReviewCvId] = useState('');
   const [source, setSource] = useState({ jobId, revision });
   if (source.jobId !== jobId || source.revision !== revision) {
     setSource({ jobId, revision });
@@ -128,6 +130,15 @@ export function useCvMatch(
           typeof value.status === 'string' &&
           Object.hasOwn(matchStatusMessages, value.status)
         ) {
+          if (value.status === 'CV_REVIEW_REQUIRED') {
+            if (
+              !('cvId' in value) ||
+              typeof value.cvId !== 'string' ||
+              !/^[0-9a-f-]{36}$/iu.test(value.cvId)
+            )
+              throw Error();
+            setReviewCvId(value.cvId);
+          }
           setMatchStatus(value.status);
           setContextRejected(true);
         } else throw Error();
@@ -155,7 +166,8 @@ export function useCvMatch(
     if (showChecking) setMatchStatus('CHECKING');
     setMatchReload((n) => n + 1);
   }, []);
-  async function upload(file: File) {
+  /** Saves a CV for this job; resolves to its id so the caller can open its review. */
+  async function upload(file: File): Promise<string | null> {
     const request = ++generation.current;
     setAttempt((value) => value + 1);
     setBusy(true);
@@ -174,7 +186,10 @@ export function useCvMatch(
         setCvs((list) => [...list, added]);
         setCv(saved);
         setResult(null);
-        setMatchStatus('STALE_CV');
+        // A new CV always starts with its Source CV Review.
+        setReviewCvId(added.id);
+        setMatchStatus('CV_REVIEW_REQUIRED');
+        return added.id;
       }
     } catch (error) {
       if (request === generation.current)
@@ -184,6 +199,7 @@ export function useCvMatch(
     } finally {
       if (request === generation.current) setBusy(false);
     }
+    return null;
   }
   /** Uses another saved CV for this job; the saved match is rechecked, never re-run. */
   async function select(cvId: string) {
@@ -272,6 +288,7 @@ export function useCvMatch(
     }
   }
   return {
+    jobId,
     cv,
     cvs,
     cvLoaded,
@@ -279,6 +296,7 @@ export function useCvMatch(
     error,
     result,
     matchStatus,
+    reviewCvId,
     matchReadError,
     /** Increments on each upload/analysis attempt (P7 suggestion reset key). */
     attempt,
@@ -316,8 +334,21 @@ export const matchStatusMessages: Record<string, string> = {
       'Save a source CV before analyzing CV Match. Existing drafts can still be resumed.',
     );
   },
+  get CV_REVIEW_REQUIRED() {
+    return tr(
+      'Review this CV before matching. CV Match uses only the details you confirm in Source CV Review; saved review progress is kept.',
+    );
+  },
 };
+/** Opens the review of the job's CV and returns to this job's Match tab. */
+export const reviewHref = (cvId: string, jobId: string) =>
+  `/cv/${cvId}/review?returnTo=${encodeURIComponent(`/jobs/${jobId}/match`)}`;
 const analyzeErrors: Record<string, string> = {
+  get CV_MATCH_REVIEW_REQUIRED() {
+    return tr(
+      'Complete the Source CV Review for this CV before analyzing. CV Match uses only reviewed CV details.',
+    );
+  },
   get CV_MATCH_CV_UNAVAILABLE() {
     return tr(
       'Saved CV text is missing or empty. Save a readable CV again before analyzing.',

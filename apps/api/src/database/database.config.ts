@@ -23,6 +23,7 @@ import { AiUsage1794700000000 } from './migrations/1794700000000-AiUsage.js';
 import { MultiCv1794800000000 } from './migrations/1794800000000-MultiCv.js';
 import { CvOriginalFile1794900000000 } from './migrations/1794900000000-CvOriginalFile.js';
 import { InterviewQuestionSetFamily1795000000000 } from './migrations/1795000000000-InterviewQuestionSetFamily.js';
+import { MatchProfileRevision1795100000000 } from './migrations/1795100000000-MatchProfileRevision.js';
 import { InterviewSession } from '../interview-prep/interview-session.entity.js';
 import { SavedCv1793500000000 } from './migrations/1793500000000-SavedCv.js';
 import { CompleteJobImportFields1793490000000 } from './migrations/1793490000000-CompleteJobImportFields.js';
@@ -126,6 +127,7 @@ export function databaseOptions(
       MultiCv1794800000000,
       CvOriginalFile1794900000000,
       InterviewQuestionSetFamily1795000000000,
+      MatchProfileRevision1795100000000,
     ],
     synchronize: false,
     migrationsRun: false,

@@ -32,6 +32,7 @@ export function CvSuggestionsSection({
   cvSaved,
   jobDirty,
   rejected,
+  reviewRequired = false,
 }: {
   result: MatchResult | null;
   jobId: string;
@@ -43,6 +44,8 @@ export function CvSuggestionsSection({
   cvSaved: boolean;
   jobDirty: boolean;
   rejected: boolean;
+  /** The job's CV needs its Source CV Review before any match. */
+  reviewRequired?: boolean;
 }) {
   const heading = useId();
   const generation = useRef(0);
@@ -207,17 +210,21 @@ export function CvSuggestionsSection({
     ? tr('Save your job edits, then reanalyze in CV Match.')
     : disabled
       ? tr('CV analysis or upload is in progress. Wait for it to finish.')
-      : stale
+      : reviewRequired
         ? tr(
-            'Outdated. This match is no longer current. Reanalyze in CV Match before requesting suggestions.',
+            'Review this CV first. Suggestions need a completed Source CV Review and a CV Match for this job.',
           )
-        : !cvSaved
-          ? tr('Save a CV in CV Match, then analyze it against this job.')
-          : !ready
-            ? tr(
-                'Not analyzed yet. Analyze your saved CV against this job first. Suggestions use the evidence from that analysis.',
-              )
-            : '';
+        : stale
+          ? tr(
+              'Outdated. This match is no longer current. Reanalyze in CV Match before requesting suggestions.',
+            )
+          : !cvSaved
+            ? tr('Save a CV in CV Match, then analyze it against this job.')
+            : !ready
+              ? tr(
+                  'Not analyzed yet. Analyze your saved CV against this job first. Suggestions use the evidence from that analysis.',
+                )
+              : '';
   return (
     <Box component="section" aria-labelledby={heading} sx={{ minWidth: 0 }}>
       <Stack spacing={1.5}>

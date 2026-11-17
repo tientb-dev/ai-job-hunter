@@ -1,3 +1,4 @@
+import { ReviewedCvService } from '../../src/reviewed-cv/reviewed-cv.service.js';
 import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js';
 import { asLocalOwner } from '../support/as-local-owner.js';
 import { SavedCvSourceService } from '../../src/matching/saved-cv-source.service.js';
@@ -483,6 +484,7 @@ test('concurrent generation is rejected across service instances and locks relea
     matches,
     app.get(TailoredDraftGenerator),
     app.get(AI_CONFIG),
+    app.get(ReviewedCvService),
   );
   await expect(
     drafts.generate(owner, current.job.id, current.body),
@@ -571,6 +573,17 @@ test('expected profile/job revisions and opaque match identity reject stale inpu
       .expect(409)
       .expect((r) => expect(r.body.errorCode).toBe(errorCode));
   }
+  // A match pinned to another review revision never feeds a draft.
+  await db.query(
+    'UPDATE ai_job_hunter.cv_matches SET "profileRevisionId"=$1 WHERE "jobId"=$2',
+    [randomUUID(), current.job.id],
+  );
+  await request(app.getHttpServer())
+    .post(`${base}/jobs/${current.job.id}/drafts`)
+    .set(origin)
+    .send(current.body)
+    .expect(409)
+    .expect((r) => expect(r.body.errorCode).toBe('CV_DRAFT_STALE_MATCH'));
   expect(
     await db.getRepository(TailoredCvDraft).countBy({ jobId: current.job.id }),
   ).toBe(0);

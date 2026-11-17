@@ -255,10 +255,39 @@ test('match status is read-only, owner-scoped and covers every job', async () =>
     select: { id: true, ownerId: true, text: true, updatedAt: true },
   });
   const hash = cvTextHash(cv.text);
+  // An unreviewed CV blocks matching before any saved match is considered.
+  const blocked = await job(owner, 'match CV_REVIEW_REQUIRED');
+  expect(
+    (await drafts.progress(owner)).jobs.find((j) => j.id === blocked.id)
+      ?.matchStatus,
+  ).toBe('CV_REVIEW_REQUIRED');
+  // Complete the synthetic review (all sections confirmed).
+  const document = structuredClone(fixture.document);
+  for (const section of document.sections)
+    for (const entry of section.entries)
+      for (const fact of entry.facts)
+        for (const ref of fact.evidence) ref.sourceRevisionId = sources[0]!;
+  const current = await db
+    .getRepository(CvProfileRevision)
+    .findOneByOrFail({ ownerId: owner, id: profileRevisionId });
+  const completed = await profiles.appendProfile(owner, current.profileId, {
+    ...v,
+    expectedRevision: current.revision,
+    document,
+  });
+  const reviewed = { profileRevisionId: completed.id };
   const statuses = {
-    VALID: { policyVersion: MATCHING_POLICY_VERSION, cvTextHash: hash },
-    STALE_CV: { policyVersion: MATCHING_POLICY_VERSION, cvTextHash: 'other' },
-    EXPIRED: { policyVersion: 'old-policy', cvTextHash: hash },
+    VALID: {
+      policyVersion: MATCHING_POLICY_VERSION,
+      cvTextHash: hash,
+      ...reviewed,
+    },
+    STALE_CV: {
+      policyVersion: MATCHING_POLICY_VERSION,
+      cvTextHash: 'other',
+      ...reviewed,
+    },
+    EXPIRED: { policyVersion: 'old-policy', cvTextHash: hash, ...reviewed },
   } as const;
   const ids: Record<string, string> = {};
   const oldCvTime = new Date('2020-01-01T00:00:00.000Z');
@@ -291,6 +320,21 @@ test('match status is read-only, owner-scoped and covers every job', async () =>
     policyVersion: MATCHING_POLICY_VERSION,
     cvTextHash: hash,
     cvId: cv.id,
+    ...reviewed,
+  });
+  // A legacy raw-text match (no review revision) is stale.
+  const legacy = await job(owner, 'match legacy');
+  await db.getRepository(CvMatchRecord).insert({
+    matchId: randomUUID(),
+    ownerId: owner,
+    jobId: legacy.id,
+    cvUpdatedAt: oldCvTime,
+    jobUpdatedAt: legacy.updatedAt,
+    analyzedAt: new Date(),
+    assessment: {} as never,
+    policyVersion: MATCHING_POLICY_VERSION,
+    cvTextHash: hash,
+    cvId: cv.id,
   });
   ids.MISSING = (await job(owner, 'match MISSING')).id;
   // More than 20 jobs are all returned; no candidate cap.
@@ -302,6 +346,7 @@ test('match status is read-only, owner-scoped and covers every job', async () =>
   const byId = new Map(result.jobs.map((j) => [j.id, j]));
   for (const [status, id] of Object.entries(ids))
     expect([status, byId.get(id)?.matchStatus]).toEqual([status, status]);
+  expect(byId.get(legacy.id)?.matchStatus).toBe('STALE_CV');
   expect(byId.has(foreign.id)).toBe(false);
   const total = await db.getRepository(Opportunity).countBy({ ownerId: owner });
   expect(result.jobs).toHaveLength(total);

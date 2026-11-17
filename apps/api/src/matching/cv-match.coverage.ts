@@ -1703,6 +1703,71 @@ function descriptiveExperienceStatus(
     : 'EVIDENCED';
 }
 
+// Skill-specific professional experience: "3+ years of PostgreSQL experience",
+// "3+ years of experience with PostgreSQL", "Production / hands-on professional
+// experience with PostgreSQL". Named technologies only (namedTechnology rule).
+function skillExperience(
+  requirement: string,
+): { label: string; years?: number } | null {
+  const text = requirement.trim().replace(/\.$/u, '');
+  const years =
+    /^(?:(?:minimum|at least|min\.?)\s+)?(\d+)\+?\s*(?:years?|yrs?)\s+(?:of\s+)?(?:(?:professional|production|commercial|hands-on)\s+)?(?:experience\s+(?:with|in|using)\s+(.+)|(.+?)\s+experience)$/iu.exec(
+      text,
+    );
+  const quality =
+    /^(?:(?:strong|solid|proven)\s+)?(?:production|professional|commercial|hands-on(?:,?\s+professional)?)\s+experience\s+(?:with|in|using)\s+(.+)$/iu.exec(
+      text,
+    );
+  const label = years ? (years[2] ?? years[3]) : quality?.[1];
+  const named = label && namedTechnology(label.trim(), 'skill');
+  if (!named || named.label !== label!.trim()) return null;
+  return years ? { label: named.label, years: Number(years[1]) } : named;
+}
+// The nearest heading above a passage (e.g. "EDUCATION" in reviewed CV text).
+function sectionHeadingOf(passage: string, cv: string): string {
+  const start = cv.indexOf(passage);
+  if (start < 0) return '';
+  return (
+    cv
+      .slice(0, start)
+      .split(/\r?\n/u)
+      .reverse()
+      .find((line) => line.trim() && headingLine.test(line))
+      ?.trim() ?? ''
+  );
+}
+// A skills declaration shows knowledge only. Professional experience needs a
+// work clause naming the skill outside Education, and a duration must be stated
+// in that same (record-bounded) passage; dates of other records never count.
+// Missing evidence is NOT_EVIDENCED (shown as Unknown), never a stated lack.
+function skillExperienceStatus(
+  { label, years }: { label: string; years?: number },
+  quote: string,
+  cv: string,
+): CoverageStatus {
+  const work = demonstratedPassages([quote], cv).filter(
+    (passage) =>
+      mentionsTechnology(label, passage) &&
+      !negative(passage) &&
+      !uncertain(passage) &&
+      !declarationLine(passage) &&
+      !underSkillsHeading(passage, cv) &&
+      !/\b(?:education|học vấn)\b/iu.test(sectionHeadingOf(passage, cv)) &&
+      relatedWork(label, passage),
+  );
+  const supported = work.some((passage) => {
+    if (years === undefined) return true;
+    const stated = statedYears.exec(passage);
+    return !!stated && Number(stated[1]) >= years;
+  });
+  if (!supported) return 'NOT_EVIDENCED';
+  return passages(cv).some(
+    (line) => mentionsTechnology(label, line) && negative(line),
+  )
+    ? 'CONFLICT'
+    : 'EVIDENCED';
+}
+
 export function simpleEvidenceStatus(
   requirement: string,
   quote: string,
@@ -1710,6 +1775,8 @@ export function simpleEvidenceStatus(
   category = 'skill',
 ): CoverageStatus {
   if (!quote) return 'NOT_EVIDENCED';
+  const skillWork = skillExperience(requirement);
+  if (skillWork) return skillExperienceStatus(skillWork, quote, cv);
   // "2+ years of B2B sales experience": years in another field are not support;
   // a selected passage must name the field itself.
   const role = roleExperience(requirement);

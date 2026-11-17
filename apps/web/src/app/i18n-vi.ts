@@ -2229,4 +2229,25 @@ export const VI_TEXT: Record<string, string> = {
     'Rà soát CV để CV Match và CV tùy chỉnh dùng thông tin chính xác, đầy đủ.',
   'Continue review': 'Tiếp tục rà soát',
   'Start review': 'Bắt đầu rà soát',
+  'Complete the Source CV Review for this CV before analyzing. CV Match uses only reviewed CV details.':
+    'Hãy hoàn tất rà soát CV gốc cho CV này trước khi phân tích. Đối chiếu CV chỉ dùng thông tin CV đã rà soát.',
+  'Review this CV before matching. CV Match uses only the details you confirm in Source CV Review; saved review progress is kept.':
+    'Hãy rà soát CV này trước khi đối chiếu. Đối chiếu CV chỉ dùng thông tin bạn xác nhận khi rà soát CV gốc; tiến độ rà soát đã lưu vẫn được giữ.',
+  'Your CV · added by you in review, not from the uploaded file':
+    'CV của bạn · do bạn thêm khi rà soát, không lấy từ tệp đã tải lên',
+  'A new CV opens Source CV Review first; you return here to start CV Match.':
+    'CV mới sẽ mở phần rà soát CV gốc trước; sau đó bạn quay lại đây để bắt đầu Đối chiếu CV.',
+  'Back to job': 'Quay lại công việc',
+  'Review is required once per CV before CV Match. Your progress is saved as you go; completing it returns you to the job, where you start CV Match.':
+    'Mỗi CV cần được rà soát một lần trước khi Đối chiếu CV. Tiến độ được lưu khi bạn làm; khi hoàn tất, bạn sẽ quay lại công việc để bắt đầu Đối chiếu CV.',
+  'Review is required once per CV before CV Match and Tailored CV. Your progress is saved as you go.':
+    'Mỗi CV cần được rà soát một lần trước khi Đối chiếu CV và tạo CV tùy chỉnh. Tiến độ được lưu khi bạn làm.',
+  'CV saved. Review it next; CV Match needs a completed review.':
+    'Đã lưu CV. Hãy rà soát CV tiếp theo; Đối chiếu CV cần một bản rà soát đã hoàn tất.',
+  'Each new CV opens Source CV Review, required once before CV Match.':
+    'Mỗi CV mới sẽ mở phần rà soát CV gốc, cần làm một lần trước khi Đối chiếu CV.',
+  'Review the CV this job uses before CV Match.':
+    'Hãy rà soát CV mà công việc này dùng trước khi Đối chiếu CV.',
+  'Review this CV first. Suggestions need a completed Source CV Review and a CV Match for this job.':
+    'Hãy rà soát CV này trước. Gợi ý cần bản rà soát CV gốc đã hoàn tất và kết quả Đối chiếu CV cho công việc này.',
 };

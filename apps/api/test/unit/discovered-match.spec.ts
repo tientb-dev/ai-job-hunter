@@ -1,3 +1,4 @@
+import { reviewedAsIs } from '../support/reviewed-cv.stub.js';
 import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js';
 import 'reflect-metadata';
 import { memoryMatchRows } from '../support/memory-match-rows.js';
@@ -204,6 +205,7 @@ test('full discovered JD → real matching service → API-shaped result retains
     new MatchingService(),
     jobs as unknown as OpportunitiesService,
     memoryMatchRows(),
+    reviewedAsIs(),
   );
   const result = await service.analyze(LOCAL_OWNER_ID, 'synthetic');
   expect(result.requirements[0]).toMatchObject({

@@ -655,14 +655,14 @@ export function SourceCvReview({
       component="section"
       spacing={2}
       sx={{
-        mt: onContinue ? 3 : 0,
+        mt: onContinue && !page ? 3 : 0,
         minWidth: 0,
         overflowWrap: 'anywhere',
         '& .MuiButton-root': { minHeight: 44 },
       }}
       aria-labelledby="source-cv-review-title"
     >
-      {onContinue && <Divider />}
+      {onContinue && !page && <Divider />}
       <Typography
         id="source-cv-review-title"
         tabIndex={-1}

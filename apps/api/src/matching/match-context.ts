@@ -14,6 +14,8 @@ export interface MatchSnapshot extends SourceRevisions {
   readonly ownerId: string;
   readonly jobId: string;
   readonly assessment: SavedCvAssessment;
+  /** Completed Source CV Review revision the match ran on (saved matches). */
+  readonly profileRevisionId?: string | null;
 }
 export function immutableValue<T>(value: T): Immutable<T> {
   if (value && typeof value === 'object') {

@@ -4,6 +4,10 @@ const failures = {
     400,
     'Saved CV text is missing or empty. Save a readable CV PDF/DOCX again before analyzing.',
   ],
+  CV_MATCH_REVIEW_REQUIRED: [
+    409,
+    'Complete the Source CV Review for this CV before analyzing. CV Match uses only reviewed CV details.',
+  ],
   CV_MATCH_TIMEOUT: [
     504,
     'CV matching timed out. Check that the AI service is available and retry; no new fit score was produced.',

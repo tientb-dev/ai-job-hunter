@@ -7,6 +7,8 @@ export class CvMatchRecord {
   @Column({ type: 'uuid' }) ownerId!: string;
   @Column({ type: 'uuid' }) jobId!: string;
   @Column({ type: 'uuid', nullable: true }) cvId!: string | null;
+  /** Completed Source CV Review revision; null on legacy raw-text matches. */
+  @Column({ type: 'uuid', nullable: true }) profileRevisionId!: string | null;
   @Column({ type: 'varchar', length: 64 }) cvTextHash!: string;
   @Column({ type: 'timestamptz' }) cvUpdatedAt!: Date;
   @Column({ type: 'timestamptz' }) jobUpdatedAt!: Date;

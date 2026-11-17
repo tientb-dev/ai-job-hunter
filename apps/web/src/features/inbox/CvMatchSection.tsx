@@ -1,10 +1,14 @@
 import { dateLocale, tr } from '../../app/i18n';
 import { AutoAwesomeIcon, RefreshIcon } from '../../components/icons';
-import { Link, useInRouterContext } from 'react-router-dom';
+import { Link, Navigate, useInRouterContext } from 'react-router-dom';
 import { validSourceDate } from './cv-suggestions.contract';
-import { type MatchResult, statusLabel } from './cv-match.types';
+import { type CvOrigin, type MatchResult, statusLabel } from './cv-match.types';
 import { JobCvPicker } from './JobCvPicker';
-import { matchStatusMessages, type CvMatchState } from './useCvMatch';
+import {
+  matchStatusMessages,
+  reviewHref,
+  type CvMatchState,
+} from './useCvMatch';
 import {
   useCallback,
   useEffect,
@@ -71,6 +75,9 @@ export function CvMatchSection({
 }) {
   const { cv, busy, error, result, matchStatus, matchReadError } = match;
   const { analyze, reload } = match;
+  const routing = useInRouterContext();
+  // A CV uploaded here opens its Source CV Review next.
+  const [uploaded, setUploaded] = useState('');
   return (
     <Box
       role="tabpanel"
@@ -78,6 +85,9 @@ export function CvMatchSection({
       aria-labelledby={labelledBy}
       hidden={hidden}
     >
+      {routing && uploaded && (
+        <Navigate to={reviewHref(uploaded, match.jobId)} />
+      )}
       <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, minWidth: 0 }}>
         <Stack spacing={2}>
           <Stack
@@ -107,7 +117,11 @@ export function CvMatchSection({
               variant={result || preferSecondary ? 'outlined' : 'contained'}
               disableElevation
               disabled={
-                busy || analyzeBlocked || !cv || matchStatus === 'CHECKING'
+                busy ||
+                analyzeBlocked ||
+                !cv ||
+                matchStatus === 'CHECKING' ||
+                matchStatus === 'CV_REVIEW_REQUIRED'
               }
               onClick={() => void analyze()}
               sx={{
@@ -129,10 +143,17 @@ export function CvMatchSection({
                 {tr('No saved CV yet.')}
               </Typography>
             )}
-            <JobCvPicker match={match} disabled={busy || uploadBlocked} />
+            <JobCvPicker
+              match={match}
+              disabled={busy || uploadBlocked}
+              onUploaded={setUploaded}
+            />
             <Typography variant="caption" color="text.secondary">
               {tr(
                 'Uses the CV selected for this job and the saved job, not unsaved edits. Files parse locally; analysis sends them to the configured AI provider.',
+              )}{' '}
+              {tr(
+                'A new CV opens Source CV Review first; you return here to start CV Match.',
               )}
             </Typography>
           </Box>
@@ -142,7 +163,27 @@ export function CvMatchSection({
             </Typography>
           )}
           {!busy && matchStatusMessages[matchStatus] && (
-            <Alert severity="info" role="status">
+            <Alert
+              severity={
+                matchStatus === 'CV_REVIEW_REQUIRED' ? 'warning' : 'info'
+              }
+              role="status"
+              action={
+                routing &&
+                matchStatus === 'CV_REVIEW_REQUIRED' &&
+                match.reviewCvId ? (
+                  <Button
+                    color="inherit"
+                    size="small"
+                    component={Link}
+                    to={reviewHref(match.reviewCvId, match.jobId)}
+                    sx={{ minHeight: 44, flexShrink: 0 }}
+                  >
+                    {tr('Review CV')}
+                  </Button>
+                ) : undefined
+              }
+            >
               {matchStatusMessages[matchStatus]}
               {result &&
                 tr(
@@ -930,7 +971,11 @@ function RequirementCard({
         >
           <EvidenceQuote source="JD evidence" quote={item.jdQuote} />
           {item.cvQuote ? (
-            <EvidenceQuote source="CV evidence" quote={item.cvQuote} />
+            <EvidenceQuote
+              source="CV evidence"
+              quote={item.cvQuote}
+              origin={item.cvOrigin}
+            />
           ) : item.coverage?.components.some(
               (component) => component.observations?.length,
             ) ? (
@@ -1026,6 +1071,7 @@ function RequirementCard({
                       label: component.label,
                     })}
                     quote={component.cvQuote}
+                    origin={component.cvOrigin}
                   />
                 ) : component.observations?.length ? null : (
                   <Typography variant="body2" color="text.secondary">
@@ -1054,8 +1100,10 @@ function EvidenceQuote({
   source,
   quote,
   label,
+  origin,
 }: {
   label?: string;
+  origin?: CvOrigin;
   source: 'CV evidence' | 'JD evidence' | 'Original parsed CV passage';
   quote: string;
 }) {
@@ -1063,7 +1111,9 @@ function EvidenceQuote({
     <Box>
       <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
         {source === 'CV evidence'
-          ? tr('Your CV')
+          ? origin === 'user_entered'
+            ? tr('Your CV · added by you in review, not from the uploaded file')
+            : tr('Your CV')
           : source === 'JD evidence'
             ? tr('Job description')
             : tr(source)}
@@ -1319,7 +1369,11 @@ export function MatchGate({
               variant={current || preferSecondary ? 'outlined' : 'contained'}
               disableElevation
               disabled={
-                busy || analyzeBlocked || !cv || matchStatus === 'CHECKING'
+                busy ||
+                analyzeBlocked ||
+                !cv ||
+                matchStatus === 'CHECKING' ||
+                matchStatus === 'CV_REVIEW_REQUIRED'
               }
               onClick={() => void match.analyze()}
             >
