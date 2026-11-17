@@ -166,7 +166,17 @@ function QuestionList({
   label: string;
 }) {
   return (
-    <Stack component="ol" spacing={2} aria-label={label} sx={{ m: 0, p: 0 }}>
+    <Box
+      component="ol"
+      aria-label={label}
+      sx={{
+        m: 0,
+        p: 0,
+        display: 'grid',
+        gap: 2,
+        gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' },
+      }}
+    >
       {set.questions.map((q) => (
         <QuestionCard
           key={q.id}
@@ -184,7 +194,7 @@ function QuestionList({
           }
         />
       ))}
-    </Stack>
+    </Box>
   );
 }
 
@@ -291,8 +301,8 @@ export function JobInterviewTab({
 
   const panel = (children: ReactNode) => (
     <Box role="tabpanel" id="job-panel-4" aria-labelledby="job-tab-4">
-      <Stack spacing={3} sx={{ maxWidth: 840, minWidth: 0 }}>
-        <Box>
+      <Stack spacing={3} sx={{ minWidth: 0 }}>
+        <Box sx={{ maxWidth: 840 }}>
           <Typography variant="h6" component="h2">
             {tr('Interview questions')}
           </Typography>

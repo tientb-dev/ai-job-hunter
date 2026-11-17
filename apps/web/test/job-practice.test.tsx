@@ -452,7 +452,7 @@ test('curated /interview-prep is unchanged: topic picker, catalog fetch, no job 
   const { user } = renderAt('/interview-prep');
   await user.click(
     await screen.findByRole('button', {
-      name: 'Practise Technical communication',
+      name: 'Practise IT technical communication',
     }),
   );
   expect(
@@ -487,7 +487,7 @@ test('the curated flow has no "Why was this asked?" disclosure', async () => {
   const { user } = renderAt('/interview-prep');
   await user.click(
     await screen.findByRole('button', {
-      name: 'Practise Technical communication',
+      name: 'Practise IT technical communication',
     }),
   );
   expect(

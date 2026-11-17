@@ -13,7 +13,7 @@ import {
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useNotify } from '../../components/useNotify';
 import { enter, surface } from '../../app/theme';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   AlertTitle,
@@ -125,7 +125,11 @@ export function MyCv() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   // undefined while loading; 'error' must never read as "not reviewed".
-  const [progress, setProgress] = useState<Progress | 'error'>();
+  // Keyed by CV so switching never shows another CV's status nor collapses the panel.
+  const [progressById, setProgressById] = useState<
+    Partial<Record<string, Progress | 'error'>>
+  >({});
+  const progress = cv ? progressById[cv.id] : undefined;
   useEffect(() => {
     let active = true;
     opportunityRequest<SavedCv[]>('/cv').then(
@@ -144,23 +148,17 @@ export function MyCv() {
       active = false;
     };
   }, []);
-  // A late status response for a previously selected CV must not land on this one.
-  const shownCvId = useRef('');
-  useEffect(() => {
-    shownCvId.current = cv?.id ?? '';
-  }, [cv]);
   const refreshProgress = useCallback(() => {
     if (!cv) return;
     const id = cv.id;
     readProgress(cv).then(
-      (next) => shownCvId.current === id && setProgress(next),
-      () => shownCvId.current === id && setProgress('error'),
+      (next) => setProgressById((all) => ({ ...all, [id]: next })),
+      () => setProgressById((all) => ({ ...all, [id]: 'error' })),
     );
   }, [cv]);
   useEffect(refreshProgress, [refreshProgress]);
   function select(id: string) {
     if (id === cv?.id) return;
-    setProgress(undefined);
     setRenaming(null);
     // Closing the review unmounts it; its pending requests are discarded.
     setSelectedId(id);
@@ -174,7 +172,6 @@ export function MyCv() {
         method: 'POST',
         body: importUpload({}, file),
       });
-      setProgress(undefined);
       setRenaming(null);
       setCvs((rows) => [...rows, next]);
       setSelectedId(next.id);
@@ -591,7 +588,10 @@ export function MyCv() {
                             startIcon={<RefreshIcon />}
                             size="small"
                             onClick={() => {
-                              setProgress(undefined);
+                              setProgressById((all) => ({
+                                ...all,
+                                [cv.id]: undefined,
+                              }));
                               refreshProgress();
                             }}
                           >
