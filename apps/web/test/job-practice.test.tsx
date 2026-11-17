@@ -4,6 +4,7 @@ import { act, render, screen, waitFor, within } from './render';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { JobPractice } from '../src/features/interview-prep/JobPractice';
 import { InterviewPrep } from '../src/features/interview-prep/InterviewPrep';
+import { setLocale } from '../src/app/i18n';
 
 // Synthetic data only.
 const jobId = '00000000-0000-4000-8000-0000000000aa';
@@ -492,4 +493,80 @@ test('the curated flow has no "Why was this asked?" disclosure', async () => {
   expect(
     screen.queryByRole('button', { name: 'Why was this asked?' }),
   ).toBeNull();
+});
+
+test('switching language mid-practice relabels categories at once and keeps the question, typed text and feedback', async () => {
+  const marketing = {
+    ...set(3, true, '2026-11-12T09:00:00.000Z'),
+    family: 'marketing',
+    questions: (['skill', 'architecture', 'troubleshooting'] as const).map(
+      (category, i) => ({ ...question(3, i + 1), category }),
+    ),
+  };
+  listing = async () =>
+    json({
+      contractVersion: '1',
+      job: { id: jobId, title: 'Synthetic Marketing Specialist', company: 'X' },
+      jdEmpty: false,
+      jdChanged: false,
+      sets: [marketing],
+    });
+  try {
+    setLocale('en-US');
+    const { router, user } = renderAt(
+      practice(marketing.id, `?q=${marketing.questions[1]!.id}`),
+    );
+    await screen.findByRole('heading', { name: 'Interview practice' });
+    const field = screen.getByLabelText(
+      'Your ideas (Vietnamese, English or both)',
+    );
+    await user.type(field, 'Chia lại ngân sách.');
+    await user.click(screen.getByRole('button', { name: 'Help me say it' }));
+    await screen.findByText('I would add an index on the filtered column.');
+    await user.click(screen.getByRole('button', { name: /Browse questions/u }));
+    const captions = () =>
+      [
+        ...document.querySelectorAll(
+          '#question-list ul .MuiTypography-caption',
+        ),
+      ].map((e) => e.textContent);
+    expect(captions()).toEqual([
+      'Marketing skill',
+      'Strategy and planning',
+      'Campaign problem-solving',
+    ]);
+    expect(
+      screen.getByText(/^Strategy and planning · Question 2/u),
+    ).toBeVisible();
+
+    act(() => setLocale('vi-VN'));
+    expect(captions()).toEqual([
+      'Kỹ năng marketing',
+      'Chiến lược và lập kế hoạch',
+      'Xử lý vấn đề chiến dịch',
+    ]);
+    expect(screen.getByText(/^Chiến lược và lập kế hoạch · /u)).toBeVisible();
+    // Same question, same text, same feedback; the list stays open.
+    expect(questionText()).toBe(marketing.questions[1]!.question);
+    expect(search(router)).toBe(marketing.questions[1]!.id);
+    expect(field).toBeInTheDocument();
+    expect(field).toHaveValue('Chia lại ngân sách.');
+    expect(
+      screen.getByText('I would add an index on the filtered column.'),
+    ).toBeVisible();
+    expect(
+      document.querySelector('[aria-controls="question-list"]'),
+    ).toHaveAttribute('aria-expanded', 'true');
+
+    act(() => setLocale('en-US'));
+    expect(captions()).toEqual([
+      'Marketing skill',
+      'Strategy and planning',
+      'Campaign problem-solving',
+    ]);
+    expect(field).toHaveValue('Chia lại ngân sách.');
+    expect(feedbackBodies).toHaveLength(1); // no new AI request on a switch
+  } finally {
+    act(() => setLocale('en-US'));
+  }
 });

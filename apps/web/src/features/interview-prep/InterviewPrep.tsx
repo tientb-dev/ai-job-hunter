@@ -579,7 +579,10 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
   const [topic, setTopic] = useState<PracticeTopic | null>(
     job ? 'technical' : null,
   );
-  const [order, setOrder] = useState<PracticeQuestion[]>(job?.questions ?? []);
+  const [topicOrder, setOrder] = useState<PracticeQuestion[]>([]);
+  // Job mode reads the set from props (not a mount-time copy) so localized
+  // category labels follow a language switch; IDs and position are unchanged.
+  const order = job?.questions ?? topicOrder;
   const [index, setIndex] = useState(() =>
     job
       ? Math.max(
