@@ -119,6 +119,14 @@ export function cvQuoteChoices(source: string): string[] {
   const choices = new Set<string>(['']);
   for (let i = 0; i < spans.length; i++) {
     for (let j = i; j < Math.min(i + 3, spans.length); j++) {
+      // Two blank lines end a record (reviewed CV text): never quote across them.
+      if (
+        j > i &&
+        /(?:\r\n|\r(?!\n)|[\n\u2028\u2029])(?:[^\S\r\n\u2028\u2029]*(?:\r\n|\r(?!\n)|[\n\u2028\u2029])){2}/u.test(
+          source.slice(spans[j - 1]!.end, spans[j]!.start),
+        )
+      )
+        break;
       const quote = source.slice(spans[i]!.start, spans[j]!.end);
       if (quote.length > 2000) break;
       choices.add(quote);

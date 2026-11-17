@@ -1,3 +1,4 @@
+import { reviewedAsIs } from '../support/reviewed-cv.stub.js';
 import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js';
 import { asLocalOwner } from '../support/as-local-owner.js';
 import 'reflect-metadata';
@@ -67,6 +68,7 @@ function setup(
     new MatchingService(),
     jobs as unknown as OpportunitiesService,
     memoryMatchRows(),
+    reviewedAsIs(),
   );
   return { service, provider, cvs, jobs };
 }

@@ -1,3 +1,4 @@
+import { reviewedAsIs } from '../support/reviewed-cv.stub.js';
 import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js';
 import 'reflect-metadata';
 import { memoryMatchRows } from '../support/memory-match-rows.js';
@@ -78,6 +79,7 @@ test('captured P6.3 omission replays through the matching service as 44 / Consid
     new MatchingService(),
     { get: async () => job } as unknown as OpportunitiesService,
     memoryMatchRows(),
+    reviewedAsIs(),
   );
   const result = await service.analyze(LOCAL_OWNER_ID, job.id);
   expect(result).toMatchObject({

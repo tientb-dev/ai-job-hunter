@@ -91,6 +91,13 @@ export function nextJobAction(input: NextActionInput): NextAction | null {
       label: tr('Review in My CV'),
       to: '/cv',
     };
+  // This job's CV (not necessarily the default) still needs its review.
+  if (input.matchStatus === 'CV_REVIEW_REQUIRED')
+    return {
+      text: tr('Review the CV this job uses before CV Match.'),
+      label: tr('Go to Match'),
+      to: 'match',
+    };
   if (input.matchStatus === 'MISSING')
     return {
       text: tr('Analyze how your CV matches this job.'),

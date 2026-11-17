@@ -7,6 +7,7 @@ import { render, screen, waitFor, within } from './render';
 import { theme } from '../src/app/theme';
 import { SourceCvReviewPage } from '../src/features/inbox/SourceCvReviewPage';
 import { cvProfileFixture, sourceCvFixture } from './fixtures/source-cv-review';
+import { richProfile, richSource } from './fixtures/structured-source-review';
 
 const cv = {
   id: '00000000-0000-4000-8000-0000000000c1',
@@ -20,11 +21,25 @@ const cv = {
 function mount({
   cvId = cv.id,
   profile = async () => Response.json(cvProfileFixture()),
-}: { cvId?: string; profile?: () => Promise<Response> } = {}) {
+  search = '',
+  source = sourceCvFixture,
+}: {
+  cvId?: string;
+  profile?: () => Promise<Response>;
+  search?: string;
+  source?: typeof sourceCvFixture;
+} = {}) {
   const fetch = vi.fn(async (url: string) => {
-    if (url.endsWith('/opportunities/cv')) return Response.json([cv]);
+    if (url.endsWith('/opportunities/cv'))
+      return Response.json([
+        {
+          ...cv,
+          fileName: source.fileName,
+          updatedAt: source.savedCvUpdatedAt,
+        },
+      ]);
     if (url.endsWith('/sources') || url.endsWith('/content'))
-      return Response.json(sourceCvFixture);
+      return Response.json(source);
     if (url.endsWith('/profile')) return profile();
     // Saving a revision fails: a mutation error.
     if (url.endsWith('/revisions'))
@@ -38,9 +53,10 @@ function mount({
   const router = createMemoryRouter(
     [
       { path: '/cv', element: <h1>My CV destination</h1> },
+      { path: '/jobs/:id/match', element: <h1>Job match destination</h1> },
       { path: '/cv/:cvId/review', element: <SourceCvReviewPage /> },
     ],
-    { initialEntries: [`/cv/${cvId}/review`] },
+    { initialEntries: [`/cv/${cvId}/review${search}`] },
   );
   render(
     <StrictMode>
@@ -220,4 +236,86 @@ test('the contact-symbol warning starts as a one-line summary and expands on dem
   expect(
     within(warning).getByRole('button', { name: 'Hide details' }),
   ).toHaveAttribute('aria-expanded', 'true');
+});
+
+const job = '00000000-0000-4000-8000-0000000000d1';
+// Same completed six-section review as the P8 readiness test.
+function completable() {
+  const profile = richProfile(),
+    source = structuredClone(richSource),
+    quote = 'https://example.invalid/morgan\n',
+    start = source.text.length;
+  source.text += quote;
+  profile.document.sections.push({
+    id: 'section-links',
+    kind: 'links',
+    review: 'confirmed',
+    entries: [
+      {
+        id: 'record-links',
+        facts: [
+          {
+            id: 'fact-link',
+            field: 'link',
+            value: quote,
+            origin: 'source',
+            review: 'confirmed',
+            evidence: [
+              {
+                sourceRevisionId: source.id,
+                start,
+                end: source.text.length,
+                quote,
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+  profile.document.coverage.push({
+    start,
+    end: source.text.length,
+    disposition: 'mapped',
+    factIds: ['fact-link'],
+    reason: null,
+  });
+  for (const section of profile.document.sections) {
+    section.review = 'confirmed';
+    for (const entry of section.entries)
+      for (const fact of entry.facts) fact.review = 'confirmed';
+  }
+  return { profile, source };
+}
+
+test('opened from a job, Back and Complete return to that job, never starting a match', async () => {
+  const user = userEvent.setup();
+  const { profile, source } = completable();
+  const { router } = mount({
+    profile: async () => Response.json(profile),
+    source,
+    search: `?returnTo=${encodeURIComponent(`/jobs/${job}/match`)}`,
+  });
+  expect(
+    await screen.findByRole('link', { name: 'Back to job' }),
+  ).toHaveAttribute('href', `/jobs/${job}/match`);
+  expect(
+    screen.getByText(/completing it returns you to the job/),
+  ).toBeVisible();
+  const complete = await screen.findByRole('button', {
+    name: 'Complete review',
+  });
+  await waitFor(() => expect(complete).toBeEnabled());
+  await user.click(complete);
+  expect(await screen.findByText('Job match destination')).toBeVisible();
+  expect(router.state.location.pathname).toBe(`/jobs/${job}/match`);
+  const calls = vi.mocked(fetch).mock.calls.map(([url]) => String(url));
+  expect(calls.some((url) => url.includes('/match'))).toBe(false);
+});
+
+test('an untrusted returnTo falls back to My CV', async () => {
+  mount({ search: '?returnTo=https%3A%2F%2Fexample.invalid%2Fjobs' });
+  expect(
+    await screen.findByRole('link', { name: 'Back to My CV' }),
+  ).toHaveAttribute('href', '/cv');
 });

@@ -39,6 +39,12 @@ test.each<[string, Partial<NextActionInput>, string | null, string | null]>([
     '/cv',
   ],
   ['match missing', { matchStatus: 'MISSING' }, 'Go to Match', 'match'],
+  [
+    'job CV review required',
+    { matchStatus: 'CV_REVIEW_REQUIRED' },
+    'Go to Match',
+    'match',
+  ],
   ['match stale', { matchStatus: 'STALE_CV' }, 'Go to Match', 'match'],
   ['no draft yet', {}, 'Start tailored CV', 'tailored-cv'],
   [

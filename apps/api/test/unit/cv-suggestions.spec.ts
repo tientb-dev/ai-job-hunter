@@ -1,3 +1,4 @@
+import { reviewedAsIs } from '../support/reviewed-cv.stub.js';
 import { asLocalOwner } from '../support/as-local-owner.js';
 import 'reflect-metadata';
 import { memoryMatchRows } from '../support/memory-match-rows.js';
@@ -102,6 +103,7 @@ function setup(text = source, skills = 'Java\nKubernetes') {
     new MatchingService(),
     jobs as unknown as OpportunitiesService,
     memoryMatchRows(),
+    reviewedAsIs(),
   );
   async function ready() {
     const result = await service.analyze(LOCAL_OWNER_ID, jobId);

@@ -1,4 +1,6 @@
 import { tr } from '../../app/i18n';
+/** user_entered: added by the user in review, not text from the uploaded file. */
+export type CvOrigin = 'source' | 'user_entered';
 export interface MatchResult {
   matchId?: string;
   cvUpdatedAt?: string;
@@ -20,6 +22,8 @@ export interface MatchResult {
     category: string;
     jdQuote: string;
     cvQuote: string;
+    /** Absent on matches saved before Source CV Review was required. */
+    cvOrigin?: CvOrigin;
     status: 'EVIDENCED' | 'PARTIAL' | 'NOT_EVIDENCED' | 'CONFLICT';
     credit?: number;
     coverage?: {
@@ -32,6 +36,7 @@ export interface MatchResult {
         label: string;
         jdQuote: string;
         cvQuote: string;
+        cvOrigin?: CvOrigin;
         status: 'EVIDENCED' | 'PARTIAL' | 'NOT_EVIDENCED' | 'CONFLICT';
         observations?: { kind: 'mention' | 'experience'; cvQuote: string }[];
         qualificationReason?: string;

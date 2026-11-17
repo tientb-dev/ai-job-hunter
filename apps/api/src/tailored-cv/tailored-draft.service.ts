@@ -35,6 +35,7 @@ import {
 } from './tailored-draft.contract.js';
 import { TailoredDraftGenerator } from './tailored-draft.generator.js';
 import { reviewedPlan, draftHash } from './tailored-draft.policy.js';
+import { ReviewedCvService } from '../reviewed-cv/reviewed-cv.service.js';
 interface GenerateRequest {
   profileRevisionId: string;
   expectedProfileRevision: number;
@@ -47,6 +48,7 @@ interface ProgressRow {
   policyVersion: string | null;
   cvTextHash: string | null;
   matchCvId: string | null;
+  matchProfileRevisionId: string | null;
   cvId: string | null;
   cvHash: string | null;
   matchJobUpdatedAt: Date | null;
@@ -65,7 +67,8 @@ const array = (value: string) =>
 const JOB_PROGRESS_SQL = `
 SELECT o.id, o."updatedAt" AS "jobUpdatedAt",
   m."policyVersion", m."cvTextHash", m."jobUpdatedAt" AS "matchJobUpdatedAt",
-  m."cvId" AS "matchCvId", c.id AS "cvId",
+  m."cvId" AS "matchCvId", m."profileRevisionId" AS "matchProfileRevisionId",
+  c.id AS "cvId",
   encode(sha256(convert_to(c.text, 'UTF8')), 'hex') AS "cvHash",
   d."updatedAt" AS "draftUpdatedAt", d."jobUpdatedAt" AS "draftJobUpdatedAt",
   d.pending, coalesce(d.approved, false) AS approved
@@ -132,6 +135,7 @@ export class TailoredDraftService {
     private readonly matches: JobMatchService,
     private readonly generator: TailoredDraftGenerator,
     @Inject(AI_CONFIG) private readonly config: AiConfig,
+    private readonly reviewedCvs: ReviewedCvService,
   ) {}
   // Read-only preflight. Reuse the exact generation context checks; never call AI
   // or create a source/profile/draft just to determine readiness.
@@ -238,45 +242,21 @@ export class TailoredDraftService {
       select: { ownerId: true, text: true, fileName: true, updatedAt: true },
     });
     if (!cv?.text.trim()) return null;
-    const found = await this.reviewedProfile(manager, ownerId, cv);
-    if (!found) return null;
-    const full = await manager.getRepository(CvProfileRevision).findOne({
-      where: { ownerId, id: found.profile.id },
-      select: { document: true },
-    });
-    if (!full) return null;
-    try {
-      return reviewedPlan(
-        profileDocument(full.document, found.source.id, cv.text),
-      )
-        .facts.filter((f) => !['contact', 'links'].includes(f.sectionKind))
-        .map((f) => f.value.trim())
-        .filter(Boolean);
-    } catch {
-      return null; // Incomplete or unresolved review: no fact check, never guess.
-    }
+    const review = await this.reviewedCvs.forCv(ownerId, cv, manager);
+    // Incomplete or unresolved review: no fact check, never guess.
+    if (review.status !== 'COMPLETE') return null;
+    return review.plan.facts
+      .filter((f) => !['contact', 'links'].includes(f.sectionKind))
+      .map((f) => f.value.trim())
+      .filter(Boolean);
   }
   // Current CV's source and latest review profile. Read-only; shared with progress().
-  private async reviewedProfile(
+  private reviewedProfile(
     manager: EntityManager,
     ownerId: string,
     cv: { updatedAt: Date; text: string; fileName: string },
   ) {
-    const source = await manager.getRepository(CvSourceRevision).findOne({
-      where: {
-        ownerId,
-        savedCvUpdatedAt: cv.updatedAt,
-        textHash: draftHash(cv.text),
-        fileName: cv.fileName,
-      },
-    });
-    if (!source) return null;
-    const profile = await manager.getRepository(CvProfileRevision).findOne({
-      where: { ownerId, sourceRevisionId: source.id },
-      order: { createdAt: 'DESC', revision: 'DESC', id: 'DESC' },
-      select: { id: true, revision: true },
-    });
-    return profile ? { source, profile } : null;
+    return this.reviewedCvs.latest(manager, ownerId, cv);
   }
   private async profileIssue(
     manager: EntityManager,
@@ -320,6 +300,16 @@ export class TailoredDraftService {
     const rows: ProgressRow[] = await manager.query(JOB_PROGRESS_SQL, [
       ownerId,
     ]);
+    // Each job's CV review state (at most MAX_SAVED_CVS distinct CVs).
+    const reviews = new Map<string, string | null>();
+    for (const saved of await this.current.identities(manager, ownerId))
+      if (rows.some((row) => row.cvId === saved.id)) {
+        const review = await this.reviewedCvs.forCv(ownerId, saved, manager);
+        reviews.set(
+          saved.id,
+          review.status === 'COMPLETE' ? review.profileRevisionId : null,
+        );
+      }
     return {
       contractVersion: '1' as const,
       cv: { saved: Boolean(cv), sourceReason },
@@ -327,18 +317,25 @@ export class TailoredDraftService {
         id: row.id,
         matchStatus: !row.cvHash
           ? ('CV_UNAVAILABLE' as const)
-          : !row.policyVersion
-            ? ('MISSING' as const)
-            : savedMatchStatus(
-                {
-                  policyVersion: row.policyVersion,
-                  cvTextHash: row.cvTextHash!,
-                  jobUpdatedAt: row.matchJobUpdatedAt!,
-                  cvId: row.matchCvId,
-                },
-                { id: row.cvId!, hash: row.cvHash },
-                row.jobUpdatedAt,
-              ),
+          : !reviews.get(row.cvId!)
+            ? ('CV_REVIEW_REQUIRED' as const)
+            : !row.policyVersion
+              ? ('MISSING' as const)
+              : savedMatchStatus(
+                  {
+                    policyVersion: row.policyVersion,
+                    cvTextHash: row.cvTextHash!,
+                    jobUpdatedAt: row.matchJobUpdatedAt!,
+                    cvId: row.matchCvId,
+                    profileRevisionId: row.matchProfileRevisionId,
+                  },
+                  {
+                    id: row.cvId!,
+                    hash: row.cvHash,
+                    profileRevisionId: reviews.get(row.cvId!)!,
+                  },
+                  row.jobUpdatedAt,
+                ),
         draft: row.draftUpdatedAt && {
           // null: the saved review is malformed, so no step is inferred from it.
           pending: row.pending,
@@ -446,6 +443,8 @@ export class TailoredDraftService {
       match.ownerId !== ownerId ||
       match.jobId !== jobId ||
       match.cvUpdatedAt !== source.savedCvUpdatedAt.toISOString() ||
+      // The match must have run on this exact completed review revision.
+      match.profileRevisionId !== request.profileRevisionId ||
       match.jobUpdatedAt !== request.expectedJobUpdatedAt ||
       draftHash(
         canonical.map((row) => [row.parentId, row.requirement, row.priority]),

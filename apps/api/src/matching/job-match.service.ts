@@ -55,20 +55,37 @@ import {
   type MatchFailureTrace,
 } from './cv-match.diagnostics.js';
 import { AI_CONFIG, type AiConfig } from '../ai/ai.config.js';
+import {
+  ReviewedCvService,
+  type ReviewedCv,
+} from '../reviewed-cv/reviewed-cv.service.js';
+import {
+  quoteOrigin,
+  type ReviewedCvText,
+} from '../reviewed-cv/reviewed-cv.text.js';
 import type { OutputSchema } from '../ai/ai-provider.js';
 
 /** Pure, read-only validity of a saved match; resolve() adds the CV re-bind write. */
 export function savedMatchStatus(
   row: Pick<
     CvMatchRecord,
-    'policyVersion' | 'cvTextHash' | 'jobUpdatedAt' | 'cvId'
+    | 'policyVersion'
+    | 'cvTextHash'
+    | 'jobUpdatedAt'
+    | 'cvId'
+    | 'profileRevisionId'
   >,
-  cv: { id: string; hash: string },
+  cv: { id: string; hash: string; profileRevisionId: string },
   jobUpdatedAt: Date,
 ) {
   if (row.policyVersion !== MATCHING_POLICY_VERSION) return 'EXPIRED' as const;
   // Stale only against the CV this job uses, never the account default.
-  if (row.cvId !== cv.id || row.cvTextHash !== cv.hash)
+  // A newer completed review, or a legacy raw-text match (null), is stale.
+  if (
+    row.cvId !== cv.id ||
+    row.cvTextHash !== cv.hash ||
+    row.profileRevisionId !== cv.profileRevisionId
+  )
     return 'STALE_CV' as const;
   if (row.jobUpdatedAt.getTime() !== jobUpdatedAt.getTime())
     return 'STALE_JOB' as const;
@@ -87,6 +104,38 @@ function cvIdFrom(body: unknown): string {
 }
 export const cvTextHash = (text: string) =>
   createHash('sha256').update(text, 'utf8').digest('hex');
+
+/**
+ * Marks where each CV quote came from. User-entered review facts are labelled
+ * so they are never presented as verified uploaded-file evidence.
+ */
+export function withCvOrigins<
+  T extends {
+    requirements: readonly {
+      cvQuote: string;
+      coverage?: { components: readonly { cvQuote: string }[] };
+    }[];
+  },
+>(result: T, reviewed: ReviewedCvText): T {
+  const origin = (quote: string) =>
+    quote.trim() ? (quoteOrigin(reviewed, quote) ?? undefined) : undefined;
+  return {
+    ...result,
+    requirements: result.requirements.map((item) => ({
+      ...item,
+      cvOrigin: origin(item.cvQuote),
+      ...(item.coverage && {
+        coverage: {
+          ...item.coverage,
+          components: item.coverage.components.map((component) => ({
+            ...component,
+            cvOrigin: origin(component.cvQuote),
+          })),
+        },
+      }),
+    })),
+  };
+}
 
 /** Per account, counting CVs uploaded from My CV and from individual jobs. */
 export const MAX_SAVED_CVS = 5;
@@ -118,14 +167,24 @@ export class JobMatchService {
       },
     });
   }
-  private async cvIdentity(ownerId: string, jobId: string) {
+  /** The job's CV with its Source CV Review state; null without readable text. */
+  private async reviewedJobCv(ownerId: string, jobId: string) {
     const cv = await this.jobCvText(ownerId, jobId);
-    if (!cv || typeof cv.text !== 'string') return null;
+    if (!cv || typeof cv.text !== 'string' || !cv.text.trim()) return null;
+    return { cv, review: await this.reviewedCvs.forCv(ownerId, cv) };
+  }
+  private async cvIdentity(ownerId: string, jobId: string) {
+    const found = await this.reviewedJobCv(ownerId, jobId);
+    if (!found) return null;
     return {
-      id: cv.id,
-      updatedAt: cv.updatedAt,
-      hash: cvTextHash(cv.text),
+      id: found.cv.id,
+      updatedAt: found.cv.updatedAt,
+      hash: cvTextHash(found.cv.text),
+      review: found.review,
     };
+  }
+  private static reviewed(review: ReviewedCv) {
+    return review.status === 'COMPLETE' ? review : null;
   }
   /**
    * A saved match is valid only for the same CV text, job revision and
@@ -134,7 +193,12 @@ export class JobMatchService {
    */
   private async resolve(
     row: CvMatchRecord,
-    cv: { id: string; updatedAt: Date; hash: string },
+    cv: {
+      id: string;
+      updatedAt: Date;
+      hash: string;
+      profileRevisionId: string;
+    },
     jobUpdatedAt: Date,
   ) {
     const status = savedMatchStatus(row, cv, jobUpdatedAt);
@@ -152,6 +216,7 @@ export class JobMatchService {
       jobId: row.jobId,
       cvUpdatedAt: row.cvUpdatedAt.toISOString(),
       jobUpdatedAt: row.jobUpdatedAt.toISOString(),
+      profileRevisionId: row.profileRevisionId,
       assessment: structuredClone(row.assessment) as SavedCvAssessment,
     });
     return {
@@ -168,16 +233,23 @@ export class JobMatchService {
   ): Promise<MatchSnapshot> {
     const job = await this.jobs.get(ownerId, id);
     const cv = await this.cvIdentity(ownerId, id);
-    if (!cv)
+    const reviewed = cv && JobMatchService.reviewed(cv.review);
+    if (!cv || !reviewed)
       throw new ConflictException(
-        'Saved CV is unavailable. Reanalyze CV Match.',
+        'Saved CV is unavailable or not reviewed. Reanalyze CV Match.',
       );
     const row = await this.matchRows.findOneBy({
       matchId,
       ownerId,
       jobId: id,
     });
-    const current = row ? await this.resolve(row, cv, job.updatedAt) : null;
+    const current = row
+      ? await this.resolve(
+          row,
+          { ...cv, profileRevisionId: reviewed.profileRevisionId },
+          job.updatedAt,
+        )
+      : null;
     if (current?.status !== 'VALID')
       throw new ConflictException(
         'Match context is unavailable or stale. Reanalyze CV Match.',
@@ -200,6 +272,7 @@ export class JobMatchService {
     private readonly jobs: OpportunitiesService,
     @InjectRepository(CvMatchRecord)
     private readonly matchRows: Repository<CvMatchRecord>,
+    private readonly reviewedCvs: ReviewedCvService,
     @Optional() @Inject(AI_CONFIG) private readonly aiConfig?: AiConfig,
   ) {}
   private static dto(cv: SavedCv) {
@@ -314,12 +387,24 @@ export class JobMatchService {
     const job = await this.jobs.get(ownerId, id);
     const cv = await this.cvIdentity(ownerId, id);
     if (!cv) return { status: 'CV_UNAVAILABLE' as const };
+    const reviewed = JobMatchService.reviewed(cv.review);
+    // Review comes first: no match state is shown for an unreviewed CV.
+    if (!reviewed)
+      return {
+        status: 'CV_REVIEW_REQUIRED' as const,
+        cvId: cv.id,
+        reviewStatus: cv.review.status,
+      };
     const row = await this.matchRows.findOneBy({
       ownerId,
       jobId: id,
     });
     if (!row) return { status: 'MISSING' as const };
-    const current = await this.resolve(row, cv, job.updatedAt);
+    const current = await this.resolve(
+      row,
+      { ...cv, profileRevisionId: reviewed.profileRevisionId },
+      job.updatedAt,
+    );
     if (current.status !== 'VALID') return { status: current.status };
     const { snapshot } = current;
     return {
@@ -415,18 +500,20 @@ export class JobMatchService {
     this.active = true;
     try {
       const snapshot = await this.requireSnapshot(ownerId, id, matchId);
-      const cv = await this.jobCvText(ownerId, id);
+      const found = await this.reviewedJobCv(ownerId, id);
+      const reviewed = found && JobMatchService.reviewed(found.review);
       if (
-        !cv ||
-        !cv.text?.trim() ||
-        cv.updatedAt.toISOString() !== snapshot.cvUpdatedAt
+        !found ||
+        !reviewed ||
+        reviewed.profileRevisionId !== snapshot.profileRevisionId ||
+        found.cv.updatedAt.toISOString() !== snapshot.cvUpdatedAt
       )
         throw new CvSuggestionsError('CV_SUGGESTIONS_STALE_MATCH');
       await this.recheckSuggestionSnapshot(ownerId, id, matchId, snapshot);
       const service = new CvSuggestionsService(this.ai);
       let result: CvSuggestionsResponse;
       try {
-        result = await service.generate(snapshot, cv.text);
+        result = await service.generate(snapshot, reviewed.reviewed.text);
       } catch (error) {
         await this.recheckSuggestionSnapshot(ownerId, id, matchId, snapshot);
         throw error;
@@ -477,9 +564,14 @@ export class JobMatchService {
     this.active = true;
     try {
       const job = await this.jobs.get(ownerId, id);
-      const cv = await this.jobCvText(ownerId, id);
-      if (!cv || typeof cv.text !== 'string' || !cv.text.trim())
+      const found = await this.reviewedJobCv(ownerId, id);
+      if (!found)
         throw new CvMatchError('CV_MATCH_CV_UNAVAILABLE', 'CV_TEXT_EMPTY');
+      const saved = found.cv;
+      const review = JobMatchService.reviewed(found.review);
+      // Never analyze raw text: Match consumes the completed review only.
+      if (!review) throw new CvMatchError('CV_MATCH_REVIEW_REQUIRED');
+      const cv = { ...saved, text: review.reviewed.text };
       if (
         ![
           job.skills,
@@ -607,6 +699,13 @@ export class JobMatchService {
       if (
         latestCv?.id !== cv.id ||
         latestCv.updatedAt.getTime() !== cv.updatedAt.getTime() ||
+        (await this.reviewedCvs
+          .forCv(ownerId, saved)
+          .then(
+            (latest) =>
+              latest.status !== 'COMPLETE' ||
+              latest.profileRevisionId !== review.profileRevisionId,
+          )) ||
         latestJob.updatedAt.getTime() !== job.updatedAt.getTime()
       ) {
         trace.reason = 'SOURCE_CHANGED';
@@ -615,12 +714,15 @@ export class JobMatchService {
         );
       }
       trace.stage = 'SCORING';
-      const result = this.matching.matchSavedCv(
-        verified,
-        cv.text,
-        jd,
-        canonical,
-        canonicalRequirementsUnverified(job),
+      const result = withCvOrigins(
+        this.matching.matchSavedCv(
+          verified,
+          cv.text,
+          jd,
+          canonical,
+          canonicalRequirementsUnverified(job),
+        ),
+        review.reviewed,
       );
       const analyzedAt = new Date();
       const matchId = randomUUID();
@@ -636,7 +738,11 @@ export class JobMatchService {
           .evidenceUncertain === false
           ? await this.resolve(
               previous,
-              { ...cv, hash: cvTextHash(cv.text) },
+              {
+                ...saved,
+                hash: cvTextHash(saved.text),
+                profileRevisionId: review.profileRevisionId,
+              },
               job.updatedAt,
             )
           : null;
@@ -657,9 +763,9 @@ export class JobMatchService {
           ownerId,
           jobId: id,
           cvId: cv.id,
-          cvTextHash: createHash('sha256')
-            .update(cv.text, 'utf8')
-            .digest('hex'),
+          // Identity of the saved CV file text; the review revision is separate.
+          cvTextHash: cvTextHash(saved.text),
+          profileRevisionId: review.profileRevisionId,
           cvUpdatedAt: cv.updatedAt,
           jobUpdatedAt: job.updatedAt,
           policyVersion: MATCHING_POLICY_VERSION,

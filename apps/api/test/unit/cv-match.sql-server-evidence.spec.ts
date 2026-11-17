@@ -1,3 +1,4 @@
+import { reviewedAsIs } from '../support/reviewed-cv.stub.js';
 import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js';
 import 'reflect-metadata';
 import { memoryMatchRows } from '../support/memory-match-rows.js';
@@ -161,6 +162,7 @@ test('mocked real service reads the saved parsed text and returns original unqua
     new MatchingService(),
     { get: async () => job } as unknown as OpportunitiesService,
     memoryMatchRows(),
+    reviewedAsIs(),
   );
   const result = await service.analyze(LOCAL_OWNER_ID, 'synthetic-job');
   expect(result.requirements[0]?.coverage.components[2]).toMatchObject({
