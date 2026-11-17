@@ -13,7 +13,7 @@ import { PageHeader } from '../../components/PageHeader';
 import { InterviewPrep } from './InterviewPrep';
 import type { PracticeQuestion } from './interview-prep-api';
 import {
-  CATEGORY_LABELS,
+  categoryLabel,
   listJobQuestionSets,
   type JobQuestionSets,
 } from './job-interview-api';
@@ -56,7 +56,7 @@ export function JobPractice() {
       (set?.questions ?? []).map((q) => ({
         id: q.id,
         topic: 'technical',
-        category: CATEGORY_LABELS[q.category],
+        category: categoryLabel(set!.family, q.category),
         kind: q.kind,
         variants: [q.question],
         hints: [],

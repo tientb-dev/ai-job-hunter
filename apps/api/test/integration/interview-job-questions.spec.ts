@@ -42,7 +42,7 @@ const job = async (ownerId: string) =>
 const set = async (ownerId: string, jobId: string) =>
   (
     await db.query(
-      `INSERT INTO ${SETS} ("ownerId","jobId","jdHash") VALUES ($1,$2,$3) RETURNING id`,
+      `INSERT INTO ${SETS} ("ownerId","jobId","jdHash",family) VALUES ($1,$2,$3,'it') RETURNING id`,
       [ownerId, jobId, hash],
     )
   )[0].id as string;
@@ -120,6 +120,50 @@ afterAll(async () => {
   }
 });
 
+test('the family migration backfills existing sets as IT and keeps their questions, IDs and answers', async () => {
+  const name = 'InterviewQuestionSetFamily1795000000000';
+  const reverted = await revertThrough(db, name);
+  expect(reverted[0]).toBe(name);
+  // A set created before the migration (no family column yet).
+  const jobId = await job(ownerA);
+  const [{ id: setId }] = await db.query(
+    `INSERT INTO ${SETS} ("ownerId","jobId","jdHash") VALUES ($1,$2,$3) RETURNING id`,
+    [ownerA, jobId, hash],
+  );
+  const [{ id: qid }] = await question(ownerA, setId);
+  await db.query(
+    `INSERT INTO ${ANSWERS} ("ownerId","questionId",answer) VALUES ($1,$2,'Synthetic pre-family answer.')`,
+    [ownerA, `jd-${qid}`],
+  );
+  expect((await db.runMigrations()).map((m) => m.name)).toEqual(reverted);
+  expect(await db.runMigrations()).toEqual([]);
+  expect(
+    await db.query(`SELECT family FROM ${SETS} WHERE id = $1`, [setId]),
+  ).toEqual([{ family: 'it' }]);
+  expect(
+    await db.query(`SELECT id FROM ${QUESTIONS} WHERE "setId" = $1`, [setId]),
+  ).toEqual([{ id: qid }]);
+  expect(
+    await db.query(
+      `SELECT answer FROM ${ANSWERS} WHERE "ownerId" = $1 AND "questionId" = $2`,
+      [ownerA, `jd-${qid}`],
+    ),
+  ).toEqual([{ answer: 'Synthetic pre-family answer.' }]);
+  // New sets never fall back to IT: the family must be given and valid.
+  await expect(
+    db.query(
+      `INSERT INTO ${SETS} ("ownerId","jobId","jdHash") VALUES ($1,$2,$3)`,
+      [ownerA, jobId, hash],
+    ),
+  ).rejects.toThrow(/null value in column "family"/u);
+  await expect(
+    db.query(
+      `INSERT INTO ${SETS} ("ownerId","jobId","jdHash",family) VALUES ($1,$2,$3,'finance')`,
+      [ownerA, jobId, hash],
+    ),
+  ).rejects.toThrow(/check constraint/u);
+});
+
 test('the migration reverts, reapplies and repeat-runs without touching PR14 answers', async () => {
   await db.query(
     `INSERT INTO ${ANSWERS} ("ownerId","questionId",answer) VALUES ($1,'hr-intro-01','Synthetic kept answer.'),($1,$2,'Synthetic jd answer.')`,
@@ -180,7 +224,7 @@ test('constraints reject malformed rows', async () => {
   const jobA = await job(ownerA);
   await expect(
     db.query(
-      `INSERT INTO ${SETS} ("ownerId","jobId","jdHash") VALUES ($1,$2,'not-a-hash')`,
+      `INSERT INTO ${SETS} ("ownerId","jobId","jdHash",family) VALUES ($1,$2,'not-a-hash','it')`,
       [ownerA, jobA],
     ),
   ).rejects.toMatchObject({ driverError: { code: '23514' } });

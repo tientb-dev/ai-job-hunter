@@ -3,6 +3,15 @@ import { PracticeError } from './interview-prep-api';
 
 export type JobQuestionCategory =
   'skill' | 'architecture' | 'troubleshooting' | 'experience';
+const CATEGORIES: readonly string[] = [
+  'skill',
+  'architecture',
+  'troubleshooting',
+  'experience',
+];
+/** Job family of a question set; it decides how each category is labelled. */
+export type JobFamily = 'it' | 'marketing' | 'sales' | 'other';
+const FAMILIES: readonly string[] = ['it', 'marketing', 'sales', 'other'];
 export interface JobQuestion {
   id: string;
   position: number;
@@ -14,6 +23,7 @@ export interface JobQuestion {
 }
 export interface JobQuestionSet {
   id: string;
+  family: JobFamily;
   createdAt: string;
   active: boolean;
   partial: boolean;
@@ -27,18 +37,44 @@ export interface JobQuestionSets {
   sets: JobQuestionSet[];
 }
 
-export const CATEGORY_LABELS: Record<JobQuestionCategory, string> = {
-  get skill() {
-    return tr('Technical skill');
+const LABELS: Record<JobFamily, Record<JobQuestionCategory, () => string>> = {
+  it: {
+    skill: () => tr('Technical skill'),
+    architecture: () => tr('Architecture and design'),
+    troubleshooting: () => 'Troubleshooting',
+    experience: () => tr('Technical experience'),
   },
-  get architecture() {
-    return tr('Architecture and design');
+  marketing: {
+    skill: () => tr('Marketing skill'),
+    architecture: () => tr('Strategy and planning'),
+    troubleshooting: () => tr('Campaign problem-solving'),
+    experience: () => tr('Marketing experience'),
   },
-  troubleshooting: 'Troubleshooting',
-  get experience() {
-    return tr('Technical experience');
+  sales: {
+    skill: () => tr('Sales skill'),
+    architecture: () => tr('Sales strategy'),
+    troubleshooting: () => tr('Handling objections'),
+    experience: () => tr('Sales experience'),
+  },
+  other: {
+    skill: () => tr('Role skill'),
+    architecture: () => tr('Approach and planning'),
+    troubleshooting: () => tr('Problem-solving'),
+    experience: () => tr('Relevant experience'),
   },
 };
+/** The stored category IDs are shared; their meaning and label depend on the family. */
+export const categoryLabel = (
+  family: JobFamily,
+  category: JobQuestionCategory,
+) => LABELS[family][category]();
+/** Sets from an older API have no family (they were all IT); unknown values are neutral. */
+const familyOf = (value: unknown): JobFamily =>
+  value === undefined
+    ? 'it'
+    : typeof value === 'string' && FAMILIES.includes(value)
+      ? (value as JobFamily)
+      : 'other';
 
 const record = (v: unknown): v is Record<string, unknown> =>
   v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -54,7 +90,7 @@ const question = (q: unknown): q is JobQuestion =>
   /^jd-[0-9a-f-]{36}$/u.test(q.id) &&
   Number.isInteger(q.position) &&
   str(q.category) &&
-  q.category in CATEGORY_LABELS &&
+  CATEGORIES.includes(q.category) &&
   ['general', 'hypothetical', 'personal'].includes(q.kind as string) &&
   str(q.question) &&
   str(q.why) &&
@@ -90,6 +126,7 @@ export function decodeJobQuestionSets(value: unknown): JobQuestionSets {
     jdChanged: value.jdChanged,
     sets: sets.map((s) => ({
       ...s,
+      family: familyOf(s.family),
       questions: [...s.questions].sort((a, b) => a.position - b.position),
     })),
   };
@@ -142,5 +179,5 @@ export async function generateJobQuestionSet(
     basedOnSetId,
   });
   if (!record(payload) || !set(payload.set)) throw invalid();
-  return payload.set;
+  return { ...payload.set, family: familyOf(payload.set.family) };
 }

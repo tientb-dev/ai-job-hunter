@@ -8,11 +8,32 @@ import {
 export const JD_QUESTION_ID =
   /^jd-([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/u;
 
-const CATEGORY_LABEL: Record<string, string> = {
-  skill: 'Technical skill',
-  architecture: 'Architecture and design',
-  troubleshooting: 'Troubleshooting',
-  experience: 'Technical experience',
+// English labels per family (the web app shows its own localized copy).
+const CATEGORY_LABEL: Record<string, Record<string, string>> = {
+  it: {
+    skill: 'Technical skill',
+    architecture: 'Architecture and design',
+    troubleshooting: 'Troubleshooting',
+    experience: 'Technical experience',
+  },
+  marketing: {
+    skill: 'Marketing skill',
+    architecture: 'Strategy and planning',
+    troubleshooting: 'Campaign problem-solving',
+    experience: 'Marketing experience',
+  },
+  sales: {
+    skill: 'Sales skill',
+    architecture: 'Sales strategy',
+    troubleshooting: 'Handling objections',
+    experience: 'Sales experience',
+  },
+  other: {
+    skill: 'Role skill',
+    architecture: 'Approach and planning',
+    troubleshooting: 'Problem-solving',
+    experience: 'Relevant experience',
+  },
 };
 
 /**
@@ -48,11 +69,15 @@ export async function resolveQuestion(
   const uuid = typeof id === 'string' ? JD_QUESTION_ID.exec(id)?.[1] : null;
   if (!uuid) return undefined;
   const [row] = (await db.query(
-    `SELECT category, kind, question, why FROM ai_job_hunter.interview_job_questions
-     WHERE "ownerId" = $1 AND id = $2`,
+    `SELECT q.category, q.kind, q.question, q.why, s.family
+     FROM ai_job_hunter.interview_job_questions q
+     JOIN ai_job_hunter.interview_question_sets s
+       ON s."ownerId" = q."ownerId" AND s.id = q."setId"
+     WHERE q."ownerId" = $1 AND q.id = $2`,
     [ownerId, uuid],
   )) as {
     category: string;
+    family: string;
     kind: InterviewQuestion['kind'];
     question: string;
     why: string;
@@ -61,7 +86,10 @@ export async function resolveQuestion(
   return {
     id: id as string,
     topic: 'technical',
-    category: CATEGORY_LABEL[row.category] ?? 'Technical',
+    category:
+      CATEGORY_LABEL[row.family]?.[row.category] ??
+      CATEGORY_LABEL.other![row.category] ??
+      'Role question',
     kind: row.kind,
     variants: [row.question],
     hints: [],

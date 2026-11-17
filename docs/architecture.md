@@ -2151,6 +2151,14 @@ Grounding decisions:
 
 **Known limits:** `base.en` mishears technical terms, especially after Opus compression ("RabbitMQ" → "Rabid and give"). Vocabulary hints come only from the question's own wording, so many curated questions give none. The editable transcript is the fallback, not a fix.
 
+## PR105 Multi-industry job interview questions
+
+- **Job family per question set.** The existing generation call also returns `family` (`it | marketing | sales | other`), stored in `interview_question_sets.family`. The schema field is a plain string checked in code (`parseFamily`): a missing, invalid or uncertain value becomes `other`, so an odd family never discards valid questions and new sets never fall back to IT. A retry only adds questions; the first response decides the family.
+- **Shared category IDs, family-specific meaning.** The four stored IDs (`skill`, `architecture`, `troubleshooting`, `experience`) stay, so questions, `jd-<uuid>` IDs, saved answers, progress and mock sessions are untouched. The prompt defines each slot per family, and the web labels them per family (for example `architecture` = "Strategy and planning" for marketing, "Sales strategy" for sales).
+- **Migration `InterviewQuestionSetFamily1795000000000`.** Adds `family` with a CHECK, backfills existing sets as `it` (they came from the IT-only prompt) and then drops the default. Reverting drops only the column. The web decoder reads a missing `family` as `it` for older API responses.
+- **Alternatives rejected:** new category IDs per family (database and decoder churn for every existing set) and keyword-based family detection (brittle on mixed roles).
+- **Known limits:** mixed roles (sales engineer, marketing technology) get one family; the model may put most questions in one slot; the HR filter still rejects questions using words such as "motivate" in every family.
+
 ## PR17 Mock interview sessions
 
 `/interview-prep/mock` runs 5–8 questions in a row: curated questions sampled at random, or one JD set in stored order (a shorter set uses all its questions). It reuses the PR16 recorder, transcript and optional review feedback.

@@ -41,7 +41,7 @@ const job = async (ownerId: string) =>
 const jobSet = async (ownerId: string, jobId: string, n: number) => {
   const setId = (
     await db.query(
-      `INSERT INTO ai_job_hunter.interview_question_sets ("ownerId","jobId","jdHash") VALUES ($1,$2,$3) RETURNING id`,
+      `INSERT INTO ai_job_hunter.interview_question_sets ("ownerId","jobId","jdHash",family) VALUES ($1,$2,$3,'it') RETURNING id`,
       [ownerId, jobId, 'a'.repeat(64)],
     )
   )[0].id as string;

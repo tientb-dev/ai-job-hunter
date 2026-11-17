@@ -12,6 +12,8 @@ import {
   TARGET_QUESTIONS,
   jdSnapshot,
   jobQuestionsPrompt,
+  parseFamily,
+  type JobFamily,
   validateQuestions,
   type JobQuestion,
 } from './job-questions.policy.js';
@@ -66,6 +68,7 @@ interface SetRow {
   id: string;
   createdAt: Date;
   jdHash: string;
+  family: JobFamily;
 }
 interface QuestionRow extends JobQuestion {
   id: string;
@@ -84,14 +87,16 @@ const questionDto = (q: QuestionRow) => ({
 const setDto = (set: SetRow, questions: QuestionRow[], active: boolean) => ({
   id: set.id,
   createdAt: new Date(set.createdAt).toISOString(),
+  family: set.family,
   active,
   partial: questions.length < TARGET_QUESTIONS,
   questions: questions.map(questionDto),
 });
 
 /**
- * JD-grounded technical question sets. Sets are append-only and the newest is
- * active; nothing here deletes sets or answers.
+ * JD-grounded, role-specific question sets (IT, marketing, sales or other).
+ * Sets are append-only and the newest is active; nothing here deletes sets or
+ * answers.
  */
 @Injectable()
 export class JobQuestionsService {
@@ -108,7 +113,7 @@ export class JobQuestionsService {
       const job = await this.job(this.db.manager, ownerId, jobId);
       const snapshot = jdSnapshot(job);
       const sets = (await this.db.query(
-        `SELECT id, "createdAt", "jdHash" FROM ${SETS}
+        `SELECT id, "createdAt", "jdHash", family FROM ${SETS}
          WHERE "ownerId" = $1 AND "jobId" = $2 ORDER BY "createdAt" DESC, id DESC`,
         [ownerId, jobId],
       )) as SetRow[];
@@ -167,12 +172,10 @@ export class JobQuestionsService {
       // Provider failures are never retried automatically. The model runs at
       // temperature 0, so new questions need an explicit avoid list; the same
       // questions also seed the duplicate check (exact and near-duplicates).
-      let valid = validateQuestions(
-        await ask(existing.map((q) => q.question)),
-        snapshot.source,
-        [],
-        existing,
-      ).valid;
+      const first = await ask(existing.map((q) => q.question));
+      // The first response decides the family; a retry only adds questions.
+      const family = parseFamily(first);
+      let valid = validateQuestions(first, snapshot.source, [], existing).valid;
       if (valid.length < TARGET_QUESTIONS) {
         // A successful but thin response: one retry, pooled without duplicates.
         try {
@@ -209,9 +212,9 @@ export class JobQuestionsService {
             throw new InterviewPrepError('INTERVIEW_JD_CHANGED');
           await this.requireActive(m, ownerId, jobId, basedOnSetId);
           const [set] = (await m.query(
-            `INSERT INTO ${SETS} ("ownerId", "jobId", "jdHash") VALUES ($1, $2, $3)
-             RETURNING id, "createdAt", "jdHash"`,
-            [ownerId, jobId, snapshot.hash],
+            `INSERT INTO ${SETS} ("ownerId", "jobId", "jdHash", family) VALUES ($1, $2, $3, $4)
+             RETURNING id, "createdAt", "jdHash", family`,
+            [ownerId, jobId, snapshot.hash, family],
           )) as SetRow[];
           const params: unknown[] = [ownerId, set!.id];
           const values = valid.map((q, i) => {
