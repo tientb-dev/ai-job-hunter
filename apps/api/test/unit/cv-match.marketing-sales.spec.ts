@@ -209,3 +209,78 @@ describe('per-contract deal size is not aggregate revenue', () => {
     ).toBe('EVIDENCED');
   });
 });
+
+// Synthetic Vietnamese Marketing CV against an English JD (browser QA, PR #104).
+describe('Vietnamese CV skills list and years against an English JD', () => {
+  const cv = [
+    'Tóm tắt',
+    '',
+    'Chuyên viên Marketing với 5 năm kinh nghiệm.',
+    '',
+    'Kỹ năng',
+    '',
+    'SEO, Google Ads, Facebook Ads, Content Marketing, Google Analytics',
+  ].join('\n');
+  const list =
+    'SEO, Google Ads, Facebook Ads, Content Marketing, Google Analytics';
+
+  test('an unlabelled skills list supports "Proficient in X"', () => {
+    expect(
+      assess(job('- Proficient in Google Analytics'), cv, {
+        'Proficient in Google Analytics': list,
+      })['Proficient in Google Analytics'],
+    ).toBe('EVIDENCED');
+  });
+  test('an omitted quote is still not recovered from a skills list', () => {
+    expect(
+      assess(job('- Proficient in Google Analytics'), cv, {})[
+        'Proficient in Google Analytics'
+      ],
+    ).toBe('NOT_EVIDENCED');
+  });
+  test('a skills list never supports an experience row', () => {
+    expect(
+      assess(job('- Experience with Google Analytics'), cv, {
+        'Experience with Google Analytics': list,
+      })['Experience with Google Analytics'],
+    ).toBe('NOT_EVIDENCED');
+  });
+  test('"N năm" satisfies a minimum-years row, and fewer years do not', () => {
+    const years = (quote: string, text = cv) =>
+      Object.values(
+        assess(
+          { ...job(''), experience: 'Minimum 3 years' } as Opportunity,
+          text,
+          { 'Minimum 3 years': quote },
+        ),
+      )[0];
+    expect(years('Chuyên viên Marketing với 5 năm kinh nghiệm.')).toBe(
+      'EVIDENCED',
+    );
+    expect(
+      years(
+        'Chuyên viên Marketing với 2 năm kinh nghiệm.',
+        'Chuyên viên Marketing với 2 năm kinh nghiệm.',
+      ),
+    ).toBe('NOT_EVIDENCED');
+  });
+});
+
+describe('Vietnamese result verbs', () => {
+  test('"Tăng … qua email marketing" evidences the email-marketing component only', () => {
+    const cv =
+      'Kinh nghiệm\n\n• Tăng tỷ lệ chuyển đổi 12% qua email marketing.';
+    const quote = '• Tăng tỷ lệ chuyển đổi 12% qua email marketing.';
+    const status = assess(
+      job('- Email marketing and conversion rate optimization experience'),
+      cv,
+      {
+        'Email marketing and conversion rate optimization experience': quote,
+        'Email marketing': quote,
+        'conversion rate optimization experience': quote,
+      },
+    )['Email marketing and conversion rate optimization experience'];
+    // The English CRO phrase has no literal match; never a full match by translation.
+    expect(status).toBe('PARTIAL');
+  });
+});

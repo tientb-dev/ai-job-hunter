@@ -88,6 +88,10 @@ export function reflow(text: string): string {
       .replace(/(\p{Ll})[ \t]*\n[ \t]*(?=[\p{Ll}(])/gu, '$1 ')
       // A wrapped item inside a comma list: "Mentoring, Stakeholder\nCommunication".
       .replace(/(,[^\n]*\p{L})[ \t]*\n[ \t]*(?=\p{L})/gu, '$1 ')
+      // A tab has no glyph in the PDF fonts ("Role\t2020 – now"): one space.
+      .replace(/[ \t]*\t[ \t]*/gu, ' ')
+      // A separator left dangling at a line end ("Hà Nội, Việt Nam ·").
+      .replace(/[ \t]+[·•|]+(?=\n|$)/gu, '')
   );
 }
 

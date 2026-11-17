@@ -477,6 +477,8 @@ export function sectionCandidates(
   for (const { line, kind, structured } of requirementLines(text)) {
     if (
       !kind ||
+      // A blank line inside a section is not a requirement; "" would match every line.
+      !line.trim() ||
       /không (?:yêu cầu|bắt buộc|cần)|not required|no experience|ignore.*instructions/iu.test(
         line,
       )

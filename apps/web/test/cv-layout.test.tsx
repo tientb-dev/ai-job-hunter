@@ -8,7 +8,7 @@ import {
 import cases from '../../api/test/support/cv-layout-cases.json';
 
 test('preview layout rules match the export rules', () => {
-  expect(cases.reflow).toHaveLength(11);
+  expect(cases.reflow).toHaveLength(16);
   for (const [input, output] of cases.reflow as [string, string][])
     expect(reflow(input)).toBe(output);
   for (const [kind, title] of Object.entries(cases.titles))
