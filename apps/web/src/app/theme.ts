@@ -1,4 +1,14 @@
-import { createTheme } from '@mui/material/styles';
+import { createTheme, keyframes } from '@mui/material/styles';
+
+// Shared first-render entrance (fade + 6px rise); the reduced-motion rule below turns it off.
+const rise = keyframes`
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+`;
+export const enter = (step = 0) => ({
+  animation: `${rise} 260ms ease-out both`,
+  animationDelay: `${step * 50}ms`,
+});
 
 // Shared surface tokens: panels, dialogs and menus share one radius; controls
 // (buttons, fields, alerts) keep the tighter shape radius.
@@ -64,6 +74,7 @@ export const theme = createTheme({
         '@media (prefers-reduced-motion: reduce)': {
           '*, *::before, *::after': {
             animationDuration: '0.01ms !important',
+            animationDelay: '0s !important',
             animationIterationCount: '1 !important',
             transitionDuration: '0.01ms !important',
             scrollBehavior: 'auto !important',

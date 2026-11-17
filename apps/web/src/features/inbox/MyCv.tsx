@@ -12,7 +12,7 @@ import {
 } from '../../components/icons';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useNotify } from '../../components/useNotify';
-import { surface } from '../../app/theme';
+import { enter, surface } from '../../app/theme';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -287,7 +287,7 @@ export function MyCv() {
         </Box>
       ) : !cv ? (
         !error && (
-          <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
+          <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, ...enter(0) }}>
             <Typography>
               {tr(
                 'No CV saved yet. Save a PDF or DOCX to review it and tailor it for jobs.',
@@ -312,7 +312,7 @@ export function MyCv() {
             component="section"
             variant="outlined"
             aria-labelledby="cv-library-title"
-            sx={{ p: 2, minWidth: 0 }}
+            sx={{ p: 2, minWidth: 0, ...enter(0) }}
           >
             <Stack
               direction="row"
@@ -428,7 +428,7 @@ export function MyCv() {
               component="section"
               variant="outlined"
               aria-labelledby="cv-details-title"
-              sx={{ p: { xs: 2, sm: 3 }, minWidth: 0 }}
+              sx={{ p: { xs: 2, sm: 3 }, minWidth: 0, ...enter(1) }}
             >
               <Stack spacing={2.5}>
                 <Stack
