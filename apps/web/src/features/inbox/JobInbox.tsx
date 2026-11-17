@@ -1,5 +1,5 @@
 import { dateLocale, tr } from '../../app/i18n';
-import { surface } from '../../app/theme';
+import { enter, fadeIn, surface } from '../../app/theme';
 import { PageHeader } from '../../components/PageHeader';
 import {
   AddIcon,
@@ -163,6 +163,7 @@ export function JobInbox() {
         minWidth: 0,
         position: 'relative',
         overflow: 'hidden',
+        ...enter(0),
       }}
     >
       <Typography
@@ -302,6 +303,8 @@ export function JobInbox() {
                         border: 1,
                         borderColor: active ? 'primary.main' : 'transparent',
                         bgcolor: active ? surface.primaryTint : undefined,
+                        transition:
+                          'background-color 160ms, border-color 160ms',
                         '&:hover': {
                           bgcolor: active
                             ? surface.primaryTint
@@ -504,7 +507,7 @@ export function JobInbox() {
       >
         {showList && list}
         {showDetail && selected && (
-          <Stack spacing={1} sx={{ minHeight: 0, minWidth: 0 }}>
+          <Stack spacing={1} sx={{ minHeight: 0, minWidth: 0, ...enter(1) }}>
             {!wide && (
               <Box>
                 <Button
@@ -593,7 +596,7 @@ function JobDetail({
       component="section"
       aria-labelledby="job-detail-heading"
       variant="outlined"
-      sx={{ p: { xs: 2, sm: 3 }, minHeight: 0, overflowY: 'auto' }}
+      sx={{ p: { xs: 2, sm: 3 }, minHeight: 0, overflowY: 'auto', ...fadeIn }}
     >
       <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
         <Box sx={{ flex: 1, minWidth: 0 }}>

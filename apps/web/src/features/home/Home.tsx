@@ -26,10 +26,10 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import { alpha, keyframes } from '@mui/material/styles';
+import { alpha } from '@mui/material/styles';
 import type { Theme } from '@mui/material/styles';
 import type { ReactNode } from 'react';
-import { surface } from '../../app/theme';
+import { enter, surface } from '../../app/theme';
 import { Link } from 'react-router-dom';
 import { PageHeader } from '../../components/PageHeader';
 import { StatusChip } from '../../components/StatusChip';
@@ -202,15 +202,6 @@ const copy = {
   },
 };
 
-// One entrance for every card; the theme's reduced-motion rule turns it off.
-const rise = keyframes`
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: none; }
-`;
-const enter = (step: number) => ({
-  animation: `${rise} 260ms ease-out both`,
-  animationDelay: `${step * 50}ms`,
-});
 const card = {
   borderRadius: `${surface.radius}px`,
   borderColor: surface.panelBorder,

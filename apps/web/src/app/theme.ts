@@ -1,4 +1,17 @@
-import { createTheme } from '@mui/material/styles';
+import { createTheme, keyframes } from '@mui/material/styles';
+
+// Shared first-render entrance (fade + 6px rise); the reduced-motion rule below turns it off.
+const rise = keyframes`
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+`;
+export const enter = (step = 0) => ({
+  animation: `${rise} 260ms ease-out both`,
+  animationDelay: `${step * 50}ms`,
+});
+const fade = keyframes`from { opacity: 0; }`;
+// Opacity-only swap for remounted workspace content: no movement, no reflow.
+export const fadeIn = { animation: `${fade} 160ms ease-out` } as const;
 
 // Shared surface tokens: panels, dialogs and menus share one radius; controls
 // (buttons, fields, alerts) keep the tighter shape radius.

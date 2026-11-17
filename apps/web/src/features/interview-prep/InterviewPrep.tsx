@@ -1,3 +1,4 @@
+import { enter } from '../../app/theme';
 import { tr } from '../../app/i18n';
 import { HOSTED } from '../../app/hosted';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
@@ -1529,7 +1530,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
             variant="outlined"
             component="section"
             aria-labelledby="practice-question"
-            sx={{ p: { xs: 2, sm: 3 } }}
+            sx={{ p: { xs: 2, sm: 3 }, ...enter(0) }}
           >
             {/* Mobile: question first, Next last. Desktop: Next sits top right. DOM order = reading order. */}
             <Box
@@ -1684,7 +1685,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
             </Box>
           </Paper>
 
-          <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
+          <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, ...enter(1) }}>
             <Stack
               spacing={3}
               sx={{
@@ -1707,7 +1708,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
           component="aside"
           aria-label={tr('Your preparation')}
         >
-          <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
+          <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, ...enter(2) }}>
             <Stack spacing={2}>
               <Typography variant="h6" component="h2">
                 {tr('Your preparation')}
