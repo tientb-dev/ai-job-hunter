@@ -300,7 +300,7 @@ test('queue run uses shared source validation and partial failures, caps new ide
     added: 0,
     refreshed: 0,
     remaining: 0,
-    sourceFailures: 4,
+    sourceFailures: DISCOVERY_SOURCES.length,
   });
   expect(rows).toEqual(beforeFailure);
   expect(opportunities.importDiscovered).not.toHaveBeenCalled();

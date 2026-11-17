@@ -40,7 +40,7 @@ const payload = (token: string) => ({
 test('bounded static registry rejects malformed tokens, duplicate identities and caller URLs', () => {
   for (const entries of [
     [],
-    Array.from({ length: 6 }, (_, i) => ({
+    Array.from({ length: 7 }, (_, i) => ({
       ...board,
       token: `board${i}`,
       key: `greenhouse:board${i}`,
@@ -83,7 +83,7 @@ test('existing canonical URLs and keys remain exact and disabled sources still r
   expect(greenhouseSourceKey(registry[0].url, registry)).toBe(board.key);
   expect(greenhouseSourceKey('https://example.com')).toBeUndefined();
 });
-test.each(['temus', 'go1vn'])(
+test.each(['temus', 'go1vn', 'thoughtworks', 'agoda'])(
   'new board %s normalizes without changing identity or metadata rules',
   (token) => {
     const source = DISCOVERY_SOURCES.find((s) => s.token === token)!;
@@ -106,6 +106,25 @@ test.each(['temus', 'go1vn'])(
     expect(discoverySourceKey(jobs[0]!.discovery)).toBe(`greenhouse:${token}`);
   },
 );
+test('off-host company career links fall back to the hosted Greenhouse URL', () => {
+  const source = DISCOVERY_SOURCES.find((s) => s.token === 'thoughtworks')!;
+  const feed = payload('thoughtworks');
+  feed.jobs[0]!.absolute_url =
+    'https://www.thoughtworks.com/careers/jobs/1?gh_jid=1';
+  const { jobs, invalid } = normalizeGreenhouse(
+    feed,
+    source,
+    '2026-11-17T00:00:00.000Z',
+  );
+  expect(invalid).toBe(0);
+  expect(jobs[0]!.originalLink).toBe(
+    'https://job-boards.greenhouse.io/thoughtworks/jobs/1',
+  );
+  feed.jobs[0]!.absolute_url = 'http://www.thoughtworks.com/careers/jobs/1';
+  expect(
+    normalizeGreenhouse(feed, source, '2026-11-17T00:00:00.000Z').invalid,
+  ).toBe(1);
+});
 test('two concurrent fetches aggregate equal-rank jobs and failures in registry order', async () => {
   jest.useFakeTimers();
   let active = 0,
@@ -138,11 +157,9 @@ test('two concurrent fetches aggregate equal-rank jobs and failures in registry 
     const result = await run;
     expect(max).toBe(2);
     expect(calls).toEqual(DISCOVERY_SOURCES.map((s) => s.url));
-    expect(result.jobs.map((j) => j.discovery.sourceName)).toEqual([
-      DISCOVERY_SOURCES[0].name,
-      DISCOVERY_SOURCES[1].name,
-      DISCOVERY_SOURCES[3].name,
-    ]);
+    expect(result.jobs.map((j) => j.discovery.sourceName)).toEqual(
+      DISCOVERY_SOURCES.filter((_, i) => i !== 2).map((s) => s.name),
+    );
     expect(result.errors).toEqual([
       'Temus · Greenhouse: feed unavailable or rate limited. Retry later; no sample listings substituted.',
     ]);

@@ -21,14 +21,16 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
   const running = useRef(false);
   const [expanded, setExpanded] = useState(false);
   const [location, setLocation] = useState('Ho Chi Minh City');
-  const [stacks, setStacks] = useState([
-    'Java',
-    'Spring Boot',
-    'Node.js',
-    'React',
-  ]);
+  const [family, setFamily] = useState('All');
+  // Optional IT-only narrowing; cleared when another family is chosen.
+  const [stacks, setStacks] = useState<string[]>([]);
+  const familyLabel = (value: string) =>
+    value === 'All'
+      ? tr('Any job family')
+      : value === 'Sales'
+        ? tr('Sales')
+        : value;
   const [workMode, setWorkMode] = useState('All');
-  const [seniority, setSeniority] = useState('Senior');
   const [busy, setBusy] = useState(false);
   const [summary, setSummary] = useState<DiscoverySummary | null>(null);
   const [error, setError] = useState('');
@@ -45,7 +47,12 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
     try {
       const result = await discoveryRequest<DiscoverySummary>('/runs', {
         method: 'POST',
-        body: JSON.stringify({ location, stacks, workMode, seniority }),
+        body: JSON.stringify({
+          family,
+          location,
+          stacks,
+          workMode,
+        }),
       });
       setSummary(result);
       notify({
@@ -108,10 +115,9 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
               color="text.secondary"
               sx={{ overflowWrap: 'anywhere' }}
             >
-              {location} ·{' '}
-              {stacks.length ? stacks.join(', ') : tr('Select a tech stack')} ·{' '}
-              {workMode === 'All' ? tr('Any work mode') : workMode} ·{' '}
-              {seniority === 'All' ? tr('Any seniority') : seniority}
+              {location} · {familyLabel(family)}
+              {stacks.length ? ` (${stacks.join(', ')})` : ''} ·{' '}
+              {workMode === 'All' ? tr('Any work mode') : workMode}
             </Typography>
           </Box>
           <Button
@@ -126,7 +132,7 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
           </Button>
           <Button
             variant="contained"
-            disabled={busy || !stacks.length}
+            disabled={busy}
             onClick={() => void discover()}
             startIcon={<SearchIcon />}
             sx={{ flexShrink: 0, minHeight: { xs: 44, sm: 36 } }}
@@ -134,16 +140,32 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
             {tr('Run discovery')}
           </Button>
         </Stack>
+        <Alert
+          severity="info"
+          role="note"
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              startIcon={<AddIcon />}
+              component={Link}
+              to="/jobs/new"
+              sx={{ whiteSpace: 'nowrap' }}
+            >
+              {tr('Add job from JD or URL')}
+            </Button>
+          }
+          sx={{ flexWrap: { xs: 'wrap', sm: 'nowrap' } }}
+        >
+          {tr(
+            'Discover only searches a few public company career boards (Axon, Backbase, Temus, Go1 Vietnam, Thoughtworks, Agoda), mostly IT roles. Found a job on another website? Add it from its JD or URL.',
+          )}
+        </Alert>
         {expanded && (
-          <Stack id="discovery-preferences" spacing={1.5}>
+          <Stack id="discovery-preferences" spacing={1}>
             <Typography variant="body2" color="text.secondary">
               {tr(
-                'Greenhouse searches Axon, Backbase, Temus, and Go1 Vietnam. Location, work mode, and level prioritize new candidates under the 50-new limit; they do not filter or reorder the Queue. The Queue includes candidates from previous runs.',
-              )}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {tr(
-                'Unknown location, work mode, or level may remain eligible under existing rules. A selected stack must still match job text.',
+                'Job family and tech stacks filter results, and on-site roles outside Vietnam are excluded. Location and work mode only prioritize new candidates under the 50-new limit; unknown values stay eligible. The Queue keeps previous runs and is not reordered.',
               )}
             </Typography>
             <Box
@@ -154,7 +176,8 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
                   sm: 'repeat(2, minmax(0, 1fr))',
                   lg: 'repeat(4, minmax(0, 1fr))',
                 },
-                gap: 2,
+                gap: 1.5,
+                pt: 0.5,
               }}
             >
               <TextField
@@ -179,27 +202,50 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
                 size="small"
                 select
                 fullWidth
-                label={tr('Must mention any selected stack')}
+                label={tr('Job family')}
                 helperText={tr(
-                  'Matches any selected keyword in job text, including descriptions and preferred skills; not necessarily required skills.',
+                  'Filters by job title. Titles that are unclear or fit several families only appear under All.',
                 )}
-                value={stacks}
+                value={family}
                 disabled={busy}
-                slotProps={{ select: { multiple: true } }}
-                onChange={(event) =>
-                  setStacks(
-                    typeof event.target.value === 'string'
-                      ? event.target.value.split(',')
-                      : event.target.value,
-                  )
-                }
+                onChange={(event) => {
+                  setFamily(event.target.value);
+                  if (event.target.value !== 'IT') setStacks([]);
+                }}
               >
-                {['Java', 'Spring Boot', 'Node.js', 'React'].map((value) => (
+                {['All', 'IT', 'Marketing', 'Sales'].map((value) => (
                   <MenuItem key={value} value={value}>
-                    {value}
+                    {familyLabel(value)}
                   </MenuItem>
                 ))}
               </TextField>
+              {family === 'IT' && (
+                <TextField
+                  size="small"
+                  select
+                  fullWidth
+                  label={tr('Tech stack (optional)')}
+                  helperText={tr(
+                    'Leave empty for all IT roles. Matches any selected keyword in job text, including descriptions and preferred skills; not necessarily required skills.',
+                  )}
+                  value={stacks}
+                  disabled={busy}
+                  slotProps={{ select: { multiple: true } }}
+                  onChange={(event) =>
+                    setStacks(
+                      typeof event.target.value === 'string'
+                        ? event.target.value.split(',')
+                        : event.target.value,
+                    )
+                  }
+                >
+                  {['Java', 'Spring Boot', 'Node.js', 'React'].map((value) => (
+                    <MenuItem key={value} value={value}>
+                      {value}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
               <TextField
                 size="small"
                 select
@@ -213,24 +259,6 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
                 onChange={(event) => setWorkMode(event.target.value)}
               >
                 {['All', 'Onsite', 'Hybrid', 'Remote'].map((value) => (
-                  <MenuItem key={value} value={value}>
-                    {value}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                size="small"
-                select
-                fullWidth
-                label={tr('Preferred level')}
-                helperText={tr(
-                  'Ranking only. Senior includes technical leads.',
-                )}
-                value={seniority}
-                disabled={busy}
-                onChange={(event) => setSeniority(event.target.value)}
-              >
-                {['Senior', 'Technical Lead', 'All'].map((value) => (
                   <MenuItem key={value} value={value}>
                     {value}
                   </MenuItem>
@@ -330,7 +358,7 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
               ) : summary.eligible === 0 ? (
                 <Typography variant="body2">
                   {tr(
-                    'No eligible candidates in this run. Try different selected stacks or Add job. Your Queue includes previous runs and is unchanged.',
+                    'No eligible candidates in this run. Try different preferences or add a job from its JD or URL. Your Queue includes previous runs and is unchanged.',
                   )}
                 </Typography>
               ) : null}
@@ -402,7 +430,7 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
                     to="/jobs/new"
                     variant="outlined"
                   >
-                    {tr('Add job')}
+                    {tr('Add job from JD or URL')}
                   </Button>
                 )}
               </Stack>

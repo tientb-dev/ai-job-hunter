@@ -149,6 +149,7 @@ test('JavaScript and coding tools do not provide Java or production AI evidence'
 });
 test('all seniorities remain discoverable; actual Junior JD seniority is preserved and never changes CV scoring', () => {
   const filters = {
+    family: 'All',
     location: 'Ho Chi Minh City',
     stacks: ['Java'],
     workMode: 'All',

@@ -84,6 +84,14 @@ export function normalizeGreenhouse(
     const description = plainDescription(content);
     const id =
       Number.isSafeInteger(row.id) && Number(row.id) > 0 ? String(row.id) : '';
+    // Some boards (e.g. Thoughtworks) link to their own careers site; use the
+    // hosted Greenhouse URL built from the trusted board token, which redirects there.
+    const token = /\/v1\/boards\/([a-z0-9-]+)\/jobs/u.exec(source.url)?.[1];
+    let applyLink = link;
+    if (!safe && id && token && /^https:\/\//u.test(link)) {
+      applyLink = `https://job-boards.greenhouse.io/${token}/jobs/${id}`;
+      safe = true;
+    }
     if (!title || !id || !safe || !content || description.length > 26000) {
       invalid++;
       continue;
@@ -147,7 +155,7 @@ export function normalizeGreenhouse(
       skills,
       preferredSkills,
       description,
-      originalLink: link,
+      originalLink: applyLink,
       discovery: {
         sourceName: source.name,
         sourceJobId: id,

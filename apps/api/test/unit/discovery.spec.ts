@@ -2,6 +2,7 @@ import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js
 import { expect, jest, test } from '@jest/globals';
 import {
   duplicateJob,
+  jobFamily,
   rankJob,
   validateFilters,
   type DiscoveryFilters,
@@ -15,6 +16,7 @@ import {
 import { DiscoveryService } from '../../src/discovery/discovery.service.js';
 import type { OpportunitiesService } from '../../src/opportunities/opportunities.service.js';
 const filters: DiscoveryFilters = {
+  family: 'All',
   location: 'Ho Chi Minh City',
   stacks: ['Java', 'Spring Boot', 'Node.js', 'React'],
   workMode: 'All',
@@ -118,8 +120,61 @@ test('ranks HCMC onsite/hybrid and senior/technical leads ahead without dropping
   ).toBeNull();
 });
 test('rejects unsupported filters instead of pretending the API supports them', () => {
-  expect(() => validateFilters({ ...filters, stacks: [] })).toThrow();
+  expect(() => validateFilters({ ...filters, stacks: ['Go'] })).toThrow();
   expect(() => validateFilters({ ...filters, salary: 100 })).toThrow();
+});
+test('job family classification is conservative and title-only', () => {
+  expect(jobFamily('Senior Backend Software Engineer II')).toBe('IT');
+  expect(jobFamily('Binance Accelerator Program - Growth Marketing')).toBe(
+    'Marketing',
+  );
+  expect(jobFamily('Strategic Account Manager (Ho Chi Minh)')).toBe('Sales');
+  expect(jobFamily('Nhân viên kinh doanh')).toBe('Sales');
+  // Ambiguous or unknown titles are never claimed by a family.
+  expect(jobFamily('Sales Engineer')).toBeNull();
+  expect(jobFamily('Supply Specialist')).toBeNull();
+});
+test('a specific family is a hard filter; All keeps uncertain titles; stacks only narrow IT', () => {
+  const job = (title: string) => ({
+    ...normalized(),
+    title,
+    skills: '',
+    description: 'Hotel partnerships',
+  });
+  const any = validateFilters({ ...filters, stacks: [] });
+  const sales = validateFilters({ ...filters, stacks: [], family: 'Sales' });
+  expect(rankJob(job('Account Executive'), sales)).not.toBeNull();
+  expect(rankJob(job('Backend Engineer'), sales)).toBeNull();
+  expect(rankJob(job('Supply Specialist'), sales)).toBeNull();
+  expect(rankJob(job('Supply Specialist'), any)).not.toBeNull();
+  expect(
+    rankJob(
+      job('Backend Engineer'),
+      validateFilters({ ...filters, family: 'IT', stacks: ['Java'] }),
+    ),
+  ).toBeNull();
+  expect(() =>
+    validateFilters({ ...filters, family: 'Sales', stacks: ['Java'] }),
+  ).toThrow();
+  expect(() => validateFilters({ ...filters, family: 'Finance' })).toThrow();
+  expect(validateFilters({ ...filters, family: undefined }).family).toBe('All');
+  expect(validateFilters({ ...filters, seniority: undefined }).seniority).toBe(
+    'All',
+  );
+});
+test('no selected stack keeps non-IT jobs eligible but still drops foreign onsite roles', () => {
+  const anyFamily = validateFilters({ ...filters, stacks: [] });
+  const sales = {
+    ...normalized(),
+    title: 'Account Manager',
+    skills: '',
+    description: 'Hotel partnerships and negotiation',
+  };
+  expect(rankJob(sales, filters)).toBeNull();
+  expect(rankJob(sales, anyFamily)).not.toBeNull();
+  expect(
+    rankJob({ ...sales, location: 'Bangkok, Thailand' }, anyFamily),
+  ).toBeNull();
 });
 test('deduplicates tracked URLs, equivalent HCMC identities, and source IDs after manual edits', () => {
   const job = normalized();
@@ -226,7 +281,7 @@ test('technology mentions do not silently become mandatory skills', () => {
   });
 });
 
-test('four live boards retain raw/normalized counts, distinct eligibility and cached fetch times', async () => {
+test('all live boards retain raw/normalized counts, distinct eligibility and cached fetch times', async () => {
   const original = globalThis.fetch;
   const fetch = jest
     .fn<typeof globalThis.fetch>()
@@ -242,14 +297,15 @@ test('four live boards retain raw/normalized counts, distinct eligibility and ca
       {} as OpportunitiesService,
     );
     const live = await service.scan(filters);
+    const boards = DISCOVERY_SOURCES.length;
     expect(live).toMatchObject({
-      fetched: 16,
-      normalized: 12,
-      eligible: 4,
+      fetched: 4 * boards,
+      normalized: 3 * boards,
+      eligible: boards,
       sourceFailures: 0,
     });
-    expect(live.jobs).toHaveLength(4);
-    expect(live.warnings).toHaveLength(4);
+    expect(live.jobs).toHaveLength(boards);
+    expect(live.warnings).toHaveLength(boards);
     expect(live.errors).toEqual(live.warnings);
     expect(live.sources.map((s) => s.sourceKey)).toEqual(
       DISCOVERY_SOURCES.map((s) => s.key),
@@ -269,7 +325,7 @@ test('four live boards retain raw/normalized counts, distinct eligibility and ca
     expect(cached.sources).toEqual(
       live.sources.map((s) => ({ ...s, cacheHit: true })),
     );
-    expect(fetch).toHaveBeenCalledTimes(4);
+    expect(fetch).toHaveBeenCalledTimes(boards);
   } finally {
     globalThis.fetch = original;
   }
@@ -282,7 +338,8 @@ test('malformed envelopes and unavailable sources have unknown counts and safe d
     .mockResolvedValueOnce(Response.json({ jobs: 'private invalid envelope' }))
     .mockRejectedValueOnce(new Error('private connection string'))
     .mockResolvedValueOnce(Response.json({ jobs: [] }))
-    .mockResolvedValueOnce(Response.json({ jobs: [raw, {}] }));
+    .mockResolvedValueOnce(Response.json({ jobs: [raw, {}] }))
+    .mockImplementation(async () => Response.json({ jobs: [] }));
   globalThis.fetch = fetch;
   try {
     const service = new DiscoveryService(
@@ -340,10 +397,10 @@ test('all sources failed reports no available source counts and no eligible jobs
     normalized: 0,
     eligible: 0,
     jobs: [],
-    sourceFailures: 4,
+    sourceFailures: DISCOVERY_SOURCES.length,
     warnings: [],
   });
-  expect(result.sources).toHaveLength(4);
+  expect(result.sources).toHaveLength(DISCOVERY_SOURCES.length);
   expect(
     result.sources.every((s) => s.status === 'failed' && s.fetched === null),
   ).toBe(true);
