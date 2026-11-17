@@ -8,6 +8,27 @@ import {
   dueFollowUp,
   localCalendarDate,
 } from '../src/features/inbox/follow-ups';
+import { previewRequirements } from '../src/features/inbox/job-display';
+
+// Synthetic JD text reproducing wrapped lines and headings from real imports.
+const SAMPLE_SKILLS = [
+  'EDUCATION & KNOWLEDGE',
+  "- Bachelor's degree in Business, Marketing or a related field",
+  'RESPONSIBILITIES:',
+  '- Build long-term relationships with luxury fashion and lifestyle',
+  'brands',
+  '- Reconnect with the existing customer base,',
+  'including past clients who could re-sign',
+  '- Negotiate and close partnership agreements',
+  '- Fluent English communication',
+].join('\n');
+const SAMPLE_PREVIEW = [
+  "Bachelor's degree in Business, Marketing or a related field",
+  'Build long-term relationships with luxury fashion and lifestyle brands',
+  'Reconnect with the existing customer base, including past clients who could re-sign',
+  'Negotiate and close partnership agreements',
+  'Fluent English communication',
+];
 
 const makeJob = (
   title: string,
@@ -27,6 +48,14 @@ const makeJob = (
   createdAt: '',
   updatedAt: '',
 });
+const titles = () =>
+  within(screen.getByRole('list', { name: 'Saved opportunities' }))
+    .queryAllByRole('listitem')
+    .map((item) => item.querySelector('p')!.textContent);
+const openCard = (title: string) =>
+  fireEvent.click(
+    screen.getByRole('button', { name: new RegExp(`^${title}`) }),
+  );
 function mount(rows: ReturnType<typeof makeJob>[], path = '/jobs') {
   const fetch = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(
     async (url) => {
@@ -107,20 +136,16 @@ test('filters due items in existing order, preserves excluded dates and opens Ap
   expect(screen.getByText('2027-01-02')).toBeVisible();
   expect(screen.queryByText('—')).not.toBeInTheDocument();
   expect(screen.getByText('2026-12-30')).toBeVisible();
-  fireEvent.click(screen.getByRole('button', { name: 'Due follow-ups' }));
+  fireEvent.click(screen.getByRole('button', { name: /^Due follow-ups/ }));
   expect(screen.queryByText('Future job')).not.toBeInTheDocument();
   expect(screen.queryByText('Missing job')).not.toBeInTheDocument();
   expect(screen.queryByText('Rejected job')).not.toBeInTheDocument();
   expect(screen.queryByText('Closed job')).not.toBeInTheDocument();
-  const table = screen.getByRole('table');
-  expect(
-    within(table)
-      .getAllByRole('row')
-      .map((row) => within(row).getAllByRole('link')[0]!.textContent),
-  ).toEqual(['Today job', 'Overdue job']);
-  fireEvent.click(screen.getByRole('button', { name: 'All jobs' }));
+  expect(titles()).toEqual(['Today job', 'Overdue job']);
+  fireEvent.click(screen.getByRole('button', { name: /^All jobs/ }));
   expect(screen.getByText('Rejected job')).toBeVisible();
   expect(screen.getByText('2026-12-30')).toBeVisible();
+  openCard('Today job');
   fireEvent.click(
     screen.getByRole('link', {
       name: 'Due today: open Application for Today job',
@@ -158,7 +183,7 @@ test('refreshes filtered results across local midnight and after a suspended pag
   await act(async () => {
     await vi.advanceTimersByTimeAsync(0);
   });
-  fireEvent.click(screen.getByRole('button', { name: 'Due follow-ups' }));
+  fireEvent.click(screen.getByRole('button', { name: /^Due follow-ups/ }));
   expect(screen.getByText('No due follow-ups')).toBeVisible();
   await act(async () => {
     await vi.advanceTimersByTimeAsync(1000);
@@ -186,10 +211,6 @@ test('paginates ten jobs, filters before slicing, resets pages, and keeps naviga
   );
   const { fetch } = mount(rows);
   await screen.findByText('Job 01');
-  const titles = () =>
-    within(screen.getByRole('table'))
-      .getAllByRole('row')
-      .map((row) => within(row).getAllByRole('link')[0]!.textContent);
   expect(titles()).toEqual(rows.slice(0, 10).map((row) => row.title));
   expect(screen.getByText('1–10 of 25 jobs')).toBeVisible();
   expect(
@@ -205,21 +226,19 @@ test('paginates ten jobs, filters before slicing, resets pages, and keeps naviga
     screen.getByRole('button', { name: 'Go to next page' }),
   ).toBeDisabled();
   fireEvent.click(screen.getByRole('button', { name: 'Go to previous page' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Due follow-ups' }));
+  fireEvent.click(screen.getByRole('button', { name: /^Due follow-ups/ }));
   const due = rows.filter((_, index) => index % 2 === 0);
   expect(screen.getByText('1–10 of 13 jobs')).toBeVisible();
   expect(titles()).toEqual(due.slice(0, 10).map((row) => row.title));
   fireEvent.click(screen.getByRole('button', { name: 'Go to next page' }));
   expect(screen.getByText('11–13 of 13 jobs')).toBeVisible();
   expect(titles()).toEqual(due.slice(10).map((row) => row.title));
-  fireEvent.click(screen.getByRole('button', { name: 'All jobs' }));
+  fireEvent.click(screen.getByRole('button', { name: /^All jobs/ }));
   expect(screen.getByText('1–10 of 25 jobs')).toBeVisible();
   expect(fetch).toHaveBeenCalledTimes(1);
   fireEvent.click(screen.getByRole('button', { name: 'Go to next page' }));
-  expect(screen.getByRole('link', { name: 'Job 11' })).toHaveAttribute(
-    'href',
-    '/jobs/Job 11',
-  );
+  openCard('Job 11');
+  expect(screen.getByRole('heading', { name: 'Job 11' })).toBeVisible();
   fireEvent.click(
     screen.getByRole('link', {
       name: 'Due today: open Application for Job 11',
@@ -232,16 +251,16 @@ test('paginates ten jobs, filters before slicing, resets pages, and keeps naviga
   );
 });
 
-test('keeps the table and filter focus when filtering to no results', async () => {
+test('keeps the list and filter focus when filtering to no results', async () => {
   const { fetch } = mount([makeJob('No date', null)]);
   await screen.findByText('No date');
-  const table = screen.getByRole('table');
-  const filterButton = screen.getByRole('button', { name: 'Due follow-ups' });
+  const list = screen.getByRole('list', { name: 'Saved opportunities' });
+  const filterButton = screen.getByRole('button', { name: /^Due follow-ups/ });
   filterButton.focus();
   fireEvent.click(filterButton);
   expect(screen.getByText('0–0 of 0 jobs')).toBeVisible();
   expect(screen.getByText('No due follow-ups')).toBeVisible();
-  expect(screen.getByRole('table')).toBe(table);
+  expect(screen.getByRole('list', { name: 'Saved opportunities' })).toBe(list);
   expect(filterButton).toHaveFocus();
   expect(
     screen.getByRole('button', { name: 'Go to next page' }),
@@ -249,9 +268,9 @@ test('keeps the table and filter focus when filtering to no results', async () =
   expect(
     screen.getByRole('button', { name: 'Go to previous page' }),
   ).toBeDisabled();
-  fireEvent.click(screen.getByRole('button', { name: 'All jobs' }));
+  fireEvent.click(screen.getByRole('button', { name: /^All jobs/ }));
   expect(screen.getByText('1–1 of 1 jobs')).toBeVisible();
-  expect(screen.getByRole('table')).toBe(table);
+  expect(screen.getByRole('list', { name: 'Saved opportunities' })).toBe(list);
   expect(fetch).toHaveBeenCalledTimes(1);
 });
 
@@ -271,13 +290,12 @@ test('Inbox has no discovery panel and keeps grouped controls and bottom paginat
     within(section).getByRole('link', { name: 'Add job' }),
   ).toHaveAttribute('href', '/jobs/new');
   expect(
-    within(section).getByRole('button', { name: 'All jobs' }),
+    within(section).getByRole('button', { name: /^All jobs/ }),
   ).toHaveAttribute('aria-pressed', 'true');
-  const table = within(section).getByRole('table');
+  const list = within(section).getByRole('list');
   const pagination = within(section).getByLabelText('Jobs pagination');
   expect(
-    table.compareDocumentPosition(pagination) &
-      Node.DOCUMENT_POSITION_FOLLOWING,
+    list.compareDocumentPosition(pagination) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
   expect(fetch).toHaveBeenCalledTimes(1);
 });
@@ -289,12 +307,14 @@ test('keeps original links accessible for manual jobs and clears an empty filter
   };
   const { fetch } = mount([job]);
   await screen.findByText('Manual job');
+  openCard('Manual job');
   expect(
     screen.getByRole('link', { name: 'Original job / apply for Manual job' }),
   ).toHaveAttribute('href', job.originalLink);
-  fireEvent.click(screen.getByRole('button', { name: 'Due follow-ups' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Back to jobs' }));
+  fireEvent.click(screen.getByRole('button', { name: /^Due follow-ups/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Clear filter' }));
-  expect(screen.getByRole('link', { name: 'Manual job' })).toBeVisible();
+  expect(screen.getByText('Manual job')).toBeVisible();
   expect(fetch).toHaveBeenCalledTimes(1);
 });
 
@@ -308,8 +328,7 @@ test('compact rows omit missing follow-ups and discovery detail controls', async
     },
   };
   mount([job]);
-  const title = await screen.findByRole('link', { name: 'Compact job' });
-  const row = title.closest('tr')!;
+  const row = await screen.findByRole('button', { name: /^Compact job/ });
   expect(within(row).getByText('Synthetic company')).toBeVisible();
   expect(within(row).getByText('Synthetic feed')).toBeVisible();
   expect(
@@ -322,6 +341,60 @@ test('compact rows omit missing follow-ups and discovery detail controls', async
   expect(region).toContainElement(row);
   expect(region).not.toContainElement(screen.getByLabelText('Jobs pagination'));
   expect(region).not.toContainElement(
-    screen.getByRole('button', { name: 'Due follow-ups' }),
+    screen.getByRole('button', { name: /^Due follow-ups/ }),
   );
+});
+
+test('search covers every saved job, ignores accents, and keeps the filter', async () => {
+  const rows = Array.from({ length: 15 }, (_, index) =>
+    makeJob(`Job ${String(index + 1).padStart(2, '0')}`, null),
+  );
+  rows[13] = { ...rows[13]!, title: 'Kỹ sư dữ liệu', company: 'Công ty Đông' };
+  const { fetch } = mount(rows);
+  await screen.findByText('Job 01');
+  const search = screen.getByRole('searchbox', { name: 'Search jobs' });
+  fireEvent.change(search, { target: { value: 'ky su' } });
+  expect(titles()).toEqual(['Kỹ sư dữ liệu']);
+  fireEvent.change(search, { target: { value: 'dong' } });
+  expect(titles()).toEqual(['Kỹ sư dữ liệu']);
+  fireEvent.click(screen.getByRole('button', { name: /^Due follow-ups/ }));
+  expect(screen.getByText('No jobs match your search')).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));
+  expect(screen.getByText('No due follow-ups')).toBeVisible();
+  expect(fetch).toHaveBeenCalledTimes(1);
+});
+
+test('preview shows complete requirements and links to the full overview', async () => {
+  const job = { ...makeJob('Skilled job', null), skills: SAMPLE_SKILLS };
+  mount([job]);
+  await screen.findByText('Skilled job');
+  openCard('Skilled job');
+  const section = screen.getByRole('heading', { name: 'Requirements & skills' })
+    .parentElement!.parentElement!;
+  expect(
+    within(section)
+      .getAllByRole('listitem')
+      .map((li) => li.textContent),
+  ).toEqual(SAMPLE_PREVIEW);
+  expect(within(section).getByText('More in Job Overview')).toBeVisible();
+  expect(
+    within(section).getByRole('link', { name: 'View full requirements' }),
+  ).toHaveAttribute('href', '/jobs/Skilled job');
+});
+
+test('preview drops headings and fragments instead of filling slots', () => {
+  expect(previewRequirements([SAMPLE_SKILLS])).toEqual(SAMPLE_PREVIEW);
+  expect(
+    previewRequirements([
+      'EDUCATION & KNOWLEDGE\nbrands\nincluding past clients who could re-sign',
+    ]),
+  ).toEqual([]);
+  expect(previewRequirements(['SQL\nExcel'])).toEqual(['SQL', 'Excel']);
+});
+
+test('preview handles jobs without requirements', async () => {
+  mount([makeJob('Bare job', null)]);
+  await screen.findByText('Bare job');
+  openCard('Bare job');
+  expect(screen.getByText('No requirements found yet.')).toBeVisible();
 });
