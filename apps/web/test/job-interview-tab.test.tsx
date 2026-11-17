@@ -379,3 +379,27 @@ test('Mock interview opens the mock route for this job and its current set', asy
     `/interview-prep/mock?jobId=${jobId}&setId=${current.id}`,
   );
 });
+
+test('a Marketing set shows marketing category labels, not IT ones', async () => {
+  const created = {
+    ...set(1, 4, true, '2026-11-10T09:00:00.000Z'),
+    family: 'marketing',
+    questions: [
+      question(1, 1, 'skill'),
+      question(1, 2, 'architecture'),
+      question(1, 3, 'troubleshooting'),
+      question(1, 4, 'experience'),
+    ],
+  };
+  lists = [{ body: listing({ sets: [created] }) }];
+  mount();
+  const list = await screen.findByRole('list', { name: /Current/u });
+  for (const label of [
+    'Question 1 · Marketing skill',
+    'Question 2 · Strategy and planning',
+    'Question 3 · Campaign problem-solving',
+    'Question 4 · Marketing experience',
+  ])
+    expect(within(list).getByText(label)).toBeInTheDocument();
+  expect(within(list).queryByText(/Technical|Architecture/u)).toBeNull();
+});

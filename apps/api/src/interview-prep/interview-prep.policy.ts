@@ -59,7 +59,7 @@ const errors = {
   ],
   INTERVIEW_NO_NEW_QUESTIONS: [
     422,
-    "This job description didn't give enough new questions beyond the current set. Nothing was saved and your current questions are unchanged. Adding more technical detail to the JD can help.",
+    "This job description didn't give enough new questions beyond the current set. Nothing was saved and your current questions are unchanged. Adding more detail about the role's requirements to the JD can help.",
   ],
   INTERVIEW_TOO_FEW_QUESTIONS: [
     422,

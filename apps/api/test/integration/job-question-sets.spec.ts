@@ -228,6 +228,28 @@ test('first generation persists 5–8 grounded questions; list shows them with s
   expect(JSON.stringify(res.body)).not.toContain(SECRET);
 });
 
+test('the generated family is stored and listed; missing or invalid families are stored as "other"', async () => {
+  for (const [family, stored] of [
+    ['marketing', 'marketing'],
+    ['sales', 'sales'],
+    ['it', 'it'],
+    [undefined, 'other'],
+    ['Engineering', 'other'],
+  ] as const) {
+    const jobId = await job();
+    generateStructured.mockResolvedValueOnce({
+      ...(family === undefined ? {} : { family }),
+      questions: output(6).questions,
+    });
+    const res = await generate(jobId).expect(201);
+    expect(res.body.set.family).toBe(stored);
+    expect((await list(jobId).expect(200)).body.sets[0].family).toBe(stored);
+    expect(
+      await db.query(`SELECT family FROM ${SETS} WHERE "jobId" = $1`, [jobId]),
+    ).toEqual([{ family: stored }]);
+  }
+});
+
 test('regeneration appends a new active set and preserves previous sets and answers', async () => {
   const jobId = await job();
   generateStructured.mockResolvedValueOnce(output(5));
@@ -378,7 +400,7 @@ test('the persistence transaction rejects a set created after the pre-check', as
   generateStructured.mockImplementationOnce(async () => {
     // Another process creates a set while this generation is running.
     await db.query(
-      `INSERT INTO ${SETS} ("ownerId","jobId","jdHash") VALUES ($1,$2,$3)`,
+      `INSERT INTO ${SETS} ("ownerId","jobId","jdHash",family) VALUES ($1,$2,$3,'it')`,
       [LOCAL_OWNER_ID, jobId, 'b'.repeat(64)],
     );
     return output(5);
@@ -479,7 +501,7 @@ test('regeneration sends the active set as an avoid list and accepts only new, g
   const prompt = generateStructured.mock.calls[1]![0].prompt;
   for (const q of first.questions)
     expect(prompt).toContain(`  - ${q.question as string}`);
-  expect(prompt).toMatch(/Explore other technical angles of the same JD/u);
+  expect(prompt).toMatch(/Explore other angles of the same JD/u);
   expect(res.body.partial).toBe(false);
   expect(
     res.body.set.questions.map((q: { question: string }) => q.question),
@@ -518,7 +540,7 @@ test('fewer than 3 new questions stores nothing and keeps every set and answer',
     statusCode: 422,
     errorCode: 'INTERVIEW_NO_NEW_QUESTIONS',
     message:
-      "This job description didn't give enough new questions beyond the current set. Nothing was saved and your current questions are unchanged. Adding more technical detail to the JD can help.",
+      "This job description didn't give enough new questions beyond the current set. Nothing was saved and your current questions are unchanged. Adding more detail about the role's requirements to the JD can help.",
   });
   expect(await setCount(jobId)).toBe(1);
   const listed = (await list(jobId).expect(200)).body;

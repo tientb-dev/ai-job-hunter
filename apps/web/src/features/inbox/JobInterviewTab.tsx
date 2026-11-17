@@ -34,9 +34,10 @@ import {
   type SavedAnswer,
 } from '../interview-prep/interview-prep-api';
 import {
-  CATEGORY_LABELS,
+  categoryLabel,
   generateJobQuestionSet,
   listJobQuestionSets,
+  type JobFamily,
   type JobQuestion,
   type JobQuestionSet,
   type JobQuestionSets,
@@ -71,10 +72,12 @@ function preparedText(n: number | null, total: number) {
 
 function QuestionCard({
   question,
+  family,
   status,
   href,
 }: {
   question: JobQuestion;
+  family: JobFamily;
   status: string;
   href: string;
 }) {
@@ -93,7 +96,7 @@ function QuestionCard({
         >
           <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
             {tr('Question')} {question.position} ·{' '}
-            {CATEGORY_LABELS[question.category]}
+            {categoryLabel(family, question.category)}
           </Typography>
           <StatusChip status={status} />
         </Stack>
@@ -168,6 +171,7 @@ function QuestionList({
         <QuestionCard
           key={q.id}
           question={q}
+          family={set.family}
           href={`/interview-prep/jobs/${jobId}/sets/${set.id}?q=${encodeURIComponent(q.id)}`}
           status={
             status === 'ready'
@@ -187,7 +191,7 @@ function QuestionList({
 const partialNote = (set: JobQuestionSet) =>
   set.partial
     ? tr(
-        'Fewer questions than usual ({length}). The job description may not have enough technical detail for more.',
+        'Fewer questions than usual ({length}). The job description may not have enough detail for more.',
         { length: set.questions.length },
       )
     : null;

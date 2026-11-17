@@ -6,6 +6,7 @@ import {
   DUPLICATE_OVERLAP,
   jdSnapshot,
   jobQuestionsPrompt,
+  parseFamily,
   validateQuestions,
 } from '../../src/interview-prep/job-questions.policy.js';
 
@@ -78,16 +79,14 @@ describe('prompt and schema', () => {
     expect(prompt).toMatch(/Do not write generic text/u);
   });
   test('initial prompt has no avoid list; an avoid list adds new-angle guidance', () => {
-    expect(jobQuestionsPrompt(snap.text)).not.toMatch(
-      /other technical angles/u,
-    );
+    expect(jobQuestionsPrompt(snap.text)).not.toMatch(/other angles/u);
     expect(jobQuestionsPrompt(snap.text, ['Q?'])).toMatch(
-      /Explore other technical angles of the same JD[^\n]*grounded in the JD/u,
+      /Explore other angles of the same JD[^\n]*grounded in the JD/u,
     );
   });
   test('illustrative numbers must be framed as hypothetical', () => {
     expect(jobQuestionsPrompt(snap.text)).toMatch(
-      /number the JD does not state[^\n]*hypothetical scenario, not as a job requirement[^\n]*"Suppose a Kafka consumer group needed to handle 100k events per second\. How would you approach the design\?"[^\n]*implies the JD states a number it does not/u,
+      /number the JD does not state[^\n]*hypothetical scenario, not as a job requirement[^\n]*"Suppose a campaign's cost per lead doubled in one month\. How would you find the cause\?"[^\n]*implies the JD states a number it does not/u,
     );
   });
   test('the retry prompt lists questions to avoid', () => {
@@ -417,5 +416,167 @@ describe('active-set overlap threshold', () => {
     );
     expect(rejected).toEqual([]);
     expect(valid).toHaveLength(2);
+  });
+});
+
+describe('job family (multi-industry)', () => {
+  // Synthetic JDs; no real postings.
+  const marketing = jdSnapshot({
+    title: 'Synthetic Performance Marketing Specialist',
+    description:
+      'Plan and run paid social campaigns on Facebook Ads and TikTok Ads.\nOwn the monthly budget and optimise cost per lead.\nReport campaign results to stakeholders every week.',
+    skills: 'Facebook Ads, Google Analytics, A/B testing',
+    preferredSkills: '',
+    experience: '2+ years in digital marketing',
+    domain: '',
+    seniority: '',
+  });
+  const sales = jdSnapshot({
+    title: 'Synthetic B2B Account Executive',
+    description:
+      'Prospect and close new mid-market accounts.\nManage a pipeline in the CRM and forecast monthly revenue.\nHandle pricing objections and negotiate contracts.',
+    skills: 'B2B sales, negotiation, CRM pipeline management',
+    preferredSkills: '',
+    experience: '3+ years in B2B sales',
+    domain: '',
+    seniority: '',
+  });
+  const item = (
+    question: string,
+    category: string,
+    kind: string,
+    evidence: string,
+  ) => ({
+    question,
+    category,
+    kind,
+    why: 'Checks a JD requirement.',
+    evidence,
+  });
+
+  test('valid families pass; missing, invalid or differently cased values become "other", never "it"', () => {
+    for (const f of ['it', 'marketing', 'sales', 'other'])
+      expect(parseFamily({ family: f, questions: [] })).toBe(f);
+    for (const output of [
+      { questions: [] },
+      { family: 'IT', questions: [] },
+      { family: 'engineering', questions: [] },
+      { family: null },
+      { family: ['it'] },
+      null,
+      'it',
+      ['it'],
+    ])
+      expect(parseFamily(output)).toBe('other');
+  });
+
+  test('the schema requires a family string without an enum, so an odd value never discards questions', () => {
+    expect(JOB_QUESTIONS_SCHEMA.required).toEqual(['family', 'questions']);
+    const family = (JOB_QUESTIONS_SCHEMA.properties as Record<string, object>)
+      .family;
+    expect(family).toEqual({ type: 'string', maxLength: 20 });
+  });
+
+  test('the prompt is role-aware: it asks for a family and defines each slot per family', () => {
+    const prompt = jobQuestionsPrompt(marketing.text);
+    expect(prompt).not.toMatch(/software job|Technical questions only/u);
+    expect(prompt).toMatch(/never software-engineering assumptions/u);
+    expect(prompt).toMatch(
+      /family: [^\n]*"it"[^\n]*"marketing"[^\n]*"sales"[^\n]*"other"[^\n]*if you are unsure/u,
+    );
+    expect(prompt).toMatch(
+      /"architecture": it = system or software design; marketing = strategy and planning[^\n]*sales = sales strategy and planning[^\n]*other = approach and planning/u,
+    );
+    expect(prompt).toMatch(
+      /"troubleshooting": [^\n]*marketing = diagnosing and fixing an underperforming campaign[^\n]*sales = handling objections/u,
+    );
+    // HR exclusion and grounding rules are kept for every family.
+    expect(prompt).toMatch(/No HR or behavioural questions/u);
+    expect(prompt).toMatch(
+      /Mention only technologies, tools, platforms and channels that appear in the JD/u,
+    );
+    expect(prompt).toMatch(/EXACT phrase copied character for character/u);
+  });
+
+  test('Marketing and Sales prompts fence their own JD', () => {
+    expect(jobQuestionsPrompt(marketing.text)).toContain(
+      `"""\n${marketing.text}\n"""`,
+    );
+    expect(jobQuestionsPrompt(sales.text)).toContain(`"""\n${sales.text}\n"""`);
+  });
+
+  test('grounded Marketing and Sales questions pass the unchanged validation; ungrounded ones do not', () => {
+    const m = validateQuestions(
+      {
+        family: 'marketing',
+        questions: [
+          item(
+            'How would you reallocate a monthly paid social budget when cost per lead rises?',
+            'architecture',
+            'hypothetical',
+            'Own the monthly budget and optimise cost per lead',
+          ),
+          item(
+            'How would you find why a TikTok Ads campaign suddenly stopped converting?',
+            'troubleshooting',
+            'hypothetical',
+            'Plan and run paid social campaigns on Facebook Ads and TikTok Ads',
+          ),
+          item(
+            'What makes an A/B test result trustworthy enough to act on?',
+            'skill',
+            'general',
+            'Facebook Ads, Google Analytics, A/B testing',
+          ),
+          // Evidence that is not in the JD.
+          item(
+            'How would you plan an influencer campaign for a product launch?',
+            'architecture',
+            'hypothetical',
+            'Run influencer partnerships across Instagram',
+          ),
+        ],
+      },
+      marketing.source,
+    );
+    expect(m.valid.map((q) => q.category)).toEqual([
+      'architecture',
+      'troubleshooting',
+      'skill',
+    ]);
+    expect(m.rejected).toEqual(['EVIDENCE']);
+
+    const s = validateQuestions(
+      {
+        family: 'sales',
+        questions: [
+          item(
+            'How would you respond when a mid-market prospect says your price is too high?',
+            'troubleshooting',
+            'hypothetical',
+            'Handle pricing objections and negotiate contracts',
+          ),
+          item(
+            'Have you managed a pipeline in a CRM? If so, how did you keep the forecast accurate?',
+            'experience',
+            'personal',
+            'Manage a pipeline in the CRM and forecast monthly revenue',
+          ),
+          // Behavioural question: still rejected for every family.
+          item(
+            'What motivates you to hit your sales targets every month?',
+            'experience',
+            'general',
+            'Prospect and close new mid-market accounts',
+          ),
+        ],
+      },
+      sales.source,
+    );
+    expect(s.valid.map((q) => q.category)).toEqual([
+      'troubleshooting',
+      'experience',
+    ]);
+    expect(s.rejected).toEqual(['HR']);
   });
 });

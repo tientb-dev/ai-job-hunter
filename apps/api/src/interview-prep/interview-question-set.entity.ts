@@ -7,5 +7,6 @@ export class InterviewQuestionSet {
   @Column({ type: 'uuid' }) ownerId!: string;
   @Column({ type: 'uuid' }) jobId!: string;
   @Column({ type: 'char', length: 64 }) jdHash!: string;
+  @Column({ type: 'text' }) family!: 'it' | 'marketing' | 'sales' | 'other';
   @Column({ type: 'timestamptz' }) createdAt!: Date;
 }

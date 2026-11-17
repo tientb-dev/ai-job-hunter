@@ -586,8 +586,8 @@ export const VI_TEXT: Record<string, string> = {
     'Nhập bằng link {platform} đang tắt trên máy chủ này. Hãy dùng bookmark nhập trang hoặc dán JD.',
   'Fetched listings': 'Tin đã tải',
   'Fetching JD…': 'Đang tải JD…',
-  'Fewer questions than usual ({length}). The job description may not have enough technical detail for more.':
-    'Ít câu hỏi hơn bình thường ({length}). Mô tả công việc có thể không đủ chi tiết kỹ thuật để tạo thêm.',
+  'Fewer questions than usual ({length}). The job description may not have enough detail for more.':
+    'Ít câu hỏi hơn bình thường ({length}). Mô tả công việc có thể không đủ chi tiết để tạo thêm.',
   'Files parse locally and extraction uses the configured AI provider; inputs and results stay in memory until cleared or you leave this page. API readiness does not guarantee AI service availability or extraction quality. Quote ambiguity, negation, uncertainty, source-instruction contamination and sensitivity to evidence annotations remain known limitations.':
     'Tệp được phân tích cục bộ và việc trích xuất dùng nhà cung cấp AI đã cấu hình; dữ liệu nhập và kết quả nằm trong bộ nhớ cho đến khi bị xóa hoặc bạn rời trang. API sẵn sàng không đảm bảo dịch vụ AI khả dụng hay chất lượng trích xuất. Các giới hạn đã biết: trích dẫn mơ hồ, phủ định, không chắc chắn, nhiễm hướng dẫn từ nguồn và nhạy cảm với chú thích bằng chứng.',
   'Fill in or remove empty details': 'Điền hoặc xóa các chi tiết trống',
@@ -2061,6 +2061,18 @@ export const VI_TEXT: Record<string, string> = {
     'Câu trả lời này đã bị thay đổi ở tab khác.',
   'Saved answers are unavailable right now. Try again.':
     'Hiện không tải được câu trả lời đã lưu. Hãy thử lại.',
+  'Marketing skill': 'Kỹ năng marketing',
+  'Strategy and planning': 'Chiến lược và lập kế hoạch',
+  'Campaign problem-solving': 'Xử lý vấn đề chiến dịch',
+  'Marketing experience': 'Kinh nghiệm marketing',
+  'Sales skill': 'Kỹ năng bán hàng',
+  'Sales strategy': 'Chiến lược bán hàng',
+  'Handling objections': 'Xử lý phản đối của khách hàng',
+  'Sales experience': 'Kinh nghiệm bán hàng',
+  'Role skill': 'Kỹ năng chuyên môn',
+  'Approach and planning': 'Cách tiếp cận và lập kế hoạch',
+  'Problem-solving': 'Giải quyết vấn đề',
+  'Relevant experience': 'Kinh nghiệm liên quan',
   'Technical skill': 'Kỹ năng kỹ thuật',
   'Architecture and design': 'Kiến trúc và thiết kế',
   'Technical experience': 'Kinh nghiệm kỹ thuật',
