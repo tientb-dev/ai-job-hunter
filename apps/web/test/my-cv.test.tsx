@@ -67,13 +67,9 @@ function mount(
     throw Error(`Unexpected request: ${url}`);
   });
   vi.stubGlobal('fetch', fetch);
-  const router = createMemoryRouter(
-    [
-      { path: '/cv', element: <MyCv /> },
-      { path: '/cv/analyze', element: <h1>Analyzer destination</h1> },
-    ],
-    { initialEntries: ['/cv'] },
-  );
+  const router = createMemoryRouter([{ path: '/cv', element: <MyCv /> }], {
+    initialEntries: ['/cv'],
+  });
   const app = (
     <ThemeProvider theme={theme}>
       <RouterProvider router={router} />
@@ -143,12 +139,10 @@ test('saved state shows the library, details, file facts and review progress', a
   expect(
     screen.queryByRole('heading', { name: 'Source CV review' }),
   ).not.toBeInTheDocument();
-  await userEvent
-    .setup()
-    .click(screen.getByRole('link', { name: 'Quick CV and job analysis' }));
+  // The quick analysis stays at /cv/analyze but is no longer linked here.
   expect(
-    screen.getByRole('heading', { name: 'Analyzer destination' }),
-  ).toBeVisible();
+    screen.queryByRole('link', { name: 'Quick CV and job analysis' }),
+  ).toBeNull();
 });
 
 test('a fully reviewed CV reads as reviewed', async () => {
@@ -231,9 +225,9 @@ test('a non-default CV can become the default; a CV still used by a job is not d
   const user = userEvent.setup();
   const { fetch } = mount([savedCv, otherCv]);
   await screen.findByRole('region', { name: 'Main CV' });
-  // The default CV offers neither Make default nor Delete.
-  expect(screen.queryByRole('button', { name: 'Make default' })).toBeNull();
-  expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull();
+  // The default CV can neither become default again nor be deleted.
+  expect(screen.getByRole('button', { name: 'Make default' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled();
   await user.click(screen.getByRole('button', { name: /^Data CV/ }));
   await user.click(screen.getByRole('button', { name: 'Delete' }));
   await user.click(
@@ -244,7 +238,7 @@ test('a non-default CV can become the default; a CV still used by a job is not d
   expect(screen.getByRole('region', { name: 'Data CV' })).toBeVisible();
   await user.click(screen.getByRole('button', { name: 'Make default' }));
   await waitFor(() =>
-    expect(screen.queryByRole('button', { name: 'Make default' })).toBeNull(),
+    expect(screen.getByRole('button', { name: 'Make default' })).toBeDisabled(),
   );
   expect(screen.getByText('Default CV')).toBeVisible();
   expect(

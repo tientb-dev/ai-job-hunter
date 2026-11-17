@@ -1,14 +1,18 @@
 import { dateLocale, tr } from '../../app/i18n';
 import {
   AddIcon,
+  ArrowForwardIcon,
   CheckIcon,
   DeleteIcon,
   DescriptionIcon,
   DownloadIcon,
   EditIcon,
   RefreshIcon,
+  StarIcon,
 } from '../../components/icons';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { useNotify } from '../../components/useNotify';
+import { surface } from '../../app/theme';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -17,7 +21,7 @@ import {
   Button,
   Chip,
   IconButton,
-  Link as MuiLink,
+  LinearProgress,
   List,
   ListItem,
   ListItemButton,
@@ -105,6 +109,7 @@ function CvChips({
 }
 
 export function MyCv() {
+  const notify = useNotify();
   const [cvs, setCvs] = useState<SavedCv[]>([]);
   const [selectedId, setSelectedId] = useState('');
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -173,38 +178,49 @@ export function MyCv() {
       setRenaming(null);
       setCvs((rows) => [...rows, next]);
       setSelectedId(next.id);
+      notify({ severity: 'success', text: tr('CV saved.') });
     } catch (failure) {
-      setError(
-        failure instanceof Error
-          ? tr(failure.message)
-          : tr('CV upload failed.'),
-      );
+      notify({
+        severity: 'error',
+        title: tr('CV upload failed.'),
+        text:
+          failure instanceof Error
+            ? tr(failure.message)
+            : tr('Check the file and try again.'),
+      });
     } finally {
       setUploading(false);
     }
   }
-  async function manage(id: string, init: RequestInit) {
+  async function manage(id: string, init: RequestInit, done: string) {
     setManaging(true);
-    setError('');
     try {
       setCvs(await opportunityRequest<SavedCv[]>(`/cv/${id}`, init));
+      notify({ severity: 'success', text: done });
       return true;
     } catch (failure) {
-      setError(
-        failure instanceof Error
-          ? tr(failure.message)
-          : tr('Could not update this CV.'),
-      );
+      notify({
+        severity: 'error',
+        title: tr('Could not update this CV.'),
+        text:
+          failure instanceof Error
+            ? tr(failure.message)
+            : tr('Check the local API and try again.'),
+      });
       return false;
     } finally {
       setManaging(false);
     }
   }
   const makeDefault = (id: string) =>
-    void manage(id, {
-      method: 'PATCH',
-      body: JSON.stringify({ isDefault: true }),
-    });
+    void manage(
+      id,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ isDefault: true }),
+      },
+      tr('Default CV updated.'),
+    );
   // An open or loading review never locks the library; only unsaved review
   // edits do, so switching or adding a CV cannot silently discard them.
   const locked = uploading || managing;
@@ -259,7 +275,11 @@ export function MyCv() {
           sx={{
             display: 'grid',
             gap: 3,
-            gridTemplateColumns: { xs: '1fr', md: '320px minmax(0, 1fr)' },
+            gridTemplateColumns: {
+              xs: '1fr',
+              md: '320px minmax(0, 1fr)',
+              xl: '380px minmax(0, 1fr)',
+            },
           }}
         >
           <Skeleton variant="rounded" height={220} />
@@ -281,7 +301,11 @@ export function MyCv() {
             display: 'grid',
             gap: 3,
             alignItems: 'start',
-            gridTemplateColumns: { xs: '1fr', md: '320px minmax(0, 1fr)' },
+            gridTemplateColumns: {
+              xs: '1fr',
+              md: '320px minmax(0, 1fr)',
+              xl: '380px minmax(0, 1fr)',
+            },
           }}
         >
           <Paper
@@ -443,10 +467,14 @@ export function MyCv() {
                         spacing={1}
                         onSubmit={(event) => {
                           event.preventDefault();
-                          void manage(cv.id, {
-                            method: 'PATCH',
-                            body: JSON.stringify({ name: renaming }),
-                          }).then((done) => done && setRenaming(null));
+                          void manage(
+                            cv.id,
+                            {
+                              method: 'PATCH',
+                              body: JSON.stringify({ name: renaming }),
+                            },
+                            tr('CV renamed.'),
+                          ).then((done) => done && setRenaming(null));
                         }}
                       >
                         <TextField
@@ -585,6 +613,84 @@ export function MyCv() {
                     </Typography>
                   </Box>
                 </Box>
+                {typeof progress === 'object' &&
+                  progress !== null &&
+                  progress.total > 0 && (
+                    <Box>
+                      <Typography
+                        variant="subtitle1"
+                        component="h3"
+                        sx={{ fontWeight: 600, mb: 1 }}
+                      >
+                        {tr('Review progress')}
+                      </Typography>
+                      <Stack
+                        direction="row"
+                        spacing={2}
+                        sx={{ alignItems: 'center' }}
+                      >
+                        <LinearProgress
+                          variant="determinate"
+                          value={(progress.reviewed / progress.total) * 100}
+                          aria-label={tr('Review progress')}
+                          sx={{
+                            flex: 1,
+                            height: 8,
+                            borderRadius: 4,
+                            bgcolor: surface.primaryTint,
+                          }}
+                        />
+                        <Typography sx={{ fontWeight: 600 }}>
+                          {progress.reviewed}/{progress.total}
+                        </Typography>
+                      </Stack>
+                      {!reviewed && (
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ mt: 0.5 }}
+                        >
+                          {tr('Sections left to review: {count}', {
+                            count: progress.total - progress.reviewed,
+                          })}
+                        </Typography>
+                      )}
+                    </Box>
+                  )}
+                {/* Next step only from real status: not reviewed or partly reviewed. */}
+                {(progress === null ||
+                  (typeof progress === 'object' && !reviewed)) && (
+                  <Stack
+                    direction={{ xs: 'column', sm: 'row' }}
+                    spacing={2}
+                    sx={{
+                      p: 2,
+                      borderRadius: 1,
+                      bgcolor: surface.primaryTint,
+                      alignItems: { sm: 'center' },
+                    }}
+                  >
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography component="h3" sx={{ fontWeight: 600 }}>
+                        {tr('Next step')}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {tr(
+                          'Review your CV so CV Match and tailored CVs use accurate, complete information.',
+                        )}
+                      </Typography>
+                    </Box>
+                    <Button
+                      variant="contained"
+                      component={Link}
+                      to={`/cv/${cv.id}/review`}
+                      endIcon={<ArrowForwardIcon />}
+                      sx={{ flexShrink: 0 }}
+                    >
+                      {tr(progress ? 'Continue review' : 'Start review')}
+                    </Button>
+                  </Stack>
+                )}
                 <Box>
                   <Typography
                     variant="subtitle1"
@@ -599,15 +705,6 @@ export function MyCv() {
                     useFlexGap
                     sx={{ flexWrap: 'wrap' }}
                   >
-                    {!cv.isDefault && (
-                      <Button
-                        variant="contained"
-                        disabled={locked}
-                        onClick={() => makeDefault(cv.id)}
-                      >
-                        {tr('Make default')}
-                      </Button>
-                    )}
                     <Button
                       variant="outlined"
                       startIcon={<EditIcon />}
@@ -627,17 +724,24 @@ export function MyCv() {
                     >
                       {tr('Download original')}
                     </Button>
-                    {!cv.isDefault && (
-                      <Button
-                        variant="outlined"
-                        color="error"
-                        startIcon={<DeleteIcon />}
-                        disabled={locked}
-                        onClick={() => setConfirmDelete(true)}
-                      >
-                        {tr('Delete')}
-                      </Button>
-                    )}
+                    {/* The default CV can't become default again or be deleted. */}
+                    <Button
+                      variant="outlined"
+                      startIcon={<StarIcon />}
+                      disabled={locked || cv.isDefault}
+                      onClick={() => makeDefault(cv.id)}
+                    >
+                      {tr('Make default')}
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      startIcon={<DeleteIcon />}
+                      disabled={locked || cv.isDefault}
+                      onClick={() => setConfirmDelete(true)}
+                    >
+                      {tr('Delete')}
+                    </Button>
                   </Stack>
                   {!cv.originalAvailable && (
                     <Typography
@@ -739,15 +843,9 @@ export function MyCv() {
         onSafe={() => setConfirmDelete(false)}
         onConfirm={() => {
           setConfirmDelete(false);
-          if (cv) void manage(cv.id, { method: 'DELETE' });
+          if (cv) void manage(cv.id, { method: 'DELETE' }, tr('CV deleted.'));
         }}
       />
-      <Typography variant="body2" color="text.secondary">
-        {tr('Need a one-off check against a job description?')}{' '}
-        <MuiLink component={Link} to="/cv/analyze">
-          {tr('Quick CV and job analysis')}
-        </MuiLink>
-      </Typography>
     </Stack>
   );
 }
