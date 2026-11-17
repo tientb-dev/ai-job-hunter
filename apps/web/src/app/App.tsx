@@ -58,6 +58,9 @@ const navigation: {
   { label: 'nav.cv', path: '/cv', Icon: DescriptionIcon },
   { label: 'nav.interview', path: '/interview-prep', Icon: ForumIcon },
 ];
+// Wider than MUI xl (1536) so 2K screens use the space; capped to avoid edge-to-edge lines.
+const SHELL_MAX_WIDTH = 1920;
+
 export function App() {
   const { t } = useI18n();
   const [navigationOpen, setNavigationOpen] = useState(false);
@@ -195,9 +198,10 @@ export function App() {
       >
         <Container
           component="header"
-          maxWidth="lg"
+          maxWidth={false}
           // Sticky so language and sign-out stay reachable on long pages.
           sx={{
+            maxWidth: SHELL_MAX_WIDTH,
             position: 'sticky',
             top: 0,
             zIndex: 'appBar',
@@ -263,8 +267,9 @@ export function App() {
         </Container>
         <Container
           component="main"
-          maxWidth="lg"
+          maxWidth={false}
           sx={{
+            maxWidth: SHELL_MAX_WIDTH,
             px: { xs: 2, sm: 3 },
             py: 3,
             ...(bounded && {
