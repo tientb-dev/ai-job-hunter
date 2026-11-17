@@ -119,6 +119,11 @@ export const VI_TEXT: Record<string, string> = {
     'Thêm việc làm bạn tìm được, hoặc khám phá việc mới để xem xét.',
   'Add detail for review': 'Thêm chi tiết để xem xét',
   'Add job': 'Thêm việc làm',
+  'Add job from JD or URL': 'Thêm việc làm từ JD hoặc URL',
+  'Any job family': 'Mọi nhóm ngành',
+  'Discover only searches a few public company career boards (Axon, Backbase, Temus, Go1 Vietnam, Thoughtworks, Agoda), mostly IT roles. Found a job on another website? Add it from its JD or URL.':
+    'Khám phá chỉ tìm trên một số trang tuyển dụng công khai của doanh nghiệp (Axon, Backbase, Temus, Go1 Vietnam, Thoughtworks, Agoda), chủ yếu là việc làm IT. Thấy việc làm trên trang khác? Hãy thêm từ JD hoặc URL.',
+  'Tech stack (optional)': 'Công nghệ (không bắt buộc)',
   'Add job requirements in Edit JD, save the job, then refresh CV Match. Your source review is preserved.':
     'Thêm yêu cầu công việc trong Sửa JD, lưu việc làm, rồi làm mới Đối chiếu CV. Bản rà soát nguồn của bạn được giữ nguyên.',
   'Add job steps': 'Các bước thêm việc làm',
@@ -636,8 +641,8 @@ export const VI_TEXT: Record<string, string> = {
   'Go to CV Match': 'Đến Đối chiếu CV',
   'Go to Match': 'Đến Đối chiếu',
   'Go to Source CV Review': 'Đến Rà soát CV gốc',
-  'Greenhouse searches Axon, Backbase, Temus, and Go1 Vietnam. Location, work mode, and level prioritize new candidates under the 50-new limit; they do not filter or reorder the Queue. The Queue includes candidates from previous runs.':
-    'Greenhouse tìm ở Axon, Backbase, Temus và Go1 Vietnam. Địa điểm, hình thức làm việc và cấp bậc giúp ưu tiên ứng viên mới trong giới hạn 50 mục mới; chúng không lọc hay sắp xếp lại Hàng đợi. Hàng đợi gồm cả ứng viên từ các lượt trước.',
+  'Location, work mode, and level prioritize new candidates under the 50-new limit; they do not filter or reorder the Queue. The Queue includes candidates from previous runs.':
+    'Địa điểm, hình thức làm việc và cấp bậc giúp ưu tiên ứng viên mới trong giới hạn 50 mục mới; chúng không lọc hay sắp xếp lại Hàng đợi. Hàng đợi gồm cả ứng viên từ các lượt trước.',
   'HR communication': 'Giao tiếp với HR',
   'Help me express it': 'Giúp tôi diễn đạt',
   'Help me say it': 'Giúp tôi nói',
@@ -835,8 +840,8 @@ export const VI_TEXT: Record<string, string> = {
   Matched: 'Khớp',
   'Matched (': 'Khớp (',
   'Matched:': 'Khớp:',
-  'Matches any selected keyword in job text, including descriptions and preferred skills; not necessarily required skills.':
-    'Khớp với bất kỳ từ khóa nào đã chọn trong nội dung việc làm, kể cả mô tả và kỹ năng ưu tiên; không nhất thiết là kỹ năng bắt buộc.',
+  'Leave empty for all job families. Matches any selected keyword in job text, including descriptions and preferred skills; not necessarily required skills.':
+    'Để trống để tìm mọi nhóm ngành. Khớp với bất kỳ từ khóa nào đã chọn trong nội dung việc làm, kể cả mô tả và kỹ năng ưu tiên; không nhất thiết là kỹ năng bắt buộc.',
   'Matching is disabled. Review the retained source above, check local services, then choose Analyze to retry manually. Parse without AI lets you view source without running the model.':
     'Đối chiếu đang tắt. Hãy xem nguồn được giữ ở trên, kiểm tra các dịch vụ cục bộ, rồi chọn Phân tích để thử lại thủ công. Phân tích không dùng AI cho phép xem nguồn mà không chạy mô hình.',
   'Matching timed out. Check the AI service and retry; no new fit score was produced.':
@@ -851,8 +856,6 @@ export const VI_TEXT: Record<string, string> = {
   'Multiple exact matches in Jobs': 'Nhiều kết quả trùng khớp trong Việc làm',
   'Multiple job-content containers found. Open one VietnamWorks job and retry.':
     'Tìm thấy nhiều vùng nội dung việc làm. Hãy mở một việc làm VietnamWorks và thử lại.',
-  'Must mention any selected stack':
-    'Phải nhắc đến ít nhất một công nghệ đã chọn',
   'My CV': 'CV của tôi',
   Name: 'Tên',
   'Need a one-off check against a job description?':
@@ -914,8 +917,8 @@ export const VI_TEXT: Record<string, string> = {
     'Không có ứng viên cần xem. Chạy khám phá hoặc chọn bộ lọc khác.',
   'No description available.': 'Không có mô tả.',
   'No due follow-ups': 'Không có việc cần theo dõi',
-  'No eligible candidates in this run. Try different selected stacks or Add job. Your Queue includes previous runs and is unchanged.':
-    'Lượt này không có ứng viên đủ điều kiện. Hãy thử công nghệ khác hoặc Thêm việc làm. Hàng đợi gồm các lượt trước và không thay đổi.',
+  'No eligible candidates in this run. Try different preferences or add a job from its JD or URL. Your Queue includes previous runs and is unchanged.':
+    'Lượt này không có ứng viên đủ điều kiện. Hãy thử tiêu chí khác hoặc thêm việc làm từ JD hoặc URL. Hàng đợi gồm các lượt trước và không thay đổi.',
   'No evidence links returned for this requirement.':
     'Không có liên kết bằng chứng cho yêu cầu này.',
   'No extraction warning codes returned. This does not establish semantic correctness.':
@@ -1407,7 +1410,6 @@ export const VI_TEXT: Record<string, string> = {
   'Section for new detail': 'Phần cho chi tiết mới',
   'Section for this content': 'Phần cho nội dung này',
   'Segment:': 'Đoạn:',
-  'Select a tech stack': 'Chọn một công nghệ',
   'Selecting suggestions…': 'Đang chọn gợi ý…',
   Seniority: 'Cấp bậc',
   'Separate from the English feedback, which keeps what you said. AI can be wrong about technical details — check them yourself.':
@@ -1692,8 +1694,8 @@ export const VI_TEXT: Record<string, string> = {
   Undo: 'Hoàn tác',
   Unknown: 'Chưa rõ',
   'Unknown company': 'Công ty chưa rõ',
-  'Unknown location, work mode, or level may remain eligible under existing rules. A selected stack must still match job text.':
-    'Địa điểm, hình thức làm việc hoặc cấp bậc chưa rõ vẫn có thể đủ điều kiện theo quy tắc hiện có. Công nghệ đã chọn vẫn phải khớp với nội dung việc làm.',
+  'Unknown location, work mode, or level may remain eligible under existing rules. If you select tech stacks, at least one must match job text.':
+    'Địa điểm, hình thức làm việc hoặc cấp bậc chưa rõ vẫn có thể đủ điều kiện theo quy tắc hiện có. Nếu chọn công nghệ, ít nhất một công nghệ phải khớp với nội dung việc làm.',
   'Unknown values can stay blank. Only job title is required. Quotes show textual support; verify that each value describes this job.':
     'Giá trị chưa rõ có thể để trống. Chỉ bắt buộc chức danh. Trích dẫn cho thấy căn cứ văn bản; hãy xác minh mỗi giá trị mô tả đúng việc làm này.',
   'Unsaved changes': 'Thay đổi chưa lưu',

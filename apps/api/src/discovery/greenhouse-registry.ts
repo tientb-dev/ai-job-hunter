@@ -12,9 +12,9 @@ export type GreenhouseSourceDefinition = GreenhouseBoard & {
 export function validateGreenhouseRegistry<
   const T extends readonly GreenhouseBoard[],
 >(boards: T) {
-  if (!Array.isArray(boards) || !boards.length || boards.length > 5)
+  if (!Array.isArray(boards) || !boards.length || boards.length > 6)
     throw new Error(
-      'Greenhouse registry must contain between one and five boards.',
+      'Greenhouse registry must contain between one and six boards.',
     );
   const tokens = new Set<string>();
   const keys = new Set<string>();
@@ -71,6 +71,18 @@ export const DISCOVERY_SOURCES = validateGreenhouseRegistry([
     key: 'greenhouse:go1vn',
     token: 'go1vn',
     name: 'Go1 Vietnam · Greenhouse',
+    enabled: true,
+  },
+  {
+    key: 'greenhouse:thoughtworks',
+    token: 'thoughtworks',
+    name: 'Thoughtworks · Greenhouse',
+    enabled: true,
+  },
+  {
+    key: 'greenhouse:agoda',
+    token: 'agoda',
+    name: 'Agoda · Greenhouse',
     enabled: true,
   },
 ]);

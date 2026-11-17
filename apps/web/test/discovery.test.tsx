@@ -66,9 +66,10 @@ test('preferences expand while discovery remains accessible and sends unchanged 
   expect(screen.getByLabelText('Preferred location')).toHaveTextContent(
     'Ho Chi Minh City',
   );
+  expect(screen.getByText(/Any job family/)).toBeVisible();
   expect(
-    screen.getByLabelText('Must mention any selected stack'),
-  ).toHaveTextContent('Java, Spring Boot, Node.js, React');
+    screen.getByRole('link', { name: 'Add job from JD or URL' }),
+  ).toHaveAttribute('href', '/jobs/new');
   fireEvent.click(screen.getByRole('button', { name: 'Run discovery' }));
   expect(screen.getByRole('status')).toHaveTextContent(
     'Discovering public jobs',
@@ -99,7 +100,7 @@ test('preferences expand while discovery remains accessible and sends unchanged 
       method: 'POST',
       body: JSON.stringify({
         location: 'Ho Chi Minh City',
-        stacks: ['Java', 'Spring Boot', 'Node.js', 'React'],
+        stacks: [],
         workMode: 'All',
         seniority: 'Senior',
       }),
@@ -172,13 +173,12 @@ test('zero results offer preference guidance, Add Job and Inbox links', async ()
   expect(
     await screen.findByText(/No eligible candidates in this run/),
   ).toBeVisible();
-  expect(screen.getByRole('link', { name: 'Add job' })).toHaveClass(
-    'MuiButton-outlined',
-  );
-  expect(screen.getByRole('link', { name: 'Add job' })).toHaveAttribute(
-    'href',
-    '/jobs/new',
-  );
+  const details = screen.getByRole('dialog', { name: 'Discovery run details' });
+  const addJob = within(details).getByRole('link', {
+    name: 'Add job from JD or URL',
+  });
+  expect(addJob).toHaveClass('MuiButton-outlined');
+  expect(addJob).toHaveAttribute('href', '/jobs/new');
   expect(screen.getByRole('link', { name: 'View Jobs' })).toHaveClass(
     'MuiButton-outlined',
   );
@@ -200,7 +200,7 @@ test('request failure preserves edited preferences and supports a manual retry',
   await user.click(screen.getByLabelText('Preferred location'));
   await user.click(screen.getByRole('option', { name: 'Vietnam' }));
   await user.click(screen.getByRole('button', { name: 'Hide preferences' }));
-  expect(screen.getByText(/Vietnam · Java/)).toBeVisible();
+  expect(screen.getByText(/Vietnam · Any job family/)).toBeVisible();
   await user.click(screen.getByRole('button', { name: 'Run discovery' }));
   await user.click(screen.getByRole('button', { name: 'Edit preferences' }));
   expect(await screen.findByRole('alert')).toHaveTextContent(
@@ -332,23 +332,23 @@ test('edited preference labels preserve backend enum values and match-any stacks
   await user.click(screen.getByRole('button', { name: 'Edit preferences' }));
   expect(
     screen.getByText(
-      /Greenhouse searches Axon, Backbase, Temus, and Go1 Vietnam/,
+      /Discover only searches a few public company career boards/,
     ),
-  ).toBeVisible();
+  ).toHaveTextContent(/Thoughtworks, Agoda\), mostly IT roles/);
   expect(screen.getByText(/do not filter or reorder the Queue/)).toBeVisible();
   expect(screen.getByText(/not necessarily required skills/)).toBeVisible();
   await user.click(screen.getByLabelText('Preferred work mode'));
   await user.click(screen.getByRole('option', { name: 'Remote' }));
   await user.click(screen.getByLabelText('Preferred level'));
   await user.click(screen.getByRole('option', { name: 'Technical Lead' }));
-  await user.click(screen.getByLabelText('Must mention any selected stack'));
+  await user.click(screen.getByLabelText('Tech stack (optional)'));
   await user.click(screen.getByRole('option', { name: 'Java' }));
   await user.keyboard('{Escape}');
   await user.click(screen.getByRole('button', { name: 'Run discovery' }));
   await screen.findByText(/5 eligible · 3 added/);
   expect(JSON.parse(fetch.mock.calls[0]![1]!.body as string)).toEqual({
     location: 'Ho Chi Minh City',
-    stacks: ['Spring Boot', 'Node.js', 'React'],
+    stacks: ['Java'],
     workMode: 'Remote',
     seniority: 'Technical Lead',
   });

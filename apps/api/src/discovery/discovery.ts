@@ -39,11 +39,10 @@ export function validateFilters(value: unknown): DiscoveryFilters {
     !['Senior', 'Technical Lead', 'All'].includes(row.seniority ?? '') ||
     !Array.isArray(row.stacks) ||
     row.stacks.length > 4 ||
-    !row.stacks.length ||
     row.stacks.some((stack) => !STACKS.includes(stack))
   )
     throw new BadRequestException(
-      'Choose a supported location, at least one tech stack, work mode and seniority.',
+      'Choose a supported location, optional tech stacks, work mode and seniority.',
     );
   return row as DiscoveryFilters;
 }
@@ -73,7 +72,11 @@ export function rankJob(
   filters: DiscoveryFilters,
 ): number | null {
   const evidence = `${job.title}\n${job.skills}\n${job.description}`;
-  if (!filters.stacks.some((stack) => stackPatterns[stack].test(evidence)))
+  // No stacks selected means any job family (IT, Marketing, Sales…) stays eligible.
+  if (
+    filters.stacks.length &&
+    !filters.stacks.some((stack) => stackPatterns[stack].test(evidence))
+  )
     return null;
   const location = folded(job.location);
   const local = /ho chi minh|hcmc|\bhcm\b|sai gon/iu.test(location);

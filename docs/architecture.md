@@ -431,11 +431,16 @@ containers; actual scroll and narrow-screen acceptance still require a browser.
 ## Greenhouse source registry and coverage (P5.3b)
 
 `discovery/greenhouse-registry.ts` owns the static registry, validated at module
-startup: one to five entries, bounded lowercase tokens/keys/names, boolean enabled
+startup: one to six entries, bounded lowercase tokens/keys/names, boolean enabled
 flags, no duplicate tokens/keys or caller URLs. Canonical API URLs derive from the
 fixed HTTPS host. Existing Axon/Backbase names, keys and URLs remain exact. All
 entries, including disabled boards, remain resolvable for historical Save identity;
 only enabled boards may fetch. Entries and the registry are frozen.
+
+PR #103 adds Thoughtworks and Agoda (verified public boards with Vietnam roles,
+including Sales) and makes tech stacks optional: with no stack selected, any job
+family stays eligible and only the existing location rule drops foreign on-site
+roles. Six boards means three fetch batches, so a cold run worst case is about 45s.
 
 Discovery scans batches of at most two boards. Each board catches its own failure;
 Promise.all retains registry order before existing score/title sorting. This keeps

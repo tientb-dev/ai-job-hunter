@@ -21,12 +21,8 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
   const running = useRef(false);
   const [expanded, setExpanded] = useState(false);
   const [location, setLocation] = useState('Ho Chi Minh City');
-  const [stacks, setStacks] = useState([
-    'Java',
-    'Spring Boot',
-    'Node.js',
-    'React',
-  ]);
+  // Empty = any job family (IT, Marketing, Sales); stacks are an optional IT filter.
+  const [stacks, setStacks] = useState<string[]>([]);
   const [workMode, setWorkMode] = useState('All');
   const [seniority, setSeniority] = useState('Senior');
   const [busy, setBusy] = useState(false);
@@ -109,7 +105,7 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
               sx={{ overflowWrap: 'anywhere' }}
             >
               {location} ·{' '}
-              {stacks.length ? stacks.join(', ') : tr('Select a tech stack')} ·{' '}
+              {stacks.length ? stacks.join(', ') : tr('Any job family')} ·{' '}
               {workMode === 'All' ? tr('Any work mode') : workMode} ·{' '}
               {seniority === 'All' ? tr('Any seniority') : seniority}
             </Typography>
@@ -126,7 +122,7 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
           </Button>
           <Button
             variant="contained"
-            disabled={busy || !stacks.length}
+            disabled={busy}
             onClick={() => void discover()}
             startIcon={<SearchIcon />}
             sx={{ flexShrink: 0, minHeight: { xs: 44, sm: 36 } }}
@@ -134,16 +130,37 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
             {tr('Run discovery')}
           </Button>
         </Stack>
+        <Alert
+          severity="info"
+          role="note"
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              startIcon={<AddIcon />}
+              component={Link}
+              to="/jobs/new"
+              sx={{ whiteSpace: 'nowrap' }}
+            >
+              {tr('Add job from JD or URL')}
+            </Button>
+          }
+          sx={{ flexWrap: { xs: 'wrap', sm: 'nowrap' } }}
+        >
+          {tr(
+            'Discover only searches a few public company career boards (Axon, Backbase, Temus, Go1 Vietnam, Thoughtworks, Agoda), mostly IT roles. Found a job on another website? Add it from its JD or URL.',
+          )}
+        </Alert>
         {expanded && (
           <Stack id="discovery-preferences" spacing={1.5}>
             <Typography variant="body2" color="text.secondary">
               {tr(
-                'Greenhouse searches Axon, Backbase, Temus, and Go1 Vietnam. Location, work mode, and level prioritize new candidates under the 50-new limit; they do not filter or reorder the Queue. The Queue includes candidates from previous runs.',
+                'Location, work mode, and level prioritize new candidates under the 50-new limit; they do not filter or reorder the Queue. The Queue includes candidates from previous runs.',
               )}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {tr(
-                'Unknown location, work mode, or level may remain eligible under existing rules. A selected stack must still match job text.',
+                'Unknown location, work mode, or level may remain eligible under existing rules. If you select tech stacks, at least one must match job text.',
               )}
             </Typography>
             <Box
@@ -179,9 +196,9 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
                 size="small"
                 select
                 fullWidth
-                label={tr('Must mention any selected stack')}
+                label={tr('Tech stack (optional)')}
                 helperText={tr(
-                  'Matches any selected keyword in job text, including descriptions and preferred skills; not necessarily required skills.',
+                  'Leave empty for all job families. Matches any selected keyword in job text, including descriptions and preferred skills; not necessarily required skills.',
                 )}
                 value={stacks}
                 disabled={busy}
@@ -330,7 +347,7 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
               ) : summary.eligible === 0 ? (
                 <Typography variant="body2">
                   {tr(
-                    'No eligible candidates in this run. Try different selected stacks or Add job. Your Queue includes previous runs and is unchanged.',
+                    'No eligible candidates in this run. Try different preferences or add a job from its JD or URL. Your Queue includes previous runs and is unchanged.',
                   )}
                 </Typography>
               ) : null}
@@ -402,7 +419,7 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
                     to="/jobs/new"
                     variant="outlined"
                   >
-                    {tr('Add job')}
+                    {tr('Add job from JD or URL')}
                   </Button>
                 )}
               </Stack>

@@ -118,8 +118,22 @@ test('ranks HCMC onsite/hybrid and senior/technical leads ahead without dropping
   ).toBeNull();
 });
 test('rejects unsupported filters instead of pretending the API supports them', () => {
-  expect(() => validateFilters({ ...filters, stacks: [] })).toThrow();
+  expect(() => validateFilters({ ...filters, stacks: ['Go'] })).toThrow();
   expect(() => validateFilters({ ...filters, salary: 100 })).toThrow();
+});
+test('no selected stack keeps non-IT jobs eligible but still drops foreign onsite roles', () => {
+  const anyFamily = validateFilters({ ...filters, stacks: [] });
+  const sales = {
+    ...normalized(),
+    title: 'Account Manager',
+    skills: '',
+    description: 'Hotel partnerships and negotiation',
+  };
+  expect(rankJob(sales, filters)).toBeNull();
+  expect(rankJob(sales, anyFamily)).not.toBeNull();
+  expect(
+    rankJob({ ...sales, location: 'Bangkok, Thailand' }, anyFamily),
+  ).toBeNull();
 });
 test('deduplicates tracked URLs, equivalent HCMC identities, and source IDs after manual edits', () => {
   const job = normalized();
@@ -226,7 +240,7 @@ test('technology mentions do not silently become mandatory skills', () => {
   });
 });
 
-test('four live boards retain raw/normalized counts, distinct eligibility and cached fetch times', async () => {
+test('all live boards retain raw/normalized counts, distinct eligibility and cached fetch times', async () => {
   const original = globalThis.fetch;
   const fetch = jest
     .fn<typeof globalThis.fetch>()
@@ -242,14 +256,15 @@ test('four live boards retain raw/normalized counts, distinct eligibility and ca
       {} as OpportunitiesService,
     );
     const live = await service.scan(filters);
+    const boards = DISCOVERY_SOURCES.length;
     expect(live).toMatchObject({
-      fetched: 16,
-      normalized: 12,
-      eligible: 4,
+      fetched: 4 * boards,
+      normalized: 3 * boards,
+      eligible: boards,
       sourceFailures: 0,
     });
-    expect(live.jobs).toHaveLength(4);
-    expect(live.warnings).toHaveLength(4);
+    expect(live.jobs).toHaveLength(boards);
+    expect(live.warnings).toHaveLength(boards);
     expect(live.errors).toEqual(live.warnings);
     expect(live.sources.map((s) => s.sourceKey)).toEqual(
       DISCOVERY_SOURCES.map((s) => s.key),
@@ -269,7 +284,7 @@ test('four live boards retain raw/normalized counts, distinct eligibility and ca
     expect(cached.sources).toEqual(
       live.sources.map((s) => ({ ...s, cacheHit: true })),
     );
-    expect(fetch).toHaveBeenCalledTimes(4);
+    expect(fetch).toHaveBeenCalledTimes(boards);
   } finally {
     globalThis.fetch = original;
   }
@@ -282,7 +297,8 @@ test('malformed envelopes and unavailable sources have unknown counts and safe d
     .mockResolvedValueOnce(Response.json({ jobs: 'private invalid envelope' }))
     .mockRejectedValueOnce(new Error('private connection string'))
     .mockResolvedValueOnce(Response.json({ jobs: [] }))
-    .mockResolvedValueOnce(Response.json({ jobs: [raw, {}] }));
+    .mockResolvedValueOnce(Response.json({ jobs: [raw, {}] }))
+    .mockImplementation(async () => Response.json({ jobs: [] }));
   globalThis.fetch = fetch;
   try {
     const service = new DiscoveryService(
@@ -340,10 +356,10 @@ test('all sources failed reports no available source counts and no eligible jobs
     normalized: 0,
     eligible: 0,
     jobs: [],
-    sourceFailures: 4,
+    sourceFailures: DISCOVERY_SOURCES.length,
     warnings: [],
   });
-  expect(result.sources).toHaveLength(4);
+  expect(result.sources).toHaveLength(DISCOVERY_SOURCES.length);
   expect(
     result.sources.every((s) => s.status === 'failed' && s.fetched === null),
   ).toBe(true);
