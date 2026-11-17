@@ -657,6 +657,15 @@ export function MyCv() {
                       )}
                     </Box>
                   )}
+                {/* First load of this CV's status: reserve the Next step block's space. */}
+                {progress === undefined && (
+                  <Skeleton
+                    variant="rounded"
+                    data-testid="review-status-skeleton"
+                    aria-hidden
+                    sx={{ height: { xs: 155, sm: 75 } }}
+                  />
+                )}
                 {/* Next step only from real status: not reviewed or partly reviewed. */}
                 {(progress === null ||
                   (typeof progress === 'object' && !reviewed)) && (

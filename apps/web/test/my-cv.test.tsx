@@ -221,6 +221,29 @@ test('a failed profile request reads as unavailable and can be retried', async (
   ).toBeVisible();
 });
 
+test('switching reserves space on first load and shows a cached CV status immediately', async () => {
+  const user = userEvent.setup();
+  let profiles = 0;
+  // Main CV's status loads; Data CV's first status request stays pending.
+  const { total } = mount([savedCv, otherCv], Infinity, () => {
+    profiles += 1;
+    if (profiles === 2) return new Promise<Response>(() => {});
+    const profile = cvProfileFixture();
+    profile.document.sections.forEach((s) => (s.review = 'confirmed'));
+    return Promise.resolve(Response.json(profile));
+  });
+  const reviewed = `Reviewed · ${total} of ${total} sections`;
+  expect(await screen.findByText(reviewed)).toBeVisible();
+  expect(screen.queryByTestId('review-status-skeleton')).toBeNull();
+  const library = screen.getByRole('region', { name: 'Your CVs' });
+  await user.click(within(library).getByRole('button', { name: /^Data CV/ }));
+  expect(screen.getByTestId('review-status-skeleton')).toBeInTheDocument();
+  expect(screen.queryByText(reviewed)).toBeNull();
+  await user.click(within(library).getByRole('button', { name: /^Main CV/ }));
+  expect(screen.getByText(reviewed)).toBeVisible();
+  expect(screen.queryByTestId('review-status-skeleton')).toBeNull();
+});
+
 test('a non-default CV can become the default; a CV still used by a job is not deleted', async () => {
   const user = userEvent.setup();
   const { fetch } = mount([savedCv, otherCv]);
