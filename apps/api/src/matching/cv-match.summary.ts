@@ -163,8 +163,21 @@ export function evidenceSummary(
       ...(components ? { components } : {}),
     };
   });
+  const count = (
+    test: (row: (typeof result.requirements)[number]) => boolean,
+  ) => result.requirements.filter(test).length;
   return {
     quotes,
+    // Per scored requirement: why the model quote did not count, and review flags.
+    modelQuotes: {
+      empty: count((r) => r.evidence.modelQuote === 'EMPTY'),
+      rejected: count((r) => r.evidence.modelQuote === 'REJECTED'),
+      unsupporting: count((r) => r.evidence.modelQuote === 'UNSUPPORTING'),
+      review: count((r) => r.evidence.review),
+      requiredReview: count(
+        (r) => r.evidence.review && r.priority === 'required',
+      ),
+    },
     recoveryBlocked: requirements.filter((row) => row.recovery !== 'ALLOWED')
       .length,
     requirements,

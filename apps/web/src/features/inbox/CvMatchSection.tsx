@@ -175,6 +175,23 @@ export function CvMatchSection({
               {tr('. No new analysis is needed.')}
             </Typography>
           )}
+          {!busy && matchStatus === 'VALID' && result?.keptPrevious && (
+            <Alert severity="info" role="status">
+              {tr(
+                'The new analysis may have missed CV evidence, so your previous saved match was kept.',
+              )}
+            </Alert>
+          )}
+          {!busy &&
+            matchStatus === 'VALID' &&
+            result?.evidenceUncertain &&
+            !result.keptPrevious && (
+              <Alert severity="warning">
+                {tr(
+                  'The AI may have missed CV evidence for some required items. Check items marked "Evidence needs review" before relying on this score.',
+                )}
+              </Alert>
+            )}
           {busy && (
             <Stack direction="row" spacing={1} role="status">
               <CircularProgress size={20} />
@@ -881,6 +898,11 @@ function RequirementCard({
               >
                 {statusLabel(item.status)}
               </Typography>
+              {item.evidence?.review && (
+                <Typography variant="body2" color="warning.dark">
+                  {tr('Evidence needs review')}
+                </Typography>
+              )}
             </Stack>
           </Box>
         </Stack>

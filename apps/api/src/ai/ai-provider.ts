@@ -12,6 +12,8 @@ export interface GenerationRequest {
   readonly partial?: PartialGenerationExecution;
   readonly prompt: string;
   readonly schema: OutputSchema;
+  // Ollama sampling seed for repeatability; output is still not guaranteed identical.
+  readonly seed?: number;
 }
 export interface AiProvider {
   generate(request: GenerationRequest): Promise<string>;

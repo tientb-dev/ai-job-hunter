@@ -113,8 +113,13 @@ test.each([work, wrapped])(
 test('a model-selected complete exact candidate and recovery make the same decision', () => {
   const quote = [...headers, wrapped].join('\n'),
     cv = `${stack}\n${quote}`;
-  expect(assess(cv, quote).requirements[0]).toEqual(assess(cv).requirements[0]);
-  expect(assess(cv, '').requirements[0]).toEqual(assess(cv).requirements[0]);
+  // Same decision; only the model-quote diagnostic differs.
+  const decision = (selected?: string) => {
+    const { evidence: _, ...row } = assess(cv, selected).requirements[0]!;
+    return row;
+  };
+  expect(decision(quote)).toEqual(decision());
+  expect(decision('')).toEqual(decision());
 });
 test.each([
   stack,

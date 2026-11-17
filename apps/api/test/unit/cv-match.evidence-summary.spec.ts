@@ -114,6 +114,14 @@ describe('CV_MATCH_EVIDENCE_SUMMARY', () => {
       {
         event: 'CV_MATCH_EVIDENCE_SUMMARY',
         quotes: { allowed: 1, widened: 0, ambiguous: 1, dropped: 0 },
+        // The blocked work-line candidate is flagged for review, not credited.
+        modelQuotes: {
+          empty: 1,
+          rejected: 0,
+          unsupporting: 0,
+          review: 1,
+          requiredReview: 1,
+        },
         recoveryBlocked: 1,
         requirements: [
           {

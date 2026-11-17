@@ -774,3 +774,42 @@ test('an unverified requirement set shows a review state, not a numeric Low Fit'
   expect(screen.queryByText('Low Fit')).toBeNull();
   expect(screen.queryByText(/\/ 100/)).toBeNull();
 });
+
+test.each([
+  [
+    { evidenceUncertain: true },
+    /may have missed CV evidence for some required/,
+  ],
+  [
+    { evidenceUncertain: false, keptPrevious: true },
+    /previous saved match was kept/,
+  ],
+])('reliability notice %j', async (extra, notice) => {
+  const flagged = {
+    ...result,
+    ...extra,
+    requirements: [
+      result.requirements[0],
+      {
+        ...result.requirements[1],
+        evidence: { modelQuote: 'EMPTY', review: true },
+      },
+    ],
+  };
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string) =>
+      Response.json(
+        url.endsWith('/cv/current')
+          ? { id: 'synthetic-cv', fileName: 'synthetic.pdf' }
+          : flagged,
+      ),
+    ),
+  );
+  render(<CvMatchPanel jobId="synthetic-job" revision="1" />);
+  await screen.findByRole('combobox', { name: 'CV for this job' });
+  fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
+  await screen.findByLabelText(/Fit score: 75\/100/);
+  expect(screen.getByText(notice)).toBeVisible();
+  expect(screen.getByText('Evidence needs review')).toBeVisible();
+});

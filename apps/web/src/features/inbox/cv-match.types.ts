@@ -8,7 +8,12 @@ export interface MatchResult {
   explanation: string;
   advice: string;
   analyzedAt: string;
+  // Absent on assessments saved before PR #107.
+  evidenceUncertain?: boolean;
+  /** This analysis was not saved; the previous reliable match is returned. */
+  keptPrevious?: boolean;
   requirements: {
+    evidence?: { modelQuote: string; review: boolean };
     parentId?: string;
     requirement: string;
     priority: string;

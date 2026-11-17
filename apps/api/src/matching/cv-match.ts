@@ -823,6 +823,8 @@ export function scoreCvMatch(
   unverified = false,
 ) {
   const seen = new Set<string>();
+  let passages: string[] | undefined;
+  const choices = () => (passages ??= matchQuoteChoices(cv, canonical));
   const belongsTo = linksCanonicalRequirement;
   const merged = canonical.map((item) => {
     const linked = proposals.filter((candidate) => belongsTo(candidate, item));
@@ -841,8 +843,17 @@ export function scoreCvMatch(
       (requirementGroup(item.requirement, item.category).mode !== 'SINGLE' ||
         simpleEvidenceStatus(item.requirement, quote, cv, item.category) !==
           'NOT_EVIDENCED');
+    // Why the model's own quote did or did not count (diagnostic only).
+    const modelQuote = proposal?.cvEvidenceUnverified
+      ? ('REJECTED' as const)
+      : !quote.trim()
+        ? ('EMPTY' as const)
+        : usable
+          ? ('ACCEPTED' as const)
+          : ('UNSUPPORTING' as const);
     return {
       ...item,
+      modelQuote,
       components: linked.flatMap((candidate) => candidate.components ?? []),
       selectedQuotes: linked
         .filter((candidate) => !candidate.cvEvidenceUnverified)
@@ -904,6 +915,27 @@ export function scoreCvMatch(
           cv,
           item.category,
         );
+      const credit = coverage?.credit ?? Number(status === 'EVIDENCED');
+      // A CV passage that alone would earn more credit under the same strict
+      // rules, while the model's quote did not count: flag for review only.
+      // Never credited or shown as a quote, so the score is unchanged.
+      const review =
+        item.modelQuote !== 'ACCEPTED' &&
+        status !== 'EVIDENCED' &&
+        status !== 'CONFLICT' &&
+        choices().some(
+          (passage) =>
+            (group.mode === 'SINGLE'
+              ? Number(
+                  simpleEvidenceStatus(
+                    item.requirement,
+                    passage,
+                    cv,
+                    item.category,
+                  ) === 'EVIDENCED',
+                )
+              : evaluateCoverage(group, [passage], cv, true).credit) > credit,
+        );
       return {
         parentId: item.parentId,
         requirement: item.requirement,
@@ -917,7 +949,8 @@ export function scoreCvMatch(
             ? simpleQuote
             : '',
         status,
-        credit: coverage?.credit ?? Number(status === 'EVIDENCED'),
+        credit,
+        evidence: { modelQuote: item.modelQuote, review },
         coverage: coverage ?? {
           mode: 'SINGLE' as const,
           credit: Number(status === 'EVIDENCED'),
@@ -967,6 +1000,10 @@ export function scoreCvMatch(
   return {
     score,
     recommendation,
+    // A required item may have CV support the model missed; see evidence.review.
+    evidenceUncertain: requirements.some(
+      (item) => item.priority === 'required' && item.evidence.review,
+    ),
     requirements,
     explanation:
       'Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Unknown/conflict earns zero. AI links and requirement completeness need human review; this is not a hiring probability.',
