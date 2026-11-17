@@ -2,6 +2,7 @@ import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js
 import { expect, jest, test } from '@jest/globals';
 import {
   duplicateJob,
+  jobFamily,
   rankJob,
   validateFilters,
   type DiscoveryFilters,
@@ -15,6 +16,7 @@ import {
 import { DiscoveryService } from '../../src/discovery/discovery.service.js';
 import type { OpportunitiesService } from '../../src/opportunities/opportunities.service.js';
 const filters: DiscoveryFilters = {
+  family: 'All',
   location: 'Ho Chi Minh City',
   stacks: ['Java', 'Spring Boot', 'Node.js', 'React'],
   workMode: 'All',
@@ -120,6 +122,42 @@ test('ranks HCMC onsite/hybrid and senior/technical leads ahead without dropping
 test('rejects unsupported filters instead of pretending the API supports them', () => {
   expect(() => validateFilters({ ...filters, stacks: ['Go'] })).toThrow();
   expect(() => validateFilters({ ...filters, salary: 100 })).toThrow();
+});
+test('job family classification is conservative and title-only', () => {
+  expect(jobFamily('Senior Backend Software Engineer II')).toBe('IT');
+  expect(jobFamily('Binance Accelerator Program - Growth Marketing')).toBe(
+    'Marketing',
+  );
+  expect(jobFamily('Strategic Account Manager (Ho Chi Minh)')).toBe('Sales');
+  expect(jobFamily('Nhân viên kinh doanh')).toBe('Sales');
+  // Ambiguous or unknown titles are never claimed by a family.
+  expect(jobFamily('Sales Engineer')).toBeNull();
+  expect(jobFamily('Supply Specialist')).toBeNull();
+});
+test('a specific family is a hard filter; All keeps uncertain titles; stacks only narrow IT', () => {
+  const job = (title: string) => ({
+    ...normalized(),
+    title,
+    skills: '',
+    description: 'Hotel partnerships',
+  });
+  const any = validateFilters({ ...filters, stacks: [] });
+  const sales = validateFilters({ ...filters, stacks: [], family: 'Sales' });
+  expect(rankJob(job('Account Executive'), sales)).not.toBeNull();
+  expect(rankJob(job('Backend Engineer'), sales)).toBeNull();
+  expect(rankJob(job('Supply Specialist'), sales)).toBeNull();
+  expect(rankJob(job('Supply Specialist'), any)).not.toBeNull();
+  expect(
+    rankJob(
+      job('Backend Engineer'),
+      validateFilters({ ...filters, family: 'IT', stacks: ['Java'] }),
+    ),
+  ).toBeNull();
+  expect(() =>
+    validateFilters({ ...filters, family: 'Sales', stacks: ['Java'] }),
+  ).toThrow();
+  expect(() => validateFilters({ ...filters, family: 'Finance' })).toThrow();
+  expect(validateFilters({ ...filters, family: undefined }).family).toBe('All');
 });
 test('no selected stack keeps non-IT jobs eligible but still drops foreign onsite roles', () => {
   const anyFamily = validateFilters({ ...filters, stacks: [] });

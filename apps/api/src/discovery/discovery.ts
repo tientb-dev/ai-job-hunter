@@ -1,6 +1,9 @@
 import { BadRequestException } from '@nestjs/common';
 export const STACKS = ['Java', 'Spring Boot', 'Node.js', 'React'] as const;
+export const JOB_FAMILIES = ['All', 'IT', 'Marketing', 'Sales'] as const;
+export type JobFamily = Exclude<(typeof JOB_FAMILIES)[number], 'All'>;
 export interface DiscoveryFilters {
+  family: (typeof JOB_FAMILIES)[number];
   location: 'Ho Chi Minh City' | 'Vietnam';
   stacks: (typeof STACKS)[number][];
   workMode: 'All' | 'Onsite' | 'Hybrid' | 'Remote';
@@ -32,19 +35,25 @@ export function validateFilters(value: unknown): DiscoveryFilters {
     typeof row !== 'object' ||
     Array.isArray(row) ||
     Object.keys(row).some(
-      (key) => !['location', 'stacks', 'workMode', 'seniority'].includes(key),
+      (key) =>
+        !['family', 'location', 'stacks', 'workMode', 'seniority'].includes(
+          key,
+        ),
     ) ||
+    !JOB_FAMILIES.includes(row.family ?? 'All') ||
     !['Ho Chi Minh City', 'Vietnam'].includes(row.location ?? '') ||
     !['All', 'Onsite', 'Hybrid', 'Remote'].includes(row.workMode ?? '') ||
     !['Senior', 'Technical Lead', 'All'].includes(row.seniority ?? '') ||
     !Array.isArray(row.stacks) ||
     row.stacks.length > 4 ||
-    row.stacks.some((stack) => !STACKS.includes(stack))
+    row.stacks.some((stack) => !STACKS.includes(stack)) ||
+    // Tech stacks only narrow IT searches.
+    (['Marketing', 'Sales'].includes(row.family ?? '') && row.stacks.length > 0)
   )
     throw new BadRequestException(
       'Choose a supported location, optional tech stacks, work mode and seniority.',
     );
-  return row as DiscoveryFilters;
+  return { ...row, family: row.family ?? 'All' } as DiscoveryFilters;
 }
 export const folded = (value: string) =>
   value
@@ -61,6 +70,22 @@ const stackPatterns: Record<(typeof STACKS)[number], RegExp> = {
     /\bnode(?:\.?js|\.js)\b|\bnode[ -]?(?:backend|back-end)\b|\bnestjs\b/iu,
   React: /\breact(?:\.?js)?\b/iu,
 };
+// Conservative, title-only: a title matching zero or several families is uncertain
+// (null) and is excluded from every specific family; it stays visible under All.
+const familyPatterns: Record<JobFamily, RegExp> = {
+  IT: /\b(?:engineer(?:ing)?|developer|software|devops|sre|qa|sdet|tester|programmer|architect|firmware|embedded|front-?end|back-?end|full-?stack|ios|android|data (?:scientist|engineer|analyst)|machine learning|research scientist|technical (?:lead|principal)|lap trinh)\b/u,
+  Marketing:
+    /\b(?:marketing|marketer|brand|seo|sem|content|growth|communications?|social media|public relations|copywriter|kol|community|tiep thi)\b/u,
+  Sales:
+    /\b(?:sales|account (?:executive|manager|director)|business development|partnerships?|key account|pre-?sales|go-to-market|gtm|telesales|kinh doanh)\b/u,
+};
+export function jobFamily(title: string): JobFamily | null {
+  const text = folded(title);
+  const matches = (Object.keys(familyPatterns) as JobFamily[]).filter(
+    (family) => familyPatterns[family].test(text),
+  );
+  return matches.length === 1 ? matches[0]! : null;
+}
 export function supportedStacks(text: string): string[] {
   // Spring Boot supports the Java search equivalent without claiming Java was literally listed.
   return STACKS.filter((stack) =>
@@ -71,6 +96,8 @@ export function rankJob(
   job: DiscoveredJob,
   filters: DiscoveryFilters,
 ): number | null {
+  if (filters.family !== 'All' && jobFamily(job.title) !== filters.family)
+    return null;
   const evidence = `${job.title}\n${job.skills}\n${job.description}`;
   // No stacks selected means any job family (IT, Marketing, Sales…) stays eligible.
   if (

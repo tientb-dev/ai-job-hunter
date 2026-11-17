@@ -21,8 +21,15 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
   const running = useRef(false);
   const [expanded, setExpanded] = useState(false);
   const [location, setLocation] = useState('Ho Chi Minh City');
-  // Empty = any job family (IT, Marketing, Sales); stacks are an optional IT filter.
+  const [family, setFamily] = useState('All');
+  // Optional IT-only narrowing; cleared when another family is chosen.
   const [stacks, setStacks] = useState<string[]>([]);
+  const familyLabel = (value: string) =>
+    value === 'All'
+      ? tr('Any job family')
+      : value === 'Sales'
+        ? tr('Sales')
+        : value;
   const [workMode, setWorkMode] = useState('All');
   const [seniority, setSeniority] = useState('Senior');
   const [busy, setBusy] = useState(false);
@@ -41,7 +48,13 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
     try {
       const result = await discoveryRequest<DiscoverySummary>('/runs', {
         method: 'POST',
-        body: JSON.stringify({ location, stacks, workMode, seniority }),
+        body: JSON.stringify({
+          family,
+          location,
+          stacks,
+          workMode,
+          seniority,
+        }),
       });
       setSummary(result);
       notify({
@@ -104,8 +117,8 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
               color="text.secondary"
               sx={{ overflowWrap: 'anywhere' }}
             >
-              {location} ·{' '}
-              {stacks.length ? stacks.join(', ') : tr('Any job family')} ·{' '}
+              {location} · {familyLabel(family)}
+              {stacks.length ? ` (${stacks.join(', ')})` : ''} ·{' '}
               {workMode === 'All' ? tr('Any work mode') : workMode} ·{' '}
               {seniority === 'All' ? tr('Any seniority') : seniority}
             </Typography>
@@ -196,27 +209,50 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
                 size="small"
                 select
                 fullWidth
-                label={tr('Tech stack (optional)')}
+                label={tr('Job family')}
                 helperText={tr(
-                  'Leave empty for all job families. Matches any selected keyword in job text, including descriptions and preferred skills; not necessarily required skills.',
+                  'Filters by job title. Titles that are unclear or fit several families only appear under All.',
                 )}
-                value={stacks}
+                value={family}
                 disabled={busy}
-                slotProps={{ select: { multiple: true } }}
-                onChange={(event) =>
-                  setStacks(
-                    typeof event.target.value === 'string'
-                      ? event.target.value.split(',')
-                      : event.target.value,
-                  )
-                }
+                onChange={(event) => {
+                  setFamily(event.target.value);
+                  if (event.target.value !== 'IT') setStacks([]);
+                }}
               >
-                {['Java', 'Spring Boot', 'Node.js', 'React'].map((value) => (
+                {['All', 'IT', 'Marketing', 'Sales'].map((value) => (
                   <MenuItem key={value} value={value}>
-                    {value}
+                    {familyLabel(value)}
                   </MenuItem>
                 ))}
               </TextField>
+              {family === 'IT' && (
+                <TextField
+                  size="small"
+                  select
+                  fullWidth
+                  label={tr('Tech stack (optional)')}
+                  helperText={tr(
+                    'Leave empty for all IT roles. Matches any selected keyword in job text, including descriptions and preferred skills; not necessarily required skills.',
+                  )}
+                  value={stacks}
+                  disabled={busy}
+                  slotProps={{ select: { multiple: true } }}
+                  onChange={(event) =>
+                    setStacks(
+                      typeof event.target.value === 'string'
+                        ? event.target.value.split(',')
+                        : event.target.value,
+                    )
+                  }
+                >
+                  {['Java', 'Spring Boot', 'Node.js', 'React'].map((value) => (
+                    <MenuItem key={value} value={value}>
+                      {value}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
               <TextField
                 size="small"
                 select

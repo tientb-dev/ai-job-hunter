@@ -106,6 +106,25 @@ test.each(['temus', 'go1vn', 'thoughtworks', 'agoda'])(
     expect(discoverySourceKey(jobs[0]!.discovery)).toBe(`greenhouse:${token}`);
   },
 );
+test('off-host company career links fall back to the hosted Greenhouse URL', () => {
+  const source = DISCOVERY_SOURCES.find((s) => s.token === 'thoughtworks')!;
+  const feed = payload('thoughtworks');
+  feed.jobs[0]!.absolute_url =
+    'https://www.thoughtworks.com/careers/jobs/1?gh_jid=1';
+  const { jobs, invalid } = normalizeGreenhouse(
+    feed,
+    source,
+    '2026-11-17T00:00:00.000Z',
+  );
+  expect(invalid).toBe(0);
+  expect(jobs[0]!.originalLink).toBe(
+    'https://job-boards.greenhouse.io/thoughtworks/jobs/1',
+  );
+  feed.jobs[0]!.absolute_url = 'http://www.thoughtworks.com/careers/jobs/1';
+  expect(
+    normalizeGreenhouse(feed, source, '2026-11-17T00:00:00.000Z').invalid,
+  ).toBe(1);
+});
 test('two concurrent fetches aggregate equal-rank jobs and failures in registry order', async () => {
   jest.useFakeTimers();
   let active = 0,

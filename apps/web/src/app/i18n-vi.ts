@@ -124,6 +124,10 @@ export const VI_TEXT: Record<string, string> = {
   'Discover only searches a few public company career boards (Axon, Backbase, Temus, Go1 Vietnam, Thoughtworks, Agoda), mostly IT roles. Found a job on another website? Add it from its JD or URL.':
     'Khám phá chỉ tìm trên một số trang tuyển dụng công khai của doanh nghiệp (Axon, Backbase, Temus, Go1 Vietnam, Thoughtworks, Agoda), chủ yếu là việc làm IT. Thấy việc làm trên trang khác? Hãy thêm từ JD hoặc URL.',
   'Tech stack (optional)': 'Công nghệ (không bắt buộc)',
+  'Job family': 'Nhóm ngành',
+  Sales: 'Kinh doanh',
+  'Filters by job title. Titles that are unclear or fit several families only appear under All.':
+    'Lọc theo tên vị trí. Tên vị trí chưa rõ hoặc thuộc nhiều nhóm chỉ hiển thị khi chọn Mọi nhóm ngành.',
   'Add job requirements in Edit JD, save the job, then refresh CV Match. Your source review is preserved.':
     'Thêm yêu cầu công việc trong Sửa JD, lưu việc làm, rồi làm mới Đối chiếu CV. Bản rà soát nguồn của bạn được giữ nguyên.',
   'Add job steps': 'Các bước thêm việc làm',
@@ -840,8 +844,8 @@ export const VI_TEXT: Record<string, string> = {
   Matched: 'Khớp',
   'Matched (': 'Khớp (',
   'Matched:': 'Khớp:',
-  'Leave empty for all job families. Matches any selected keyword in job text, including descriptions and preferred skills; not necessarily required skills.':
-    'Để trống để tìm mọi nhóm ngành. Khớp với bất kỳ từ khóa nào đã chọn trong nội dung việc làm, kể cả mô tả và kỹ năng ưu tiên; không nhất thiết là kỹ năng bắt buộc.',
+  'Leave empty for all IT roles. Matches any selected keyword in job text, including descriptions and preferred skills; not necessarily required skills.':
+    'Để trống để tìm mọi việc làm IT. Khớp với bất kỳ từ khóa nào đã chọn trong nội dung việc làm, kể cả mô tả và kỹ năng ưu tiên; không nhất thiết là kỹ năng bắt buộc.',
   'Matching is disabled. Review the retained source above, check local services, then choose Analyze to retry manually. Parse without AI lets you view source without running the model.':
     'Đối chiếu đang tắt. Hãy xem nguồn được giữ ở trên, kiểm tra các dịch vụ cục bộ, rồi chọn Phân tích để thử lại thủ công. Phân tích không dùng AI cho phép xem nguồn mà không chạy mô hình.',
   'Matching timed out. Check the AI service and retry; no new fit score was produced.':

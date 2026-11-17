@@ -441,6 +441,11 @@ PR #103 adds Thoughtworks and Agoda (verified public boards with Vietnam roles,
 including Sales) and makes tech stacks optional: with no stack selected, any job
 family stays eligible and only the existing location rule drops foreign on-site
 roles. Six boards means three fetch batches, so a cold run worst case is about 45s.
+A Job family filter (All/IT/Marketing/Sales, default All) is a hard filter on a
+conservative title-only classification: titles matching no family or several
+families are uncertain and appear only under All. Tech stacks apply to IT and All
+only. Boards whose `absolute_url` points to their own careers site (Thoughtworks)
+fall back to the hosted Greenhouse URL built from the trusted token and job ID.
 
 Discovery scans batches of at most two boards. Each board catches its own failure;
 Promise.all retains registry order before existing score/title sorting. This keeps
