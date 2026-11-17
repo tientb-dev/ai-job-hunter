@@ -115,7 +115,8 @@ test('a model-selected complete exact candidate and recovery make the same decis
     cv = `${stack}\n${quote}`;
   // Same decision; only the model-quote diagnostic differs.
   const decision = (selected?: string) => {
-    const { evidence: _, ...row } = assess(cv, selected).requirements[0]!;
+    const row = { ...assess(cv, selected).requirements[0]! };
+    delete (row as { evidence?: unknown }).evidence;
     return row;
   };
   expect(decision(quote)).toEqual(decision());
