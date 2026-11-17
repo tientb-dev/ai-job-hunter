@@ -31,7 +31,6 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
         ? tr('Sales')
         : value;
   const [workMode, setWorkMode] = useState('All');
-  const [seniority, setSeniority] = useState('Senior');
   const [busy, setBusy] = useState(false);
   const [summary, setSummary] = useState<DiscoverySummary | null>(null);
   const [error, setError] = useState('');
@@ -53,7 +52,6 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
           location,
           stacks,
           workMode,
-          seniority,
         }),
       });
       setSummary(result);
@@ -119,8 +117,7 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
             >
               {location} · {familyLabel(family)}
               {stacks.length ? ` (${stacks.join(', ')})` : ''} ·{' '}
-              {workMode === 'All' ? tr('Any work mode') : workMode} ·{' '}
-              {seniority === 'All' ? tr('Any seniority') : seniority}
+              {workMode === 'All' ? tr('Any work mode') : workMode}
             </Typography>
           </Box>
           <Button
@@ -165,15 +162,10 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
           )}
         </Alert>
         {expanded && (
-          <Stack id="discovery-preferences" spacing={1.5}>
+          <Stack id="discovery-preferences" spacing={1}>
             <Typography variant="body2" color="text.secondary">
               {tr(
-                'Location, work mode, and level prioritize new candidates under the 50-new limit; they do not filter or reorder the Queue. The Queue includes candidates from previous runs.',
-              )}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {tr(
-                'Unknown location, work mode, or level may remain eligible under existing rules. If you select tech stacks, at least one must match job text.',
+                'Job family and tech stacks filter results, and on-site roles outside Vietnam are excluded. Location and work mode only prioritize new candidates under the 50-new limit; unknown values stay eligible. The Queue keeps previous runs and is not reordered.',
               )}
             </Typography>
             <Box
@@ -184,7 +176,8 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
                   sm: 'repeat(2, minmax(0, 1fr))',
                   lg: 'repeat(4, minmax(0, 1fr))',
                 },
-                gap: 2,
+                gap: 1.5,
+                pt: 0.5,
               }}
             >
               <TextField
@@ -266,24 +259,6 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
                 onChange={(event) => setWorkMode(event.target.value)}
               >
                 {['All', 'Onsite', 'Hybrid', 'Remote'].map((value) => (
-                  <MenuItem key={value} value={value}>
-                    {value}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                size="small"
-                select
-                fullWidth
-                label={tr('Preferred level')}
-                helperText={tr(
-                  'Ranking only. Senior includes technical leads.',
-                )}
-                value={seniority}
-                disabled={busy}
-                onChange={(event) => setSeniority(event.target.value)}
-              >
-                {['Senior', 'Technical Lead', 'All'].map((value) => (
                   <MenuItem key={value} value={value}>
                     {value}
                   </MenuItem>

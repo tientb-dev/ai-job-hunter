@@ -158,6 +158,9 @@ test('a specific family is a hard filter; All keeps uncertain titles; stacks onl
   ).toThrow();
   expect(() => validateFilters({ ...filters, family: 'Finance' })).toThrow();
   expect(validateFilters({ ...filters, family: undefined }).family).toBe('All');
+  expect(validateFilters({ ...filters, seniority: undefined }).seniority).toBe(
+    'All',
+  );
 });
 test('no selected stack keeps non-IT jobs eligible but still drops foreign onsite roles', () => {
   const anyFamily = validateFilters({ ...filters, stacks: [] });

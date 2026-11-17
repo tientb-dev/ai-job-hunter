@@ -125,6 +125,8 @@ export const VI_TEXT: Record<string, string> = {
     'Khám phá chỉ tìm trên một số trang tuyển dụng công khai của doanh nghiệp (Axon, Backbase, Temus, Go1 Vietnam, Thoughtworks, Agoda), chủ yếu là việc làm IT. Thấy việc làm trên trang khác? Hãy thêm từ JD hoặc URL.',
   'Tech stack (optional)': 'Công nghệ (không bắt buộc)',
   'Job family': 'Nhóm ngành',
+  'Job family and tech stacks filter results, and on-site roles outside Vietnam are excluded. Location and work mode only prioritize new candidates under the 50-new limit; unknown values stay eligible. The Queue keeps previous runs and is not reordered.':
+    'Nhóm ngành và công nghệ dùng để lọc kết quả; việc làm tại chỗ ngoài Việt Nam bị loại. Địa điểm và hình thức làm việc chỉ giúp ưu tiên ứng viên mới trong giới hạn 50 mục mới; giá trị chưa rõ vẫn đủ điều kiện. Hàng đợi giữ các lượt trước và không bị sắp xếp lại.',
   Sales: 'Kinh doanh',
   'Filters by job title. Titles that are unclear or fit several families only appear under All.':
     'Lọc theo tên vị trí. Tên vị trí chưa rõ hoặc thuộc nhiều nhóm chỉ hiển thị khi chọn Mọi nhóm ngành.',
@@ -176,7 +178,6 @@ export const VI_TEXT: Record<string, string> = {
     'Đã lưu câu trả lời. Sẵn sàng luyện tập chưa?',
   'Answers the question': 'Trả lời đúng câu hỏi',
   'Answers the question:': 'Trả lời đúng câu hỏi:',
-  'Any seniority': 'Mọi cấp bậc',
   'Any work mode': 'Mọi hình thức làm việc',
   'Application advice': 'Lời khuyên ứng tuyển',
   'Application channel': 'Kênh ứng tuyển',
@@ -645,8 +646,6 @@ export const VI_TEXT: Record<string, string> = {
   'Go to CV Match': 'Đến Đối chiếu CV',
   'Go to Match': 'Đến Đối chiếu',
   'Go to Source CV Review': 'Đến Rà soát CV gốc',
-  'Location, work mode, and level prioritize new candidates under the 50-new limit; they do not filter or reorder the Queue. The Queue includes candidates from previous runs.':
-    'Địa điểm, hình thức làm việc và cấp bậc giúp ưu tiên ứng viên mới trong giới hạn 50 mục mới; chúng không lọc hay sắp xếp lại Hàng đợi. Hàng đợi gồm cả ứng viên từ các lượt trước.',
   'HR communication': 'Giao tiếp với HR',
   'Help me express it': 'Giúp tôi diễn đạt',
   'Help me say it': 'Giúp tôi nói',
@@ -1111,7 +1110,6 @@ export const VI_TEXT: Record<string, string> = {
   'Predicate:': 'Vị từ:',
   Preferred: 'Ưu tiên',
   'Preferred gaps': 'Thiếu sót ưu tiên',
-  'Preferred level': 'Cấp bậc mong muốn',
   'Preferred location': 'Địa điểm mong muốn',
   'Preferred qualifications': 'Tiêu chí ưu tiên',
   'Preferred skills': 'Kỹ năng ưu tiên',
@@ -1162,8 +1160,6 @@ export const VI_TEXT: Record<string, string> = {
   'Quick CV and job analysis': 'Phân tích nhanh CV và việc làm',
   'Ranking only. All favors local onsite/hybrid roles.':
     'Chỉ dùng để xếp hạng. Tất cả ưu tiên vị trí tại chỗ/kết hợp ở địa phương.',
-  'Ranking only. Senior includes technical leads.':
-    'Chỉ dùng để xếp hạng. Senior bao gồm trưởng nhóm kỹ thuật.',
   'Read Along': 'Đọc theo',
   'Read Along is unavailable until your saved answers load. You can still record, transcribe or type your answer, and get AI feedback.':
     'Đọc theo chưa dùng được cho đến khi câu trả lời đã lưu được tải. Bạn vẫn có thể ghi âm, chuyển thành văn bản hoặc gõ câu trả lời và nhận nhận xét AI.',
@@ -1698,8 +1694,6 @@ export const VI_TEXT: Record<string, string> = {
   Undo: 'Hoàn tác',
   Unknown: 'Chưa rõ',
   'Unknown company': 'Công ty chưa rõ',
-  'Unknown location, work mode, or level may remain eligible under existing rules. If you select tech stacks, at least one must match job text.':
-    'Địa điểm, hình thức làm việc hoặc cấp bậc chưa rõ vẫn có thể đủ điều kiện theo quy tắc hiện có. Nếu chọn công nghệ, ít nhất một công nghệ phải khớp với nội dung việc làm.',
   'Unknown values can stay blank. Only job title is required. Quotes show textual support; verify that each value describes this job.':
     'Giá trị chưa rõ có thể để trống. Chỉ bắt buộc chức danh. Trích dẫn cho thấy căn cứ văn bản; hãy xác minh mỗi giá trị mô tả đúng việc làm này.',
   'Unsaved changes': 'Thay đổi chưa lưu',

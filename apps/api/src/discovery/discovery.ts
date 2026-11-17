@@ -43,7 +43,7 @@ export function validateFilters(value: unknown): DiscoveryFilters {
     !JOB_FAMILIES.includes(row.family ?? 'All') ||
     !['Ho Chi Minh City', 'Vietnam'].includes(row.location ?? '') ||
     !['All', 'Onsite', 'Hybrid', 'Remote'].includes(row.workMode ?? '') ||
-    !['Senior', 'Technical Lead', 'All'].includes(row.seniority ?? '') ||
+    !['Senior', 'Technical Lead', 'All'].includes(row.seniority ?? 'All') ||
     !Array.isArray(row.stacks) ||
     row.stacks.length > 4 ||
     row.stacks.some((stack) => !STACKS.includes(stack)) ||
@@ -53,7 +53,12 @@ export function validateFilters(value: unknown): DiscoveryFilters {
     throw new BadRequestException(
       'Choose a supported location, optional tech stacks, work mode and seniority.',
     );
-  return { ...row, family: row.family ?? 'All' } as DiscoveryFilters;
+  // Omitted family/seniority (older clients, current UI) default to All.
+  return {
+    ...row,
+    family: row.family ?? 'All',
+    seniority: row.seniority ?? 'All',
+  } as DiscoveryFilters;
 }
 export const folded = (value: string) =>
   value

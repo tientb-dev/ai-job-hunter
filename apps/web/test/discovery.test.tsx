@@ -103,7 +103,6 @@ test('preferences expand while discovery remains accessible and sends unchanged 
         location: 'Ho Chi Minh City',
         stacks: [],
         workMode: 'All',
-        seniority: 'Senior',
       }),
     }),
   );
@@ -362,11 +361,12 @@ test('edited preference labels preserve backend enum values and match-any stacks
       /Discover only searches a few public company career boards/,
     ),
   ).toHaveTextContent(/Thoughtworks, Agoda\), mostly IT roles/);
-  expect(screen.getByText(/do not filter or reorder the Queue/)).toBeVisible();
+  expect(
+    screen.getByText(/Job family and tech stacks filter results/),
+  ).toHaveTextContent(/Location and work mode only prioritize/);
+  expect(screen.queryByLabelText('Preferred level')).not.toBeInTheDocument();
   await user.click(screen.getByLabelText('Preferred work mode'));
   await user.click(screen.getByRole('option', { name: 'Remote' }));
-  await user.click(screen.getByLabelText('Preferred level'));
-  await user.click(screen.getByRole('option', { name: 'Technical Lead' }));
   expect(
     screen.queryByLabelText('Tech stack (optional)'),
   ).not.toBeInTheDocument();
@@ -383,6 +383,5 @@ test('edited preference labels preserve backend enum values and match-any stacks
     location: 'Ho Chi Minh City',
     stacks: ['Java'],
     workMode: 'Remote',
-    seniority: 'Technical Lead',
   });
 });
