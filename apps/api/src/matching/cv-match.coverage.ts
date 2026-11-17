@@ -255,7 +255,9 @@ export function requirementGroup(
   let context: RequirementGroup['context'] = 'skill';
   let body = text;
   const prefix =
-    /^(?:Experience designing|Working knowledge of|Understanding of|Experience (?:with|in|using)|Knowledge of|(?:(?:strong|solid|good|excellent)\s+)?proficiency (?:in|with))\s+/iu.exec(
+    // Same generic prefixes simpleLabel strips; a kept prefix ("Familiarity with
+    // Kafka") makes the first component label unmatchable by any CV passage.
+    /^(?:Experience designing|(?:(?:strong|solid|good|excellent|proven|hands-on|deep)\s+)?(?:Working knowledge of|Understanding of|Experience (?:with|in|using)|Knowledge of|Familiarity with|proficiency (?:in|with)|proficient (?:in|with)))\s+/iu.exec(
       text,
     );
   if (prefix) {
@@ -285,7 +287,12 @@ export function requirementGroup(
   const withDuration = (value: RequirementGroup): RequirementGroup =>
     groupYears ? { ...value, minimumYears: Number(groupYears[1]) } : value;
   if (hasAnd && hasOr) return group('UNKNOWN', [text], context);
-  if (hasAnd || hasOr || (prefix && /[,;]/u.test(body))) {
+  // A parenthesized example list ("SQL databases (PostgreSQL, MySQL)") is not a split point.
+  if (
+    hasAnd ||
+    hasOr ||
+    (prefix && /[,;]/u.test(body.replace(/\([^)]*\)/gu, '')))
+  ) {
     const labels = body
       .split(/[,;]\s*(?:(?:and|or)\s+)?|\s+(?:and|or)\s+/iu)
       .map((part) => part.trim())

@@ -172,7 +172,9 @@ export function CvMatchSection({
                     ),
                   })
                 : ''}
-              {tr('. No new analysis is needed.')}
+              {result?.evidenceUncertain
+                ? '.'
+                : tr('. No new analysis is needed.')}
             </Typography>
           )}
           {!busy && matchStatus === 'VALID' && result?.keptPrevious && (
@@ -1184,7 +1186,9 @@ export function MatchGate({
                     ),
                   })
                 : ''}
-              {tr('. No new analysis is needed.')}
+              {result?.evidenceUncertain
+                ? '.'
+                : tr('. No new analysis is needed.')}
             </Typography>
             <Stack
               direction="row"
@@ -1248,7 +1252,9 @@ export function MatchGate({
                       ),
                     })
                   : ''}
-                {tr('. No new analysis is needed.')}
+                {result?.evidenceUncertain
+                  ? '.'
+                  : tr('. No new analysis is needed.')}
               </Typography>
               <Stack
                 direction="row"

@@ -779,12 +779,14 @@ test.each([
   [
     { evidenceUncertain: true },
     /may have missed CV evidence for some required/,
+    false,
   ],
   [
     { evidenceUncertain: false, keptPrevious: true },
     /previous saved match was kept/,
+    true,
   ],
-])('reliability notice %j', async (extra, notice) => {
+])('reliability notice %j', async (extra, notice, upToDate) => {
   const flagged = {
     ...result,
     ...extra,
@@ -812,4 +814,9 @@ test.each([
   await screen.findByLabelText(/Fit score: 75\/100/);
   expect(screen.getByText(notice)).toBeVisible();
   expect(screen.getByText('Evidence needs review')).toBeVisible();
+  // An unreliable result must not claim that no new analysis is needed.
+  expect(screen.getByText(/^Saved match/)).toBeVisible();
+  expect(screen.queryAllByText(/No new analysis is needed/).length > 0).toBe(
+    upToDate,
+  );
 });
