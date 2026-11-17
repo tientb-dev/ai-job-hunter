@@ -16,7 +16,59 @@ permissions:
   contents: read
 
 jobs:
+  # Classifies changed files. Anything not provably docs-only runs the full
+  # pipeline; push, manual runs and any detection failure run everything.
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.classify.outputs.code }}
+      pdf: ${{ steps.classify.outputs.pdf }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - id: classify
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: bash .github/workflows/classify-changes.sh
+
+  # Lightweight PR checks on changed docs only (full formatting runs in quality).
+  docs:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.22.1'
+      - name: Format and whitespace of changed docs
+        shell: bash
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git diff --check "$BASE...$HEAD"
+          mapfile -t docs < <(git diff --name-only --diff-filter=d "$BASE...$HEAD" -- '*.md' 'docs/**')
+          if [ "${#docs[@]}" -gt 0 ]; then
+            # Same Prettier version as the workspace lockfile.
+            npx -y prettier@3.9.10 --check --ignore-unknown "${docs[@]}"
+          fi
+
   quality:
+    needs: changes
+    if: needs.changes.outputs.code != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -68,6 +120,8 @@ jobs:
 
   # Windows-only path handling (PDF resource separators); parser suites only.
   windows-pdf-parser:
+    needs: changes
+    if: needs.changes.outputs.pdf != 'false'
     runs-on: windows-latest
     timeout-minutes: 15
     steps:
