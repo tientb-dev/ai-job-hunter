@@ -9,9 +9,6 @@ export const enter = (step = 0) => ({
   animation: `${rise} 260ms ease-out both`,
   animationDelay: `${step * 50}ms`,
 });
-const fade = keyframes`from { opacity: 0; }`;
-// Opacity-only swap for remounted workspace content: no movement, no reflow.
-export const fadeIn = { animation: `${fade} 160ms ease-out` } as const;
 
 // Shared surface tokens: panels, dialogs and menus share one radius; controls
 // (buttons, fields, alerts) keep the tighter shape radius.
@@ -77,6 +74,7 @@ export const theme = createTheme({
         '@media (prefers-reduced-motion: reduce)': {
           '*, *::before, *::after': {
             animationDuration: '0.01ms !important',
+            animationDelay: '0s !important',
             animationIterationCount: '1 !important',
             transitionDuration: '0.01ms !important',
             scrollBehavior: 'auto !important',

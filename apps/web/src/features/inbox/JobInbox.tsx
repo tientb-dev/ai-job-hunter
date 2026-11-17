@@ -1,5 +1,5 @@
 import { dateLocale, tr } from '../../app/i18n';
-import { enter, fadeIn, surface } from '../../app/theme';
+import { enter, surface } from '../../app/theme';
 import { PageHeader } from '../../components/PageHeader';
 import {
   AddIcon,
@@ -90,6 +90,9 @@ export function JobInbox() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // Mobile shows either the list or the selected job.
   const [mobileDetail, setMobileDetail] = useState(false);
+  // The entrance plays once per page visit, not on each mobile list/detail switch.
+  const [switched, setSwitched] = useState(false);
+  const entrance = (step: number) => (switched ? undefined : enter(step));
   const [rows, setRows] = useState<Opportunity[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -163,7 +166,7 @@ export function JobInbox() {
         minWidth: 0,
         position: 'relative',
         overflow: 'hidden',
-        ...enter(0),
+        ...entrance(0),
       }}
     >
       <Typography
@@ -290,6 +293,7 @@ export function JobInbox() {
                       onClick={() => {
                         setSelectedId(row.id);
                         setMobileDetail(true);
+                        setSwitched(true);
                       }}
                       sx={{
                         width: '100%',
@@ -507,7 +511,7 @@ export function JobInbox() {
       >
         {showList && list}
         {showDetail && selected && (
-          <Stack spacing={1} sx={{ minHeight: 0, minWidth: 0, ...enter(1) }}>
+          <Stack spacing={1} sx={{ minHeight: 0, minWidth: 0, ...entrance(1) }}>
             {!wide && (
               <Box>
                 <Button
@@ -515,6 +519,7 @@ export function JobInbox() {
                   onClick={() => {
                     returnFocus.current = selected.id;
                     setMobileDetail(false);
+                    setSwitched(true);
                   }}
                 >
                   {tr('Back to jobs')}
@@ -596,7 +601,7 @@ function JobDetail({
       component="section"
       aria-labelledby="job-detail-heading"
       variant="outlined"
-      sx={{ p: { xs: 2, sm: 3 }, minHeight: 0, overflowY: 'auto', ...fadeIn }}
+      sx={{ p: { xs: 2, sm: 3 }, minHeight: 0, overflowY: 'auto' }}
     >
       <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
         <Box sx={{ flex: 1, minWidth: 0 }}>
