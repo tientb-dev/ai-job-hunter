@@ -186,13 +186,15 @@ describe('other component evidence is unchanged', () => {
     });
   });
 
-  test('a fabricated component quote still rejects the assessment', () => {
-    expect(() =>
-      assess(jobOf(and), cvRepeated, {
-        Docker: 'Ran Docker clusters at scale',
-      }),
-    ).toThrow(
-      expect.objectContaining({ reasonCode: 'COMPONENT_CV_QUOTE_NOT_IN_CV' }),
-    );
+  test('a fabricated component quote earns nothing and flags uncertainty', () => {
+    const { result } = assess(jobOf(and), cvRepeated, {
+      Docker: 'Ran Docker clusters at scale',
+    });
+    const row = result.requirements.find((r) => r.requirement === and)!;
+    const docker = row.coverage.components.find((c) => c.label === 'Docker')!;
+    expect(docker).toMatchObject({ status: 'NOT_EVIDENCED', cvQuote: '' });
+    expect(row.status).not.toBe('EVIDENCED');
+    expect(row.evidence.review).toBe(true);
+    expect(result.evidenceUncertain).toBe(true);
   });
 });

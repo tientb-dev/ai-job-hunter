@@ -104,9 +104,10 @@ async function run(quotes: Quotes, diagnostics: boolean) {
   const lines = write.mock.calls.map(([line]) => String(line));
   write.mockRestore();
   expect(lines.join('')).not.toMatch(forbidden);
-  const events = lines.map(
-    (line) => JSON.parse(line) as Record<string, unknown>,
-  );
+  // The always-on quote-rejection counts are covered by their own spec.
+  const events = lines
+    .map((line) => JSON.parse(line) as Record<string, unknown>)
+    .filter((e) => e.event !== 'CV_MATCH_QUOTES_REJECTED');
   return { result, events };
 }
 const summaryOf = (events: Record<string, unknown>[]) =>
@@ -174,18 +175,14 @@ describe('per-component AND/OR diagnostics', () => {
     });
   });
 
-  test('a component quote not in the CV fails the analysis: one failure line, no summary', async () => {
-    const { events } = await run(
+  test('a component quote not in the CV is dropped (Gemini): summary, no failure line', async () => {
+    const { result, events } = await run(
       { [devops]: { Docker: 'Ran PRIVATE_FAKE Docker clusters at scale' } },
       true,
     );
-    expect(summaryOf(events)).toBeUndefined();
-    expect(events.filter((e) => e.event === 'CV_MATCH_FAILURE')).toEqual([
-      expect.objectContaining({
-        reasonCode: 'COMPONENT_CV_QUOTE_NOT_IN_CV',
-        counts: { requirementIndex: 0 },
-      }),
-    ]);
+    expect(result).toMatchObject({ evidenceUncertain: true });
+    expect(summaryOf(events)).toBeDefined();
+    expect(events.filter((e) => e.event === 'CV_MATCH_FAILURE')).toEqual([]);
   });
 
   test('disabled by default: no summary', async () => {

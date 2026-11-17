@@ -517,8 +517,10 @@ export const VI_TEXT: Record<string, string> = {
     'Mỗi gợi ý cần một quyết định, nhưng bạn không bắt buộc phải chấp nhận gợi ý nào. “Giữ bản gốc” là một quyết định đầy đủ, giữ nguyên cách viết trong CV.',
   'Evidence (': 'Bằng chứng (',
   'Evidence and wording for': 'Bằng chứng và cách diễn đạt cho',
-  'Evidence could not be verified against the saved sources. Retry; no new fit score was produced.':
-    'Không thể xác minh bằng chứng với các nguồn đã lưu. Hãy thử lại; chưa có điểm phù hợp mới nào được tạo.',
+  'The AI cited CV text that could not be verified, so no new fit score was produced. Your saved match is unchanged. Retry; results can differ between attempts.':
+    'AI đã trích dẫn nội dung CV không thể xác minh, nên chưa có điểm phù hợp mới. Kết quả đã lưu của bạn không thay đổi. Hãy thử lại; kết quả có thể khác nhau giữa các lần.',
+  'The AI service is temporarily busy. Your saved match is unchanged. Try again in a few minutes.':
+    'Dịch vụ AI đang tạm thời quá tải. Kết quả đã lưu của bạn không thay đổi. Hãy thử lại sau vài phút.',
   'Evidence describes the pinned profile fact. It does not independently support your edited wording.':
     'Bằng chứng mô tả dữ kiện trong hồ sơ đã ghim. Nó không tự chứng minh cách diễn đạt bạn đã sửa.',
   'Evidence-validated facts. Completeness and semantic correctness still require review.':

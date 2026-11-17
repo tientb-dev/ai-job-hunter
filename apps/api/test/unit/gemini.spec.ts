@@ -328,10 +328,14 @@ test.each([429, 503])(
 );
 
 test('stops after the attempt limit', async () => {
-  const fetch = mockFetch().mockImplementation(async () => failure(429, '0'));
+  const fetch = mockFetch().mockImplementation(async () => failure(503, '0'));
   await expect(
     new GeminiProvider(config).generate(input),
-  ).rejects.toMatchObject({ code: 'UPSTREAM_HTTP_FAILURE' });
+  ).rejects.toMatchObject({
+    code: 'UPSTREAM_HTTP_FAILURE',
+    httpStatus: 503,
+    attempts: GEMINI_MAX_ATTEMPTS,
+  });
   expect(fetch).toHaveBeenCalledTimes(GEMINI_MAX_ATTEMPTS);
 });
 
@@ -343,7 +347,7 @@ test.each([400, 401, 403, 404, 500, 502])(
     );
     await expect(
       new GeminiProvider(config).generate(input),
-    ).rejects.toMatchObject({ code: 'UPSTREAM_HTTP_FAILURE' });
+    ).rejects.toMatchObject({ code: 'UPSTREAM_HTTP_FAILURE', attempts: 1 });
     expect(fetch).toHaveBeenCalledTimes(1);
   },
 );

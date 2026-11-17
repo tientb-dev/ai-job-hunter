@@ -102,6 +102,8 @@ describe('replayed good vs mostly-empty model response', () => {
     expect(result.score).toBe(0);
     expect(result.requirements.every((r) => r.cvQuote === '')).toBe(true);
     expect(result.evidenceUncertain).toBe(true);
+    // A low score on doubtful evidence is not presented as a trustworthy Low Fit.
+    expect(result.recommendation).toBe('Review requirements');
   });
   test('genuinely missing evidence raises no warning', () => {
     const result = score({ ...good });

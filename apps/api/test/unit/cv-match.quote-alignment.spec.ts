@@ -157,9 +157,38 @@ describe('integrity: widening never drops negation or invents evidence', () => {
       'A - Deployed services with Docker',
       'COMPONENT_CV_QUOTE_NOT_ALLOWED_PASSAGE',
     ],
-  ])('%s stays rejected', (_, cv, quote, reason) => {
-    expect(rejection(cv, quote)).toBe(reason);
-  });
+  ])(
+    '%s earns nothing on Gemini and stays fatal elsewhere',
+    (_, cv, quote, reason) => {
+      // Gemini: dropped (no credit, flagged for review), not fatal.
+      expect(rejection(cv, quote)).toBe('ACCEPTED');
+      expect(assess(cv, quote).docker).toMatchObject({
+        status: 'NOT_EVIDENCED',
+        cvQuote: '',
+      });
+      // Other providers (no allowed set): an invented quote still rejects the
+      // whole assessment. (Their schema enum restricts passages instead.)
+      if (reason !== 'COMPONENT_CV_QUOTE_NOT_IN_CV') return;
+      const proposals: MatchRequirement[] = canonical.map((row) => ({
+        ...row,
+        cvQuote: '',
+        ...(row.requirement === pairs
+          ? {
+              components: requirementGroup(pairs, 'skill').components.map(
+                (c) => ({
+                  componentId: c.id,
+                  jdQuote: c.jdQuote,
+                  cvQuote: c.label === 'Docker' ? quote : '',
+                }),
+              ),
+            }
+          : {}),
+      }));
+      expect(() =>
+        validateMatchAssessment(proposals, cv, jd, canonical),
+      ).toThrow(expect.objectContaining({ reasonCode: reason }));
+    },
+  );
 
   test('a fragment occurring twice is dropped, never credited (Gemini path)', () => {
     const cv = 'EXPERIENCE\n- Used Docker.\n- Used Docker.';

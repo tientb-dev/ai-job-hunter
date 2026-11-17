@@ -37,6 +37,8 @@ export class AiError extends Error {
     public readonly code: keyof typeof messages,
     // Upstream HTTP status only (an integer); never a body, header or message.
     readonly httpStatus?: number,
+    // Upstream requests sent for this call, including transient retries.
+    readonly attempts?: number,
   ) {
     super(messages[code]);
     this.name = 'AiError';

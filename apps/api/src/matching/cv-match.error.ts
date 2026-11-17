@@ -20,6 +20,10 @@ const failures = {
     503,
     'Matching evidence could not be verified against the saved sources. Retry analysis; no new fit score was produced.',
   ],
+  CV_MATCH_PROVIDER_BUSY: [
+    503,
+    'The AI service is temporarily busy. Your saved match is unchanged. Try again in a few minutes.',
+  ],
   CV_MATCH_UNAVAILABLE: [
     503,
     'CV matching is unavailable. Check the AI service and the configured model, then retry; no new fit score was produced.',

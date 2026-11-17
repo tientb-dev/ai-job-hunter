@@ -10,6 +10,7 @@ import {
 } from './cv-match.coverage.js';
 import {
   emitMatchEvidenceRejection,
+  emitMatchQuoteRejections,
   emitMatchIncomplete,
   type MatchEvidenceReason,
 } from './cv-match.diagnostics.js';
@@ -676,9 +677,10 @@ export function validateMatchAssessment(
       if (
         component.cvQuote.trim() &&
         !resolveQuote(component.cvQuote) &&
-        // Gemini only: a fragment found in several places is dropped below
-        // (fail closed, no credit, no recovery) instead of failing the analysis.
-        !(allowedQuotes && cvQuoteOccurrences(cv, component.cvQuote) === 2)
+        // Gemini only: an unverifiable component quote is dropped below (fail
+        // closed: no credit, no recovery, flagged uncertain) instead of failing
+        // the whole analysis. Other providers keep the fatal rejection.
+        !allowedQuotes
       )
         throw new CvMatchError(
           'CV_MATCH_EVIDENCE_REJECTED',
@@ -802,6 +804,16 @@ export function validateMatchAssessment(
       },
     );
   }
+  if (allowedQuotes)
+    emitMatchQuoteRejections(
+      proposals
+        .flatMap((item) => [
+          item.cvQuote,
+          ...(item.components ?? []).map((component) => component.cvQuote),
+        ])
+        .filter((quote) => quote.trim() && resolveQuote(quote) === null),
+      cv,
+    );
   if (toolingIndex >= 0)
     emitMatchEvidenceRejection(
       'AI_TOOLING_FOR_PRODUCTION_REQUIREMENT',
@@ -919,23 +931,25 @@ export function scoreCvMatch(
       // A CV passage that alone would earn more credit under the same strict
       // rules, while the model's quote did not count: flag for review only.
       // Never credited or shown as a quote, so the score is unchanged.
+      // A rejected component quote (Gemini) earns nothing and always needs review.
       const review =
-        item.modelQuote !== 'ACCEPTED' &&
-        status !== 'EVIDENCED' &&
-        status !== 'CONFLICT' &&
-        choices().some(
-          (passage) =>
-            (group.mode === 'SINGLE'
-              ? Number(
-                  simpleEvidenceStatus(
-                    item.requirement,
-                    passage,
-                    cv,
-                    item.category,
-                  ) === 'EVIDENCED',
-                )
-              : evaluateCoverage(group, [passage], cv, true).credit) > credit,
-        );
+        (!!item.componentEvidenceUnverified && status !== 'EVIDENCED') ||
+        (item.modelQuote !== 'ACCEPTED' &&
+          status !== 'EVIDENCED' &&
+          status !== 'CONFLICT' &&
+          choices().some(
+            (passage) =>
+              (group.mode === 'SINGLE'
+                ? Number(
+                    simpleEvidenceStatus(
+                      item.requirement,
+                      passage,
+                      cv,
+                      item.category,
+                    ) === 'EVIDENCED',
+                  )
+                : evaluateCoverage(group, [passage], cv, true).credit) > credit,
+          ));
       return {
         parentId: item.parentId,
         requirement: item.requirement,
@@ -988,6 +1002,10 @@ export function scoreCvMatch(
   const requiredGap = requirements.some(
     (item) => item.priority === 'required' && item.status !== 'EVIDENCED',
   );
+  // A required item may have CV support the model missed; see evidence.review.
+  const evidenceUncertain = requirements.some(
+    (item) => item.priority === 'required' && item.evidence.review,
+  );
   const recommendation = unverified
     ? 'Review requirements'
     : score === null
@@ -996,14 +1014,14 @@ export function scoreCvMatch(
         ? 'Apply'
         : score >= 40
           ? 'Consider'
-          : 'Low Fit';
+          : // A low score built on unverified evidence is not a trustworthy Low Fit.
+            evidenceUncertain
+            ? 'Review requirements'
+            : 'Low Fit';
   return {
     score,
     recommendation,
-    // A required item may have CV support the model missed; see evidence.review.
-    evidenceUncertain: requirements.some(
-      (item) => item.priority === 'required' && item.evidence.review,
-    ),
+    evidenceUncertain,
     requirements,
     explanation:
       'Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Unknown/conflict earns zero. AI links and requirement completeness need human review; this is not a hiring probability.',
