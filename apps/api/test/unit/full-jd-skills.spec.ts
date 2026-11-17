@@ -88,7 +88,10 @@ test('full JD reaches provider unchanged and sparse model output is recovered in
     expect(
       skills.candidates.some((candidate) => candidate.quote === clause),
     ).toBe(true);
-    expect(skills.value).toContain(clause.replace(/\.$/u, ''));
+    // Values drop the list bullet; the quote stays the literal line.
+    expect(skills.value).toContain(
+      clause.replace(/^[-•*–+]\s*/u, '').replace(/\.$/u, ''),
+    );
   }
   expect(skills.value.split('\n')).not.toContain('Java');
   expect(skills.value).not.toContain('Java Swing');

@@ -74,24 +74,24 @@ describe('import keeps continued alternative clauses intact', () => {
   test('degree and broker lines stay one value each', () => {
     expect(
       sectionCandidates(jd, 'jd').map((candidate) => candidate.value),
-    ).toEqual([`- ${degree}`, `- ${broker}`, `- ${docker}`]);
+    ).toEqual([degree, broker, docker]);
   });
 
   test.each([
     [
       'OR group followed by separate requirements',
       'Java or Kotlin, Spring Boot, Docker',
-      ['- Java or Kotlin', 'Spring Boot', 'Docker'],
+      ['Java or Kotlin', 'Spring Boot', 'Docker'],
     ],
     [
       'OR group plus a separate item',
       'Experience with Kafka or RabbitMQ, plus Docker',
-      ['- Experience with Kafka or RabbitMQ', 'plus Docker'],
+      ['Experience with Kafka or RabbitMQ', 'plus Docker'],
     ],
     [
       'AND list',
       'Experience with Kafka, RabbitMQ, and Docker',
-      ['- Experience with Kafka, RabbitMQ, and Docker'],
+      ['Experience with Kafka, RabbitMQ, and Docker'],
     ],
   ])('%s keeps its existing split', (_, line, expected) => {
     expect(

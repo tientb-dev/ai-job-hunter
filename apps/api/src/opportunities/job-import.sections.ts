@@ -19,6 +19,22 @@ export function requirementHeading(line: string): boolean {
     words.every((word) => headingWord.test(word))
   );
 }
+// A PDF/HTML line wrap: a lowercase, unbulleted continuation of an unfinished
+// bulleted line ("- …at FMCG, Beauty or Fashion" / "brands, including …").
+export function continuesRequirement(previous: string, line: string): boolean {
+  return (
+    /^\s*[-•*–]\s/u.test(previous) &&
+    /^\s*\p{Ll}/u.test(line) &&
+    !/^\s*(?:or|and)\b/iu.test(line) &&
+    !/[.;:!?]\s*$/u.test(previous)
+  );
+}
+// Mixed-case sub-headings and TopCV label rows ("Kỹ năng", "Giới tính") with
+// their demographic values are structure, not requirements.
+const labelHeading =
+  /^(?:giới tính|độ tuổi|bằng cấp|học vấn|trình độ(?: học vấn| chuyên môn)?|kinh nghiệm(?: làm việc)?|kỹ năng(?: chuyên môn| mềm)?|kiến thức(?: chuyên môn)?|thái độ|phẩm chất|tính cách|ngoại ngữ|tin học|yêu cầu khác|education|experience|skills?|knowledge|attitudes?|personal attributes|other requirements)\s*[:：]?$/iu;
+const demographicValue =
+  /^(?:nam|nữ|nam\s*[/,]\s*nữ|không yêu cầu|\d{2}\s*[-–]\s*\d{2}\s*tuổi|(?:từ|dưới|trên)\s+\d{2}\s*tuổi)$/iu;
 const employmentContent =
   /^(?:(?:mức\s+)?lương|thu nhập|salary|compensation|working hours|work schedule|office (?:address|location)|location\s*:|thời gian làm việc|giờ làm việc|địa điểm(?: làm việc)?|địa chỉ|(?:đóng\s+)?(?:BHXH|BHYT|BHTN|bảo hiểm xã hội|bảo hiểm y tế)|nghỉ phép|nghỉ lễ|paid leave|annual leave|vacation|team building|team activities|du lịch|ngân sách đào tạo|annual learning budget|được đào tạo|hỗ trợ chi phí)/iu;
 const explicitQualification =
@@ -33,9 +49,15 @@ export function requirementLines(text: string): {
   let structured = false;
   let excludedSection = false;
   let taxonomy = false;
-  return text
-    .split(/\r?\n/u)
-    .flatMap<ReturnType<typeof requirementLines>[number]>((raw) => {
+  const physical: string[] = [];
+  for (const raw of text.split(/\r?\n/u)) {
+    const previous = physical.at(-1);
+    if (previous !== undefined && continuesRequirement(previous, raw))
+      physical[physical.length - 1] = `${previous.trimEnd()} ${raw.trim()}`;
+    else physical.push(raw);
+  }
+  return physical.flatMap<ReturnType<typeof requirementLines>[number]>(
+    (raw) => {
       const line = raw.trim();
       const clean = line
         .replace(/^[-•*\s]+/u, '')
@@ -46,7 +68,8 @@ export function requirementLines(text: string): {
       if (
         /^(?:nice[- ]to[- ]have|preferred skills?|preferred qualifications?|ưu tiên|điểm cộng|lợi thế)\s*[:：]?$/iu.test(
           clean,
-        )
+        ) ||
+        /^ưu tiên\s[^:：]{1,30}[:：]$/iu.test(clean)
       ) {
         excludedSection = false;
         section = 'preferredSkills';
@@ -86,7 +109,11 @@ export function requirementLines(text: string): {
         excludedSection = true;
         return [{ line, kind: null, structured, excluded: true }];
       }
-      if (requirementHeading(clean))
+      if (
+        requirementHeading(clean) ||
+        labelHeading.test(clean) ||
+        demographicValue.test(line.replace(/^[-•*\s]+/u, ''))
+      )
         return [{ line, kind: null, structured, excluded: true }];
       if (nonSkillHeading.test(clean)) {
         section = null;
@@ -175,7 +202,8 @@ export function requirementLines(text: string): {
             structured: structuredLine,
           };
         });
-    });
+    },
+  );
 }
 export function skillSourceKind(
   text: string,
@@ -315,6 +343,7 @@ function conciseParts(line: string): string[] {
     return [line];
   let value = line
     .trim()
+    .replace(/^[-•*–+]\s*/u, '')
     .replace(/^ưu tiên\s+/iu, '')
     .replace(/\s+is (?:a plus|preferred)\.?$/iu, '')
     .replace(/[.;]+$/u, '');
@@ -332,6 +361,12 @@ function conciseParts(line: string): string[] {
   if (
     /^[\p{L}\p{N}+#/& .-]+(?:,\s*[\p{L}\p{N}+#/& .-]+)+$/u.test(value) &&
     !groupedNumber.test(value) &&
+    // Only a clear short-item list splits; prose keeps its comma clauses.
+    value
+      .split(/,\s*/u)
+      .every(
+        (part) => part.split(/\s+/u).length <= 3 && !/^\p{Ll}/u.test(part),
+      ) &&
     // "Communication, negotiation skills": a shared head noun makes one requirement.
     !/\b(?:or|and|with|for|via|using|experience|knowledge|understanding|familiarity|skills?|abilit(?:y|ies)|mindset)\b|kỹ năng|hoặc|kinh nghiệm|kiến thức|thành thạo|tốt nghiệp|đại học|học viện|degree|university|college|bachelor|master|các |có /iu.test(
       value,

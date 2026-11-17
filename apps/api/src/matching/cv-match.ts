@@ -17,6 +17,7 @@ import { jdRequirementLines } from '../extraction/jd-requirements.js';
 import {
   alternativeClause,
   continuedAlternatives,
+  continuesRequirement,
   legacyStructuredParts,
 } from '../opportunities/job-import.sections.js';
 import { supportedStacks } from '../discovery/discovery.js';
@@ -313,13 +314,7 @@ function savedRequirementLines(value: string): string[] {
     const previous = lines.at(-1);
     // Only after a bulleted line: unbulleted saved rows ("Information Systems" /
     // "or a related technical discipline") are pre-v5 fragments, repaired below.
-    if (
-      previous !== undefined &&
-      /^\s*[-•*–]\s/u.test(previous) &&
-      /^\s*\p{Ll}/u.test(line) &&
-      !/^\s*(?:or|and)\b/iu.test(line) &&
-      !/[.;:!?]\s*$/u.test(previous)
-    )
+    if (previous !== undefined && continuesRequirement(previous, line))
       lines[lines.length - 1] = `${previous}\n${line}`;
     else lines.push(line);
   }
