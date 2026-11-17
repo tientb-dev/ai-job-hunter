@@ -63,3 +63,35 @@ export function requirementItems(value: string): string[] {
     .map((line) => line.trim())
     .filter(Boolean);
 }
+const CONTINUES =
+  /(,|;|&|\/|-|\b(and|or|with|of|for|to|in|including|such as|và|hoặc|với|của|cho|như))$/i;
+// All-caps multi-word lines are headings; single tokens like "SQL" are skills.
+const HEADING = (line: string) =>
+  line.endsWith(':') ||
+  (/\p{L}{2}.*\s.*\p{L}{2}/u.test(line) && line === line.toLocaleUpperCase());
+/**
+ * Up to `limit` self-contained requirement lines for a compact preview.
+ * Wrapped lines are rejoined from the original text; headings and leftover
+ * fragments are dropped rather than used to fill slots.
+ */
+export function previewRequirements(texts: string[], limit = 6): string[] {
+  const items: string[] = [];
+  let open = false; // previous item visibly continues on the next line
+  for (const raw of texts.flatMap((text) => requirementItems(text))) {
+    const bullet = /^[-•*+·]\s*/.test(raw);
+    const line = raw.replace(/^[-•*+·]\s*/, '');
+    if (!line) continue;
+    if (HEADING(line)) {
+      open = false;
+      continue;
+    }
+    const continuation = !bullet && (open || /^\p{Ll}/u.test(line));
+    if (continuation && items.length) items[items.length - 1] += ` ${line}`;
+    else items.push(line);
+    open = CONTINUES.test(line);
+  }
+  // A lone lowercase start or dangling ending is still a fragment.
+  return items
+    .filter((item) => !/^\p{Ll}/u.test(item) && !CONTINUES.test(item))
+    .slice(0, limit);
+}

@@ -2174,4 +2174,23 @@ export const VI_TEXT: Record<string, string> = {
   'Hide details': 'Ẩn chi tiết',
   'This CV no longer exists. Go back to My CV to choose another.':
     'CV này không còn tồn tại. Hãy quay lại CV của tôi để chọn CV khác.',
+  'Search by job title or company': 'Tìm theo tên công việc hoặc công ty',
+  'Search jobs': 'Tìm việc làm',
+  'No jobs match your search': 'Không có việc làm phù hợp với tìm kiếm',
+  'Try another job title or company name.':
+    'Hãy thử tên công việc hoặc công ty khác.',
+  'Clear search': 'Xóa tìm kiếm',
+  'Back to jobs': 'Quay lại danh sách việc làm',
+  Added: 'Ngày thêm',
+  'CV Match': 'CV Match',
+  'Check how well your CV fits this job': 'Đánh giá mức độ phù hợp của CV',
+  'Tailor your CV to this job': 'Tạo CV phù hợp với yêu cầu công việc',
+  'Prepare and practice answers': 'Chuẩn bị câu hỏi và luyện trả lời',
+  'Job workspace': 'Tiến độ công việc',
+  'Continue working on this job in its workspace.':
+    'Tiếp tục xử lý hồ sơ cho công việc này.',
+  'Requirements & skills': 'Yêu cầu & kỹ năng',
+  'View full requirements': 'Xem đầy đủ yêu cầu',
+  'No requirements found yet.': 'Chưa có yêu cầu nào.',
+  'More in Job Overview': 'Xem thêm trong Tổng quan việc làm',
 };

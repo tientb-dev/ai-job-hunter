@@ -51,7 +51,13 @@ test.each(['/dashboard', '/jobs'])(
       </ThemeProvider>,
     );
     const user = userEvent.setup();
-    await user.click(await screen.findByRole('link', { name: job.title }));
+    await user.click(
+      await screen.findByRole(path === '/jobs' ? 'button' : 'link', {
+        name: path === '/jobs' ? new RegExp(`^${job.title}`) : job.title,
+      }),
+    );
+    if (path === '/jobs')
+      await user.click(screen.getByRole('link', { name: 'Open application' }));
     expect(
       await screen.findByRole('heading', { name: job.title }),
     ).toBeVisible();
@@ -60,7 +66,9 @@ test.each(['/dashboard', '/jobs'])(
       'true',
     );
     await user.click(screen.getByRole('link', { name: 'Back to Jobs' }));
-    expect(await screen.findByRole('link', { name: job.title })).toBeVisible();
+    expect(
+      await screen.findByRole('button', { name: new RegExp(`^${job.title}`) }),
+    ).toBeVisible();
   },
 );
 function show(path: string) {
@@ -231,7 +239,7 @@ test('Discover Jobs supports direct links, navigation, retained results and hist
   await user.click(viewInbox);
   expect(router.state.location.pathname).toBe('/jobs');
   expect(
-    await screen.findByRole('link', { name: 'Existing synthetic job' }),
+    await screen.findByRole('button', { name: /^Existing synthetic job/ }),
   ).toBeVisible();
   expect(screen.queryByLabelText('Discovery location')).not.toBeInTheDocument();
   expect(
