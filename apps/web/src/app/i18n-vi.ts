@@ -876,6 +876,16 @@ export const VI_TEXT: Record<string, string> = {
   Next: 'Tiếp',
   'Next follow-up date': 'Ngày theo dõi tiếp theo',
   'Next question': 'Câu hỏi tiếp theo',
+  'Nothing is saved until you choose Save.':
+    'Chưa lưu cho đến khi bạn chọn Lưu.',
+  'Type what you would say, then get AI feedback.':
+    'Gõ điều bạn muốn nói, rồi nhận phản hồi từ AI.',
+  Previous: 'Trước',
+  'Your preparation': 'Tiến độ chuẩn bị',
+  'Prepared answers': 'Câu trả lời đã chuẩn bị',
+  'View saved answer': 'Xem câu trả lời đã lưu',
+  'Go to reference answer': 'Đến câu trả lời mẫu',
+  'About this topic': 'Về chủ đề này',
   'Next saves your answer with this feedback.':
     'Tiếp sẽ lưu câu trả lời cùng nhận xét này.',
   'Next saves your answer. AI feedback is optional.':
@@ -1109,7 +1119,6 @@ export const VI_TEXT: Record<string, string> = {
   'Preview assembled CV': 'Xem trước CV đã ghép',
   'Preview error': 'Lỗi xem trước',
   'Preview source JD': 'Xem trước JD nguồn',
-  Previous: 'Trước',
   'Previous question set · {v0}': 'Bộ câu hỏi trước · {v0}',
   'Previous question sets (': 'Các bộ câu hỏi trước (',
   'Previous successful result shown while reanalysis is running.':
@@ -1460,8 +1469,6 @@ export const VI_TEXT: Record<string, string> = {
   'Start another interview': 'Bắt đầu buổi phỏng vấn khác',
   'Start from the AI suggestion or your own words. You can edit it before saving.':
     'Bắt đầu từ gợi ý AI hoặc lời của bạn. Bạn có thể sửa trước khi lưu.',
-  'Start from your own words or the AI suggestion. Nothing is saved until you choose Save.':
-    'Bắt đầu từ lời của bạn hoặc gợi ý AI. Không có gì được lưu cho đến khi bạn chọn Lưu.',
   'Start interview': 'Bắt đầu phỏng vấn',
   'Start page': 'Trang bắt đầu',
   'Start speaking practice': 'Bắt đầu luyện nói',
@@ -1469,7 +1476,6 @@ export const VI_TEXT: Record<string, string> = {
   Stay: 'Ở lại',
   'Stay and edit': 'Ở lại và chỉnh sửa',
   Step: 'Bước',
-  'Step {n}: ': 'Bước {n}: ',
   'Stop recording': 'Dừng ghi âm',
   'Stop transcribing': 'Dừng chuyển văn bản',
   'Stopped waiting for this analysis. Local extraction may still be finishing; another request may temporarily return busy. Your inputs were retained.':

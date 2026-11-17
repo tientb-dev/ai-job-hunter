@@ -739,11 +739,10 @@ test('early recorder: collapsed by default, records before Save, recording kept 
     'blob:local/early',
   );
   expect(writes()).toEqual([]);
+  // Speaking practice stays hidden until an answer is saved.
   expect(
-    within(
-      screen.getByRole('region', { name: /Practice speaking/u }),
-    ).getByText(/unlocks Read Along and Speak Freely/u),
-  ).toBeInTheDocument();
+    screen.queryByRole('region', { name: /Practice speaking/u }),
+  ).toBeNull();
 });
 
 const reviewAnswer = async (user: ReturnType<typeof userEvent.setup>) => {
@@ -875,8 +874,8 @@ test('editor under Feedback: Cancel keeps the saved answer; a failed save and a 
           409,
         );
   const { user } = await startHr();
+  // Saved state shows speaking practice; Edit answer brings back the Prepare workspace.
   await user.click(screen.getByRole('button', { name: 'Edit answer' }));
-  await user.click(screen.getByRole('button', { name: 'Cancel' }));
   await reviewAnswer(user);
   await user.click(
     await screen.findByRole('button', { name: 'Use suggested answer' }),
@@ -886,6 +885,7 @@ test('editor under Feedback: Cancel keeps the saved answer; a failed save and a 
   expect(
     screen.getByRole('button', { name: 'Edit answer' }),
   ).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Edit answer' }));
   await user.click(
     screen.getByRole('button', { name: 'Use suggested answer' }),
   );
@@ -931,8 +931,7 @@ test('after saving from Feedback only Start speaking practice remains; Edit, new
   expect(screen.getByLabelText('Your English reference answer')).toHaveValue(
     'Suggested.',
   );
-  await user.click(screen.getByRole('button', { name: 'Cancel' }));
-  // A new feedback result offers the choices again.
+  // While editing, the Prepare workspace is back: a new feedback result offers the choices again.
   await user.click(screen.getByLabelText('Your answer in English'));
   await user.keyboard('{Control>}{Enter}{/Control}');
   expect(

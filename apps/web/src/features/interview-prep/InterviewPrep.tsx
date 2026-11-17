@@ -1,4 +1,5 @@
 import { tr } from '../../app/i18n';
+import { HOSTED } from '../../app/hosted';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ArrowBackIcon,
@@ -434,6 +435,19 @@ export function Recorder({
   prominent?: boolean;
 }) {
   const { state, url, start, stop } = recorder;
+  // Hosted builds have no speech-to-text: no recording controls, typing only.
+  if (HOSTED)
+    return transcript ? (
+      <Stack spacing={1}>
+        <Typography variant="subtitle2" component="h3">
+          {title}
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          {tr('Type what you would say, then get AI feedback.')}
+        </Typography>
+        {transcript}
+      </Stack>
+    ) : null;
   return (
     <Stack spacing={1}>
       <Typography variant="subtitle2" component="h3">
@@ -720,6 +734,8 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
     job
       ? job.onSelect(order[(index + 1) % order.length]!.id)
       : leave(() => goTo((index + 1) % order.length));
+  const previousQuestion = () =>
+    job ? job.onSelect(order[index - 1]!.id) : leave(() => goTo(index - 1));
   const selectQuestion = (id: string) =>
     job
       ? job.onSelect(id)
@@ -1125,311 +1141,12 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
   const loading = status.kind === 'loading';
   const preparedCount = order.filter((q) => answers[q.id]).length;
   const feedback = status.kind === 'done' ? status.feedback : null;
-  return (
-    <Stack spacing={3} sx={{ maxWidth: 760, minWidth: 0 }}>
-      {header}
-      <Stack
-        direction="row"
-        spacing={1}
-        useFlexGap
-        sx={{ alignItems: 'center', flexWrap: 'wrap' }}
-      >
-        {job ? (
-          <Button
-            startIcon={<ArrowBackIcon />}
-            component={Link}
-            to={`/jobs/${job.jobId}/interview`}
-            variant="text"
-            sx={{ overflowWrap: 'anywhere', textAlign: 'left' }}
-          >
-            {tr('Back to')} {job.jobTitle} {tr('interview')}
-          </Button>
-        ) : (
-          <>
-            <Chip label={TOPICS[topic].label} variant="outlined" />
-            <Button variant="text" onClick={changeTopic}>
-              {tr('Change topic')}
-            </Button>
-          </>
-        )}
-      </Stack>
-
-      <Paper
-        variant="outlined"
-        component="section"
-        aria-labelledby="practice-question"
-        sx={{ p: { xs: 2, sm: 3 } }}
-      >
-        {/* Mobile: question first, Next last. Desktop: Next sits top right. DOM order = reading order. */}
-        <Box
-          sx={{
-            display: 'grid',
-            gap: 2,
-            gridTemplateColumns: { xs: '1fr', sm: '1fr auto' },
-            '& > *': { gridColumn: '1 / -1', minWidth: 0 },
-          }}
-        >
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ gridColumn: { sm: '1 / 2 !important' }, alignSelf: 'center' }}
-          >
-            {question.category} {tr('· Question')} {index + 1} {tr('of')}{' '}
-            {order.length}
-          </Typography>
-          <Typography id="practice-question" variant="h6" component="h2">
-            {question.variants[variant] ?? question.variants[0]}
-          </Typography>
-          {question.kind === 'general' && (
-            <Typography variant="body2" color="text.secondary">
-              {tr(
-                'Explain the idea in general terms. Personal experience is optional.',
-              )}
-            </Typography>
-          )}
-          {question.kind === 'hypothetical' && (
-            <Typography variant="body2" color="text.secondary">
-              {tr(
-                'This is a "what would you do" question — you don\'t need past experience with it.',
-              )}
-            </Typography>
-          )}
-          {job?.context[question.id] && (
-            <Box>
-              <Button
-                variant="text"
-                onClick={() => setWhyOpen((v) => !v)}
-                aria-expanded={whyOpen}
-                aria-controls="practice-why"
-              >
-                {tr('Why was this asked?')}
-              </Button>
-              <Collapse in={whyOpen}>
-                <Stack id="practice-why" spacing={1.5} sx={{ mt: 1 }}>
-                  <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
-                    {job.context[question.id]!.why}
-                  </Typography>
-                  <Box
-                    component="figure"
-                    sx={{
-                      m: 0,
-                      pl: 1.5,
-                      borderLeft: 3,
-                      borderColor: 'divider',
-                    }}
-                  >
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      component="figcaption"
-                    >
-                      {tr('From the job description')}
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      component="blockquote"
-                      sx={{ m: 0, overflowWrap: 'anywhere' }}
-                    >
-                      “{job.context[question.id]!.evidence}”
-                    </Typography>
-                  </Box>
-                </Stack>
-              </Collapse>
-            </Box>
-          )}
-          {question.hints.length > 0 && (
-            <Box>
-              <Button
-                variant="text"
-                onClick={() => setHintsOpen((v) => !v)}
-                aria-expanded={hintsOpen}
-                aria-controls="practice-hints"
-              >
-                {hintsOpen ? tr('Hide ideas') : tr('Ideas to mention')}
-              </Button>
-              <Collapse in={hintsOpen}>
-                <Stack
-                  id="practice-hints"
-                  component="ul"
-                  spacing={0.5}
-                  sx={{ m: 0, mt: 1, pl: 2.5 }}
-                >
-                  {question.hints.map((h) => (
-                    <li key={h}>
-                      <Typography variant="body2">{h}</Typography>
-                    </li>
-                  ))}
-                </Stack>
-              </Collapse>
-            </Box>
-          )}
-          <Button
-            endIcon={<ArrowForwardIcon />}
-            variant="outlined"
-            onClick={nextQuestion}
-            sx={{
-              gridColumn: { sm: '2 / 3 !important' },
-              gridRow: { sm: 1 },
-              justifySelf: { sm: 'end' },
-            }}
-          >
-            {tr('Next question')}
-          </Button>
-        </Box>
-      </Paper>
-
-      <Box>
-        <ButtonBase
-          onClick={() => setListOpen((v) => !v)}
-          aria-expanded={listOpen}
-          aria-controls="question-list"
-          sx={{
-            width: '100%',
-            minHeight: 48,
-            px: 2,
-            py: 1,
-            gap: 1.5,
-            justifyContent: 'flex-start',
-            textAlign: 'left',
-            border: 1,
-            borderColor: 'divider',
-            borderRadius: 1,
-            bgcolor: 'background.paper',
-            '&:hover': { bgcolor: 'action.hover' },
-            '&.Mui-focusVisible': {
-              outline: (t) => `2px solid ${t.palette.primary.main}`,
-              outlineOffset: 2,
-            },
-          }}
-        >
-          <Typography sx={{ fontWeight: 600, flex: 1, whiteSpace: 'nowrap' }}>
-            {tr('Browse questions')}
-          </Typography>
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{ whiteSpace: 'nowrap' }}
-          >
-            {answersStatus === 'ready' ? (
-              <>
-                <Box
-                  component="span"
-                  sx={{ display: { xs: 'none', sm: 'inline' } }}
-                >
-                  {preparedCount} {tr('prepared ·')} {order.length}{' '}
-                  {tr('questions')}
-                </Box>
-                <Box
-                  component="span"
-                  sx={{ display: { xs: 'inline', sm: 'none' } }}
-                >
-                  {preparedCount} / {order.length} {tr('prepared')}
-                </Box>
-              </>
-            ) : (
-              tr('{length} questions', { length: order.length })
-            )}
-          </Typography>
-          <ExpandMoreIcon
-            sx={{
-              color: 'text.secondary',
-              transition: 'transform 150ms',
-              transform: listOpen ? 'rotate(180deg)' : 'none',
-            }}
-          />
-        </ButtonBase>
-        <Collapse in={listOpen} id="question-list">
-          <Paper variant="outlined" sx={{ mt: 1, p: { xs: 1.5, sm: 2 } }}>
-            <Stack spacing={1.5}>
-              <ToggleButtonGroup
-                exclusive
-                size="small"
-                value={listFilter}
-                onChange={(_e, v: 'all' | 'prepared' | null) =>
-                  v && setListFilter(v)
-                }
-                aria-label={tr('Filter questions')}
-              >
-                <ToggleButton
-                  value="all"
-                  sx={{ textTransform: 'none', minHeight: 44 }}
-                >
-                  {tr('All')}
-                </ToggleButton>
-                <ToggleButton
-                  value="prepared"
-                  sx={{ textTransform: 'none', minHeight: 44 }}
-                  disabled={answersStatus !== 'ready'}
-                >
-                  {tr('Prepared')}
-                </ToggleButton>
-              </ToggleButtonGroup>
-              {(() => {
-                // Job sets keep their stored position order.
-                const rows = (
-                  job
-                    ? order
-                    : [...order].sort((a, b) => a.id.localeCompare(b.id))
-                ).filter((q) => listFilter === 'all' || answers[q.id]);
-                if (!rows.length)
-                  return (
-                    <Typography variant="body2" color="text.secondary">
-                      {tr('No prepared answers in this topic yet.')}
-                    </Typography>
-                  );
-                return (
-                  <List
-                    dense
-                    disablePadding
-                    aria-label={tr('Questions in this topic')}
-                  >
-                    {rows.map((q) => (
-                      <ListItemButton
-                        key={q.id}
-                        selected={q.id === question.id}
-                        aria-current={q.id === question.id ? 'true' : undefined}
-                        onClick={() => selectQuestion(q.id)}
-                        sx={{
-                          gap: 1.5,
-                          alignItems: 'flex-start',
-                          flexWrap: 'wrap',
-                          minHeight: 44,
-                        }}
-                      >
-                        <Box sx={{ flex: '1 1 220px', minWidth: 0 }}>
-                          <Typography
-                            variant="body2"
-                            sx={{ overflowWrap: 'anywhere' }}
-                          >
-                            {q.variants[0]}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {q.category}
-                          </Typography>
-                        </Box>
-                        <StatusChip
-                          status={
-                            answersStatus === 'ready'
-                              ? answers[q.id]
-                                ? 'PREPARED'
-                                : 'NOT_PREPARED'
-                              : answersStatus === 'loading'
-                                ? 'LOADING'
-                                : 'UNKNOWN'
-                          }
-                        />
-                      </ListItemButton>
-                    ))}
-                  </List>
-                );
-              })()}
-            </Stack>
-          </Paper>
-        </Collapse>
-      </Box>
-
+  // Saved and not editing: the saved answer and speaking practice replace the Prepare workspace.
+  const practising =
+    answersStatus === 'ready' && !!answers[question.id] && !editor;
+  const prepareStep = (
+    <>
       <Step
-        n={1}
         id="prepare-answer"
         title={tr('Prepare your answer')}
         intro={tr('Write it yourself or get help expressing it in English.')}
@@ -1551,7 +1268,8 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
         </Stack>
 
         {/* One recorder: in step 3 when the answer is prepared or saved answers failed to load, otherwise here (collapsed). */}
-        {answersStatus !== 'error' &&
+        {!HOSTED &&
+          answersStatus !== 'error' &&
           !(answersStatus === 'ready' && answers[question.id] && !editor) && (
             <Box>
               <Button
@@ -1575,12 +1293,7 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
       </Step>
 
       {feedback && (
-        <Paper
-          variant="outlined"
-          component="section"
-          aria-labelledby="practice-feedback"
-          sx={{ p: { xs: 2, sm: 3 } }}
-        >
+        <Box component="section" aria-labelledby="practice-feedback">
           <Stack spacing={3}>
             <Typography
               id="practice-feedback"
@@ -1666,24 +1379,22 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
                 </Stack>
               )}
           </Stack>
-        </Paper>
+        </Box>
       )}
 
       {/* The editor under Feedback; it stays even if new feedback arrives or the mode changes. */}
       {answersStatus === 'ready' &&
         (editor?.origin === 'feedback' && editor.questionId === question.id ? (
-          <Paper
-            variant="outlined"
+          <Box
             component="section"
             aria-label={tr('Edit your reference answer')}
-            sx={{ p: { xs: 2, sm: 3 } }}
           >
             <Editor {...editorProps} editor={editor} />
-          </Paper>
+          </Box>
         ) : savedFromFeedback ? (
-          <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
+          <Box component="section">
             <SavedPrompt onStart={startPractice} />
-          </Paper>
+          </Box>
         ) : null)}
 
       {previous && (
@@ -1702,7 +1413,10 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
                 {MODES[previous.mode].label}
               </Typography>
               <Typography
-                sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}
+                sx={{
+                  whiteSpace: 'pre-wrap',
+                  overflowWrap: 'anywhere',
+                }}
               >
                 {previous.text}
               </Typography>
@@ -1716,56 +1430,490 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
           </AccordionDetails>
         </Accordion>
       )}
-      <ReferenceAnswer
-        key={question.id}
-        status={answersStatus}
-        saved={answers[question.id]}
-        editor={editor?.questionId === question.id ? editor : null}
-        view={view}
-        revealed={revealed}
-        recorder={
-          <Recorder
-            recorder={recorder}
-            title={tr('Say it out loud')}
-            prominent
-            transcript={
-              <TranscriptPanel
-                transcript={transcript}
-                recording={recorder.blob}
-                questionId={question.id}
-                variant={question.variants[variant] ? variant : 0}
-                renderFeedback={(f, sent) => (
-                  <Feedback
-                    feedback={f}
-                    answer={sent}
-                    shown={transcriptShown}
-                    onToggle={() => setTranscriptShown((v) => !v)}
-                  />
-                )}
-              />
-            }
-          />
-        }
-        notice={notice}
-        onRetryLoad={retryAnswers}
-        onFinalize={() => openEditor('step2')}
-        onEditorChange={editorProps.onChange}
-        onSave={editorProps.onSave}
-        onCancel={editorProps.onCancel}
-        onShowSaved={editorProps.onShowSaved}
-        onUseSaved={useSaved}
-        onSaveMine={saveMine}
-        onView={(next) => {
-          setView(next); // the recording is kept across modes
-          setRevealed(false);
+    </>
+  );
+  const referenceStep = (
+    <ReferenceAnswer
+      key={question.id}
+      status={answersStatus}
+      saved={answers[question.id]}
+      editor={editor?.questionId === question.id ? editor : null}
+      view={view}
+      revealed={revealed}
+      recorder={
+        <Recorder
+          recorder={recorder}
+          title={tr('Say it out loud')}
+          prominent
+          transcript={
+            <TranscriptPanel
+              transcript={transcript}
+              recording={recorder.blob}
+              questionId={question.id}
+              variant={question.variants[variant] ? variant : 0}
+              renderFeedback={(f, sent) => (
+                <Feedback
+                  feedback={f}
+                  answer={sent}
+                  shown={transcriptShown}
+                  onToggle={() => setTranscriptShown((v) => !v)}
+                />
+              )}
+            />
+          }
+        />
+      }
+      notice={notice}
+      onRetryLoad={retryAnswers}
+      onFinalize={() => openEditor('step2')}
+      onEditorChange={editorProps.onChange}
+      onSave={editorProps.onSave}
+      onCancel={editorProps.onCancel}
+      onShowSaved={editorProps.onShowSaved}
+      onUseSaved={useSaved}
+      onSaveMine={saveMine}
+      onView={(next) => {
+        setView(next); // the recording is kept across modes
+        setRevealed(false);
+      }}
+      onReveal={() => setRevealed((v) => !v)}
+      onRemove={remove}
+      justSaved={justSaved?.questionId === question.id}
+      onStartPractice={startPractice}
+    />
+  );
+  return (
+    <Stack spacing={3} sx={{ maxWidth: 1400, minWidth: 0 }}>
+      {header}
+      <Stack
+        direction="row"
+        spacing={1}
+        useFlexGap
+        sx={{ alignItems: 'center', flexWrap: 'wrap' }}
+      >
+        {job ? (
+          <Button
+            startIcon={<ArrowBackIcon />}
+            component={Link}
+            to={`/jobs/${job.jobId}/interview`}
+            variant="text"
+            sx={{ overflowWrap: 'anywhere', textAlign: 'left' }}
+          >
+            {tr('Back to')} {job.jobTitle} {tr('interview')}
+          </Button>
+        ) : (
+          <>
+            <Chip label={TOPICS[topic].label} variant="outlined" />
+            <Button variant="text" onClick={changeTopic}>
+              {tr('Change topic')}
+            </Button>
+          </>
+        )}
+      </Stack>
+      <Box
+        sx={{
+          display: 'grid',
+          gap: 3,
+          alignItems: 'start',
+          gridTemplateColumns: {
+            xs: 'minmax(0, 1fr)',
+            lg: 'minmax(0, 65fr) minmax(0, 35fr)',
+          },
         }}
-        onReveal={() => setRevealed((v) => !v)}
-        onRemove={remove}
-        justSaved={
-          justSaved?.origin === 'step2' && justSaved.questionId === question.id
-        }
-        onStartPractice={startPractice}
-      />
+      >
+        <Stack spacing={3} sx={{ minWidth: 0 }}>
+          <Paper
+            variant="outlined"
+            component="section"
+            aria-labelledby="practice-question"
+            sx={{ p: { xs: 2, sm: 3 } }}
+          >
+            {/* Mobile: question first, Next last. Desktop: Next sits top right. DOM order = reading order. */}
+            <Box
+              sx={{
+                display: 'grid',
+                gap: 2,
+                gridTemplateColumns: { xs: '1fr', sm: '1fr auto' },
+                '& > *': { gridColumn: '1 / -1', minWidth: 0 },
+              }}
+            >
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{
+                  gridColumn: { sm: '1 / 2 !important' },
+                  alignSelf: 'center',
+                }}
+              >
+                {question.category} {tr('· Question')} {index + 1} {tr('of')}{' '}
+                {order.length}
+              </Typography>
+              <Typography id="practice-question" variant="h6" component="h2">
+                {question.variants[variant] ?? question.variants[0]}
+              </Typography>
+              {question.kind === 'general' && (
+                <Typography variant="body2" color="text.secondary">
+                  {tr(
+                    'Explain the idea in general terms. Personal experience is optional.',
+                  )}
+                </Typography>
+              )}
+              {question.kind === 'hypothetical' && (
+                <Typography variant="body2" color="text.secondary">
+                  {tr(
+                    'This is a "what would you do" question — you don\'t need past experience with it.',
+                  )}
+                </Typography>
+              )}
+              {job?.context[question.id] && (
+                <Box>
+                  <Button
+                    variant="text"
+                    onClick={() => setWhyOpen((v) => !v)}
+                    aria-expanded={whyOpen}
+                    aria-controls="practice-why"
+                  >
+                    {tr('Why was this asked?')}
+                  </Button>
+                  <Collapse in={whyOpen}>
+                    <Stack id="practice-why" spacing={1.5} sx={{ mt: 1 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{ overflowWrap: 'anywhere' }}
+                      >
+                        {job.context[question.id]!.why}
+                      </Typography>
+                      <Box
+                        component="figure"
+                        sx={{
+                          m: 0,
+                          pl: 1.5,
+                          borderLeft: 3,
+                          borderColor: 'divider',
+                        }}
+                      >
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          component="figcaption"
+                        >
+                          {tr('From the job description')}
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          component="blockquote"
+                          sx={{ m: 0, overflowWrap: 'anywhere' }}
+                        >
+                          “{job.context[question.id]!.evidence}”
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </Collapse>
+                </Box>
+              )}
+              {question.hints.length > 0 && (
+                <Box>
+                  <Button
+                    variant="text"
+                    onClick={() => setHintsOpen((v) => !v)}
+                    aria-expanded={hintsOpen}
+                    aria-controls="practice-hints"
+                  >
+                    {hintsOpen ? tr('Hide ideas') : tr('Ideas to mention')}
+                  </Button>
+                  <Collapse in={hintsOpen}>
+                    <Stack
+                      id="practice-hints"
+                      component="ul"
+                      spacing={0.5}
+                      sx={{ m: 0, mt: 1, pl: 2.5 }}
+                    >
+                      {question.hints.map((h) => (
+                        <li key={h}>
+                          <Typography variant="body2">{h}</Typography>
+                        </li>
+                      ))}
+                    </Stack>
+                  </Collapse>
+                </Box>
+              )}
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{
+                  gridColumn: { sm: '2 / 3 !important' },
+                  gridRow: { sm: 1 },
+                  justifySelf: { sm: 'end' },
+                  '& > *': { flex: { xs: 1, sm: 'none' } },
+                }}
+              >
+                <Button
+                  startIcon={<ArrowBackIcon />}
+                  variant="outlined"
+                  onClick={previousQuestion}
+                  disabled={index === 0}
+                  aria-label={tr('Previous')}
+                  sx={{
+                    flex: { xs: 'none', sm: 'none' },
+                    minWidth: 48,
+                    '& .MuiButton-startIcon': {
+                      mr: { xs: 0, sm: 1 },
+                      ml: { xs: 0, sm: -0.5 },
+                    },
+                  }}
+                >
+                  <Box
+                    component="span"
+                    sx={{ display: { xs: 'none', sm: 'inline' } }}
+                  >
+                    {tr('Previous')}
+                  </Box>
+                </Button>
+                <Button
+                  endIcon={<ArrowForwardIcon />}
+                  variant="outlined"
+                  onClick={nextQuestion}
+                  sx={{ whiteSpace: 'nowrap' }}
+                >
+                  {tr('Next question')}
+                </Button>
+              </Stack>
+            </Box>
+          </Paper>
+
+          <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
+            <Stack
+              spacing={3}
+              sx={{
+                // one card, steps separated by dividers instead of separate cards
+                '& > section + section': {
+                  borderTop: 1,
+                  borderColor: 'divider',
+                  pt: 3,
+                },
+              }}
+            >
+              {!practising && prepareStep}
+              {referenceStep}
+            </Stack>
+          </Paper>
+        </Stack>
+
+        <Stack
+          spacing={3}
+          component="aside"
+          aria-label={tr('Your preparation')}
+        >
+          <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
+            <Stack spacing={2}>
+              <Typography variant="h6" component="h2">
+                {tr('Your preparation')}
+              </Typography>
+              {answersStatus === 'ready' && (
+                <Stack
+                  direction="row"
+                  spacing={1.5}
+                  sx={{ alignItems: 'center' }}
+                >
+                  <LinearProgress
+                    variant="determinate"
+                    value={
+                      order.length ? (preparedCount / order.length) * 100 : 0
+                    }
+                    aria-label={tr('Prepared answers')}
+                    sx={{ flex: 1, height: 8, borderRadius: 4 }}
+                  />
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {preparedCount}/{order.length}
+                  </Typography>
+                </Stack>
+              )}
+              <Box>
+                <ButtonBase
+                  onClick={() => setListOpen((v) => !v)}
+                  aria-expanded={listOpen}
+                  aria-controls="question-list"
+                  sx={{
+                    width: '100%',
+                    minHeight: 48,
+                    px: 2,
+                    py: 1,
+                    gap: 1.5,
+                    justifyContent: 'flex-start',
+                    textAlign: 'left',
+                    border: 1,
+                    borderColor: 'divider',
+                    borderRadius: 1,
+                    bgcolor: 'background.paper',
+                    '&:hover': { bgcolor: 'action.hover' },
+                    '&.Mui-focusVisible': {
+                      outline: (t) => `2px solid ${t.palette.primary.main}`,
+                      outlineOffset: 2,
+                    },
+                  }}
+                >
+                  <Typography
+                    sx={{ fontWeight: 600, flex: 1, whiteSpace: 'nowrap' }}
+                  >
+                    {tr('Browse questions')}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ whiteSpace: 'nowrap' }}
+                  >
+                    {answersStatus === 'ready' ? (
+                      <>
+                        <Box
+                          component="span"
+                          sx={{ display: { xs: 'none', sm: 'inline' } }}
+                        >
+                          {preparedCount} {tr('prepared ·')} {order.length}{' '}
+                          {tr('questions')}
+                        </Box>
+                        <Box
+                          component="span"
+                          sx={{ display: { xs: 'inline', sm: 'none' } }}
+                        >
+                          {preparedCount} / {order.length} {tr('prepared')}
+                        </Box>
+                      </>
+                    ) : (
+                      tr('{length} questions', { length: order.length })
+                    )}
+                  </Typography>
+                  <ExpandMoreIcon
+                    sx={{
+                      color: 'text.secondary',
+                      transition: 'transform 150ms',
+                      transform: listOpen ? 'rotate(180deg)' : 'none',
+                    }}
+                  />
+                </ButtonBase>
+                <Collapse in={listOpen} id="question-list">
+                  <Paper
+                    variant="outlined"
+                    sx={{ mt: 1, p: { xs: 1.5, sm: 2 } }}
+                  >
+                    <Stack spacing={1.5}>
+                      <ToggleButtonGroup
+                        exclusive
+                        size="small"
+                        value={listFilter}
+                        onChange={(_e, v: 'all' | 'prepared' | null) =>
+                          v && setListFilter(v)
+                        }
+                        aria-label={tr('Filter questions')}
+                      >
+                        <ToggleButton
+                          value="all"
+                          sx={{ textTransform: 'none', minHeight: 44 }}
+                        >
+                          {tr('All')}
+                        </ToggleButton>
+                        <ToggleButton
+                          value="prepared"
+                          sx={{ textTransform: 'none', minHeight: 44 }}
+                          disabled={answersStatus !== 'ready'}
+                        >
+                          {tr('Prepared')}
+                        </ToggleButton>
+                      </ToggleButtonGroup>
+                      {(() => {
+                        // Job sets keep their stored position order.
+                        const rows = (
+                          job
+                            ? order
+                            : [...order].sort((a, b) =>
+                                a.id.localeCompare(b.id),
+                              )
+                        ).filter((q) => listFilter === 'all' || answers[q.id]);
+                        if (!rows.length)
+                          return (
+                            <Typography variant="body2" color="text.secondary">
+                              {tr('No prepared answers in this topic yet.')}
+                            </Typography>
+                          );
+                        return (
+                          <List
+                            dense
+                            disablePadding
+                            aria-label={tr('Questions in this topic')}
+                          >
+                            {rows.map((q) => (
+                              <ListItemButton
+                                key={q.id}
+                                selected={q.id === question.id}
+                                aria-current={
+                                  q.id === question.id ? 'true' : undefined
+                                }
+                                onClick={() => selectQuestion(q.id)}
+                                sx={{
+                                  gap: 1.5,
+                                  alignItems: 'flex-start',
+                                  flexWrap: 'wrap',
+                                  minHeight: 44,
+                                }}
+                              >
+                                <Box sx={{ flex: '1 1 220px', minWidth: 0 }}>
+                                  <Typography
+                                    variant="body2"
+                                    sx={{ overflowWrap: 'anywhere' }}
+                                  >
+                                    {q.variants[0]}
+                                  </Typography>
+                                  <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                  >
+                                    {q.category}
+                                  </Typography>
+                                </Box>
+                                <StatusChip
+                                  status={
+                                    answersStatus === 'ready'
+                                      ? answers[q.id]
+                                        ? 'PREPARED'
+                                        : 'NOT_PREPARED'
+                                      : answersStatus === 'loading'
+                                        ? 'LOADING'
+                                        : 'UNKNOWN'
+                                  }
+                                />
+                              </ListItemButton>
+                            ))}
+                          </List>
+                        );
+                      })()}
+                    </Stack>
+                  </Paper>
+                </Collapse>
+              </Box>
+              <Button
+                variant="text"
+                sx={{ alignSelf: 'flex-start' }}
+                onClick={() =>
+                  document
+                    .getElementById('reference-answer')
+                    ?.scrollIntoView({ block: 'start' })
+                }
+              >
+                {answersStatus === 'ready' && answers[question.id]
+                  ? tr('View saved answer')
+                  : tr('Go to reference answer')}
+              </Button>
+            </Stack>
+          </Paper>
+          {!job && (
+            <Alert severity="info" icon={false}>
+              <Typography variant="subtitle2" component="h2">
+                {tr('About this topic')}
+              </Typography>
+              {TOPICS[topic].description}
+            </Alert>
+          )}
+        </Stack>
+      </Box>
 
       <UnsavedAnswerDialog
         open={!!pendingLeave || blocker.state === 'blocked'}
