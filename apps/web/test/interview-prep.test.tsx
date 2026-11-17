@@ -115,7 +115,7 @@ test('choose a topic, see one question with optional ideas, change topic', async
   ).toBeVisible();
   await user.click(screen.getByRole('button', { name: 'Change topic' }));
   await user.click(
-    screen.getByRole('button', { name: 'Practise Technical communication' }),
+    screen.getByRole('button', { name: 'Practise IT technical communication' }),
   );
   expect(
     screen.getByRole('heading', { level: 2, name: /asynchronous messaging/u }),

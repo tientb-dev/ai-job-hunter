@@ -113,6 +113,48 @@ export class TailoredCvService {
       return this.sourceDto(row);
     });
   }
+  /**
+   * Read-only review progress for every saved CV of this owner. Matches the
+   * source exactly as capture does, but never creates a source or profile.
+   */
+  async savedCvReviews(ownerId: string) {
+    const cvs = await this.current.identities(this.db.manager, ownerId);
+    const items = await Promise.all(
+      cvs.map(async (cv) => {
+        const source = await this.db.getRepository(CvSourceRevision).findOne({
+          where: {
+            ownerId,
+            savedCvUpdatedAt: cv.updatedAt,
+            fileName: cv.fileName,
+            textHash: createHash('sha256')
+              .update(cv.text, 'utf8')
+              .digest('hex'),
+          },
+          select: { id: true },
+          order: { createdAt: 'DESC', id: 'DESC' },
+        });
+        const profile =
+          source &&
+          (await this.db.getRepository(CvProfileRevision).findOne({
+            where: { ownerId, sourceRevisionId: source.id },
+            select: { id: true, document: true },
+            order: { createdAt: 'DESC', revision: 'DESC', id: 'DESC' },
+          }));
+        const sections = profile ? profile.document.sections : null;
+        return {
+          cvId: cv.id,
+          review: sections
+            ? {
+                reviewed: sections.filter((s) => s.review === 'confirmed')
+                  .length,
+                total: sections.length,
+              }
+            : null,
+        };
+      }),
+    );
+    return { contractVersion: '1', items };
+  }
   async getSource(owner: string, id: string, includeText = false) {
     const row = await this.source(this.db.manager, owner, id);
     return {

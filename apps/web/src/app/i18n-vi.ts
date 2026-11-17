@@ -1514,7 +1514,7 @@ export const VI_TEXT: Record<string, string> = {
   'Tailored CV steps': 'Các bước CV tùy chỉnh',
   'Tailoring uses the saved CV Match for this job. The full evidence and advice stay on the job page.':
     'Tùy chỉnh dùng Đối chiếu CV đã lưu cho việc làm này. Toàn bộ bằng chứng và lời khuyên vẫn ở trang việc làm.',
-  'Technical communication': 'Giao tiếp kỹ thuật',
+  'IT technical communication': 'Giao tiếp kỹ thuật IT',
   'Technical details': 'Chi tiết kỹ thuật',
   'Technical learning hint': 'Gợi ý học kỹ thuật',
   'Technical learning hint (AI, not verified)':

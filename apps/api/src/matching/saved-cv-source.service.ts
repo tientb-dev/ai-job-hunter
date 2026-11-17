@@ -5,6 +5,13 @@ import { SavedCv } from './saved-cv.entity.js';
 // Matching owns the saved CVs. P8 may capture a locked snapshot, never write it.
 @Injectable()
 export class SavedCvSourceService {
+  /** Read-only: each saved CV's capture identity, for review summaries. */
+  identities(manager: EntityManager, ownerId: string) {
+    return manager.getRepository(SavedCv).find({
+      where: { ownerId },
+      select: { id: true, fileName: true, updatedAt: true, text: true },
+    });
+  }
   async forCapture(
     manager: EntityManager,
     ownerId: string,

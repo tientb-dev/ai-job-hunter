@@ -30,6 +30,14 @@ export class TailoredCvController {
     private readonly drafts: TailoredDraftService,
     private readonly exports: TailoredCvExportService,
   ) {}
+  // My CV review summaries: read-only, never captures a source.
+  @Post('saved-cv-reviews/list')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  savedCvReviews(@CurrentOwner() owner: string, @Body() body: unknown) {
+    version(body, []);
+    return this.service.savedCvReviews(owner);
+  }
   // Browser same-origin GETs omit Origin. POST reads preserve the strict guard.
   @Post('sources/:id')
   @HttpCode(200)
