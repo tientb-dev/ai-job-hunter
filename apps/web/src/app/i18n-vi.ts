@@ -2193,4 +2193,15 @@ export const VI_TEXT: Record<string, string> = {
   'View full requirements': 'Xem đầy đủ yêu cầu',
   'No requirements found yet.': 'Chưa có yêu cầu nào.',
   'More in Job Overview': 'Xem thêm trong Tổng quan việc làm',
+  'CV saved.': 'Đã lưu CV.',
+  'CV renamed.': 'Đã đổi tên CV.',
+  'CV deleted.': 'Đã xóa CV.',
+  'Default CV updated.': 'Đã cập nhật CV mặc định.',
+  'Check the file and try again.': 'Kiểm tra tệp và thử lại.',
+  'Check the local API and try again.': 'Kiểm tra API cục bộ và thử lại.',
+  'Sections left to review: {count}': 'Số phần cần rà soát: {count}',
+  'Review your CV so CV Match and tailored CVs use accurate, complete information.':
+    'Rà soát CV để CV Match và CV tùy chỉnh dùng thông tin chính xác, đầy đủ.',
+  'Continue review': 'Tiếp tục rà soát',
+  'Start review': 'Bắt đầu rà soát',
 };
