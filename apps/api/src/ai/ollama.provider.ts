@@ -142,6 +142,7 @@ export class OllamaProvider implements AiProvider {
               num_ctx: profile.contextTokens,
               num_predict: numPredict,
               temperature: 0,
+              ...(request.seed === undefined ? {} : { seed: request.seed }),
             },
           }),
         );

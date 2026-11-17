@@ -180,6 +180,11 @@ export const VI_TEXT: Record<string, string> = {
   'Answers the question:': 'Trả lời đúng câu hỏi:',
   'Any work mode': 'Mọi hình thức làm việc',
   'Application advice': 'Lời khuyên ứng tuyển',
+  'The new analysis may have missed CV evidence, so your previous saved match was kept.':
+    'Lần phân tích mới có thể đã bỏ sót bằng chứng trong CV, nên kết quả đã lưu trước đó được giữ lại.',
+  'The AI may have missed CV evidence for some required items. Check items marked "Evidence needs review" before relying on this score.':
+    'AI có thể đã bỏ sót bằng chứng trong CV cho một số yêu cầu bắt buộc. Hãy kiểm tra các mục được đánh dấu "Cần xem lại bằng chứng" trước khi dựa vào điểm này.',
+  'Evidence needs review': 'Cần xem lại bằng chứng',
   'Application channel': 'Kênh ứng tuyển',
   'Application details': 'Chi tiết ứng tuyển',
   'Application notes': 'Ghi chú ứng tuyển',

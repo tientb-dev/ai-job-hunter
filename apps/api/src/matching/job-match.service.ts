@@ -74,6 +74,8 @@ export function savedMatchStatus(
     return 'STALE_JOB' as const;
   return 'VALID' as const;
 }
+// Fixed Ollama seed so an unchanged CV/JD tends to repeat its analysis.
+export const CV_MATCH_SEED = 107;
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 function cvIdFrom(body: unknown): string {
@@ -516,7 +518,7 @@ export class JobMatchService {
       }
       const generate = async (
         stage: 'INITIAL' | 'COMPLETION',
-        request: { prompt: string; schema: OutputSchema },
+        request: { prompt: string; schema: OutputSchema; seed?: number },
       ) => {
         trace.stage = stage;
         try {
@@ -543,6 +545,7 @@ export class JobMatchService {
       const schema = matchOutputSchema(cv.text, canonical);
       let proposals = await generate('INITIAL', {
         prompt,
+        seed: CV_MATCH_SEED,
         schema: gemini ? withoutQuoteEnums(schema) : schema,
       });
       // Gemini only: one bounded completion call for omitted requirements. Never
@@ -613,6 +616,30 @@ export class JobMatchService {
       const analyzedAt = new Date();
       const matchId = randomUUID();
       trace.stage = 'PERSISTENCE';
+      // A re-analysis with missed-evidence doubt never replaces a saved match of
+      // the same CV text and job revision that had none; it returns that one.
+      const previous = result.evidenceUncertain
+        ? await this.matchRows.findOneBy({ ownerId, jobId: id })
+        : null;
+      const kept =
+        previous?.assessment &&
+        (previous.assessment as { evidenceUncertain?: unknown })
+          .evidenceUncertain === false
+          ? await this.resolve(
+              previous,
+              { ...cv, hash: cvTextHash(cv.text) },
+              job.updatedAt,
+            )
+          : null;
+      if (kept?.status === 'VALID')
+        return {
+          ...kept.snapshot.assessment,
+          matchId: kept.snapshot.matchId,
+          cvUpdatedAt: kept.snapshot.cvUpdatedAt,
+          jobUpdatedAt: kept.snapshot.jobUpdatedAt,
+          analyzedAt: kept.analyzedAt,
+          keptPrevious: true as const,
+        };
       await this.matchRows.manager.transaction(async (m) => {
         const rows = m.getRepository(CvMatchRecord);
         await rows.delete({ ownerId, jobId: id });

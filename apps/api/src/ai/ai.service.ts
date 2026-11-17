@@ -52,6 +52,7 @@ export class AiService {
         ...(request.partial ? { partial: request.partial } : {}),
         prompt: request.prompt,
         schema,
+        ...(request.seed === undefined ? {} : { seed: request.seed }),
       });
     const text = await (this.usage ? this.usage.run(send) : send());
     let result: unknown;

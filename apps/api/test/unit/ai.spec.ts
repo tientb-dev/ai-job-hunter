@@ -83,6 +83,17 @@ test('sends exact Ollama fields and validates nullable output', async () => {
   });
 });
 
+test('passes a requested seed to Ollama options only', async () => {
+  const fetch = mockTransport().mockResolvedValue(envelope({ name: null }));
+  await new AiService(provider()).generateStructured({ ...input, seed: 107 });
+  expect(JSON.parse(fetch.mock.calls[0]![1]!.body as string).options).toEqual({
+    num_ctx: 8192,
+    num_predict: 4096,
+    temperature: 0,
+    seed: 107,
+  });
+});
+
 test.each([{ name: 'example' }, { name: null }])(
   'accepts matching output %j',
   async (value) => {
