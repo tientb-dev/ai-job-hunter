@@ -265,7 +265,7 @@ describe('one classified CV_MATCH_FAILURE per failed operation', () => {
         ]),
       {
         stage: 'COMPLETION',
-        errorCode: 'CV_MATCH_UNAVAILABLE',
+        errorCode: 'CV_MATCH_PROVIDER_BUSY',
         reasonCode: 'UPSTREAM_HTTP_FAILURE',
         provider: 'gemini',
         upstreamHttpStatus: 503,
@@ -353,51 +353,6 @@ describe('one classified CV_MATCH_FAILURE per failed operation', () => {
         ...evidence,
         reasonCode: 'JD_QUOTE_EMPTY',
         counts: { requirementIndex: 2, returned: 3 },
-      },
-    ],
-    [
-      'component quote not in CV',
-      () =>
-        setup([
-          () =>
-            reply(
-              rows((row) =>
-                row.requirement === pairs
-                  ? {
-                      components: components(
-                        'Ran PRIVATE_FAKE Docker clusters.',
-                      ),
-                    }
-                  : {},
-              ),
-            ),
-        ]),
-      {
-        ...evidence,
-        reasonCode: 'COMPONENT_CV_QUOTE_NOT_IN_CV',
-        counts: { requirementIndex: 1 },
-      },
-    ],
-    [
-      'component quote not an allowed passage',
-      () =>
-        setup(
-          [
-            () =>
-              reply(
-                rows((row) =>
-                  row.requirement === pairs
-                    ? { components: components(fourLines) }
-                    : {},
-                ),
-              ),
-          ],
-          { cv: cv5 },
-        ),
-      {
-        ...evidence,
-        reasonCode: 'COMPONENT_CV_QUOTE_NOT_ALLOWED_PASSAGE',
-        counts: { requirementIndex: 1, spannedLines: 4 },
       },
     ],
     [
@@ -496,7 +451,57 @@ describe('one classified CV_MATCH_FAILURE per failed operation', () => {
           ),
         ),
     ]);
-    expect(await events(service)).toEqual([]);
+    expect(await events(service)).toEqual([
+      {
+        event: 'CV_MATCH_QUOTES_REJECTED',
+        counts: { AMBIGUOUS: 1 },
+      },
+    ]);
+  });
+
+  test.each([
+    ['invented', 'Ran PRIVATE_FAKE Docker clusters.', undefined, 'ABSENT'],
+    ['too many lines', fourLines, cv5, 'NOT_ALLOWED_PASSAGE'],
+  ])(
+    'a %s Gemini component quote completes with counts only, no failure',
+    async (_, quote, cv, category) => {
+      const lines = await events(
+        setup(
+          [
+            () =>
+              reply(
+                rows((row) =>
+                  row.requirement === pairs
+                    ? { components: components(quote) }
+                    : {},
+                ),
+              ),
+          ],
+          cv ? { cv } : {},
+        ),
+      );
+      expect(lines.filter((l) => l.event === 'CV_MATCH_FAILURE')).toEqual([]);
+      expect(lines).toContainEqual({
+        event: 'CV_MATCH_QUOTES_REJECTED',
+        counts: { [category]: 1 },
+      });
+    },
+  );
+
+  test('upstream attempt count is logged for an exhausted 503', async () => {
+    expect(
+      await failure(
+        setup([fail(new AiError('UPSTREAM_HTTP_FAILURE', 503, 3))]),
+      ),
+    ).toEqual({
+      stage: 'INITIAL',
+      errorCode: 'CV_MATCH_PROVIDER_BUSY',
+      reasonCode: 'UPSTREAM_HTTP_FAILURE',
+      provider: 'gemini',
+      upstreamHttpStatus: 503,
+      upstreamAttempts: 3,
+      responseStatus: 503,
+    });
   });
 
   test('success writes no failure event', async () => {

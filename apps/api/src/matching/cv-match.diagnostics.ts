@@ -1,5 +1,5 @@
 import type { MatchRequirement } from './cv-match.js';
-import { resolveCvQuote } from './cv-match.evidence.js';
+import { cvQuoteOccurrences, resolveCvQuote } from './cv-match.evidence.js';
 import { normalize } from './matching.policy.js';
 import { HttpException } from '@nestjs/common';
 import { CvMatchError } from './cv-match.error.js';
@@ -171,6 +171,7 @@ export interface MatchFailureTrace {
   reason?: string;
   aiCode?: string;
   upstreamHttpStatus?: number;
+  upstreamAttempts?: number;
 }
 const token = (value: unknown, fallback: string) =>
   typeof value === 'string' && /^[A-Z][A-Z0-9_]{0,59}$/u.test(value)
@@ -211,6 +212,7 @@ export function emitMatchFailure(
       ),
     );
     const upstream = trace.upstreamHttpStatus;
+    const attempts = trace.upstreamAttempts;
     process.stderr.write(
       `${JSON.stringify({
         event: 'CV_MATCH_FAILURE',
@@ -222,6 +224,9 @@ export function emitMatchFailure(
           provider === 'gemini' || provider === 'ollama' ? provider : 'unknown',
         ...(Number.isInteger(upstream) && upstream! >= 100 && upstream! <= 599
           ? { upstreamHttpStatus: upstream }
+          : {}),
+        ...(Number.isInteger(attempts) && attempts! >= 1 && attempts! <= 10
+          ? { upstreamAttempts: attempts }
           : {}),
         responseStatus: Number.isInteger(responseStatus) ? responseStatus : 503,
         durationMs: Math.max(0, Math.round(durationMs)),
@@ -243,5 +248,57 @@ export function emitMatchEvidenceSummary(build: () => unknown): void {
     );
   } catch {
     // Diagnostics must never alter a completed analysis.
+  }
+}
+
+export type QuoteRejectionCategory =
+  'AMBIGUOUS' | 'NOT_ALLOWED_PASSAGE' | 'PUNCTUATION_OR_CASE_DRIFT' | 'ABSENT';
+// Diagnostic folding only: list markers, dash/quote variants, case, spacing.
+// Never used to accept evidence.
+const fold = (text: string) =>
+  ` ${text.normalize('NFKC')} `
+    .replace(/[‐-―−]/gu, '-')
+    .replace(/[‘’‛′`]/gu, "'")
+    .replace(/[“”„″]/gu, '"')
+    .replace(/[•▪●◦‣]/gu, ' ')
+    .replace(/(?<=\s)[-*](?=\s)/gu, ' ')
+    .replace(/\s+/gu, ' ')
+    .toLocaleLowerCase('en-US');
+/** Why an unaccepted CV quote failed; the quote itself is never reported. */
+export function quoteRejectionCategory(
+  cv: string,
+  quote: string,
+): QuoteRejectionCategory {
+  if (cvQuoteOccurrences(cv, quote) === 2) return 'AMBIGUOUS';
+  if (resolveCvQuote(cv, quote) !== null) return 'NOT_ALLOWED_PASSAGE';
+  const target = fold(quote).trim();
+  return target && fold(cv).includes(target)
+    ? 'PUNCTUATION_OR_CASE_DRIFT'
+    : 'ABSENT';
+}
+// Always on (Gemini path): counts of rejected CV quotes per category. Fixed
+// tokens and integers only; never quotes, labels or source text.
+export function emitMatchQuoteRejections(
+  quotes: readonly string[],
+  cv: string,
+): void {
+  if (!quotes.length) return;
+  try {
+    const counts: Record<QuoteRejectionCategory, number> = {
+      AMBIGUOUS: 0,
+      NOT_ALLOWED_PASSAGE: 0,
+      PUNCTUATION_OR_CASE_DRIFT: 0,
+      ABSENT: 0,
+    };
+    for (const quote of quotes) counts[quoteRejectionCategory(cv, quote)]++;
+    // Non-zero categories only, to keep the always-on line short.
+    const nonZero = Object.fromEntries(
+      Object.entries(counts).filter(([, n]) => n > 0),
+    );
+    process.stderr.write(
+      `${JSON.stringify({ event: 'CV_MATCH_QUOTES_REJECTED', ...attempt(), counts: nonZero })}\n`,
+    );
+  } catch {
+    // Diagnostics must never alter matching.
   }
 }

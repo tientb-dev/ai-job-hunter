@@ -265,8 +265,14 @@ and your operating system. Do not send your `.env`, API key or real CV.
 
 When CV Match fails, the API terminal always prints one
 `{"event":"CV_MATCH_FAILURE",...}` line: the stage, error and reason codes,
-provider, HTTP status numbers, duration and counts only — no CV, JD,
-requirement or AI output text. Send that line with your report.
+provider, HTTP status numbers, upstream attempt count, duration and counts
+only — no CV, JD, requirement or AI output text. Send that line with your report.
+
+With Gemini, a CV quote the AI cited that cannot be verified earns no credit
+and marks the result for review instead of failing the analysis. A
+`{"event":"CV_MATCH_QUOTES_REJECTED",...}` line then counts those quotes by
+category (`PUNCTUATION_OR_CASE_DRIFT`, `ABSENT`, `AMBIGUOUS`,
+`NOT_ALLOWED_PASSAGE`); it never contains quote or CV text.
 
 For more detail, add `CV_MATCH_DIAGNOSTICS=1` to `.env`, restart the API and
 reanalyze once; extra `CV_MATCH_*` lines follow the same privacy rules. Remove

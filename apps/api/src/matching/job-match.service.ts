@@ -532,6 +532,8 @@ export class JobMatchService {
           trace.aiCode = error instanceof AiError ? error.code : undefined;
           trace.upstreamHttpStatus =
             error instanceof AiError ? error.httpStatus : undefined;
+          trace.upstreamAttempts =
+            error instanceof AiError ? error.attempts : undefined;
           if (error instanceof AiError && error.code === 'TIMEOUT')
             throw new CvMatchError('CV_MATCH_TIMEOUT');
           if (
@@ -539,6 +541,13 @@ export class JobMatchService {
             ['INVALID_JSON', 'SCHEMA_VALIDATION_FAILURE'].includes(error.code)
           )
             throw new CvMatchError('CV_MATCH_INVALID_OUTPUT');
+          // Transient overload/rate limit after the provider's own retries.
+          if (
+            error instanceof AiError &&
+            error.code === 'UPSTREAM_HTTP_FAILURE' &&
+            [429, 503].includes(error.httpStatus ?? 0)
+          )
+            throw new CvMatchError('CV_MATCH_PROVIDER_BUSY');
           throw new CvMatchError('CV_MATCH_UNAVAILABLE');
         }
       };

@@ -820,3 +820,39 @@ test.each([
     upToDate,
   );
 });
+
+test.each([
+  [
+    'CV_MATCH_PROVIDER_BUSY',
+    /temporarily busy\. Your saved match is unchanged\. Try again in a few minutes/,
+  ],
+  [
+    'CV_MATCH_EVIDENCE_REJECTED',
+    /could not be verified.*Your saved match is unchanged/,
+  ],
+])(
+  '%s keeps the previous result and explains how to retry',
+  async (errorCode, message) => {
+    let posts = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.endsWith('/cv/current'))
+          return Response.json({
+            id: 'synthetic-cv',
+            fileName: 'synthetic.pdf',
+          });
+        if (init?.method === 'POST' && posts++ > 0)
+          return Response.json({ errorCode, message: 'x' }, { status: 503 });
+        return Response.json(result);
+      }),
+    );
+    render(<CvMatchPanel jobId="synthetic-job" revision="1" />);
+    await screen.findByRole('combobox', { name: 'CV for this job' });
+    fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
+    await screen.findByLabelText(/Fit score: 75\/100/);
+    fireEvent.click(screen.getByRole('button', { name: /analyze CV Match/i }));
+    expect(await screen.findByText(message)).toBeVisible();
+    expect(screen.getByLabelText(/Fit score: 75\/100/)).toBeVisible();
+  },
+);

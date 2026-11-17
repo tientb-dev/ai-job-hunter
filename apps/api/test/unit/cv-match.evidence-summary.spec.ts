@@ -83,11 +83,14 @@ async function summary(service: JobMatchService) {
   write.mockRestore();
   expect(lines.join('')).not.toMatch(/PRIVATE|Kafka|PostgreSQL|Designed/u);
   // The per-attempt correlation id is random; check its shape, then compare the rest.
-  return lines.map((line) => {
-    const { attempt, ...rest } = JSON.parse(line) as Record<string, unknown>;
-    if (attempt !== undefined) expect(attempt).toMatch(/^[0-9a-f-]{36}$/u);
-    return rest;
-  });
+  // The always-on quote-rejection counts are covered by their own spec.
+  return lines
+    .filter((line) => !line.includes('"CV_MATCH_QUOTES_REJECTED"'))
+    .map((line) => {
+      const { attempt, ...rest } = JSON.parse(line) as Record<string, unknown>;
+      if (attempt !== undefined) expect(attempt).toMatch(/^[0-9a-f-]{36}$/u);
+      return rest;
+    });
 }
 afterEach(() => {
   configureCvMatchDiagnostics(false);

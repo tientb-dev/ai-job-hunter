@@ -119,11 +119,6 @@ const answer = (kafkaQuote: string, componentQuote = dockerLine) =>
         : {}),
     })),
   });
-const code = (promise: Promise<unknown>) =>
-  promise.then(
-    () => 'OK',
-    (error: { errorCode?: string }) => error.errorCode,
-  );
 
 describe('server-side evidence enforcement without schema enums', () => {
   let schemas: OutputSchema[] = [];
@@ -176,15 +171,14 @@ describe('server-side evidence enforcement without schema enums', () => {
 
   test.each([
     ['fabricated component quote', 'Ran PRIVATE_FABRICATED Docker clusters.'],
-  ])('%s is rejected', async (_, quote) => {
-    expect(
-      await code(
-        setup(recording(answer(kafkaLine, quote))).analyze(
-          LOCAL_OWNER_ID,
-          'synthetic',
-        ),
-      ),
-    ).toBe('CV_MATCH_EVIDENCE_REJECTED');
+  ])('%s earns nothing and flags uncertainty', async (_, quote) => {
+    const result = await setup(recording(answer(kafkaLine, quote))).analyze(
+      LOCAL_OWNER_ID,
+      'synthetic',
+    );
+    expect(JSON.stringify(result)).not.toContain('PRIVATE_FABRICATED');
+    expect(result.evidenceUncertain).toBe(true);
+    expect(result.requirements.every((r) => r.cvQuote !== quote)).toBe(true);
   });
 
   test('a unique component fragment is widened to its full allowed line', async () => {
