@@ -1,6 +1,6 @@
 import { dateLocale, tr, useI18n } from '../../app/i18n';
 import { ArrowBackIcon, RefreshIcon } from '../../components/icons';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Alert,
@@ -51,20 +51,17 @@ export function JobPractice() {
     state && state !== 'error' && state.jobId === jobId ? state.data : null;
   const index = loaded?.sets.findIndex((s) => s.id === setId) ?? -1;
   const set = index >= 0 ? loaded!.sets[index]! : null;
-  // Category labels are localized text: rebuild them on a language switch.
-  const { locale } = useI18n();
-  const questions = useMemo<PracticeQuestion[]>(
-    () =>
-      (set?.questions ?? []).map((q) => ({
-        id: q.id,
-        topic: 'technical',
-        category: categoryLabel(set!.family, q.category),
-        kind: q.kind,
-        variants: [q.question],
-        hints: [],
-      })),
-    [set, locale],
-  );
+  // Category labels are localized text: subscribing re-renders this page on a
+  // language switch, and the labelled list is rebuilt on every render.
+  useI18n();
+  const questions: PracticeQuestion[] = (set?.questions ?? []).map((q) => ({
+    id: q.id,
+    topic: 'technical',
+    category: categoryLabel(set!.family, q.category),
+    kind: q.kind,
+    variants: [q.question],
+    hints: [],
+  }));
 
   const back = valid ? `/jobs/${jobId}/interview` : '/jobs';
   const unavailable = (text: string, retry = false) => (
