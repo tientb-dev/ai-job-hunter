@@ -38,7 +38,15 @@
     ["Java\nPython", "Java\nPython"],
     ["Steps:\n1. Plan\n2. Build", "Steps:\n1. Plan\n2. Build"],
     ["Owned planning,\n• Next bullet", "Owned planning,\n• Next bullet"],
-    ["  Trimmed edge\r\n  ", "Trimmed edge"]
+    ["  Trimmed edge\r\n  ", "Trimmed edge"],
+    [
+      "Marketing Executive — Công ty Giả Lập C\t2020 – nay",
+      "Marketing Executive — Công ty Giả Lập C 2020 – nay"
+    ],
+    ["Hà Nội, Việt Nam ·", "Hà Nội, Việt Nam"],
+    ["Hà Nội ·\nsynthetic@example.com |", "Hà Nội\nsynthetic@example.com"],
+    ["A · B · C", "A · B · C"],
+    ["• Quản lý chiến dịch\n• Tăng 12%", "• Quản lý chiến dịch\n• Tăng 12%"]
   ],
   "rows": [
     {

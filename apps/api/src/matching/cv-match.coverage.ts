@@ -368,7 +368,7 @@ const uncertain = (text: string) =>
 // Vietnamese work/experience verbs: CVs are often Vietnamese while the JD is
 // English (or the reverse); the same evidence gate must apply to both.
 const vietnameseWork =
-  /(?<!\p{L})(?:kinh nghiệm|triển khai|thực hiện|xây dựng|phát triển|quản lý|vận hành|tối ưu|lập kế hoạch|phụ trách|đạt|ký|tư vấn|sử dụng|tạo|phối hợp|trình bày|thiết lập|đàm phán)(?!\p{L})/iu;
+  /(?<!\p{L})(?:kinh nghiệm|triển khai|thực hiện|xây dựng|phát triển|quản lý|vận hành|tối ưu|lập kế hoạch|phụ trách|đạt|ký|tư vấn|sử dụng|tạo|phối hợp|trình bày|thiết lập|đàm phán|tăng)(?!\p{L})/iu;
 const active = (text: string) =>
   /\b(?:built|build|designed|design|architected|developed|delivered|implemented|used|using|worked|experience|skills|knowledge|understand|proficient|integrated|deployed|led|created|closed|signed|won|sold|negotiated|achieved|generated)\b/iu.test(
     text,
@@ -653,6 +653,9 @@ function headedSkillsLine(
     uncertain(quote)
   )
     return false;
+  return underSkillsHeading(quote, cv);
+}
+function underSkillsHeading(quote: string, cv: string): boolean {
   const lines = cv.split(/\r?\n/u).map((line) => line.trim());
   return lines.some(
     (line, index) =>
@@ -1419,7 +1422,7 @@ const simpleLabel = (requirement: string) =>
     .trim()
     .replace(/\.$/u, '')
     .replace(
-      /^(?:(?:(?:strong|solid|proven|hands-on)\s+)?experience (?:with|in|using)|familiarity with|working knowledge of|knowledge of|understanding of|proficiency (?:with|in)|backend)\s+/iu,
+      /^(?:(?:(?:strong|solid|proven|hands-on)\s+)?experience (?:with|in|using)|familiarity with|working knowledge of|knowledge of|understanding of|proficiency (?:with|in)|proficient (?:with|in)|backend)\s+/iu,
       '',
     );
 // "VND 1 billion", "1,5 tỷ", "2.400.000.000 VND", "$500k" → a number.
@@ -1602,7 +1605,9 @@ function namedTechnologyStatus(
       !negative(passage) &&
       !uncertain(passage),
   );
-  const declaration = (passage: string) => declarationLine(passage);
+  // A plain list under a "Skills"/"Kỹ năng" heading declares skills, as in headedSkillsLine.
+  const declaration = (passage: string) =>
+    declarationLine(passage) || underSkillsHeading(passage, cv);
   const supported = candidates.some(
     (passage) =>
       (!declaration(passage) && relatedWork(label, passage)) ||
@@ -1733,11 +1738,12 @@ export function simpleEvidenceStatus(
   if (bareSkill && !mentions(simpleLabel(requirement), quote))
     return 'NOT_EVIDENCED';
   const minimum =
-    /^(?:(?:minimum|at least|min\.?)\s+)?(\d+)\+?\s+(?:years?|yrs?)$/iu.exec(
+    /^(?:(?:minimum|at least|min\.?|tối thiểu|ít nhất)\s+)?(\d+)\+?\s+(?:years?|yrs?|năm)$/iu.exec(
       requirement.trim(),
     );
   if (minimum) {
-    const duration = /\b(\d+)\+?\s+(?:years?|yrs?)\b/iu.exec(quote);
+    const duration =
+      /(?<![\p{L}\p{N}])(\d+)\+?\s+(?:years?|yrs?|năm)(?!\p{L})/iu.exec(quote);
     if (
       negative(quote) ||
       uncertain(quote) ||

@@ -443,3 +443,45 @@ test.each([1, 2, 3])(
   },
   15000,
 );
+test('tabs and dangling separators never reach any PDF template (PR #104)', async () => {
+  const { CV_TEMPLATES } =
+    await import('../../src/tailored-cv/tailored-cv-export.js');
+  const fact = (id: string, field: string, acceptedText: string) =>
+    ({ id, field, acceptedText }) as Parameters<typeof cvRows>[1][number];
+  const rows = [
+    ...cvRows('experience', [
+      fact('r', 'role', 'Marketing Executive — Công ty Giả Lập C\t2020 – nay'),
+      fact(
+        'b',
+        'description',
+        '• Tăng tỷ lệ chuyển đổi 12% qua email marketing.',
+      ),
+    ]),
+    ...cvRows('additional', [fact('a', 'other', 'Hà Nội, Việt Nam ·')]),
+  ];
+  const blocks = rows.map((row) => ({
+    text: row.text,
+    style: row.style,
+    entryStart: false,
+  }));
+  expect(blocks.map((b) => b.text)).toEqual([
+    'Marketing Executive — Công ty Giả Lập C 2020 – nay',
+    '• Tăng tỷ lệ chuyển đổi 12% qua email marketing.',
+    'Hà Nội, Việt Nam',
+  ]);
+  for (const template of CV_TEMPLATES) {
+    const pdf = await getDocument({
+      data: new Uint8Array(
+        await renderPdf({ templateVersion: '1', blocks }, template),
+      ),
+    }).promise;
+    const page = await pdf.getPage(1);
+    const text = (await page.getTextContent()).items
+      .map((item) => ('str' in item ? item.str : ''))
+      .join(' ');
+    expect(text).not.toMatch(/[\t�]/u);
+    expect(text).toContain('2020 – nay');
+    expect(text).toContain('Tăng tỷ lệ chuyển đổi');
+    expect(text).not.toMatch(/Việt Nam\s*·/u);
+  }
+});

@@ -544,3 +544,34 @@ test('informal zl does not invent unlabeled contacts and old saved contact text 
     ).fields.find((f) => f.field === 'contactNotes')?.value,
   ).toBe('');
 });
+test('a blank line after a Vietnamese requirement list yields no empty candidate and saves', () => {
+  const post = [
+    'Chuyên viên Digital Marketing — Công ty Thử Nghiệm Z (synthetic)',
+    'Địa điểm: Hồ Chí Minh',
+    '',
+    'Yêu cầu:',
+    '- Tối thiểu 3 năm kinh nghiệm chạy quảng cáo Facebook Ads và Google Ads.',
+    '- Thành thạo Google Analytics.',
+    '',
+    'Quyền lợi: lương cạnh tranh.',
+  ].join('\n');
+  const result = mergeCandidates(
+    {
+      candidates: [
+        {
+          field: 'skills',
+          value: 'Thành thạo Google Analytics',
+          source: 'post',
+          quote: '- Thành thạo Google Analytics.',
+        },
+      ],
+    },
+    post,
+    '',
+  );
+  const candidates = result.fields.flatMap((f) => f.candidates);
+  expect(candidates.some((c) => !c.value.trim() || !c.quote.trim())).toBe(
+    false,
+  );
+  expect(() => validateImportReview(result.fields, post, '')).not.toThrow();
+});
