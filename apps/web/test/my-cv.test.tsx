@@ -32,6 +32,7 @@ function mount(
   confirmed = 0,
   profileResponse?: () => Promise<Response>,
   currentResponse?: () => Promise<Response>,
+  reviewsFor?: ('none' | 'saved')[],
 ) {
   const profile = cvProfileFixture();
   profile.document.sections.forEach((section, index) => {
@@ -60,10 +61,26 @@ function mount(
         list.map((row) => ({ ...row, isDefault: row.id === id })),
       );
     }
-    if (url.endsWith('/sources') || url.endsWith('/content'))
-      return Response.json(sourceCvFixture);
-    if (url.endsWith('/profile'))
-      return profileResponse ? profileResponse() : Response.json(profile);
+    // Review summaries for every CV, derived from the synthetic profile.
+    if (url.endsWith('/saved-cv-reviews/list')) {
+      const response = profileResponse
+        ? await profileResponse()
+        : Response.json(profile);
+      if (!response.ok) return response;
+      const { document } = (await response.json()) as typeof profile;
+      const review = {
+        reviewed: document.sections.filter((s) => s.review === 'confirmed')
+          .length,
+        total: document.sections.length,
+      };
+      return Response.json({
+        contractVersion: '1',
+        items: list.map((row, i) => ({
+          cvId: row.id,
+          review: reviewsFor?.[i] === 'none' ? null : review,
+        })),
+      });
+    }
     throw Error(`Unexpected request: ${url}`);
   });
   vi.stubGlobal('fetch', fetch);
@@ -92,6 +109,7 @@ test('empty state offers one primary save action and no job description fields',
     screen.queryByRole('heading', { name: 'Source CV review' }),
   ).not.toBeInTheDocument();
   expect(calls(fetch, '/sources')).toBe(0);
+  expect(calls(fetch, '/saved-cv-reviews/list')).toBe(1);
 });
 
 const loadError = /Could not load your saved CV/;
@@ -180,7 +198,7 @@ test('adding a CV shows it without replacing the default and never touches tailo
   ).toBe(false);
 });
 
-test('a reviewed CV that loads slowly never shows a guessed status', async () => {
+test('a slow review status keeps the page loading and never shows a guessed status', async () => {
   let release!: () => void;
   const { total } = mount(
     savedCv,
@@ -192,9 +210,10 @@ test('a reviewed CV that loads slowly never shows a guessed status', async () =>
         release = () => resolve(Response.json(profile));
       }),
   );
-  expect(await screen.findByText(savedCv.fileName)).toBeVisible();
   await waitFor(() => expect(release).toBeDefined());
-  expect(screen.getByLabelText('Loading review status')).toBeInTheDocument();
+  // The panel waits for its status instead of rendering and resizing later.
+  expect(screen.getByLabelText('Loading your CV')).toBeInTheDocument();
+  expect(screen.queryByText(savedCv.fileName)).toBeNull();
   expect(screen.queryByText('Not reviewed yet')).not.toBeInTheDocument();
   release();
   expect(
@@ -221,27 +240,28 @@ test('a failed profile request reads as unavailable and can be retried', async (
   ).toBeVisible();
 });
 
-test('switching reserves space on first load and shows a cached CV status immediately', async () => {
+test("switching CVs shows each CV's own status without another request", async () => {
   const user = userEvent.setup();
-  let profiles = 0;
-  // Main CV's status loads; Data CV's first status request stays pending.
-  const { total } = mount([savedCv, otherCv], Infinity, () => {
-    profiles += 1;
-    if (profiles === 2) return new Promise<Response>(() => {});
-    const profile = cvProfileFixture();
-    profile.document.sections.forEach((s) => (s.review = 'confirmed'));
-    return Promise.resolve(Response.json(profile));
-  });
+  const { fetch, total } = mount(
+    [savedCv, otherCv],
+    Infinity,
+    undefined,
+    undefined,
+    ['saved', 'none'],
+  );
   const reviewed = `Reviewed · ${total} of ${total} sections`;
   expect(await screen.findByText(reviewed)).toBeVisible();
-  expect(screen.queryByTestId('review-status-skeleton')).toBeNull();
+  const requests = fetch.mock.calls.length;
   const library = screen.getByRole('region', { name: 'Your CVs' });
   await user.click(within(library).getByRole('button', { name: /^Data CV/ }));
-  expect(screen.getByTestId('review-status-skeleton')).toBeInTheDocument();
+  expect(screen.getByText('Not reviewed yet')).toBeVisible();
   expect(screen.queryByText(reviewed)).toBeNull();
+  expect(screen.queryByLabelText('Loading review status')).toBeNull();
   await user.click(within(library).getByRole('button', { name: /^Main CV/ }));
   expect(screen.getByText(reviewed)).toBeVisible();
-  expect(screen.queryByTestId('review-status-skeleton')).toBeNull();
+  // Selection never captures a source or reads a profile.
+  expect(fetch.mock.calls.length).toBe(requests);
+  expect(calls(fetch, '/sources')).toBe(0);
 });
 
 test('a non-default CV can become the default; a CV still used by a job is not deleted', async () => {

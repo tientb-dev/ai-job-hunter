@@ -230,6 +230,78 @@ test('initial profile retains every source character as unresolved, append prese
     }),
   ).rejects.toMatchObject({ status: 409 });
 });
+test('saved CV review summaries are read-only, exact and owner-isolated', async () => {
+  // An uncaptured CV of this owner and a same-content CV of another owner.
+  const extraName = `synthetic-p81-extra-${randomUUID()}.pdf`;
+  const [extra] = (
+    await db.getRepository(SavedCv).insert([
+      {
+        ownerId: owner,
+        name: extraName,
+        isDefault: false,
+        fileName: extraName,
+        text: syntheticCv,
+        updatedAt: new Date('2026-01-03T00:00:00.000Z'),
+        sourceMetadata: null,
+      },
+      {
+        ownerId: other,
+        name: filename,
+        isDefault: true,
+        fileName: filename,
+        text: syntheticCv,
+        updatedAt: new Date(savedAt),
+        sourceMetadata: null,
+      },
+    ])
+  ).identifiers as { id: string }[];
+  try {
+    const count = () =>
+      Promise.all([
+        db.getRepository(CvSourceRevision).count(),
+        db.getRepository(CvProfileRevision).count(),
+      ]);
+    const before = await count();
+    const response = await request(app.getHttpServer())
+      .post(`${base}/saved-cv-reviews/list`)
+      .set(origin)
+      .send(v)
+      .expect(200);
+    expect(response.headers['cache-control']).toBe('no-store');
+    const latest = await service.latestForSource(owner, sourceId);
+    const sections = latest!.document.sections;
+    const main = await db
+      .getRepository(SavedCv)
+      .findOneByOrFail({ ownerId: owner, fileName: filename });
+    expect(response.body).toEqual({
+      contractVersion: '1',
+      items: expect.arrayContaining([
+        {
+          cvId: main.id,
+          review: {
+            reviewed: sections.filter((x) => x.review === 'confirmed').length,
+            total: sections.length,
+          },
+        },
+        { cvId: extra!.id, review: null },
+      ]),
+    });
+    expect(response.body.items).toHaveLength(2);
+    // Another owner never sees this owner's CVs or reuses its review.
+    expect((await service.savedCvReviews(other)).items).toEqual([
+      { cvId: expect.any(String), review: null },
+    ]);
+    expect(await count()).toEqual(before);
+    await request(app.getHttpServer())
+      .post(`${base}/saved-cv-reviews/list`)
+      .set(origin)
+      .send({ ...v, ownerId: other })
+      .expect(400);
+  } finally {
+    await db.getRepository(SavedCv).delete({ id: extra!.id });
+    await db.getRepository(SavedCv).delete({ ownerId: other });
+  }
+});
 test('HTTP document limits reject otherwise valid oversized profiles without creating a revision', async () => {
   const document = syntheticProfile(sourceId);
   document.sections[0]!.entries[0]!.facts.push(

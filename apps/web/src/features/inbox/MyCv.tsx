@@ -13,7 +13,7 @@ import {
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useNotify } from '../../components/useNotify';
 import { enter, surface } from '../../app/theme';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   AlertTitle,
@@ -46,26 +46,14 @@ export const MAX_CVS = 5;
 // null: no review saved yet.
 type Progress = { reviewed: number; total: number } | null;
 
-// Read-only summary of the saved review. Capture is idempotent for an
-// unchanged saved CV and never creates a review profile.
-async function readProgress(cv: SavedCv): Promise<Progress> {
-  const source = await sourceCvRequest('/sources', {
-    expectedSavedCvUpdatedAt: cv.updatedAt,
-  });
-  const id =
-    source && typeof source === 'object' && 'id' in source
-      ? String(source.id)
-      : '';
-  if (!/^[0-9a-f-]{36}$/iu.test(id)) return null;
-  const profile = (await sourceCvRequest(`/sources/${id}/profile`)) as {
-    document?: { sections?: { review?: string }[] };
+// One read-only request for every CV's review progress; it never creates
+// review records, so selecting a CV needs no further request.
+async function readReviews(): Promise<Record<string, Progress>> {
+  const value = (await sourceCvRequest('/saved-cv-reviews/list')) as {
+    items?: { cvId: string; review: Progress }[];
   } | null;
-  const sections = profile?.document?.sections;
-  if (!Array.isArray(sections)) return null;
-  return {
-    reviewed: sections.filter((s) => s.review === 'confirmed').length,
-    total: sections.length,
-  };
+  if (!Array.isArray(value?.items)) throw Error('Invalid review summaries.');
+  return Object.fromEntries(value.items.map((i) => [i.cvId, i.review]));
 }
 
 function MoreIcon() {
@@ -125,38 +113,35 @@ export function MyCv() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   // undefined while loading; 'error' must never read as "not reviewed".
-  // Keyed by CV so switching never shows another CV's status nor collapses the panel.
-  const [progressById, setProgressById] = useState<
-    Partial<Record<string, Progress | 'error'>>
-  >({});
-  const progress = cv ? progressById[cv.id] : undefined;
+  const [reviews, setReviews] = useState<Record<string, Progress> | 'error'>();
+  // A CV missing from the summaries was added after they loaded: not reviewed.
+  const progress =
+    reviews === undefined || reviews === 'error'
+      ? reviews
+      : cv
+        ? (reviews[cv.id] ?? null)
+        : undefined;
+  // The panel renders once, with the CV list and every review status together.
   useEffect(() => {
     let active = true;
-    opportunityRequest<SavedCv[]>('/cv').then(
-      (rows) => {
-        if (!active) return;
-        setCvs(rows ?? []);
-        setLoaded(true);
-      },
-      () => {
-        if (!active) return;
-        setLoaded(true);
-        setError(tr('Could not load your saved CV. Check the local API.'));
-      },
-    );
+    void Promise.allSettled([
+      opportunityRequest<SavedCv[]>('/cv'),
+      readReviews(),
+    ]).then(([list, summaries]) => {
+      if (!active) return;
+      if (list.status === 'fulfilled') setCvs(list.value ?? []);
+      else setError(tr('Could not load your saved CV. Check the local API.'));
+      setReviews(summaries.status === 'fulfilled' ? summaries.value : 'error');
+      setLoaded(true);
+    });
     return () => {
       active = false;
     };
   }, []);
-  const refreshProgress = useCallback(() => {
-    if (!cv) return;
-    const id = cv.id;
-    readProgress(cv).then(
-      (next) => setProgressById((all) => ({ ...all, [id]: next })),
-      () => setProgressById((all) => ({ ...all, [id]: 'error' })),
-    );
-  }, [cv]);
-  useEffect(refreshProgress, [refreshProgress]);
+  function retryReviews() {
+    setReviews(undefined);
+    readReviews().then(setReviews, () => setReviews('error'));
+  }
   function select(id: string) {
     if (id === cv?.id) return;
     setRenaming(null);
@@ -587,13 +572,7 @@ export function MyCv() {
                           <Button
                             startIcon={<RefreshIcon />}
                             size="small"
-                            onClick={() => {
-                              setProgressById((all) => ({
-                                ...all,
-                                [cv.id]: undefined,
-                              }));
-                              refreshProgress();
-                            }}
+                            onClick={retryReviews}
                           >
                             {tr('Retry')}
                           </Button>
@@ -657,15 +636,6 @@ export function MyCv() {
                       )}
                     </Box>
                   )}
-                {/* First load of this CV's status: reserve the Next step block's space. */}
-                {progress === undefined && (
-                  <Skeleton
-                    variant="rounded"
-                    data-testid="review-status-skeleton"
-                    aria-hidden
-                    sx={{ height: { xs: 155, sm: 75 } }}
-                  />
-                )}
                 {/* Next step only from real status: not reviewed or partly reviewed. */}
                 {(progress === null ||
                   (typeof progress === 'object' && !reviewed)) && (
