@@ -253,21 +253,34 @@ export function requirementGroup(
     return group('UNKNOWN', [text], 'design');
   }
   let context: RequirementGroup['context'] = 'skill';
-  let body = text;
-  const prefix =
+  const prefixPattern =
     // Same generic prefixes simpleLabel strips; a kept prefix ("Familiarity with
     // Kafka") makes the first component label unmatchable by any CV passage.
-    /^(?:Experience designing|(?:(?:strong|solid|good|excellent|proven|hands-on|deep)\s+)?(?:Working knowledge of|Understanding of|Experience (?:with|in|using)|Knowledge of|Familiarity with|proficiency (?:in|with)|proficient (?:in|with)))\s+/iu.exec(
-      text,
-    );
+    /^(?:Experience designing|(?:(?:strong|solid|good|excellent|proven|hands-on|deep)\s+)?(?:Working knowledge of|Understanding of|Experience (?:with|in|using)|Knowledge of|Familiarity with|proficiency (?:in|with)|proficient (?:in|with)))\s+/iu;
+  // A short topic heading ("Java development: Working knowledge of …") is a
+  // label, not a component; strip it only when a known prefix follows.
+  const heading = /^[\p{L}][\p{L}\d .+#/-]{0,38}:\s+/u.exec(text);
+  const lead =
+    heading && prefixPattern.test(text.slice(heading[0].length))
+      ? heading[0].length
+      : 0;
+  let body = text.slice(lead);
+  const prefix = prefixPattern.exec(body);
   if (prefix) {
     context = /designing/iu.test(prefix[0])
       ? 'design'
       : /knowledge|understanding/iu.test(prefix[0])
         ? 'knowledge'
         : 'experience';
-    body = text.slice(prefix[0].length);
+    body = body.slice(prefix[0].length);
   }
+  // "…, with the ability to maintain, debug, and enhance …" is one opaque
+  // capability component: its actions are never split into independent credit.
+  const ability = prefix
+    ? /^(.+?),\s+with the (ability to [^,;]+(?:,\s*[^,;]+)*)$/iu.exec(body)
+    : null;
+  const abilityLabel = ability?.[2];
+  if (ability) body = ability[1]!;
   body = body.replace(/^(?:(?:at least )?one of|either)\s+/iu, '');
   // A digit-grouping comma ("1,000,000 VND") is not a list separator.
   if (/\d,\d{3}/u.test(body)) return group('SINGLE', [text], context);
@@ -287,6 +300,25 @@ export function requirementGroup(
   const withDuration = (value: RequirementGroup): RequirementGroup =>
     groupYears ? { ...value, minimumYears: Number(groupYears[1]) } : value;
   if (hasAnd && hasOr) return group('UNKNOWN', [text], context);
+  if (abilityLabel) {
+    const labels = body
+      .split(/,\s*(?:and\s+)?|\s+and\s+/iu)
+      .map((part) => part.trim())
+      .filter(Boolean);
+    if (
+      hasOr ||
+      labels.length > 5 ||
+      labels.some(
+        (label) =>
+          label.split(/\s+/u).length > 4 ||
+          /\b(?:designing|delivering|ability|including|such as|with)\b/iu.test(
+            label,
+          ),
+      )
+    )
+      return group('UNKNOWN', [text], context);
+    return withDuration(group('AND', [...labels, abilityLabel], context));
+  }
   // A parenthesized example list ("SQL databases (PostgreSQL, MySQL)") is not a split point.
   if (
     hasAnd ||
