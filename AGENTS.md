@@ -50,6 +50,12 @@
 - One screen or user flow per PR. Preserve business logic, API contracts, vi-VN/en-US strings and existing data.
 - Notifications: every user-initiated create/update/delete shows a result popup through the shared `useNotify` (`components/Notifications.tsx`). Success is compact and auto-dismisses after about 2.5s; errors stay until the user acknowledges them and give a short title plus details. Confirmation dialogs (before an action) and inline field validation stay separate; load failures stay inline with Retry. Popup text follows vi-VN/en-US localization. Adopt per screen as it is redesigned; do not migrate unrelated screens.
 - Screenshots: normally one desktop and one 375px mobile view of the affected screen.
+- Motion (reference: Dashboard `features/home/Home.tsx`). Motion is subtle and optional; adopt per screen as it is redesigned:
+  - Entrance: one shared pattern — fade + 6px rise, ~260ms `ease-out`, stagger ~50ms per card, only on first render of a page/section. Never re-run on refetch, filter or selection changes.
+  - State changes: 150–200ms on `transform`, `opacity`, `border-color` or `background-color` only (e.g. hover lift ≤2px). Expand/collapse uses MUI `Collapse`; do not animate width, height or position by hand.
+  - Loading: `Skeleton` sized like the final content for page/section loads; `LinearProgress`/`CircularProgress` for in-flight actions. Keep the previous content visible while refreshing instead of swapping back to skeletons.
+  - Reduced motion: rely on the global `prefers-reduced-motion` rule in `app/theme.ts`; JS-driven motion (smooth scroll, programmatic animation) must check `matchMedia('(prefers-reduced-motion: reduce)')`. No information may depend on animation.
+  - No layout shift or remounts: animations must not move surrounding content or reflow forms. Never use `key` changes, `unmountOnExit` or conditional wrappers to trigger motion around inputs or editors — that loses focus, cursor and unsaved text.
 - PR description: changes, tests, known limitations. Keep it short.
 - No screenshot/evidence branches, committed proof images or long reports unless explicitly requested.
 
