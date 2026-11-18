@@ -8,7 +8,7 @@ import {
   type MatchResult,
   statusLabel,
 } from './cv-match.types';
-import { ApplicationGuidance } from './ApplicationGuidance';
+import { GuidanceActions, GuidanceVerdict } from './ApplicationGuidance';
 import { JobCvPicker } from './JobCvPicker';
 import {
   matchStatusMessages,
@@ -132,7 +132,6 @@ export function CvMatchSection({
               }
               onClick={() => void analyze()}
               sx={{
-                textTransform: 'none',
                 flexShrink: 0,
                 alignSelf: 'flex-start',
               }}
@@ -199,15 +198,21 @@ export function CvMatchSection({
             </Alert>
           )}
           {matchReadError && (
-            <Alert severity="warning">
+            <Alert
+              severity="warning"
+              action={
+                <Button
+                  color="inherit"
+                  size="small"
+                  startIcon={<RefreshIcon />}
+                  disabled={busy}
+                  onClick={() => reload()}
+                >
+                  {tr('Retry loading match')}
+                </Button>
+              }
+            >
               {matchReadError}
-              <Button
-                startIcon={<RefreshIcon />}
-                disabled={busy}
-                onClick={() => reload()}
-              >
-                {tr('Retry loading match')}
-              </Button>
             </Alert>
           )}
           {!busy && matchStatus === 'VALID' && (
@@ -357,21 +362,7 @@ function MatchContent({
           onNavigated={() => setTarget(null)}
         />
       </Box>
-      <Box sx={{ borderTop: 1, borderColor: 'divider', pt: 2 }}>
-        <Typography
-          variant="subtitle1"
-          component="h3"
-          sx={{ fontWeight: 600, mb: 1 }}
-        >
-          {tr('Application advice')}
-        </Typography>
-        <Typography variant="body2">{result.advice}</Typography>
-      </Box>
-      <Typography variant="caption" color="text.secondary">
-        {tr(
-          'This match is shared with Tailored CV while its server context remains valid. Reanalyze after saving CV or job changes. Review all evidence before relying on this advice.',
-        )}
-      </Typography>
+      <TechnicalDetails result={result} />
     </Stack>
   );
 }
@@ -380,6 +371,126 @@ type PreviewRequirement = {
   item: MatchResult['requirements'][number];
   index: number;
 };
+const COVERAGE_STATUSES = [
+  'EVIDENCED',
+  'PARTIAL',
+  'NOT_EVIDENCED',
+  'CONFLICT',
+  'UNDECOMPOSED',
+] as const;
+// Bar fills; text keeps requirementColors so labels stay readable.
+const coverageFill = {
+  EVIDENCED: 'success.main',
+  PARTIAL: 'info.main',
+  NOT_EVIDENCED: 'action.disabled',
+  CONFLICT: 'error.main',
+  UNDECOMPOSED: 'warning.main',
+} as const;
+
+/** Plain status counts of the returned requirements; not the weighted score. */
+function RequirementCoverage({
+  requirements,
+}: {
+  requirements: MatchResult['requirements'];
+}) {
+  const counts = COVERAGE_STATUSES.map(
+    (status) =>
+      [
+        status,
+        requirements.filter((item) => item.status === status).length,
+      ] as const,
+  ).filter(([status, count]) => count > 0 || status !== 'UNDECOMPOSED');
+  const required = requirements.filter((item) => item.priority === 'required');
+  const summary = counts
+    .map(([status, count]) => `${statusLabel(status)}: ${count}`)
+    .join(', ');
+  return (
+    <Box component="section" aria-label={tr('Requirement coverage')}>
+      <Typography variant="subtitle1" component="h3" sx={{ fontWeight: 600 }}>
+        {tr('Requirement coverage')}
+      </Typography>
+      <Typography variant="body2" color="text.secondary">
+        {tr(
+          'Counts of JD requirements by status. This is separate from the heuristic score in Technical details.',
+        )}
+      </Typography>
+      <Box
+        role="img"
+        aria-label={`${summary}. ${tr('Total:')} ${requirements.length}`}
+        sx={{
+          display: 'flex',
+          height: 10,
+          mt: 1.5,
+          borderRadius: 1,
+          overflow: 'hidden',
+          bgcolor: 'action.disabledBackground',
+        }}
+      >
+        {counts.map(([status, count]) =>
+          count ? (
+            <Box
+              key={status}
+              sx={{ flexGrow: count, bgcolor: coverageFill[status] }}
+            />
+          ) : null,
+        )}
+      </Box>
+      <Stack
+        direction="row"
+        spacing={2}
+        useFlexGap
+        aria-label={tr('Requirement counts')}
+        sx={{ flexWrap: 'wrap', mt: 1 }}
+      >
+        {counts.map(([status, count]) => (
+          <Stack
+            key={status}
+            direction="row"
+            spacing={0.75}
+            sx={{ alignItems: 'center' }}
+          >
+            <Box
+              aria-hidden
+              sx={{
+                width: 10,
+                height: 10,
+                borderRadius: '2px',
+                bgcolor: coverageFill[status],
+              }}
+            />
+            <Typography
+              variant="body2"
+              sx={{ color: requirementColors[status], fontWeight: 500 }}
+            >
+              {statusLabel(status)}: {count}
+            </Typography>
+          </Stack>
+        ))}
+        <Typography variant="body2" color="text.secondary">
+          {tr('Total:')} {requirements.length}
+        </Typography>
+      </Stack>
+      {required.length > 0 && (
+        <Typography variant="subtitle2" component="p" sx={{ mt: 1 }}>
+          {tr('Required requirements matched: {v0} of {v1}', {
+            v0: String(
+              required.filter((item) => item.status === 'EVIDENCED').length,
+            ),
+            v1: String(required.length),
+          })}
+        </Typography>
+      )}
+      {requirements.some((item) => item.status === 'NOT_EVIDENCED') && (
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+          {tr(
+            'Unknown means no evidence was found in the reviewed CV, not that you lack the skill.',
+          )}
+        </Typography>
+      )}
+    </Box>
+  );
+}
+
 function MatchOverview({
   result,
   onInspect,
@@ -399,235 +510,31 @@ function MatchOverview({
       Number(b.item.priority === 'required') -
       Number(a.item.priority === 'required'),
   );
-  const explanationId = useId();
-  const evaluability = result.evaluability;
-  const assessment = (
-    <>
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: {
-            xs: '1fr',
-            sm: 'minmax(0, 1fr) minmax(0, 1fr)',
-          },
-          gap: 2,
-          alignItems: 'center',
-        }}
-      >
-        <Box>
-          <Typography
-            variant="subtitle1"
-            component="h3"
-            sx={{ fontWeight: 600 }}
-          >
-            {result.guidance
-              ? tr('Documented CV evidence coverage')
-              : tr('Documented fit')}
-          </Typography>
-          <Stack
-            direction="row"
-            spacing={2}
-            sx={{ alignItems: 'center', mt: 0.5, flexWrap: 'wrap' }}
-          >
-            <Typography
-              variant={result.guidance ? 'h4' : 'h3'}
-              component="p"
-              sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}
-              aria-label={tr('Fit score: {v0} (heuristic)', {
-                v0:
-                  result.score === null
-                    ? incompleteLabel(result, 'Not enough evidence')
-                    : `${result.score}/100`,
-              })}
-            >
-              {result.score === null ? '—' : result.score}
-              {result.score !== null && (
-                <Typography
-                  component="span"
-                  variant="body1"
-                  color="text.secondary"
-                >
-                  {' '}
-                  / 100
-                </Typography>
-              )}
-            </Typography>
-            {!result.guidance && (
-              <Chip
-                size="small"
-                variant="outlined"
-                label={tr(result.recommendation)}
-              />
-            )}
-          </Stack>
-          <Typography variant="body2" color="text.secondary">
-            {tr('Heuristic evidence coverage · Not a hiring probability')}
-          </Typography>
-        </Box>
-        <Box>
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>
-            {tr('Requirement coverage')}
-          </Typography>
-          <Stack
-            direction="row"
-            spacing={1}
-            useFlexGap
-            aria-label={tr('Requirement counts')}
-            sx={{ flexWrap: 'wrap', mb: 1.5 }}
-          >
-            <Typography
-              variant="body2"
-              sx={{ fontWeight: 600, color: requirementColors.EVIDENCED }}
-            >
-              {tr('Matched:')} {matched.length}
-            </Typography>
-            {(
-              [
-                'PARTIAL',
-                'NOT_EVIDENCED',
-                'CONFLICT',
-                ...(rows.some(({ item }) => item.status === 'UNDECOMPOSED')
-                  ? (['UNDECOMPOSED'] as const)
-                  : []),
-              ] as const
-            ).map((status) => (
-              <Typography
-                key={status}
-                variant="body2"
-                sx={{ color: requirementColors[status], fontWeight: 500 }}
-              >
-                {statusLabel(status)}:{' '}
-                {rows.filter(({ item }) => item.status === status).length}
-              </Typography>
-            ))}
-            <Typography variant="body2" color="text.secondary">
-              {tr('Total:')} {rows.length}
-            </Typography>
-          </Stack>
-          {evaluability && (
-            <Typography
-              variant="body2"
-              color={evaluability.low ? 'warning.dark' : 'text.secondary'}
-              sx={{ mb: 1 }}
-            >
-              {tr('Evaluated: {v0} of {v1} JD requirements', {
-                v0: String(evaluability.evaluated),
-                v1: String(evaluability.total),
-              })}
-              {evaluability.low &&
-                ` · ${tr('Low confidence: interpret this score with care.')}`}
-            </Typography>
-          )}
-          {result.score === null ? (
-            <Typography variant="body2" color="text.secondary">
-              {tr('Not enough evidence')}
-            </Typography>
-          ) : (
-            <LinearProgress
-              variant="determinate"
-              value={result.score}
-              aria-label={tr('Heuristic fit score')}
-              color="inherit"
-              sx={{
-                height: 6,
-                borderRadius: 1,
-                color: 'text.secondary',
-                bgcolor: 'action.disabledBackground',
-              }}
-            />
-          )}
-        </Box>
-      </Box>
-      <Typography variant="body2" sx={{ mt: 1.5 }}>
-        {tr(
-          'This score reflects evidence in the saved CV, not the full extent of your skills.',
-        )}
-      </Typography>
-      <Accordion
-        disableGutters
-        elevation={0}
-        square
-        sx={{
-          bgcolor: 'transparent',
-          mt: 1,
-          '&:before': { display: 'none' },
-        }}
-      >
-        <AccordionSummary
-          id={`${explanationId}-summary`}
-          aria-controls={`${explanationId}-details`}
-          expandIcon={<MatchIcon kind="expand" />}
-          sx={{
-            px: 0,
-            minHeight: 44,
-            '&.Mui-focusVisible': {
-              outline: '2px solid',
-              outlineColor: 'primary.main',
-              outlineOffset: -2,
-            },
-          }}
-        >
-          <Typography variant="body2" color="text.secondary">
-            {tr('How to read this analysis')}
-          </Typography>
-        </AccordionSummary>
-        <AccordionDetails
-          id={`${explanationId}-details`}
-          sx={{ px: 0, pt: 0, pb: 0 }}
-        >
-          <Typography variant="body2" color="text.secondary">
-            {result.explanation}
-          </Typography>
-        </AccordionDetails>
-      </Accordion>
-    </>
-  );
   return (
     <Stack spacing={3}>
       <Box sx={{ bgcolor: 'action.selected', borderRadius: 1, p: 2 }}>
-        {result.guidance && (
-          <Box sx={{ mb: 2, pb: 2, borderBottom: 1, borderColor: 'divider' }}>
-            <ApplicationGuidance result={result} />
+        {result.guidance ? (
+          <GuidanceVerdict result={result} />
+        ) : (
+          // Saved before structured guidance: show only the stored recommendation.
+          <Box component="section" aria-label={tr('Overall assessment')}>
+            <Typography variant="overline" color="text.secondary" component="p">
+              {tr('Overall assessment')}
+            </Typography>
+            <Typography variant="h5" component="h3" sx={{ fontWeight: 600 }}>
+              {tr(result.recommendation)}
+            </Typography>
           </Box>
         )}
-        {result.guidance ? (
-          <Accordion
-            disableGutters
-            elevation={0}
-            square
-            sx={{ bgcolor: 'transparent', '&:before': { display: 'none' } }}
-          >
-            <AccordionSummary
-              id={`${explanationId}-assessment`}
-              aria-controls={`${explanationId}-assessment-details`}
-              expandIcon={<MatchIcon kind="expand" />}
-              sx={{
-                px: 0,
-                minHeight: 44,
-                '&.Mui-focusVisible': {
-                  outline: '2px solid',
-                  outlineColor: 'primary.main',
-                  outlineOffset: -2,
-                },
-              }}
-            >
-              <Typography variant="subtitle2" component="h3">
-                {tr('Assessment details')}
-                {result.score !== null &&
-                  ` · ${tr('Evidence coverage {v0}/100', { v0: String(result.score) })}`}
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails
-              id={`${explanationId}-assessment-details`}
-              sx={{ px: 0, pt: 0, pb: 0 }}
-            >
-              {assessment}
-            </AccordionDetails>
-          </Accordion>
-        ) : (
-          assessment
+        {result.score !== null && (
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            {tr('Heuristic Match score: {v0}/100 · details below', {
+              v0: String(result.score),
+            })}
+          </Typography>
         )}
       </Box>
+      <RequirementCoverage requirements={result.requirements} />
       <Box
         sx={{
           display: 'grid',
@@ -663,7 +570,143 @@ function MatchOverview({
           onInspect={onInspect}
         />
       </Box>
+      {result.guidance && <GuidanceActions guidance={result.guidance} />}
     </Stack>
+  );
+}
+
+/** Heuristic score, evaluability, explanations and disclaimers, collapsed. */
+function TechnicalDetails({ result }: { result: MatchResult }) {
+  const id = useId();
+  const evaluability = result.evaluability;
+  return (
+    <Accordion
+      disableGutters
+      elevation={0}
+      square
+      sx={{
+        bgcolor: 'transparent',
+        borderTop: 1,
+        borderColor: 'divider',
+        '&:before': { display: 'none' },
+      }}
+    >
+      <AccordionSummary
+        id={`${id}-summary`}
+        aria-controls={`${id}-details`}
+        expandIcon={<MatchIcon kind="expand" />}
+        sx={{
+          px: 0,
+          minHeight: 44,
+          '&.Mui-focusVisible': {
+            outline: '2px solid',
+            outlineColor: 'primary.main',
+            outlineOffset: -2,
+          },
+        }}
+      >
+        <Typography variant="subtitle1" component="h3" sx={{ fontWeight: 600 }}>
+          {tr('Technical details')}
+        </Typography>
+      </AccordionSummary>
+      <AccordionDetails id={`${id}-details`} sx={{ px: 0, pt: 0 }}>
+        <Stack spacing={1.5}>
+          <Box>
+            <Typography variant="subtitle2" component="h4">
+              {tr('Documented CV evidence coverage')}
+            </Typography>
+            <Typography
+              variant="h4"
+              component="p"
+              sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}
+              aria-label={tr('Fit score: {v0} (heuristic)', {
+                v0:
+                  result.score === null
+                    ? incompleteLabel(result, 'Not enough evidence')
+                    : `${result.score}/100`,
+              })}
+            >
+              {result.score === null ? '—' : result.score}
+              {result.score !== null && (
+                <Typography
+                  component="span"
+                  variant="body1"
+                  color="text.secondary"
+                >
+                  {' '}
+                  / 100
+                </Typography>
+              )}
+            </Typography>
+            {result.score === null ? (
+              <Typography variant="body2" color="text.secondary">
+                {tr('Not enough evidence')}
+              </Typography>
+            ) : (
+              <LinearProgress
+                variant="determinate"
+                value={result.score}
+                aria-label={tr('Heuristic fit score')}
+                color="inherit"
+                sx={{
+                  height: 6,
+                  borderRadius: 1,
+                  my: 0.5,
+                  color: 'text.secondary',
+                  bgcolor: 'action.disabledBackground',
+                }}
+              />
+            )}
+            <Typography variant="body2" color="text.secondary">
+              {tr('Heuristic evidence coverage · Not a hiring probability')}
+            </Typography>
+          </Box>
+          {evaluability && (
+            <Typography
+              variant="body2"
+              color={evaluability.low ? 'warning.dark' : 'text.secondary'}
+            >
+              {tr('Evaluated: {v0} of {v1} JD requirements', {
+                v0: String(evaluability.evaluated),
+                v1: String(evaluability.total),
+              })}
+              {evaluability.low &&
+                ` · ${tr('Low confidence: interpret this score with care.')}`}
+            </Typography>
+          )}
+          <Typography variant="body2">
+            {tr(
+              'This score reflects evidence in the saved CV, not the full extent of your skills.',
+            )}
+          </Typography>
+          <Box>
+            <Typography variant="subtitle2" component="h4">
+              {tr('How to read this analysis')}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {result.explanation}
+            </Typography>
+          </Box>
+          {/* Structured actions replace advice; older matches only have advice. */}
+          {!result.guidance && result.advice && (
+            <Box>
+              <Typography variant="subtitle2" component="h4">
+                {tr('Application advice')}
+              </Typography>
+              <Typography variant="body2">{result.advice}</Typography>
+            </Box>
+          )}
+          <Typography variant="caption" color="text.secondary" component="p">
+            {tr(
+              'Advisory only, not a hiring prediction. Add only experience you actually have.',
+            )}{' '}
+            {tr(
+              'This match is shared with Tailored CV while its server context remains valid. Reanalyze after saving CV or job changes. Review all evidence before relying on this advice.',
+            )}
+          </Typography>
+        </Stack>
+      </AccordionDetails>
+    </Accordion>
   );
 }
 

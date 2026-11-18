@@ -208,7 +208,9 @@ test('explicit suggestions show four compact cards, a header count and preserve 
   fireEvent.click(screen.getByRole('button', { name: 'Open CV Match' }));
   // Workspace Match shows the assessment with its gaps-and-advice below.
   expect(screen.getByRole('region', { name: 'Improve your CV' })).toBeVisible();
-  expect(screen.getByLabelText('Fit score: 50/100 (heuristic)')).toBeVisible();
+  expect(
+    screen.getByText('Heuristic Match score: 50/100 · details below'),
+  ).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Open Improve CV' }));
   expect(within(section()).getAllByRole('article')).toHaveLength(4);
   expect(state.select).toHaveBeenCalledTimes(1);
@@ -257,7 +259,9 @@ test('suggesting excludes duplicate and source-changing actions while retaining 
     screen.getByRole('button', { name: 'Reanalyze CV Match' }),
   ).toBeDisabled();
   expect(screen.getByLabelText('Save CV for matching')).toBeDisabled();
-  expect(screen.getByLabelText('Fit score: 50/100 (heuristic)')).toBeVisible();
+  expect(
+    screen.getByText('Heuristic Match score: 50/100 · details below'),
+  ).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Open Improve CV' }));
   await act(async () => pending.resolve(Response.json(syntheticSuggestions)));
   expect(state.select).toHaveBeenCalledTimes(1);

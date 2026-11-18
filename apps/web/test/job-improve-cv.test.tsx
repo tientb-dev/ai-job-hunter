@@ -97,7 +97,9 @@ test('real Job Details shares one match across workspace tabs, compact cards and
   ).toBeEnabled();
   tab('Application');
   tab('CV Match');
-  expect(screen.getByLabelText('Fit score: 50/100 (heuristic)')).toBeVisible();
+  expect(
+    screen.getByText('Heuristic Match score: 50/100 · details below'),
+  ).toBeVisible();
   tab('Improve CV');
   fireEvent.click(screen.getByRole('button', { name: 'Suggest improvements' }));
   await screen.findAllByRole('article');
