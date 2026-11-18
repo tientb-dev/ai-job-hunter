@@ -431,10 +431,14 @@ export function JobInterviewTab({
             startIcon={<AutoAwesomeIcon />}
             variant="contained"
             onClick={() => void generate()}
-            disabled={blocked || generating}
+            disabled={blocked}
+            loading={generating}
+            loadingPosition="start"
             sx={{ width: { xs: '100%', sm: 'auto' } }}
           >
-            {tr('Generate interview questions')}
+            {generating
+              ? tr('Generating questions…')
+              : tr('Generate interview questions')}
           </Button>
         </Stack>
       ) : (
@@ -486,11 +490,15 @@ export function JobInterviewTab({
               startIcon={<AutoAwesomeIcon />}
               variant="outlined"
               onClick={() => setConfirmOpen(true)}
-              disabled={blocked || generating}
+              disabled={blocked}
+              loading={generating}
+              loadingPosition="start"
               aria-describedby="regenerate-note"
               sx={{ width: { xs: '100%', sm: 'auto' } }}
             >
-              {tr('Generate new set')}
+              {generating
+                ? tr('Generating questions…')
+                : tr('Generate new set')}
             </Button>
           </Stack>
         </Stack>

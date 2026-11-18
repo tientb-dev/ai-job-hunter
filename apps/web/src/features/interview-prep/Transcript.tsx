@@ -116,11 +116,13 @@ export function TranscriptPanel({
           startIcon={<AutoAwesomeIcon />}
           variant="contained"
           onClick={() => void t.askFeedback(questionId, variant)}
-          disabled={
-            !t.text.trim() || over || t.busy || t.feedback.kind === 'loading'
-          }
+          disabled={!t.text.trim() || over || t.busy}
+          loading={t.feedback.kind === 'loading'}
+          loadingPosition="start"
         >
-          {tr('Get AI feedback')}
+          {t.feedback.kind === 'loading'
+            ? tr('Getting AI feedback…')
+            : tr('Get AI feedback')}
         </Button>
       </Box>
       {t.feedback.kind === 'loading' && (

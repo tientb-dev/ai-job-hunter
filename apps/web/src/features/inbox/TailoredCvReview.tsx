@@ -144,6 +144,7 @@ export function TailoredCvReview({
   >([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [busy, setBusy] = useState(false),
+    [generating, setGenerating] = useState(false),
     [error, setError] = useState('');
   // Transient completion messages are toasts; persistent workflow states
   // (approval, readiness, blockers) stay inline below.
@@ -1554,7 +1555,10 @@ export function TailoredCvReview({
           // flash); a changed context clears it, and the server rejects
           // stale job, CV, profile or match pins at generation.
           disabled={!readiness.ready}
-          onClick={() =>
+          loading={generating}
+          loadingPosition="start"
+          onClick={() => {
+            setGenerating(true);
             void run(async (token) => {
               if (!server?.ready || !server.pins) return;
               const { sourceRevisionId: _sourceRevisionId, ...pins } =
@@ -1571,12 +1575,20 @@ export function TailoredCvReview({
                   ),
                 );
               }
-            })
-          }
+            }).finally(() => setGenerating(false));
+          }}
         >
-          {tr('Generate new draft')}
+          {generating ? tr('Generating draft…') : tr('Generate new draft')}
         </Button>
       </Stack>
+      {generating && (
+        <Stack spacing={1} role="status" sx={{ mt: 2 }}>
+          <LinearProgress aria-label={tr('Generating draft…')} />
+          <Typography variant="body2" color="text.secondary">
+            {tr('Generating a tailored draft with the AI…')}
+          </Typography>
+        </Stack>
+      )}
     </Box>
   );
   return (

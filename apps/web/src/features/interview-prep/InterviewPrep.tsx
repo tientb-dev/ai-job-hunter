@@ -1228,9 +1228,11 @@ export function InterviewPrep({ job }: { job?: JobPracticeMode } = {}) {
               startIcon={<AutoAwesomeIcon />}
               type="submit"
               variant="contained"
-              disabled={loading || !text.trim()}
+              disabled={!text.trim()}
+              loading={loading}
+              loadingPosition="start"
             >
-              {MODES[mode].action}
+              {loading ? tr('Getting AI feedback…') : MODES[mode].action}
             </Button>
             {loading && (
               <Button variant="outlined" onClick={cancel}>

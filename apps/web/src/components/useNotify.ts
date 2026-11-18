@@ -10,7 +10,7 @@ export type Notification = {
   text: string;
   title?: string;
 };
-export const SUCCESS_NOTIFICATION_MS = 2500;
+export const SUCCESS_NOTIFICATION_MS = 3500;
 export const Notifications = createContext<
   ((message: Notification) => void) | null
 >(null);

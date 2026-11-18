@@ -123,8 +123,9 @@ export function CvMatchSection({
               startIcon={<AutoAwesomeIcon />}
               variant={result || preferSecondary ? 'outlined' : 'contained'}
               disableElevation
+              loading={busy}
+              loadingPosition="start"
               disabled={
-                busy ||
                 analyzeBlocked ||
                 !cv ||
                 matchStatus === 'CHECKING' ||
@@ -1377,9 +1378,13 @@ export function MatchGate({
                 startIcon={<AutoAwesomeIcon />}
                 variant="outlined"
                 disabled={analyzeBlocked || !cv}
+                loading={match.busy}
+                loadingPosition="start"
                 onClick={() => void match.analyze()}
               >
-                {tr('Reanalyze CV Match')}
+                {match.busy
+                  ? tr('Analyzing CV Match…')
+                  : tr('Reanalyze CV Match')}
               </Button>
             </Stack>
           </Stack>
@@ -1503,7 +1508,11 @@ export function MatchGate({
               }
               onClick={() => void match.analyze()}
             >
-              {reanalyze ? tr('Reanalyze CV Match') : tr('Analyze CV Match')}
+              {busy
+                ? tr('Analyzing CV Match…')
+                : reanalyze
+                  ? tr('Reanalyze CV Match')
+                  : tr('Analyze CV Match')}
             </Button>
             <Button
               {...(routing

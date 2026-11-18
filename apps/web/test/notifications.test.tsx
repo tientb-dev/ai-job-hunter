@@ -74,7 +74,7 @@ test('one portal host queues notifications without replacing persistent errors',
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
 
-test('success closes after about 2.5s; an error with a title stays until dismissed', async () => {
+test('success closes after about 3.5s; an error with a title stays until dismissed', async () => {
   vi.useFakeTimers();
   try {
     function Titled() {
@@ -100,7 +100,7 @@ test('success closes after about 2.5s; an error with a title stays until dismiss
       </>,
     );
     fireEvent.click(screen.getByRole('button', { name: 'Success' }));
-    await act(() => vi.advanceTimersByTimeAsync(2000));
+    await act(() => vi.advanceTimersByTimeAsync(3000));
     expect(screen.getByText('Saved successfully')).toBeInTheDocument();
     await act(() => vi.advanceTimersByTimeAsync(1000));
     expect(screen.queryByText('Saved successfully')).toBeNull();
