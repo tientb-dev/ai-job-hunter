@@ -1,5 +1,6 @@
 import { TailoredDraftError } from './tailored-draft.contract.js';
 import { SourceProfileProposalService } from './source-profile-proposal.js';
+import { excludeDecorativeCoverage } from './source-profile-structure.js';
 import { createHash, randomUUID } from 'node:crypto';
 import {
   ConflictException,
@@ -277,6 +278,7 @@ export class TailoredCvService {
             ...copy.reconstruction,
             previousRevisionId: prior.id,
           };
+        excludeDecorativeCoverage(copy, source.text);
         document = profileDocument(copy, source.id, source.text);
       }
       const row = await repo.save(
