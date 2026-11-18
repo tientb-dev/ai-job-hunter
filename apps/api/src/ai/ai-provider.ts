@@ -14,6 +14,8 @@ export interface GenerationRequest {
   readonly schema: OutputSchema;
   // Ollama sampling seed for repeatability; output is still not guaranteed identical.
   readonly seed?: number;
+  // Gemini only: per-call output cap; omitted keeps GEMINI_MAX_OUTPUT_TOKENS.
+  readonly maxOutputTokens?: number;
 }
 export interface AiProvider {
   generate(request: GenerationRequest): Promise<string>;

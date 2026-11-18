@@ -150,6 +150,8 @@ export function withCvOrigins<
 
 /** Per account, counting CVs uploaded from My CV and from individual jobs. */
 export const MAX_SAVED_CVS = 5;
+// Match output grows with requirements x components; the model supports 65,536.
+export const MATCH_MAX_OUTPUT_TOKENS = 16_384;
 @Injectable()
 export class JobMatchService {
   private active = false;
@@ -679,7 +681,10 @@ export class JobMatchService {
         trace.stage = stage;
         try {
           return (
-            (await this.ai.generateStructured(request)) as {
+            (await this.ai.generateStructured({
+              ...request,
+              maxOutputTokens: MATCH_MAX_OUTPUT_TOKENS,
+            })) as {
               requirements: MatchRequirement[];
             }
           ).requirements;
@@ -697,6 +702,16 @@ export class JobMatchService {
             ['INVALID_JSON', 'SCHEMA_VALIDATION_FAILURE'].includes(error.code)
           )
             throw new CvMatchError('CV_MATCH_INVALID_OUTPUT');
+          // Deterministic (temperature 0): never resend the identical request.
+          if (
+            error instanceof AiError &&
+            error.code === 'OUTPUT_LIMIT_EXCEEDED'
+          )
+            throw new CvMatchError(
+              'CV_MATCH_OUTPUT_LIMIT',
+              'OUTPUT_LIMIT_EXCEEDED',
+              error.usage,
+            );
           // Transient overload/rate limit after the provider's own retries.
           if (
             error instanceof AiError &&

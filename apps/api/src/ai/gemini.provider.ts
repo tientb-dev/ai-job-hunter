@@ -57,7 +57,7 @@ export class GeminiProvider implements AiProvider {
         generationConfig: {
           temperature: 0,
           candidateCount: 1,
-          maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+          maxOutputTokens: request.maxOutputTokens ?? GEMINI_MAX_OUTPUT_TOKENS,
           responseMimeType: 'application/json',
           responseJsonSchema: geminiSchema(request.schema),
         },
@@ -172,7 +172,12 @@ export function candidateText(envelope: unknown): string {
     throw new AiError('MALFORMED_RESPONSE');
   const candidate = envelope.candidates[0];
   if (candidate.finishReason === 'MAX_TOKENS')
-    throw new AiError('OUTPUT_LIMIT_EXCEEDED');
+    throw new AiError(
+      'OUTPUT_LIMIT_EXCEEDED',
+      undefined,
+      undefined,
+      tokenUsage(envelope.usageMetadata),
+    );
   // SAFETY, RECITATION, blocked prompts etc. are not usable output.
   if (candidate.finishReason !== 'STOP')
     throw new AiError('MALFORMED_RESPONSE');
@@ -188,4 +193,22 @@ export function candidateText(envelope: unknown): string {
   }
   if (!text) throw new AiError('MALFORMED_RESPONSE');
   return text;
+}
+
+const USAGE_FIELDS = [
+  'promptTokenCount',
+  'candidatesTokenCount',
+  'thoughtsTokenCount',
+  'totalTokenCount',
+] as const;
+/** Integer token counts only; never text, ids or other metadata. */
+export function tokenUsage(metadata: unknown): Record<string, number> {
+  const usage: Record<string, number> = {};
+  if (!record(metadata)) return usage;
+  for (const field of USAGE_FIELDS) {
+    const value = metadata[field];
+    if (Number.isSafeInteger(value) && (value as number) >= 0)
+      usage[field] = value as number;
+  }
+  return usage;
 }

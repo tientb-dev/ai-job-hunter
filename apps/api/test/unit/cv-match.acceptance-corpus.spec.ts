@@ -19,7 +19,10 @@ import {
   validateMatchAssessment,
   type MatchRequirement,
 } from '../../src/matching/cv-match.js';
-import { JobMatchService } from '../../src/matching/job-match.service.js';
+import {
+  JobMatchService,
+  MATCH_MAX_OUTPUT_TOKENS,
+} from '../../src/matching/job-match.service.js';
 import { MatchingService } from '../../src/matching/matching.service.js';
 import type { SavedCv } from '../../src/matching/saved-cv.entity.js';
 import type { OpportunitiesService } from '../../src/opportunities/opportunities.service.js';
@@ -494,7 +497,7 @@ describe('14: AI decomposition — validation, cache, and provider failures', ()
       provider.generate.mock.calls.filter(([request]) =>
         request.prompt.startsWith('Split each job requirement'),
       ).length;
-    return { service, calls };
+    return { service, calls, provider };
   }
   const reply = (mode: string, components: string[]) => async () =>
     JSON.stringify({ items: [{ parentId: 'p1', mode, components }] });
@@ -538,6 +541,44 @@ describe('14: AI decomposition — validation, cache, and provider failures', ()
     );
     await edited.service.analyze(LOCAL_OWNER_ID, 'synthetic-job');
     expect(edited.calls()).toBe(1);
+  });
+
+  test('large requirement set with cached decomposition: Match-only output budget; MAX_TOKENS fails once, without a score', async () => {
+    clearDecompositionCache();
+    const large = job([
+      REQ.cloudIncluding,
+      ...Array.from({ length: 30 }, (_, i) => `Synthetic skill ${i + 1}`),
+    ]);
+    const first = harness(reply('OR', ['AWS', 'GCP', 'Azure']), large);
+    await first.service.analyze(LOCAL_OWNER_ID, 'synthetic-job');
+    const sent = (
+      first.provider.generate.mock.calls as unknown as [
+        { prompt: string; maxOutputTokens?: number },
+      ][]
+    ).map(([request]) => request);
+    // Decomposition keeps the provider default; Match requests the larger budget.
+    expect(sent.map((request) => request.maxOutputTokens)).toEqual([
+      undefined,
+      MATCH_MAX_OUTPUT_TOKENS,
+    ]);
+    expect(MATCH_MAX_OUTPUT_TOKENS).toBe(16_384);
+
+    const truncated = harness(reply('OR', ['AWS', 'GCP', 'Azure']), large);
+    truncated.provider.generate.mockImplementation(async () => {
+      throw new AiError('OUTPUT_LIMIT_EXCEEDED', undefined, undefined, {
+        candidatesTokenCount: 16_384,
+      });
+    });
+    await expect(
+      truncated.service.analyze(LOCAL_OWNER_ID, 'synthetic-job'),
+    ).rejects.toMatchObject({
+      errorCode: 'CV_MATCH_OUTPUT_LIMIT',
+      reasonCode: 'OUTPUT_LIMIT_EXCEEDED',
+      status: 422,
+    });
+    // Cached decomposition: the only call is the INITIAL Match; never resent.
+    expect(truncated.calls()).toBe(0);
+    expect(truncated.provider.generate).toHaveBeenCalledTimes(1);
   });
 });
 

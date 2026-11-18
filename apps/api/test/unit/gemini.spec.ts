@@ -10,6 +10,7 @@ import {
   GEMINI_MAX_ATTEMPTS,
   GEMINI_MAX_OUTPUT_TOKENS,
   geminiSchema,
+  tokenUsage,
   retryDelay,
 } from '../../src/ai/gemini.provider.js';
 import { OllamaProvider } from '../../src/ai/ollama.provider.js';
@@ -194,6 +195,56 @@ test.each([
   await expect(
     new GeminiProvider(config).generate(input),
   ).rejects.toMatchObject({ code });
+});
+
+test('a per-request output budget overrides only maxOutputTokens', async () => {
+  const fetch = mockFetch().mockResolvedValue(envelope(stop('{"name":"Ada"}')));
+  await new AiService(new GeminiProvider(config)).generateStructured({
+    ...input,
+    maxOutputTokens: 16_384,
+  });
+  const body = JSON.parse(fetch.mock.calls[0]![1]!.body as string) as {
+    generationConfig: Record<string, unknown>;
+  };
+  expect(body.generationConfig.maxOutputTokens).toBe(16_384);
+  expect(body.generationConfig).not.toHaveProperty('thinkingConfig');
+});
+
+test('MAX_TOKENS carries integer token usage only, sent once', async () => {
+  const fetch = mockFetch().mockResolvedValue(
+    new Response(
+      JSON.stringify({
+        candidates: [{ ...stop('{"name":'), finishReason: 'MAX_TOKENS' }],
+        usageMetadata: {
+          promptTokenCount: 812,
+          candidatesTokenCount: 4090,
+          thoughtsTokenCount: 6,
+          totalTokenCount: 4908,
+          cachedContentTokenCount: 'PRIVATE',
+          promptTokensDetails: [{ modality: 'TEXT', tokenCount: 812 }],
+        },
+        modelVersion: 'synthetic',
+      }),
+      { status: 200 },
+    ),
+  );
+  const error = await new GeminiProvider(config)
+    .generate(input)
+    .catch((e: unknown) => e);
+  expect(error).toMatchObject({
+    code: 'OUTPUT_LIMIT_EXCEEDED',
+    usage: {
+      promptTokenCount: 812,
+      candidatesTokenCount: 4090,
+      thoughtsTokenCount: 6,
+      totalTokenCount: 4908,
+    },
+  });
+  expect(Object.keys((error as { usage: object }).usage)).toHaveLength(4);
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(tokenUsage({ promptTokenCount: -1, totalTokenCount: 1.5 })).toEqual(
+    {},
+  );
 });
 
 test('output exceeding an omitted maxItems still fails full validation', async () => {

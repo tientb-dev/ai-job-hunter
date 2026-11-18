@@ -374,6 +374,11 @@ const analyzeErrors: Record<string, string> = {
       'The AI cited CV text that could not be verified, so no new fit score was produced. Your saved match is unchanged. Retry; results can differ between attempts.',
     );
   },
+  get CV_MATCH_OUTPUT_LIMIT() {
+    return tr(
+      "AI couldn't complete this match within the response limit. Your previous result is unchanged. Please try again.",
+    );
+  },
   get CV_MATCH_PROVIDER_BUSY() {
     return tr(
       'The AI service is temporarily busy. Your saved match is unchanged. Try again in a few minutes.',
