@@ -1,4 +1,12 @@
-import { act, fireEvent, render, screen, waitFor, within } from './render';
+import {
+  closeSuccess,
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from './render';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { expect, test, vi } from 'vitest';
@@ -139,12 +147,9 @@ test('loads persistent NEW then SEEN candidates, opening details does not mark s
   );
   const notice = await screen.findByText('Marked as seen.');
   expect(dialog.contains(notice)).toBe(false);
-  expect(notice.closest('.MuiSnackbar-root')).toHaveStyle({
-    position: 'fixed',
-  });
+  await closeSuccess();
   expect(dialog.querySelectorAll('.MuiDialogContent-root')).toHaveLength(1);
   expect(content.scrollTop).toBe(120);
-  fireEvent.click(screen.getByRole('button', { name: 'Close' }));
   expect(rows[0]!.status).toBe('SEEN');
   await userEvent.click(
     within(dialog).getByRole('button', { name: 'Dismiss' }),
@@ -211,6 +216,7 @@ test('explicit Save links existing Inbox job, retains review feedback and refres
     await screen.findByRole('button', { name: 'Save to Jobs' }),
   );
   expect(await screen.findByText(/Linked to the existing job/)).toBeVisible();
+  await closeSuccess();
   expect(screen.getByRole('link', { name: 'Open in Jobs' })).toHaveAttribute(
     'href',
     '/jobs/00000000-0000-4000-8000-000000000099',
@@ -291,6 +297,7 @@ test.each(['POSSIBLE_DUPLICATE', 'AMBIGUOUS_INBOX_MATCH'])(
           name: 'Save as separate job',
         }),
       );
+      await closeSuccess();
       await screen.findByRole('link', { name: 'Open in Jobs' });
       expect(JSON.parse(writes(fetch)[2]![1]!.body as string)).toEqual({
         confirmSeparate: true,

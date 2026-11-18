@@ -182,7 +182,12 @@ export function MyCv() {
       setUploading(false);
     }
   }
-  async function manage(id: string, init: RequestInit, done: string) {
+  async function manage(
+    id: string,
+    init: RequestInit,
+    done: string,
+    failed = tr('Could not update this CV.'),
+  ) {
     setManaging(true);
     try {
       setCvs(await opportunityRequest<SavedCv[]>(`/cv/${id}`, init));
@@ -191,7 +196,7 @@ export function MyCv() {
     } catch (failure) {
       notify({
         severity: 'error',
-        title: tr('Could not update this CV.'),
+        title: failed,
         text:
           failure instanceof Error
             ? tr(failure.message)
@@ -830,7 +835,13 @@ export function MyCv() {
         onSafe={() => setConfirmDelete(false)}
         onConfirm={() => {
           setConfirmDelete(false);
-          if (cv) void manage(cv.id, { method: 'DELETE' }, tr('CV deleted.'));
+          if (cv)
+            void manage(
+              cv.id,
+              { method: 'DELETE' },
+              tr('CV deleted.'),
+              tr('Could not delete CV'),
+            );
         }}
       />
     </Stack>

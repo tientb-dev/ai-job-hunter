@@ -2,7 +2,14 @@ import { ThemeProvider } from '@mui/material';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { expect, test, vi } from 'vitest';
-import { render, screen, waitFor, within } from './render';
+import {
+  acknowledge,
+  closeSuccess,
+  render,
+  screen,
+  waitFor,
+  within,
+} from './render';
 import { theme } from '../src/app/theme';
 import { MyCv } from '../src/features/inbox/MyCv';
 import { cvProfileFixture, sourceCvFixture } from './fixtures/source-cv-review';
@@ -287,10 +294,15 @@ test('a non-default CV can become the default; a CV still used by a job is not d
   await user.click(
     within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }),
   );
-  expect(await screen.findByText(inUse)).toBeVisible();
+  // The dependency error is a centred dialog that waits for acknowledgment.
+  const failure = await screen.findByRole('alertdialog');
+  expect(failure).toHaveTextContent('Could not delete CV');
+  expect(failure).toHaveTextContent(inUse);
+  await acknowledge();
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   expect(screen.getByRole('region', { name: 'Data CV' })).toBeVisible();
   await user.click(screen.getByRole('button', { name: 'Make default' }));
+  await closeSuccess();
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'Make default' })).toBeDisabled(),
   );

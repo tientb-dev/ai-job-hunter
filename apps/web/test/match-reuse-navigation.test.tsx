@@ -7,7 +7,14 @@ import {
 import { useRef, useState } from 'react';
 import userEvent from '@testing-library/user-event';
 import { expect, test, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from './render';
+import {
+  closeSuccess,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from './render';
 import { UnsavedJobGuard } from '../src/features/inbox/UnsavedJobGuard';
 import { CvMatchPanel } from '../src/features/inbox/CvMatchPanel';
 import { syntheticMatch } from './fixtures/cv-suggestions';
@@ -586,6 +593,7 @@ test('Load selected older approved draft from preview opens Step 3 and preserves
   // Shown in the CV document and in its suggestion card.
   await screen.findAllByText('Distinct older draft content.');
   expect(screen.getByText(/Opened Draft 1\./)).toBeVisible();
+  await closeSuccess();
   expect(
     screen.getByRole('button', { name: /^Draft 1 .*Open now$/ }),
   ).toHaveAttribute('aria-current', 'true');

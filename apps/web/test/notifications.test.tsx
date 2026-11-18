@@ -34,44 +34,61 @@ function Controls() {
   );
 }
 
-test('one portal host queues notifications without replacing persistent errors', async () => {
+test('errors open one centred dialog until acknowledged; success/info is a small top popup', async () => {
   vi.useFakeTimers();
-  const { container } = render(<Controls />);
-  fireEvent.click(screen.getByText('Error'));
-  fireEvent.click(screen.getByText('Success'));
-  fireEvent.click(screen.getByText('Info'));
-  const error = screen.getByRole('alert');
-  expect(error).toHaveAttribute('aria-live', 'assertive');
-  expect(error.closest('.MuiSnackbar-root')).toHaveStyle({ position: 'fixed' });
-  expect(container.contains(error)).toBe(false);
-  expect(document.querySelectorAll('.MuiSnackbar-root')).toHaveLength(1);
-  await act(async () => {
-    await vi.advanceTimersByTimeAsync(10000);
-  });
-  expect(error).toHaveTextContent('Save failed. Retry.');
-  expect(screen.queryByText('Saved successfully')).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Close' }));
-  await act(async () => {
-    await vi.advanceTimersByTimeAsync(300);
-  });
-  // The newer info toast superseded the queued success; the error stayed.
-  expect(screen.getByRole('status')).toHaveTextContent('Information');
-  expect(screen.getByRole('status')).toHaveAttribute('aria-live', 'polite');
-  expect(screen.queryByText('Saved successfully')).not.toBeInTheDocument();
-  await act(async () => {
-    await vi.advanceTimersByTimeAsync(6500);
-  });
-  expect(screen.queryByRole('status')).not.toBeInTheDocument();
-  fireEvent.click(screen.getByText('Warning'));
-  await act(async () => {
-    await vi.advanceTimersByTimeAsync(10000);
-  });
-  expect(screen.getByRole('alert')).toHaveTextContent('Review source errors');
-  fireEvent.click(screen.getByRole('button', { name: 'Close' }));
-  await act(async () => {
-    await vi.advanceTimersByTimeAsync(300);
-  });
-  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  try {
+    render(<Controls />);
+    fireEvent.click(screen.getByText('Error'));
+    fireEvent.click(screen.getByText('Success'));
+    fireEvent.click(screen.getByText('Info'));
+    const dialog = screen.getByRole('alertdialog');
+    expect(dialog).toHaveTextContent('Action failed');
+    expect(dialog).toHaveTextContent('Save failed. Retry.');
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    await act(() => vi.advanceTimersByTimeAsync(10000));
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'OK' }));
+    await act(() => vi.advanceTimersByTimeAsync(300));
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    // The newer info popup superseded the queued success; the error stayed.
+    const popup = screen.getByRole('status');
+    expect(popup).toHaveTextContent('Information');
+    expect(popup.closest('.MuiDialog-root')).not.toBeNull();
+    expect(screen.queryByText('Saved successfully')).not.toBeInTheDocument();
+    await act(() => vi.advanceTimersByTimeAsync(6000));
+    // React renders the close after this tick; then the fade-out runs.
+    await act(() => vi.advanceTimersByTimeAsync(500));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Warning'));
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
+      'Review source errors',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'OK' }));
+    await act(() => vi.advanceTimersByTimeAsync(300));
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test('Retry is offered only when the caller passes a safe retry action', async () => {
+  const retry = vi.fn();
+  function WithRetry() {
+    const notify = useNotify();
+    return (
+      <button
+        onClick={() =>
+          notify({ severity: 'error', text: 'Load failed', onRetry: retry })
+        }
+      >
+        Fail
+      </button>
+    );
+  }
+  render(<WithRetry />);
+  fireEvent.click(screen.getByText('Fail'));
+  fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+  expect(retry).toHaveBeenCalledTimes(1);
 });
 
 test('success closes after about 3.5s; an error with a title stays until dismissed', async () => {
@@ -102,13 +119,14 @@ test('success closes after about 3.5s; an error with a title stays until dismiss
     fireEvent.click(screen.getByRole('button', { name: 'Success' }));
     await act(() => vi.advanceTimersByTimeAsync(3000));
     expect(screen.getByText('Saved successfully')).toBeInTheDocument();
-    await act(() => vi.advanceTimersByTimeAsync(1000));
+    await act(() => vi.advanceTimersByTimeAsync(500));
+    await act(() => vi.advanceTimersByTimeAsync(500));
     expect(screen.queryByText('Saved successfully')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Titled error' }));
     await act(() => vi.advanceTimersByTimeAsync(30000));
-    const alert = screen.getByRole('alert');
-    expect(alert).toHaveTextContent('Review action failed');
-    expect(alert).toHaveTextContent('Check the local API and retry.');
+    const dialog = screen.getByRole('alertdialog');
+    expect(dialog).toHaveTextContent('Review action failed');
+    expect(dialog).toHaveTextContent('Check the local API and retry.');
   } finally {
     vi.useRealTimers();
   }

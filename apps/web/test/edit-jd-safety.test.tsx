@@ -1,7 +1,7 @@
 import { ThemeProvider } from '@mui/material';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { expect, test, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from './render';
+import { fireEvent, render, screen, waitFor, acknowledge } from './render';
 import { theme } from '../src/app/theme';
 import { JobEditor } from '../src/features/inbox/JobEditor';
 import {
@@ -183,6 +183,7 @@ test('failed manual Save retains description and evidence for explicit retry', a
   });
   fireEvent.click(save());
   await screen.findByText(/Synthetic Save rejected/);
+  await acknowledge();
   expect(screen.getByLabelText('Job description')).toHaveValue(
     'Retained on failure',
   );

@@ -1,5 +1,5 @@
 import { beforeEach, expect, test, vi } from 'vitest';
-import { act, render, screen, waitFor, within } from './render';
+import { closeSuccess, act, render, screen, waitFor, within } from './render';
 import userEvent from '@testing-library/user-event';
 import {
   createMemoryRouter,
@@ -233,6 +233,7 @@ test('Discover Jobs supports direct links, navigation, retained results and hist
     'aria-live',
     'polite',
   );
+  await closeSuccess();
   await user.click(screen.getByRole('button', { name: 'Run details' }));
   const viewInbox = await screen.findByRole('link', { name: 'View Jobs' });
   expect(router.state.location.pathname).toBe('/discover');

@@ -56,10 +56,9 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
       });
       setSummary(result);
       notify({
-        severity:
-          result.sourceFailures || result.warnings.length
-            ? 'warning'
-            : 'success',
+        // Only failed sources need acknowledgment; listing warnings stay in
+        // Run details behind a normal success popup.
+        severity: result.sourceFailures ? 'warning' : 'success',
         text:
           result.sources.length > 0 &&
           result.sourceFailures === result.sources.length

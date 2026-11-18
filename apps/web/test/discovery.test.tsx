@@ -1,5 +1,14 @@
 import { expect, test, vi } from 'vitest';
-import { act, fireEvent, render, screen, within, waitFor } from './render';
+import {
+  acknowledge,
+  closeSuccess,
+  act,
+  fireEvent,
+  render,
+  screen,
+  within,
+  waitFor,
+} from './render';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { DiscoverJobs } from '../src/features/inbox/DiscoverJobs';
@@ -81,9 +90,8 @@ test('preferences expand while discovery remains accessible and sends unchanged 
   const completion = screen.getByText(
     /5 eligible · 3 added · 2 known · 0 over limit/,
   );
-  expect(completion.closest('.MuiSnackbar-root')).toHaveStyle({
-    position: 'fixed',
-  });
+  expect(screen.getByRole('status')).toContainElement(completion);
+  await closeSuccess();
   expect(completion.closest('section')).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Run details' }));
   expect(screen.getByRole('link', { name: 'View Jobs' })).toHaveAttribute(
@@ -138,7 +146,10 @@ test('partial-source errors retain success counts, remaining guidance and cache 
   mount();
   fireEvent.click(screen.getByRole('button', { name: 'Run discovery' }));
   await screen.findByText(/9 eligible · 3 added · 2 known · 4 over limit/);
-  expect(screen.getByRole('alert')).toHaveTextContent('1 source unavailable');
+  expect(screen.getByRole('alertdialog')).toHaveTextContent(
+    '1 source unavailable',
+  );
+  await acknowledge();
 
   fireEvent.click(screen.getByRole('button', { name: 'Run details' }));
   await screen.findByText('Synthetic source unavailable');
@@ -169,6 +180,7 @@ test('zero results offer preference guidance, Add Job and Inbox links', async ()
   mount();
   fireEvent.click(screen.getByRole('button', { name: 'Run discovery' }));
   await screen.findByText(/0 eligible · 0 added/);
+  await closeSuccess();
   fireEvent.click(screen.getByRole('button', { name: 'Run details' }));
   expect(
     await screen.findByText(/No eligible candidates in this run/),
@@ -214,6 +226,7 @@ test('request failure preserves edited preferences and supports a manual retry',
   ).not.toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Run discovery' }));
   await screen.findByText(/5 eligible · 3 added/);
+  await closeSuccess();
   fireEvent.click(screen.getByRole('button', { name: 'Run details' }));
   expect(await screen.findByRole('link', { name: 'View Jobs' })).toBeVisible();
   expect(
@@ -231,6 +244,7 @@ test('run details displays four source outcomes, null counts, warnings and known
   const user = userEvent.setup();
   await user.click(screen.getByRole('button', { name: 'Run discovery' }));
   await screen.findByText(/5 eligible · 3 added · 2 known/);
+  await closeSuccess();
   const trigger = screen.getByRole('button', { name: 'Run details' });
   trigger.focus();
   await user.keyboard('{Enter}');
@@ -288,9 +302,10 @@ test('all-source failure is a warning, never a no-match result or zero-job feed'
   );
   mount();
   await userEvent.click(screen.getByRole('button', { name: 'Run discovery' }));
-  expect(await screen.findByRole('alert')).toHaveTextContent(
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent(
     'No sources available',
   );
+  await acknowledge();
   await userEvent.click(screen.getByRole('button', { name: 'Run details' }));
   const dialog = screen.getByRole('dialog', { name: 'Discovery run details' });
   expect(dialog).not.toHaveTextContent('No eligible candidates');
@@ -316,9 +331,8 @@ test('successful run uses a success notification and consumes the additive respo
   const completion = await screen.findByText(
     '5 eligible · 3 added · 2 known · 0 over limit',
   );
-  expect(completion.closest('.MuiAlert-root')).toHaveClass(
-    'MuiAlert-colorSuccess',
-  );
+  expect(screen.getByRole('status')).toContainElement(completion);
+  expect(screen.getByRole('status')).not.toHaveTextContent('Please note');
   expect(completion.closest('section')).toBeNull();
 });
 

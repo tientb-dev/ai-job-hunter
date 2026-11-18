@@ -1,6 +1,6 @@
 import { MemoryRouter } from 'react-router-dom';
 import { expect, test, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from './render';
+import { closeSuccess, render, screen, fireEvent, waitFor } from './render';
 import { CvMatchPanel } from '../src/features/inbox/CvMatchPanel';
 import { syntheticMatch } from './fixtures/cv-suggestions';
 import { richProfile, richSource } from './fixtures/structured-source-review';
@@ -139,6 +139,11 @@ test('completed six-section review and fresh match enable P8 independently of P7
   await screen.findByText(/6 of 6 sections reviewed/);
   expect(screen.getByRole('button', { name: 'Complete review' })).toBeEnabled();
   fireEvent.click(screen.getByRole('button', { name: 'Complete review' }));
+  // The completion popup survives the step change, once.
+  expect(await screen.findAllByText('Source CV review complete.')).toHaveLength(
+    1,
+  );
+  await closeSuccess();
   await waitFor(() =>
     expect(
       screen.getByRole('button', { name: 'Generate new draft' }),
@@ -147,8 +152,6 @@ test('completed six-section review and fresh match enable P8 independently of P7
   await screen.findByText(
     /Check readiness below, then choose Generate new draft/,
   );
-  // The completion toast survives the step change, once.
-  expect(screen.getAllByText('Source CV review complete.')).toHaveLength(1);
 });
 
 test('expired server context refreshes in place without repeating source review and survives tab navigation', async () => {
@@ -387,6 +390,7 @@ test('completing source review without a saved match opens CV Match instead of s
   fireEvent.click(screen.getByRole('button', { name: 'Review source CV' }));
   await screen.findByText(/6 of 6 sections reviewed/);
   fireEvent.click(screen.getByRole('button', { name: 'Complete review' }));
+  await closeSuccess();
   await screen.findByRole('heading', { name: 'Step 2 of 3 · Tailor & Review' });
   expect(
     screen.getByRole('tab', { name: /Tailor & Review/ }),
