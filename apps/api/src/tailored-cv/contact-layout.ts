@@ -1,5 +1,5 @@
 import { validatePdfLayout, type PdfLayout } from '../extraction/pdf-layout.js';
-import type { Passage } from './source-profile-structure.js';
+import { decorativeReason, type Passage } from './source-profile-structure.js';
 
 export const profileReferenceIssue =
   'Possible LinkedIn profile reference beside a contact icon. Confirm the platform before creating a URL; this fragment contains no full URL.';
@@ -62,13 +62,11 @@ export function contactLayoutPassages(
     if (contact) associatedIcons.add(before.start);
     return contact ? { ...p, issue: profileReferenceIssue } : p;
   });
+  // Layout proves the icon is a separate PDF item, not a lost character of the
+  // handle: exclude it automatically; only the handle itself needs review.
   return result.map((p) =>
     associatedIcons.has(p.evidence?.start ?? p.start)
-      ? {
-          ...p,
-          issue:
-            'PDF icon or separator artifact. Beside a possible LinkedIn profile reference; keep or classify that reference separately.',
-        }
+      ? { ...p, issue: decorativeReason }
       : p,
   );
 }

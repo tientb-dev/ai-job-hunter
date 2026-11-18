@@ -113,12 +113,33 @@ const artifactIssue =
 // Confidently decorative icon-font/separator glyphs: excluded automatically
 // (source text and coverage stay intact for audit). U+FFFD glued to a letter
 // may be a lost real character, so it stays in normal review.
-const decorativeReason =
+export const decorativeReason =
   'Decorative PDF icon or separator removed automatically; not CV content.';
 const decorative = (glyphs: string, after: string) =>
   !/\uFFFD/u.test(glyphs) || !/^\p{L}/u.test(after);
 const iconPrefix =
   /^[ \t]*(?:[\uFFFD\u25A1\u25AF\u25A0\uE000-\uF8FF\u2709]\uFE0F?[ \t]*)+/u;
+// Reviews saved before automatic exclusion keep icon-only rows "unresolved";
+// re-apply the same rule on reuse. Only untouched unresolved artifact rows
+// change, so user exclusions and mapped facts are never altered.
+export function excludeDecorativeCoverage(
+  document: ProfileDocument,
+  source: string,
+): void {
+  for (const row of document.coverage) {
+    const glyphs = source.slice(row.start, row.end);
+    if (
+      row.disposition === 'unresolved' &&
+      row.reason?.startsWith('PDF icon or separator artifact') &&
+      new RegExp(`${iconPrefix.source}\\s*$`, 'u').test(glyphs) &&
+      (row.reason.includes('Beside a possible LinkedIn') ||
+        decorative(glyphs, source.slice(row.end)))
+    ) {
+      row.disposition = 'excluded';
+      row.reason = decorativeReason;
+    }
+  }
+}
 function locationHint(value: string): string | undefined {
   return /\b(?:city|vietnam|viet nam|hanoi|ho chi minh)\b/iu.test(value) &&
     !/(?:\d[\s().\u2010-\u2015-]*){7}/u.test(value) &&

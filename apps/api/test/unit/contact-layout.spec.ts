@@ -7,6 +7,7 @@ import {
   sourcePassages,
   assembleProposal,
 } from '../../src/tailored-cv/source-profile-proposal.js';
+import { excludeDecorativeCoverage } from '../../src/tailored-cv/source-profile-structure.js';
 import { profileDocument } from '../../src/tailored-cv/tailored-cv.contract.js';
 const id = '00000000-0000-4000-8000-000000000082';
 function fixture(gap = 6, vertical = 0) {
@@ -53,8 +54,8 @@ test('envelope icons remain independently excludable while exact email and profi
   expect(
     passages.find((p) => p.text.trim() === 'synthetic-person-123')!.issue,
   ).toMatch(/^Possible LinkedIn profile reference/u);
-  expect(passages.find((p) => p.text.trim() === '\uf05a')!.issue).toContain(
-    'Beside a possible LinkedIn',
+  expect(passages.find((p) => p.text.trim() === '\uf05a')!.issue).toMatch(
+    /^Decorative PDF icon/u,
   );
   const doc = assembleProposal(id, text, { fields: [] }, layout);
   expect(profileDocument(doc, id, text)).toEqual(doc);
@@ -67,6 +68,10 @@ test('envelope icons remain independently excludable while exact email and profi
       text.slice(c.start, c.end).includes('synthetic-person-123'),
     )!.disposition,
   ).toBe('unresolved');
+  expect(
+    doc.coverage.find((c) => text.slice(c.start, c.end).trim() === '\uf05a')!
+      .disposition,
+  ).toBe('excluded');
   expect(JSON.stringify(layout)).toBe(before);
 });
 test.each([
@@ -108,4 +113,52 @@ test('a full visible LinkedIn URL remains exact source evidence rather than a co
   expect(
     doc.coverage.some((c) => c.reason?.startsWith('Possible LinkedIn')),
   ).toBe(false);
+});
+test('reused pre-#119 review: icon rows become excluded, handle and user exclusions stay', () => {
+  const text = '\uf05a synthetic-person-123\n\uFFFDname\n';
+  const doc = {
+    contractVersion: '1' as const,
+    sections: [],
+    coverage: [
+      {
+        start: 0,
+        end: 2,
+        disposition: 'unresolved' as const,
+        factIds: [],
+        reason:
+          'PDF icon or separator artifact. Beside a possible LinkedIn profile reference; keep or classify that reference separately.',
+      },
+      {
+        start: 2,
+        end: 23,
+        disposition: 'unresolved' as const,
+        factIds: [],
+        reason: 'Possible LinkedIn profile reference beside a contact icon.',
+      },
+      {
+        start: 23,
+        end: 24,
+        disposition: 'unresolved' as const,
+        factIds: [],
+        reason: 'PDF icon or separator artifact. Review before excluding.',
+      },
+      {
+        start: 24,
+        end: 29,
+        disposition: 'excluded' as const,
+        factIds: [],
+        reason: 'User excluded',
+      },
+    ],
+  };
+  excludeDecorativeCoverage(doc, text);
+  expect(doc.coverage.map((c) => c.disposition)).toEqual([
+    'excluded',
+    'unresolved',
+    'unresolved',
+    'excluded',
+  ]);
+  expect(doc.coverage[0]!.reason).toMatch(/^Decorative PDF icon/u);
+  expect(doc.coverage[3]!.reason).toBe('User excluded');
+  expect(profileDocument(doc, id, text)).toEqual(doc);
 });
