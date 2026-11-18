@@ -1067,13 +1067,18 @@ export function SourceCvReview({
                     const issues = section.entries.flatMap((e) =>
                       issuesFor(e.facts),
                     );
+                    // Only AI-flagged details need their own confirmation; the
+                    // user's own corrections are confirmed by checking the section.
+                    const flagged = issues.filter(
+                      (f) => f.review === 'needs_clarification',
+                    );
                     const canConfirm =
                       !legacy &&
                       !blocked &&
                       !section.entries.some((entry) =>
                         entry.facts.some((fact) => !fact.value.trim()),
                       ) &&
-                      !issues.length &&
+                      !flagged.length &&
                       section.review !== 'confirmed';
                     return (
                       <Paper
@@ -1255,8 +1260,8 @@ export function SourceCvReview({
                                     })}
                                 {!legacy &&
                                   fields.some(
-                                    ({ original, shown }) =>
-                                      needs(original) || needs(shown),
+                                    ({ original }) =>
+                                      original.review === 'needs_clarification',
                                   ) && (
                                     <Alert
                                       severity="warning"
@@ -1265,8 +1270,9 @@ export function SourceCvReview({
                                       {tr('Check')}{' '}
                                       {fields
                                         .filter(
-                                          ({ original, shown }) =>
-                                            needs(original) || needs(shown),
+                                          ({ original }) =>
+                                            original.review ===
+                                            'needs_clarification',
                                         )
                                         .map(({ shown }) =>
                                           fieldTitle(shown.field),
@@ -1421,10 +1427,10 @@ export function SourceCvReview({
                               </Stack>
                             );
                           })}
-                          {(issues.length > 0 ||
+                          {(flagged.length > 0 ||
                             section.review === 'confirmed') && (
                             <Typography variant="body2" color="text.secondary">
-                              {issues.length
+                              {flagged.length
                                 ? tr(
                                     'Review and confirm the highlighted details to enable section confirmation. Editing is available below.',
                                   )
@@ -1446,9 +1452,14 @@ export function SourceCvReview({
                                 })}
                                 onClick={() =>
                                   change((next) => {
-                                    next.sections.find(
+                                    const target = next.sections.find(
                                       (s) => s.id === section.id,
-                                    )!.review = 'confirmed';
+                                    )!;
+                                    target.review = 'confirmed';
+                                    for (const entry of target.entries)
+                                      for (const fact of entry.facts)
+                                        if (fact.origin === 'user_entered')
+                                          fact.review = 'confirmed';
                                   })
                                 }
                               >

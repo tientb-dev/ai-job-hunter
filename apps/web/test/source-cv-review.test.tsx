@@ -424,7 +424,7 @@ test('legacy review rebuild is explicit, creates a pending revision and keeps ea
   await screen.findByText('Earlier revision 1; preserved without changes.');
 });
 
-test('default review is readable cards; corrections require explicit confirmation and Continue waits for saved review', async () => {
+test('default review is readable cards; a correction is confirmed by checking its section once and survives save', async () => {
   const state = setup();
   await open();
   expect(screen.queryByRole('textbox', { name: 'Full name' })).toBeNull();
@@ -439,12 +439,7 @@ test('default review is readable cards; corrections require explicit confirmatio
   fireEvent.change(screen.getByRole('textbox', { name: 'Full name' }), {
     target: { value: 'A corrected synthetic name' },
   });
-  expect(
-    screen.getByRole('button', {
-      name: 'Mark Personal details section as checked',
-    }),
-  ).toBeDisabled();
-  fireEvent.click(screen.getByRole('button', { name: 'Confirm Full name' }));
+  // The user's own wording needs no separate per-field confirmation.
   fireEvent.click(
     screen.getByRole('button', {
       name: 'Mark Personal details section as checked',
@@ -454,6 +449,46 @@ test('default review is readable cards; corrections require explicit confirmatio
     screen.getByRole('region', { name: 'Before you can complete the review' }),
   ).toBeInTheDocument();
   expect(state.profile().revision).toBe(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  await screen.findByText('Draft saved. You can finish the review later.');
+  // The saved revision is what reopening loads: section and correction stay
+  // confirmed, the original source fact and its evidence are untouched.
+  const saved = state.profile();
+  expect(saved.revision).toBe(2);
+  const contact = saved.document.sections[0]!;
+  expect(contact.review).toBe('confirmed');
+  expect(
+    contact.entries[0]!.facts.find((f) => f.replacesFactId === 'name'),
+  ).toMatchObject({
+    origin: 'user_entered',
+    review: 'confirmed',
+    value: 'A corrected synthetic name',
+    evidence: [],
+  });
+  expect(contact.entries[0]!.facts[0]!.value).toBe('Name: Synthetic Person\n');
+  expect(
+    screen.queryByRole('button', {
+      name: 'Mark Personal details section as checked',
+    }),
+  ).toBeNull();
+  expect(screen.getByRole('button', { name: 'Save draft' })).toBeDisabled();
+});
+
+test('AI-flagged details still need their own confirmation before the section can be checked', async () => {
+  setup();
+  await open();
+  const check = screen.getByRole('button', {
+    name: 'Mark Experience section as checked',
+  });
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Review issues in Experience' }),
+  );
+  fireEvent.change(screen.getByRole('textbox', { name: 'Role' }), {
+    target: { value: 'Developer' },
+  });
+  expect(check).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm Role' }));
+  expect(check).toBeEnabled();
 });
 
 test('logical sections show identity, one summary editor, employer cards and skill categories without passage forms', async () => {

@@ -723,3 +723,48 @@ test('text-only skills: a category word after a value line may be a wrap, so it 
   expect(opening.hint).toBe('skill_category');
   expect(opening.uncertain).toBeFalsy();
 });
+
+test('PDF icon glyphs outside contact never become fact values and year-only ranges stay dates on their own entry', () => {
+  // Icon fonts extract as private-use glyphs (e.g. a briefcase before an employer).
+  const text =
+    'Synthetic Linh Tran\nBackend Developer\n linh@example.invalid |  +84 912 345 678\n\n' +
+    'Experience\n Example Alpha\nBackend Developer\n2021 - Present\n• Built internal APIs.\n\n' +
+    'Education\nExample University\nBachelor of Computer Science\n2016 - 2020\n\n';
+  const doc = assembleProposal(sourceId, text, structureChoices(text));
+  expect(profileDocument(doc, sourceId, text)).toEqual(doc);
+  expect(doc.coverage.map((r) => text.slice(r.start, r.end)).join('')).toBe(
+    text,
+  );
+  expect(
+    facts(doc).some((f) => /[-]/u.test(f.value) || !f.value.trim()),
+  ).toBe(false);
+  expect(facts(doc).some((f) => f.value === 'Example Alpha\n')).toBe(true);
+  expect(
+    doc.coverage.filter(
+      (r) =>
+        r.disposition === 'unresolved' &&
+        r.reason?.startsWith('PDF icon') &&
+        /^[\s-]+$/u.test(text.slice(r.start, r.end)),
+    ),
+  ).toHaveLength(4);
+  const entryOf = (value: string) =>
+    doc.sections
+      .flatMap((s) => s.entries.map((e) => ({ kind: s.kind, e })))
+      .find(({ e }) => e.facts.some((f) => f.value === value))!;
+  const education = entryOf('2016 - 2020\n');
+  expect(education.kind).toBe('education');
+  expect(
+    education.e.facts.find((f) => f.value === '2016 - 2020\n')!.field,
+  ).toBe('dates');
+  expect(education.e.facts.map((f) => f.value)).toContain(
+    'Bachelor of Computer Science\n',
+  );
+  const work = entryOf('2021 - Present\n');
+  expect(work.kind).toBe('experience');
+  expect(work.e.facts.find((f) => f.value === '2021 - Present\n')!.field).toBe(
+    'dates',
+  );
+  expect(
+    facts(doc).some((f) => f.field === 'phone' && /2016|2021/u.test(f.value)),
+  ).toBe(false);
+});
