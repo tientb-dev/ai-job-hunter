@@ -201,7 +201,7 @@ test('the fresh parsed degree is recovered when the controlled model omits its s
   });
 });
 
-test('fresh full public JD with omitted selections recovers education: 17 / 2 Matched / 0 Partial / 13 Unknown', async () => {
+test('fresh full public JD with omitted selections recovers education: 17 / 2 Matched / 0 Partial / 10 Unknown / 3 Needs review', async () => {
   const run = setup();
   const fields = Object.fromEntries(
     live.normalizedFields.map((row) => [row.field, row.value]),
@@ -220,7 +220,8 @@ test('fresh full public JD with omitted selections recovers education: 17 / 2 Ma
     ]),
   );
   const result = await run.service.analyze(LOCAL_OWNER_ID, run.job.id);
-  expect(run.prompts[0]).toMatch(
+  // prompts[0] may be the bounded decomposition request; check the match prompt.
+  expect(run.prompts.at(-1)).toMatch(
     /Bachelor['’]s Degree in Information Technology/u,
   );
   expect(result.score).toBe(17);
@@ -232,7 +233,11 @@ test('fresh full public JD with omitted selections recovers education: 17 / 2 Ma
   ).toHaveLength(0);
   expect(
     result.requirements.filter((row) => row.status === 'NOT_EVIDENCED'),
-  ).toHaveLength(13);
+  ).toHaveLength(10);
+  // Compound rows the parser cannot safely split are Needs review, not gaps.
+  expect(
+    result.requirements.filter((row) => row.status === 'UNDECOMPOSED'),
+  ).toHaveLength(3);
   expect(
     result.requirements
       .filter((row) => row.status === 'EVIDENCED')

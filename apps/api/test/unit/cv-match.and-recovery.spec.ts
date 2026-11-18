@@ -80,7 +80,7 @@ test('three supported design components preserve exact source quotes and score 6
   const result = assess(quotes.join('\r\n'));
   expect(result).toMatchObject({
     score: 60,
-    recommendation: 'Consider',
+    recommendation: 'Apply',
     requirements: [{ status: 'PARTIAL', credit: 0.6 }],
   });
   expect(
@@ -111,7 +111,7 @@ test('five independently verified components are required for Matched / Apply', 
     );
     expect(partial).toMatchObject({
       score: 80,
-      recommendation: 'Consider',
+      recommendation: 'Apply',
       requirements: [{ status: 'PARTIAL', credit: 0.8 }],
     });
     expect(
@@ -156,7 +156,7 @@ test('AWS/RabbitMQ in otherwise valid API and CI/CD work cannot fill the remaini
   const result = assess(cv);
   expect(result).toMatchObject({
     score: 40,
-    recommendation: 'Consider',
+    recommendation: 'Apply',
     requirements: [{ status: 'PARTIAL', credit: 0.4 }],
   });
   expect(
@@ -254,7 +254,7 @@ test('required/preferred parent weights and denominator remain unchanged', () =>
   const cv = 'Designed REST APIs.\nBuilt MCP servers.';
   expect(
     assess(cv, job(requirement, 'MCP or knowledge graphs.')),
-  ).toMatchObject({ score: 40, recommendation: 'Consider' });
+  ).toMatchObject({ score: 40, recommendation: 'Low Fit' });
 });
 
 test('full public JD with omitted selections gains only the three explicit architecture design components', () => {
@@ -286,7 +286,11 @@ test('full public JD with omitted selections gains only the three explicit archi
   ).toHaveLength(1);
   expect(
     result.requirements.filter((row) => row.status === 'NOT_EVIDENCED'),
-  ).toHaveLength(12);
+  ).toHaveLength(9);
+  // Compound rows the parser cannot safely split are Needs review, not gaps.
+  expect(
+    result.requirements.filter((row) => row.status === 'UNDECOMPOSED'),
+  ).toHaveLength(3);
   expect(
     result.requirements.find(
       (row) => row.requirement === requirement.replace(/\.$/u, ''),
@@ -323,7 +327,7 @@ test('retained synthetic P6.7 raw live response validates and replays without mo
     ),
   ).toMatchObject({
     score: 70,
-    recommendation: 'Consider',
+    recommendation: 'Apply',
     requirements: [
       { status: 'PARTIAL', credit: 0.6 },
       { status: 'EVIDENCED', credit: 1 },

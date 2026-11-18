@@ -157,8 +157,29 @@ export function emitMatchCompletion(
   }
 }
 
+export function emitMatchDecomposition(
+  outcome: string,
+  targets: number,
+  requested: number,
+  accepted: number,
+): void {
+  try {
+    process.stderr.write(
+      `${JSON.stringify({
+        event: 'CV_MATCH_DECOMPOSITION',
+        ...attempt(),
+        outcome: /^[A-Z_]{1,40}$/u.test(outcome) ? outcome : 'OTHER',
+        counts: { targets, requested, accepted },
+      })}\n`,
+    );
+  } catch {
+    // Diagnostics never change matching.
+  }
+}
+
 export type MatchFailureStage =
   | 'SETUP'
+  | 'DECOMPOSITION'
   | 'INITIAL'
   | 'COMPLETION'
   | 'VALIDATION'

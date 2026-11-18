@@ -2250,4 +2250,54 @@ export const VI_TEXT: Record<string, string> = {
     'Hãy rà soát CV mà công việc này dùng trước khi Đối chiếu CV.',
   'Review this CV first. Suggestions need a completed Source CV Review and a CV Match for this job.':
     'Hãy rà soát CV này trước. Gợi ý cần bản rà soát CV gốc đã hoàn tất và kết quả Đối chiếu CV cho công việc này.',
+  'Could not interpret requirement': 'Chưa phân tích được yêu cầu',
+  'Application guidance': 'Gợi ý ứng tuyển',
+  'Worth applying': 'Nên ứng tuyển',
+  'Consider carefully': 'Cân nhắc kỹ',
+  'Stretch opportunity': 'Cơ hội thử thách',
+  'Low confidence': 'Độ tin cậy thấp',
+  'Before you apply': 'Trước khi ứng tuyển',
+  'Documented CV evidence coverage': 'Mức bằng chứng được ghi trong CV',
+  'Evaluated: {v0} of {v1} JD requirements':
+    'Đã đánh giá: {v0}/{v1} yêu cầu trong JD',
+  'Low confidence: interpret this score with care.':
+    'Độ tin cậy thấp: hãy thận trọng khi đọc điểm này.',
+  'Only part of this JD could be interpreted, so this is a cautious read. Check the items marked Could not interpret requirement yourself.':
+    'Hệ thống chỉ hiểu được một phần JD này nên đây là đánh giá thận trọng. Hãy tự kiểm tra các mục được đánh dấu Chưa phân tích được yêu cầu.',
+  'Your CV documents {v0} of {v1} core requirements.':
+    'CV của bạn có bằng chứng cho {v0}/{v1} yêu cầu cốt lõi.',
+  'Relevant experience appears in your work history.':
+    'Kinh nghiệm liên quan có trong quá trình làm việc của bạn.',
+  'This evidence comes mainly from skills lists, not described work.':
+    'Bằng chứng này chủ yếu đến từ danh sách kỹ năng, chưa phải công việc được mô tả.',
+  'Some requirements are not shown in your CV yet — that does not mean you lack them.':
+    'Một số yêu cầu chưa được thể hiện trong CV — điều đó không có nghĩa là bạn thiếu chúng.',
+  'Important requirements are not yet shown in your CV.':
+    'Một số yêu cầu quan trọng chưa được thể hiện trong CV.',
+  'Many core requirements are not shown in your CV. Apply if you have this experience and can describe it.':
+    'Nhiều yêu cầu cốt lõi chưa được thể hiện trong CV. Hãy ứng tuyển nếu bạn có kinh nghiệm này và mô tả được nó.',
+  'Advisory only, not a hiring prediction. Add only experience you actually have.':
+    'Chỉ mang tính tham khảo, không phải dự đoán tuyển dụng. Chỉ thêm kinh nghiệm bạn thực sự có.',
+  'If you have written SQL queries in production, add a specific example to the relevant project.':
+    'Nếu bạn đã viết truy vấn SQL trong môi trường thực tế, hãy thêm một ví dụ cụ thể vào dự án liên quan.',
+  'If you have analyzed data in your work, describe what you analyzed and the result.':
+    'Nếu bạn đã phân tích dữ liệu trong công việc, hãy mô tả bạn phân tích gì và kết quả ra sao.',
+  'If you implemented business logic, describe one concrete example in the relevant role.':
+    'Nếu bạn đã xử lý logic nghiệp vụ, hãy mô tả một ví dụ cụ thể ở vị trí liên quan.',
+  'If you have used Git or another version-control tool for branching or code reviews, clarify that experience in your CV.':
+    'Nếu bạn đã dùng Git hoặc công cụ quản lý mã nguồn khác để tạo nhánh hoặc review code, hãy nêu rõ kinh nghiệm đó trong CV.',
+  'If you applied OOP principles in a project, describe a concrete example.':
+    'Nếu bạn đã áp dụng nguyên lý OOP trong dự án, hãy mô tả một ví dụ cụ thể.',
+  'If you have core Java experience, name it in the role where you used it.':
+    'Nếu bạn có kinh nghiệm Java Core, hãy nêu rõ ở vị trí mà bạn đã sử dụng.',
+  'If you maintained, debugged or enhanced existing applications, add a concrete example.':
+    'Nếu bạn đã bảo trì, sửa lỗi hoặc nâng cấp ứng dụng có sẵn, hãy thêm một ví dụ cụ thể.',
+  'If you have {v1}+ years with “{v0}”, state the duration or dates in your CV.':
+    'Nếu bạn có từ {v1} năm kinh nghiệm với “{v0}”, hãy ghi rõ thời gian hoặc mốc thời gian trong CV.',
+  '“{v0}” appears only in a list. If you used it in a role, describe how.':
+    '“{v0}” chỉ xuất hiện trong danh sách. Nếu bạn đã dùng nó trong công việc, hãy mô tả cách dùng.',
+  'Check “{v0}” yourself — it could not be interpreted reliably.':
+    'Hãy tự kiểm tra “{v0}” — hệ thống chưa hiểu được yêu cầu này một cách đáng tin cậy.',
+  'If you have experience with “{v0}”, add a concrete example to the relevant role.':
+    'Nếu bạn có kinh nghiệm với “{v0}”, hãy thêm một ví dụ cụ thể vào vị trí liên quan.',
 };

@@ -67,13 +67,47 @@ export async function completeReview(
         })),
       },
     ],
-    coverage: lines.map((m) => ({
-      start: m.index,
-      end: m.index + m[0].length,
-      disposition: 'mapped' as const,
-      factIds: [`fact-${m.index}`],
-      reason: null,
-    })),
+    // Coverage must be contiguous over the whole source: line breaks between
+    // facts are excluded, otherwise any multi-line CV fails validation.
+    coverage: lines
+      .flatMap((m, index) => {
+        const previous = index ? lines[index - 1]! : null;
+        const gapStart = previous ? previous.index + previous[0].length : 0;
+        return [
+          ...(m.index > gapStart
+            ? [
+                {
+                  start: gapStart,
+                  end: m.index,
+                  disposition: 'excluded' as const,
+                  factIds: [],
+                  reason: 'Line break',
+                },
+              ]
+            : []),
+          {
+            start: m.index,
+            end: m.index + m[0].length,
+            disposition: 'mapped' as const,
+            factIds: [`fact-${m.index}`],
+            reason: null,
+          },
+        ];
+      })
+      .concat(
+        lines.length &&
+          lines.at(-1)!.index + lines.at(-1)![0].length < cv.text.length
+          ? [
+              {
+                start: lines.at(-1)!.index + lines.at(-1)![0].length,
+                end: cv.text.length,
+                disposition: 'excluded' as const,
+                factIds: [],
+                reason: 'Line break',
+              },
+            ]
+          : [],
+      ),
   };
   await db.getRepository(CvSourceRevision).insert({
     id: sourceRevisionId,

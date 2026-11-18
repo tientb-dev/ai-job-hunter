@@ -82,9 +82,10 @@ test.each([
   'shared data-store alternative accepts selected database declaration: %s',
   (quote) => {
     const result = assess(sql, quote, quote);
+    // A skills declaration alone is coverage, not demonstrated work.
     expect(result).toMatchObject({
       score: 100,
-      recommendation: 'Apply',
+      recommendation: 'Consider',
       requirements: [{ status: 'EVIDENCED', cvQuote: quote }],
     });
     expect(
@@ -152,7 +153,7 @@ test('API usage alone cannot satisfy an explicit integration action', () => {
     assess('Production AI/ML and LLM API integration', quote, quote),
   ).toMatchObject({
     score: 50,
-    recommendation: 'Consider',
+    recommendation: 'Apply',
     requirements: [{ status: 'PARTIAL', credit: 0.5 }],
   });
 });

@@ -14,6 +14,16 @@ import { CvMatchRecord } from './cv-match.entity.js';
 import { evidenceSummary } from './cv-match.summary.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { AiError } from '../ai/ai.errors.js';
+import {
+  cachedDecomposition,
+  decompositionPrompt,
+  decompositionSchema,
+  MAX_AI_DECOMPOSITIONS,
+  needsDecomposition,
+  rememberDecomposition,
+  validateDecomposition,
+  type DecompositionProposal,
+} from './cv-match.decomposition.js';
 import { CvMatchError } from './cv-match.error.js';
 import { MatchingService } from './matching.service.js';
 import {
@@ -49,6 +59,7 @@ import {
 } from './cv-match.js';
 import {
   emitMatchCompletion,
+  emitMatchDecomposition,
   emitMatchFailure,
   matchAttempt,
   emitMatchEvidenceSummary,
@@ -550,6 +561,59 @@ export class JobMatchService {
       }
     });
   }
+  /**
+   * Requirements the deterministic grammar cannot interpret get one bounded,
+   * schema-validated AI split. Only literal JD spans with consistent AND/OR
+   * connectors are accepted; anything else, and any provider failure, leaves
+   * the row UNDECOMPOSED ("Needs review"). Never fatal, never a CV judgment.
+   */
+  private async decompose(
+    canonical: MatchRequirement[],
+    trace: MatchFailureTrace,
+  ): Promise<MatchRequirement[]> {
+    const targets = canonical.filter(needsDecomposition);
+    const withCache = (item: MatchRequirement) => {
+      const cached = cachedDecomposition(item);
+      return cached ? { ...item, decomposition: cached } : item;
+    };
+    const pending = targets
+      .filter((item) => !cachedDecomposition(item))
+      .slice(0, MAX_AI_DECOMPOSITIONS);
+    let outcome = pending.length ? 'ERROR' : 'CACHED';
+    let accepted = 0;
+    if (pending.length) {
+      trace.stage = 'DECOMPOSITION';
+      try {
+        const reply = (await this.ai.generateStructured({
+          prompt: decompositionPrompt(pending),
+          schema: decompositionSchema(pending),
+        })) as { items: DecompositionProposal[] };
+        for (const proposal of reply.items) {
+          const row = pending.find(
+            (item) => item.parentId === proposal.parentId,
+          );
+          const group = row && validateDecomposition(row, proposal);
+          if (!group) continue;
+          rememberDecomposition(row, group);
+          accepted++;
+        }
+        outcome = accepted === pending.length ? 'COMPLETED' : 'PARTIAL';
+      } catch (error) {
+        outcome =
+          error instanceof AiError && /^[A-Z_]{1,40}$/u.test(error.code)
+            ? error.code
+            : 'ERROR';
+      } finally {
+        emitMatchDecomposition(
+          outcome,
+          targets.length,
+          pending.length,
+          accepted,
+        );
+      }
+    }
+    return canonical.map(withCache);
+  }
   private async runAnalysis(
     ownerId: string,
     id: string,
@@ -589,7 +653,7 @@ export class JobMatchService {
         );
       }
       const jd = matchJobText(job);
-      const canonical = canonicalRequirements(job);
+      const canonical = await this.decompose(canonicalRequirements(job), trace);
       if (!canonical.length)
         throw new CvMatchError(
           'CV_MATCH_INCOMPLETE',

@@ -196,7 +196,8 @@ test('the service sends verified rows to scoring and returns nonzero API-shaped 
   expect(spy.mock.calls[0]![0][0]!.cvQuote).toBe(
     'Summary: 6+ years of\nprofessional software engineering.',
   );
-  expect(provider.generate).toHaveBeenCalledTimes(1); // Mock only.
+  // Mock only: one decomposition request for the unparsed compound row + match.
+  expect(provider.generate).toHaveBeenCalledTimes(2);
 });
 
 test('a source-valid tool list is not evidence of evaluating and integrating tooling', () => {

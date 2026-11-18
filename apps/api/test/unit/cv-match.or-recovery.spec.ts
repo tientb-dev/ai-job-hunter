@@ -84,7 +84,7 @@ test('captured P6.3 omission replays through the matching service as 44 / Consid
   const result = await service.analyze(LOCAL_OWNER_ID, job.id);
   expect(result).toMatchObject({
     score: 44,
-    recommendation: 'Consider',
+    recommendation: 'Low Fit',
     requirements: [
       { status: 'PARTIAL', credit: 0.25 },
       { status: 'EVIDENCED', credit: 1, cvQuote: 'Built MCP servers.' },
@@ -204,7 +204,7 @@ test('AND design recovery evaluates explicit components individually while prese
     ),
   ).toMatchObject({
     score: 50,
-    recommendation: 'Consider',
+    recommendation: 'Apply',
     requirements: [{ status: 'PARTIAL', credit: 0.5 }],
   });
 });

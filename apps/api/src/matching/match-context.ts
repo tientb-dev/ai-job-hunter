@@ -31,7 +31,7 @@ export class MatchContextError extends Error {
 }
 
 // Bump whenever deterministic evidence semantics change. Internal cache only.
-export const MATCHING_POLICY_VERSION = 'qualification-d1/v11';
+export const MATCHING_POLICY_VERSION = 'guidance-p1/v12';
 
 // Only assessment excerpts are retained, never a second complete source document.
 export class MatchContexts {

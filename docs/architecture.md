@@ -2358,3 +2358,48 @@ Grounding decisions:
 - **Revision tracking:** `cv_matches.profileRevisionId` (migration `1795100000000`, nullable, reversible) pins the review revision. A different CV, a newer completed revision, or a legacy row (null) reads as `STALE_CV`. `cvTextHash` stays the identity of the saved file text. Tailored CV generation requires `match.profileRevisionId === profileRevisionId`.
 - **Journeys:** both upload entry points open `/cv/:cvId/review`. From Job Detail the CV is first linked to the job, and `?returnTo=/jobs/:id/match` (only that exact internal shape is accepted) returns to the Match tab on Complete. Saved review revisions persist, so an interrupted review resumes from the job's "Review CV" action. Unsaved edits are protected by the leave prompt, not autosaved.
 - **Skill-specific professional experience:** a single named-technology requirement for "N years of X experience", or for "production / professional / hands-on experience with X", is no longer met by a Skills declaration. It needs a work clause that names X, outside Skills declarations and the Education section. Any duration must be stated as "N years" in that same passage, and passages are record-bounded. Record date ranges are not converted to durations, so dates are never borrowed from another job or from education. Insufficient evidence is `NOT_EVIDENCED` (shown as Unknown). "Knowledge of X" and a bare X still accept a Skills declaration.
+
+## CV Match decomposition stabilization and application guidance
+
+**Decomposition.** `requirementGroup` remains the deterministic first pass,
+now with one shared grammar for English and Vietnamese lead-ins ("Experience
+with", "Có kinh nghiệm (sử dụng|lập trình)", "Thành thạo", …) and connectors
+(`and/or/và/hoặc`). Coordination is decomposed for every category; only rows
+without connectors keep the category shortcut. Rows the grammar cannot
+interpret (`UNKNOWN`, or long prose with no specific rule) get **one bounded
+AI request per analysis** (`cv-match.decomposition.ts`, ≤12 rows, requirement
+text only, no CV). A proposal is accepted only if its components are ordered,
+non-overlapping literal spans of the JD row joined solely by separators that
+agree with the proposed AND/OR mode (an OR claim needs an explicit
+"or"/"hoặc"/"/"), with at most a 3-word shared tail. Quantities, degrees and
+nested qualifications are never sent. Accepted groups are cached in-process by
+SHA-256 of category + row text, so a JD edit naturally misses the cache.
+Provider timeout, invalid output or a rejected proposal leaves the row
+`UNDECOMPOSED`; analysis continues. Alternative considered: persisting the
+cache in a table — deferred (needs a migration; one small call refills it).
+
+**Evidence.** A small capability table (`CAPABILITIES`) distinguishes
+capabilities from tool names: SQL Server is not "writing SQL queries",
+GitLab CI/CD or GitHub Actions is not Git usage, "maintain, debug, and
+enhance" needs all three actions. The former generic fallback that credited a
+whole-sentence SINGLE row from any active verb is removed; such rows need a
+passage naming the full label, otherwise `UNDECOMPOSED`. Quote validation,
+line provenance, AND/OR credit and duration rules are unchanged.
+
+**Evaluability and score.** `UNDECOMPOSED` ("Could not interpret requirement") earns zero and
+stays in the denominator, so the score is never inflated by skipping it;
+`evaluability` reports evaluated/total rows and a weighted fraction (required
+3×). Below 60% the result is low confidence.
+
+**Application guidance** (`cv-match.guidance.ts`) is deterministic and uses no
+score cutoff. Core = required rows (all rows if none are marked). Low
+evaluability or >50% uninterpreted core → Consider carefully (LOW). Worth
+applying needs described work evidence on a core row (or a fully evidenced
+core beyond skills lists), some evidence on at least half of the evaluated
+core and at least a third of its credit. Stretch only when, even counting
+uninterpreted core rows as met, under a third of the core is documented and no
+core row may hold model-missed evidence. Up to three actions come from the
+highest-priority gaps as codes; the UI renders vi-VN/en-US text. The legacy
+`recommendation` string is now derived from guidance. `MATCHING_POLICY_VERSION`
+is bumped, so older saved matches show as expired and are re-analyzed; no
+schema migration is needed (assessment is JSONB).
