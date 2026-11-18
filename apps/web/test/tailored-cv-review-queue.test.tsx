@@ -1,6 +1,13 @@
 import { ThemeProvider } from '@mui/material';
 import { expect, test, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from './render';
+import {
+  closeSuccess,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from './render';
 import { theme } from '../src/app/theme';
 import { TailoredCvReview } from '../src/features/inbox/TailoredCvReview';
 import { draftJobId, tailoredDraftFixture } from './fixtures/tailored-cv';
@@ -109,6 +116,7 @@ test('each decision offers the next undecided suggestion, then save unlocks Cont
   // One Save draft action only (no duplicate in the page body).
   expect(screen.getAllByRole('button', { name: 'Save draft' })).toHaveLength(1);
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  await closeSuccess();
   const cont = await screen.findByRole('button', {
     name: 'Continue to Approve & Export',
   });
@@ -273,6 +281,7 @@ test('Keep original and a saved edit no longer count as open checks; AI provenan
     screen.getByRole('alert', { name: 'Your wording for impact' }),
   ).toHaveTextContent('Edited by you — not saved');
   fireEvent.click(save);
+  await closeSuccess();
   const mine = await screen.findByText(/Saved — user-authored wording/);
   expect(
     screen

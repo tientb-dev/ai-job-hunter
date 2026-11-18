@@ -4,7 +4,14 @@ import { ThemeProvider } from '@mui/material';
 import { createMemoryRouter, Link, RouterProvider } from 'react-router-dom';
 import { expect, test, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
-import { fireEvent, render, screen, waitFor, within } from './render';
+import {
+  closeSuccess,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from './render';
 import { theme } from '../src/app/theme';
 import { TailoredCvReview } from '../src/features/inbox/TailoredCvReview';
 import { UnsavedJobGuard } from '../src/features/inbox/UnsavedJobGuard';
@@ -136,8 +143,10 @@ function setup(initial = tailoredDraftFixture()) {
 async function open() {
   fireEvent.click(screen.getByRole('button', { name: 'Load saved drafts' }));
   await screen.findByText(/Switch draft \(1\)/);
+  await closeSuccess();
   fireEvent.click(screen.getByRole('button', { name: /^Draft 1 .*Open$/ }));
   await screen.findAllByText('Assisted a team prototype only.');
+  await closeSuccess();
 }
 function openCv() {
   fireEvent.click(screen.getByText(/^Full CV:/));
@@ -182,12 +191,14 @@ test('complete CV supports explicit proposal acceptance, save, exact approval, r
   ).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
   await screen.findByText(/^Draft saved as revision \d+\.$/);
+  await closeSuccess();
   expect(state.saved().revision).toBe(2);
   fireEvent.click(
     screen.getByRole('checkbox', { name: /I reviewed the complete saved CV/ }),
   );
   fireEvent.click(screen.getByRole('button', { name: 'Approve saved draft' }));
   await screen.findByText('This saved draft revision is approved.');
+  await closeSuccess();
   expect(state.saved().document.review.approval?.revision).toBe(3);
   fireEvent.click(screen.getByRole('button', { name: 'Reload saved draft' }));
   // Revision and approval live on the draft card.
@@ -206,6 +217,7 @@ test('complete CV supports explicit proposal acceptance, save, exact approval, r
   ).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
   await screen.findByText(/^Draft saved as revision \d+\. Approval cleared\.$/);
+  await closeSuccess();
   expect(state.saved().document.review.approval).toBeNull();
 });
 test('keep original, keyboard editing, unsaved navigation and conflicts retain local inputs', async () => {
@@ -336,13 +348,16 @@ test('downloads use exact saved approval, errors retain work, and inclusion chan
   ).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
   await screen.findByText(/^Draft saved as revision \d+\.$/);
+  await closeSuccess();
   fireEvent.click(
     screen.getByRole('checkbox', { name: /I reviewed the complete saved CV/ }),
   );
   fireEvent.click(screen.getByRole('button', { name: 'Approve saved draft' }));
   await screen.findByText('This saved draft revision is approved.');
+  await closeSuccess();
   fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
   await screen.findByText('PDF download prepared from approved revision 3.');
+  await closeSuccess();
   expect(click).toHaveBeenCalledOnce();
   const call = state.fetch.mock.calls.find(([url]) => url.endsWith('/export'))!;
   expect(JSON.parse(call[1]!.body as string)).toEqual({
@@ -367,6 +382,7 @@ test('downloads use exact saved approval, errors retain work, and inclusion chan
   expect(screen.getByRole('button', { name: 'Download PDF' })).toBeDisabled();
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
   await screen.findByText(/^Draft saved as revision \d+\. Approval cleared\.$/);
+  await closeSuccess();
   expect(
     state.saved().document.review.factReviews.description!.exportIncluded,
   ).toBe(false);
@@ -494,6 +510,7 @@ test('bulk keep-original confirms pending-only decisions, retains inclusion and 
   ).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
   await screen.findByText(/^Draft saved as revision \d+\.$/);
+  await closeSuccess();
   expect(state.saved().document.review.factReviews[accepted.id]!.proposal).toBe(
     'accepted',
   );
@@ -734,6 +751,7 @@ test('saved user-authored wording survives reopen with its status and provenance
     ).getByRole('button', { name: /Save draft with your wording/ }),
   );
   await screen.findByText('Draft saved as revision 2.');
+  await closeSuccess();
   expect(state.saved().document.review.factReviews[fact.id]).toMatchObject({
     wording: 'user_edited',
     proposal: 'rejected',

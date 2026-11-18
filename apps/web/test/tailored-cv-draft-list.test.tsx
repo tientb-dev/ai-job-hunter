@@ -1,6 +1,13 @@
 import { ThemeProvider } from '@mui/material';
 import { expect, test, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from './render';
+import {
+  closeSuccess,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from './render';
 import { theme } from '../src/app/theme';
 import { TailoredCvReview } from '../src/features/inbox/TailoredCvReview';
 import { draftJobId, tailoredDraftFixture } from './fixtures/tailored-cv';
@@ -90,6 +97,7 @@ test('after Source CV Review the new-draft action is open; a generated draft joi
   await waitFor(() => expect(generate).toBeEnabled());
   fireEvent.click(generate);
   await screen.findByText(/New draft generated and opened/);
+  await closeSuccess();
   expect(within(current).getByRole('heading')).toHaveTextContent(
     'Draft 2 of 2',
   );

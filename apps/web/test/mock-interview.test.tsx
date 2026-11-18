@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
-import { render, screen, waitFor, within } from './render';
+import { closeSuccess, render, screen, waitFor, within } from './render';
 import { MockInterview } from '../src/features/interview-prep/MockInterview';
 
 const JOB = '3f1c1a52-6d0e-4a7b-9c1d-2e3f4a5b6c7d';
@@ -364,6 +364,7 @@ test('job entry creates a job session; discard asks first and deletes', async ()
       name: 'Discard',
     }),
   );
+  await closeSuccess();
   expect(
     await screen.findByRole('button', { name: 'Start interview' }),
   ).toBeInTheDocument();
@@ -452,6 +453,7 @@ test('delete interview asks first, then removes it and returns to start', async 
     within(dialog).getByRole('button', { name: 'Keep interview' }),
   ).toHaveFocus();
   await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
+  await closeSuccess();
   expect(
     await screen.findByRole('button', { name: 'Start interview' }),
   ).toBeInTheDocument();
@@ -562,6 +564,7 @@ describe('active session from another context', () => {
     await user.click(
       await screen.findByRole('button', { name: 'Finish it and start here' }),
     );
+    await closeSuccess();
     expect(
       await screen.findByRole('button', { name: 'Start interview' }),
     ).toBeInTheDocument();

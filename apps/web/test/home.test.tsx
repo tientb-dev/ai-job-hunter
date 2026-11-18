@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from 'vitest';
-import { render, screen, within } from './render';
+import { render, screen, within, acknowledge } from './render';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { Home } from '../src/features/home/Home';
@@ -434,7 +434,10 @@ test('a failed Dismiss keeps the item and reports the error', async () => {
     name: 'Dismiss follow-up for Synthetic job 1',
   });
   await userEvent.setup().click(dismiss);
-  expect(await screen.findByText('Opportunity is invalid.')).toBeVisible();
+  expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+    'Opportunity is invalid.',
+  );
+  await acknowledge();
   expect(
     within(followUps).getByRole('link', { name: 'Synthetic job 1' }),
   ).toBeVisible();

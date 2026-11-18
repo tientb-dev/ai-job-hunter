@@ -1,6 +1,18 @@
 // Vietnamese for feature-screen text, keyed by the English source text (see tr()).
 // An empty value drops an English-only fragment such as a plural suffix.
 export const VI_TEXT: Record<string, string> = {
+  'Generating draft…': 'Đang tạo bản nháp…',
+  'Generating a tailored draft with the AI…':
+    'AI đang tạo bản nháp CV phù hợp…',
+  'Generating questions…': 'Đang tạo câu hỏi…',
+  'Analyzing CV Match…': 'Đang phân tích CV Match…',
+  'Organizing CV…': 'Đang sắp xếp CV…',
+  OK: 'Đã hiểu',
+  'Questions generated': 'Tạo câu hỏi thành công',
+  'Could not delete CV': 'Không thể xóa CV',
+  'Action failed': 'Thao tác không thành công',
+  'Please note': 'Lưu ý',
+  'Getting AI feedback…': 'Đang lấy nhận xét từ AI…',
   'Welcome back': 'Chào bạn!',
   'You are tracking {count} jobs.': 'Bạn đang theo dõi {count} việc làm.',
   '{count} follow-ups need your attention today.':

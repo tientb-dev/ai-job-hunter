@@ -980,6 +980,8 @@ export function SourceCvReview({
           {!document.sections.length ? (
             <Button
               variant="contained"
+              loading={busy}
+              loadingPosition="start"
               disabled={
                 blocked || dirty || cv?.updatedAt !== source.savedCvUpdatedAt
               }
@@ -1004,13 +1006,15 @@ export function SourceCvReview({
                 })
               }
             >
-              {tr('Organize my CV')}
+              {busy ? tr('Organizing CV…') : tr('Organize my CV')}
             </Button>
           ) : (
             legacy && (
               <Box>
                 <Button
                   variant="contained"
+                  loading={busy}
+                  loadingPosition="start"
                   disabled={
                     blocked ||
                     dirty ||
@@ -1018,7 +1022,7 @@ export function SourceCvReview({
                   }
                   onClick={() => setRebuildOpen(true)}
                 >
-                  {tr('Organize my CV')}
+                  {busy ? tr('Organizing CV…') : tr('Organize my CV')}
                 </Button>
               </Box>
             )

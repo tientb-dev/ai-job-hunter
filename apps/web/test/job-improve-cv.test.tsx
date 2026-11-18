@@ -1,7 +1,15 @@
 import { ThemeProvider } from '@mui/material';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { expect, test, vi } from 'vitest';
-import { act, fireEvent, render, screen, waitFor, within } from './render';
+import {
+  closeSuccess,
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from './render';
 import { theme } from '../src/app/theme';
 import { JobEditor } from '../src/features/inbox/JobEditor';
 import { emptyOpportunity } from '../src/features/inbox/opportunities-api';
@@ -175,6 +183,7 @@ test('unsaved JD edits and save invalidate context and cannot be bypassed by ana
   ).toBeDisabled();
   tab('Edit JD');
   fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+  await closeSuccess();
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'Save changes' })).toBeEnabled(),
   );

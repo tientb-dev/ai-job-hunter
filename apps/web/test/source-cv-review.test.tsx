@@ -10,7 +10,7 @@ import { ThemeProvider } from '@mui/material';
 import { createMemoryRouter, Link, RouterProvider } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { expect, test, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from './render';
+import { closeSuccess, fireEvent, render, screen, waitFor } from './render';
 import { theme } from '../src/app/theme';
 import { SourceCvReview } from '../src/features/inbox/SourceCvReview';
 import { UnsavedJobGuard } from '../src/features/inbox/UnsavedJobGuard';
@@ -412,6 +412,7 @@ test('legacy review rebuild is explicit, creates a pending revision and keeps ea
     screen.getByRole('button', { name: 'Organize as new review' }),
   );
   await screen.findByText(/Your CV is organized/);
+  await closeSuccess();
   await waitFor(() =>
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
   );
@@ -564,6 +565,7 @@ test('previous reconstruction offers one primary organize action, safely retries
     screen.getByRole('button', { name: 'Organize as new review' }),
   );
   await screen.findByText(/Your CV is organized/);
+  await closeSuccess();
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   expect(
     screen.getByRole('button', { name: 'Edit Personal details' }),
@@ -641,6 +643,7 @@ test('all skill groups render in order with their lists; glyph fragments remain 
   ).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
   await screen.findByText(/Draft saved\. You can finish/);
+  await closeSuccess();
   expect(
     state
       .profile()

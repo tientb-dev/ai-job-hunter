@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { StrictMode } from 'react';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { expect, test, vi } from 'vitest';
-import { render, screen, waitFor, within } from './render';
+import { render, screen, waitFor, within, acknowledge } from './render';
 import { theme } from '../src/app/theme';
 import { SourceCvReviewPage } from '../src/features/inbox/SourceCvReviewPage';
 import { cvProfileFixture, sourceCvFixture } from './fixtures/source-cv-review';
@@ -173,14 +173,15 @@ test('a failed save shows a persistent error popup and keeps the edits', async (
     screen.getByRole('button', { name: 'Add detail for review' }),
   );
   await user.click(screen.getByRole('button', { name: 'Save draft' }));
-  const popup = await screen.findByRole('alert');
+  const popup = await screen.findByRole('alertdialog');
   expect(within(popup).getByText('Review action failed')).toBeVisible();
   expect(
     within(popup).getByText(/Could not load or save the source review/),
   ).toBeVisible();
-  // Errors stay until dismissed; nothing on the page is locked.
+  // Errors stay until acknowledged; the edits and Save draft remain.
   await new Promise((resolve) => setTimeout(resolve, 2700));
-  expect(screen.getByRole('alert')).toBeVisible();
+  expect(screen.getByRole('alertdialog')).toBeVisible();
+  await acknowledge();
   expect(screen.getByRole('button', { name: 'Save draft' })).toBeEnabled();
 });
 

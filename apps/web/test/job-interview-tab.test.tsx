@@ -4,7 +4,14 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { theme } from '../src/app/theme';
 import { JobInterviewTab } from '../src/features/inbox/JobInterviewTab';
-import { fireEvent, render, screen, waitFor, within } from './render';
+import {
+  closeSuccess,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from './render';
 
 // Synthetic data only.
 const jobId = '00000000-0000-4000-8000-0000000000aa';
@@ -144,6 +151,10 @@ test('initial generation needs no confirmation, shows progress, ignores double c
   ).toBeInTheDocument();
   expect(screen.queryByRole('dialog')).toBeNull();
   release({ body: { contractVersion: '1', set: created, partial: false } });
+  expect(
+    await screen.findByRole('status', { name: 'Questions generated' }),
+  ).toHaveTextContent('Generated 6 interview questions.');
+  await closeSuccess();
   const list = await screen.findByRole('list', {
     name: 'Current interview questions',
   });
@@ -168,9 +179,6 @@ test('initial generation needs no confirmation, shows progress, ignores double c
   expect(first.getByText('Prepared')).toBeInTheDocument();
   expect(within(cards[1]!).getByText('Not prepared')).toBeInTheDocument();
   expect(screen.getByText(/1 of 6 prepared/u)).toBeInTheDocument();
-  expect(
-    await screen.findByText('Generated 6 interview questions.'),
-  ).toBeInTheDocument();
   // Each card deep-links to the job-specific practice route.
   expect(
     first.getByRole('link', { name: 'Practise this question, question 1' }),
@@ -219,6 +227,7 @@ test('regeneration requires confirmation, sends the active set, and keeps previo
     }),
   );
   await screen.findByText('Set 2 question 1: how would you design it?');
+  await closeSuccess();
   expect(JSON.parse(generateCalls()[0]![1]!.body as string)).toEqual({
     contractVersion: '1',
     basedOnSetId: older.id,

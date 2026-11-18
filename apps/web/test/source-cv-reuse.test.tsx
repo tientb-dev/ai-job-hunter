@@ -1,6 +1,6 @@
 import { ThemeProvider } from '@mui/material';
 import { expect, test, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from './render';
+import { closeSuccess, fireEvent, render, screen, waitFor } from './render';
 import { theme } from '../src/app/theme';
 import { SourceCvReview } from '../src/features/inbox/SourceCvReview';
 import { splitDates } from '../src/features/inbox/source-cv-review.contract';
@@ -75,6 +75,7 @@ test('a fresh review is still available and sends no reuse request', async () =>
   await screen.findByText('You already reviewed this exact CV');
   fireEvent.click(screen.getByRole('button', { name: 'Start a fresh review' }));
   await screen.findByText(/A fresh review was started/);
+  await closeSuccess();
   expect(state.bodies[0]).not.toHaveProperty('reuseProfileRevisionId');
 });
 
@@ -85,6 +86,7 @@ test('Complete review lists exact blockers instead of saving unfinished work', a
     await screen.findByRole('button', { name: 'Start a fresh review' }),
   );
   await screen.findByText(/A fresh review was started/);
+  await closeSuccess();
   const blockers = screen.getByRole('region', {
     name: 'Before you can complete the review',
   });

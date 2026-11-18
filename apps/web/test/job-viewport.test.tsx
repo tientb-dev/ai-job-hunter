@@ -1,5 +1,5 @@
 import { expect, test, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from './render';
+import { closeSuccess, fireEvent, render, screen, waitFor } from './render';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { App } from '../src/app/App';
 import { emptyOpportunity } from '../src/features/inbox/opportunities-api';
@@ -105,6 +105,7 @@ test('Edit JD and Application scroll only their form while preserving edits and 
   });
   fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
   expect(await screen.findByText('Changes saved')).toBeVisible();
+  await closeSuccess();
   fireEvent.click(screen.getByRole('tab', { name: /^Application/ }));
   await waitFor(() => expect(shell().style.height).toBe(''));
   const applicationFields = screen.getByRole('region', {

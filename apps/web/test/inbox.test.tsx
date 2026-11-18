@@ -1,6 +1,14 @@
 import { expect, test, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
-import { act, fireEvent, render, screen, waitFor } from './render';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  acknowledge,
+  closeSuccess,
+} from './render';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { JobInbox } from '../src/features/inbox/JobInbox';
 import { JobEditor } from '../src/features/inbox/JobEditor';
@@ -120,6 +128,7 @@ test('changes status freely and sends the selected status to the API', async () 
   await userEvent.click(screen.getByRole('option', { name: 'OFFER' }));
   await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
   await screen.findByText('Changes saved');
+  await closeSuccess();
   expect(
     JSON.parse(
       fetch.mock.calls.find(([, init]) => init?.method === 'PUT')![1]!
@@ -167,6 +176,7 @@ test('last HR contact survives create, save, reopen and replacement without chan
   });
   fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
   await screen.findByText('Changes saved');
+  await closeSuccess();
   expect(saved.contactDates).toEqual(['2026-10-30']);
   view.unmount();
   view = mount(`/jobs/${id}`);
@@ -182,6 +192,7 @@ test('last HR contact survives create, save, reopen and replacement without chan
   });
   fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
   await screen.findByText('Changes saved');
+  await closeSuccess();
   expect(saved.contactDates).toEqual(['2026-10-29']);
   expect(saved).toMatchObject({
     title: 'Synthetic date job',
@@ -279,12 +290,13 @@ test.each([
     expect(screen.getByLabelText('Last HR contact date')).toHaveValue(value);
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     await screen.findByText(/Could not save or load opportunities/);
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    await acknowledge();
     expect(saved.contactDates).toEqual(dates);
     expect(screen.getByLabelText('Last HR contact date')).toHaveValue(value);
     fail = false;
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     await screen.findByText('Changes saved');
+    await closeSuccess();
     expect(saved.contactDates).toEqual(expected);
     expect(saved).toMatchObject({
       status: 'APPLIED',
@@ -331,6 +343,7 @@ test('application details set, reopen, edit, survive failure and clear independe
   });
   fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
   await screen.findByText('Changes saved');
+  await closeSuccess();
   expect(saved).toMatchObject({
     appliedDate: '2024-02-29',
     applicationChannel: 'Referral',
@@ -353,12 +366,13 @@ test('application details set, reopen, edit, survive failure and clear independe
   });
   fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
   await screen.findByText(/Could not save or load opportunities/);
-  fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+  await acknowledge();
   expect(screen.getByLabelText('Applied date')).toHaveValue('2026-10-30');
   expect(screen.getByLabelText('Application channel')).toHaveValue('TopCV');
   fail = false;
   fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
   await screen.findByText('Changes saved');
+  await closeSuccess();
   expect(saved).toMatchObject({
     appliedDate: '2026-10-30',
     applicationChannel: 'TopCV',
@@ -374,6 +388,7 @@ test('application details set, reopen, edit, survive failure and clear independe
   });
   fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
   await screen.findByText('Changes saved');
+  await closeSuccess();
   expect(saved).toMatchObject({
     appliedDate: null,
     applicationChannel: null,
@@ -410,12 +425,14 @@ test('preserves full contact history on unrelated saves and replaces within the 
   });
   fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
   await screen.findByText('Changes saved');
+  await closeSuccess();
   expect(saved.contactDates).toEqual(dates);
   fireEvent.change(screen.getByLabelText('Last HR contact date'), {
     target: { value: '2026-10-25' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
   await screen.findByText('Changes saved');
+  await closeSuccess();
   expect(saved.contactDates).toHaveLength(100);
   expect(new Set(saved.contactDates).size).toBe(100);
   expect(saved.contactDates).toEqual([...dates.slice(1), '2026-10-25']);
@@ -451,15 +468,14 @@ test('dirty chip stays in metadata and save success is a dismissible notificatio
       fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     });
     expect(screen.getByRole('status')).toHaveTextContent('Changes saved');
-    expect(screen.getByRole('status').closest('.MuiSnackbar-root')).toHaveStyle(
-      {
-        position: 'fixed',
-      },
-    );
     expect(screen.getByRole('status').closest('#job-editor-form')).toBeNull();
     expect(chip).not.toBeVisible();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(3500);
+    });
+    // React renders the close after the timer tick; then the fade-out runs.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
     });
     expect(screen.queryByText('Changes saved')).not.toBeInTheDocument();
   } finally {
@@ -470,10 +486,9 @@ test('dirty chip stays in metadata and save success is a dismissible notificatio
   });
   fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
   await screen.findByText('Changes saved');
-  await userEvent.click(screen.getByRole('button', { name: 'Close' }));
-  await waitFor(() =>
-    expect(screen.queryByText('Changes saved')).not.toBeInTheDocument(),
-  );
+  // Esc dismisses the success popup before it auto-closes.
+  await closeSuccess();
+  expect(screen.queryByText('Changes saved')).not.toBeInTheDocument();
 });
 
 test('save failure persists until dismissed, preserves edits and blocks duplicate submissions', async () => {
@@ -505,10 +520,9 @@ test('save failure persists until dismissed, preserves edits and blocks duplicat
     fetch.mock.calls.filter(([, init]) => init?.method === 'PUT'),
   ).toHaveLength(1);
   await act(async () => rejectSave());
-  const alert = await screen.findByRole('alert');
+  const alert = await screen.findByRole('alertdialog');
   expect(alert).toHaveTextContent('Synthetic validation details');
   expect(alert).toHaveTextContent('Your inputs are retained');
-  expect(alert.closest('.MuiSnackbar-root')).not.toBeNull();
   vi.useFakeTimers();
   try {
     await act(async () => {
@@ -518,7 +532,7 @@ test('save failure persists until dismissed, preserves edits and blocks duplicat
   } finally {
     vi.useRealTimers();
   }
-  await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+  await acknowledge();
   expect(
     screen.queryByText(/Synthetic validation details/),
   ).not.toBeInTheDocument();

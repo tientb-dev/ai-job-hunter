@@ -6,6 +6,7 @@ import {
   ExpandMoreIcon,
   PlayIcon,
   RefreshIcon,
+  HelpOutlineIcon,
 } from '../../components/icons';
 import { Link } from 'react-router-dom';
 import {
@@ -25,7 +26,6 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import { DialogCloseButton } from '../../components/DialogCloseButton';
 import { StatusChip } from '../../components/StatusChip';
 import { useNotify } from '../../components/useNotify';
 import {
@@ -275,6 +275,7 @@ export function JobInterviewTab({
       const set = await generateJobQuestionSet(jobId, data.sets[0]?.id ?? null);
       notify({
         severity: 'success',
+        title: tr('Questions generated'),
         text: tr('Generated {length} interview questions.', {
           length: set.questions.length,
         }),
@@ -431,10 +432,14 @@ export function JobInterviewTab({
             startIcon={<AutoAwesomeIcon />}
             variant="contained"
             onClick={() => void generate()}
-            disabled={blocked || generating}
+            disabled={blocked}
+            loading={generating}
+            loadingPosition="start"
             sx={{ width: { xs: '100%', sm: 'auto' } }}
           >
-            {tr('Generate interview questions')}
+            {generating
+              ? tr('Generating questions…')
+              : tr('Generate interview questions')}
           </Button>
         </Stack>
       ) : (
@@ -486,11 +491,15 @@ export function JobInterviewTab({
               startIcon={<AutoAwesomeIcon />}
               variant="outlined"
               onClick={() => setConfirmOpen(true)}
-              disabled={blocked || generating}
+              disabled={blocked}
+              loading={generating}
+              loadingPosition="start"
               aria-describedby="regenerate-note"
               sx={{ width: { xs: '100%', sm: 'auto' } }}
             >
-              {tr('Generate new set')}
+              {generating
+                ? tr('Generating questions…')
+                : tr('Generate new set')}
             </Button>
           </Stack>
         </Stack>
@@ -599,8 +608,11 @@ export function JobInterviewTab({
         maxWidth="xs"
         fullWidth
       >
-        <DialogCloseButton onClick={() => setConfirmOpen(false)} />
-        <DialogTitle id="regenerate-title" sx={{ pr: 7 }}>
+        <DialogTitle
+          id="regenerate-title"
+          sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}
+        >
+          <HelpOutlineIcon color="action" />
           {tr('Generate a new question set?')}
         </DialogTitle>
         <DialogContent>
@@ -610,7 +622,10 @@ export function JobInterviewTab({
             )}
           </DialogContentText>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button variant="outlined" onClick={() => setConfirmOpen(false)}>
+            {tr('Cancel')}
+          </Button>
           <Button
             variant="contained"
             startIcon={<AutoAwesomeIcon />}
