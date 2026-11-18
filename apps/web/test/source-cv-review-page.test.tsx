@@ -127,11 +127,11 @@ test('Next step, section navigation and Previous/Next switch the active panel', 
   expect(
     screen.getByRole('region', { name: 'Experience section' }),
   ).toBeVisible();
-  await user.click(screen.getByRole('button', { name: 'Previous' }));
+  await user.click(screen.getByRole('button', { name: 'Previous section' }));
   expect(
     screen.getByRole('region', { name: 'Personal details section' }),
   ).toBeVisible();
-  await user.click(screen.getByRole('button', { name: /^Next$/ }));
+  await user.click(screen.getByRole('button', { name: 'Next section' }));
   expect(
     screen.getByRole('region', { name: 'Experience section' }),
   ).toBeVisible();
