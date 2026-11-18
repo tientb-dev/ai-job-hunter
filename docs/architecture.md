@@ -2386,14 +2386,37 @@ whole-sentence SINGLE row from any active verb is removed; such rows need a
 passage naming the full label, otherwise `UNDECOMPOSED`. Quote validation,
 line provenance, AND/OR credit and duration rules are unchanged.
 
-**Evaluability and score.** `UNDECOMPOSED` ("Could not interpret requirement") earns zero and
-stays in the denominator, so the score is never inflated by skipping it;
-`evaluability` reports evaluated/total rows and a weighted fraction (required
-3×). Below 60% the result is low confidence.
+**Evaluability and score.** `UNDECOMPOSED` ("System could not analyze") means
+the system could not evaluate a row, not that the applicant failed it. Since
+policy `guidance-p1/v13` it is excluded from both earned and possible weight and
+counted separately in the UI. `evaluability` reports evaluated/total rows and a
+weighted fraction (required 3×). Below 60%, or with no evaluable row, the
+numeric score is withheld ("insufficient information to assess reliably") and
+confidence is LOW; guidance (strengths, actions) is still returned. The earlier
+choice (zero credit, full weight) was replaced because it reported parser
+limits as applicant gaps (a 13/100 match with three unread required rows).
+Inflation is still prevented: unread rows earn nothing and a mostly unread JD
+gets no score. A single row with relevant but unconfirmed support (a role
+without a datable duration) earns 0.5, as a partial OR alternative does.
+
+**Vietnamese one-of and role-duration rows.** "Sử dụng tối thiểu/ít nhất 01
+(loại) ngôn ngữ … | hệ quản trị CSDL (…)" is an OR of known names (DB aliases My
+SQL/Mongo/Maria → MySQL/MongoDB/MariaDB; the JD spelling stays the jdQuote).
+"Sử dụng" requires demonstrated work use for EVIDENCED; a database only named in
+a skills list is PARTIAL (0.5). "Thành thạo" keeps the stricter proficiency
+rules. Golang and Go are one language (case-sensitive whole-word "Go"; "go",
+"Google", "Go-to…" never match). "Từ N năm kinh nghiệm (trở lên) vị trí X" is
+EVIDENCED by a stated duration ≥ N, or by dated records naming the role whose
+merged intervals (overlaps counted once, undated records ignored) reach N
+years; the role without such a duration is PARTIAL. The selected quote must
+itself name the role.
 
 **Application guidance** (`cv-match.guidance.ts`) is deterministic and uses no
 score cutoff. Core = required rows (all rows if none are marked). Low
-evaluability or >50% uninterpreted core → Consider carefully (LOW). Worth
+evaluability or ≥25% uninterpreted core → Consider carefully (LOW); one
+unread row among many stays NORMAL. The three codes are stable API values
+framed in the UI as application preparation (strong evidence / clarify key
+evidence / add missing evidence), never permission to apply or a prediction. Worth
 applying needs described work evidence on a core row (or a fully evidenced
 core beyond skills lists), some evidence on at least half of the evaluated
 core and at least a third of its credit. Stretch only when, even counting

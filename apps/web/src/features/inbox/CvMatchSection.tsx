@@ -4,8 +4,10 @@ import { Link, Navigate, useInRouterContext } from 'react-router-dom';
 import { validSourceDate } from './cv-suggestions.contract';
 import {
   type CvOrigin,
+  coverageModeLabel,
   guidanceLabel,
   type MatchResult,
+  recommendationLabel,
   statusLabel,
 } from './cv-match.types';
 import { GuidanceActions, GuidanceVerdict } from './ApplicationGuidance';
@@ -59,9 +61,42 @@ export interface MatchInspection {
 // A withheld score is either thin evidence or a requirement set the server could
 // not verify as complete; say which.
 const incompleteLabel = (result: MatchResult, fallback: string) =>
-  result.recommendation === 'Review requirements'
-    ? 'requirements may be incomplete'
-    : fallback;
+  result.evaluability?.low && result.guidance
+    ? 'insufficient information to assess reliably'
+    : result.recommendation === 'Review requirements'
+      ? 'requirements may be incomplete'
+      : fallback;
+// Backend reasons are English; show one only when it has a UI translation,
+// otherwise a localized sentence for the status (no untranslated diagnostics).
+function coverageReason(
+  coverage: NonNullable<MatchResult['requirements'][number]['coverage']>,
+  rowStatus: MatchResult['requirements'][number]['status'],
+): string {
+  const generic = [
+    'Review the selected evidence.',
+    'Review the selected component evidence.',
+    'Compound meaning needs review.',
+  ].includes(coverage.reason);
+  if (
+    !generic &&
+    (dateLocale() === 'en-US' || tr(coverage.reason) !== coverage.reason)
+  )
+    return tr(coverage.reason);
+  const status = coverage.status ?? rowStatus;
+  return status === 'UNDECOMPOSED'
+    ? tr(
+        'The system could not analyze this requirement. Check it against your experience yourself.',
+      )
+    : status === 'EVIDENCED'
+      ? tr('Supported by the CV evidence shown.')
+      : status === 'PARTIAL'
+        ? tr('Partly supported; the CV could show this more clearly.')
+        : status === 'CONFLICT'
+          ? tr('Contradictory CV statements need review.')
+          : tr(
+              'Not clearly shown in this CV yet. If you have this experience, add it.',
+            );
+}
 export function CvMatchSection({
   match,
   labelledBy,
@@ -484,7 +519,7 @@ function RequirementCoverage({
       {requirements.some((item) => item.status === 'NOT_EVIDENCED') && (
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
           {tr(
-            'Unknown means no evidence was found in the reviewed CV, not that you lack the skill.',
+            'Not clearly shown in CV means no evidence was found in the reviewed CV, not that you lack the skill.',
           )}
         </Typography>
       )}
@@ -501,7 +536,13 @@ function MatchOverview({
 }) {
   const rows = result.requirements.map((item, index) => ({ item, index }));
   const matched = rows.filter(({ item }) => item.status === 'EVIDENCED');
-  const gaps = rows.filter(({ item }) => item.status !== 'EVIDENCED');
+  // Rows the system could not analyze are not the applicant's gaps.
+  const gaps = rows.filter(
+    ({ item }) => item.status !== 'EVIDENCED' && item.status !== 'UNDECOMPOSED',
+  );
+  const unevaluated = rows.filter(
+    ({ item }) => item.status === 'UNDECOMPOSED',
+  ).length;
   const requiredGaps = gaps.filter(({ item }) => item.priority === 'required');
   const preferredGaps = gaps.filter(
     ({ item }) => item.priority === 'preferred',
@@ -523,15 +564,32 @@ function MatchOverview({
               {tr('Overall assessment')}
             </Typography>
             <Typography variant="h5" component="h3" sx={{ fontWeight: 600 }}>
-              {tr(result.recommendation)}
+              {recommendationLabel(result.recommendation)}
             </Typography>
           </Box>
         )}
-        {result.score !== null && (
+        {result.score !== null ? (
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
             {tr('Heuristic Match score: {v0}/100 · details below', {
               v0: String(result.score),
             })}
+          </Typography>
+        ) : (
+          result.guidance &&
+          result.evaluability?.low && (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              {tr(
+                'Insufficient information to assess reliably, so no score is shown.',
+              )}
+            </Typography>
+          )
+        )}
+        {unevaluated > 0 && (
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            {tr(
+              'The system could not analyze {v0} requirement(s); they are not counted in the score.',
+              { v0: String(unevaluated) },
+            )}
           </Typography>
         )}
       </Box>
@@ -694,7 +752,7 @@ function TechnicalDetails({ result }: { result: MatchResult }) {
               <Typography variant="subtitle2" component="h4">
                 {tr('Application advice')}
               </Typography>
-              <Typography variant="body2">{result.advice}</Typography>
+              <Typography variant="body2">{tr(result.advice)}</Typography>
             </Box>
           )}
           <Typography variant="caption" color="text.secondary" component="p">
@@ -1117,7 +1175,9 @@ function RequirementCard({
                 {tr('Your CV')}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                {tr('Not evidenced in CV')}
+                {item.status === 'UNDECOMPOSED'
+                  ? tr('Not analyzed by the system')
+                  : tr('Not evidenced in CV')}
               </Typography>
             </Box>
           )}
@@ -1131,7 +1191,8 @@ function RequirementCard({
             sx={{ mt: 2 }}
           >
             <Typography variant="subtitle2">
-              {item.coverage.mode} ·{' '}
+              {coverageModeLabel(item.coverage.mode) &&
+                `${coverageModeLabel(item.coverage.mode)} · `}
               {
                 item.coverage.components.filter(
                   (component) => component.status === 'EVIDENCED',
@@ -1148,7 +1209,7 @@ function RequirementCard({
               ) && tr(' · Partial evidence available')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {item.coverage.reason}
+              {coverageReason(item.coverage, item.status)}
             </Typography>
             {item.coverage.components.map((component) => (
               <Box
@@ -1169,11 +1230,14 @@ function RequirementCard({
                   label={tr('JD evidence: {label}', { label: component.label })}
                   quote={component.jdQuote}
                 />
-                {component.qualificationReason && (
-                  <Typography variant="body2">
-                    {component.qualificationReason}
-                  </Typography>
-                )}
+                {component.qualificationReason &&
+                  (dateLocale() === 'en-US' ||
+                    tr(component.qualificationReason) !==
+                      component.qualificationReason) && (
+                    <Typography variant="body2">
+                      {tr(component.qualificationReason)}
+                    </Typography>
+                  )}
                 {component.observations?.map((observation, index) => (
                   <Box key={index} sx={{ mt: 1 }}>
                     <Typography variant="body2">
@@ -1202,7 +1266,9 @@ function RequirementCard({
                   />
                 ) : component.observations?.length ? null : (
                   <Typography variant="body2" color="text.secondary">
-                    {tr('Not evidenced in CV')}
+                    {item.status === 'UNDECOMPOSED'
+                      ? tr('Not analyzed by the system')
+                      : tr('Not evidenced in CV')}
                   </Typography>
                 )}
                 {component.conflictingQuotes.map((quote, index) => (
@@ -1346,7 +1412,7 @@ export function MatchGate({
                     : `${result.score}/100`,
               })}
               color={result.recommendation === 'Apply' ? 'success' : 'default'}
-              label={`${result.guidance ? guidanceLabel(result.guidance.recommendation) : tr(result.recommendation)} · ${result.score === null ? tr(incompleteLabel(result, 'not enough evidence')) : `${result.score}/100`}`}
+              label={`${result.guidance ? guidanceLabel(result.guidance.recommendation) : recommendationLabel(result.recommendation)} · ${result.score === null ? tr(incompleteLabel(result, 'not enough evidence')) : `${result.score}/100`}`}
               sx={{ alignSelf: 'flex-start' }}
             />
             <Typography
@@ -1453,7 +1519,7 @@ export function MatchGate({
                   color={
                     result.recommendation === 'Apply' ? 'success' : 'default'
                   }
-                  label={`${result.guidance ? guidanceLabel(result.guidance.recommendation) : tr(result.recommendation)} · ${result.score === null ? tr(incompleteLabel(result, 'not enough evidence')) : `${result.score}/100`}`}
+                  label={`${result.guidance ? guidanceLabel(result.guidance.recommendation) : recommendationLabel(result.recommendation)} · ${result.score === null ? tr(incompleteLabel(result, 'not enough evidence')) : `${result.score}/100`}`}
                 />
                 {counts && (
                   <Typography variant="body2" color="text.secondary">

@@ -341,8 +341,8 @@ describe('12, 17: undecomposable requirements and evaluability', () => {
       confidence: 'LOW',
     });
     expect(result.recommendation).toBe('Review requirements');
-    // UNDECOMPOSED rows stay in the denominator: the score is not inflated.
-    expect(result.score).toBeLessThanOrEqual(10);
+    // Too little of the JD is evaluable: no score rather than a misleading one.
+    expect(result.score).toBeNull();
   });
   test('whole-sentence prose no longer earns credit from an active verb', () => {
     const text =

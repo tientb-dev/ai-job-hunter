@@ -201,7 +201,7 @@ test('the fresh parsed degree is recovered when the controlled model omits its s
   });
 });
 
-test('fresh full public JD with omitted selections recovers education: 17 / 2 Matched / 0 Partial / 10 Unknown / 3 Needs review', async () => {
+test('fresh full public JD with omitted selections recovers education: 21 / 2 Matched / 0 Partial / 10 Unknown / 3 Needs review', async () => {
   const run = setup();
   const fields = Object.fromEntries(
     live.normalizedFields.map((row) => [row.field, row.value]),
@@ -224,7 +224,8 @@ test('fresh full public JD with omitted selections recovers education: 17 / 2 Ma
   expect(run.prompts.at(-1)).toMatch(
     /Bachelor['’]s Degree in Information Technology/u,
   );
-  expect(result.score).toBe(17);
+  // Unevaluable rows no longer count against the CV (was 17).
+  expect(result.score).toBe(21);
   expect(
     result.requirements.filter((row) => row.status === 'EVIDENCED'),
   ).toHaveLength(2);

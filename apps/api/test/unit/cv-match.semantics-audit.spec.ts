@@ -380,7 +380,7 @@ test('ambiguous nested compounds and multiple-language quantities remain Unknown
       'Skills: Java, Python, Rust, Scala, Go.',
     );
     expect(result).toMatchObject({
-      score: 0,
+      score: null,
       recommendation: 'Review requirements',
     });
     expect(result.requirements[0]).toMatchObject({
@@ -565,7 +565,7 @@ test('one-of alternative syntax is accepted but unsupported larger quantity is n
       cv,
       cv,
     ).score,
-  ).toBe(0);
+  ).toBeNull(); // unevaluable alone: never inferred, no score
 });
 
 test('a degree in another field cannot satisfy an explicit education alternative', () => {

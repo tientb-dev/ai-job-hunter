@@ -691,8 +691,8 @@ describe('remaining reason codes through analyze()', () => {
       cvQuote: '',
       evidence: { review: true },
     });
-    // Full weight stays in the denominator: 3 of 6, never 3 of 3.
-    expect(result.score).toBe(50);
+    // Excluded from the score, but half the weighted JD unread: no score.
+    expect(result.score).toBeNull();
     expect(result.evaluability).toMatchObject({ total: 2, evaluated: 1 });
     expect(result.evidenceUncertain).toBe(true);
     const saved = await service.currentMatch(LOCAL_OWNER_ID, 'synthetic');

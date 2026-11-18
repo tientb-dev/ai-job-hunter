@@ -57,9 +57,10 @@ function actionText(action: GuidanceAction): string {
 const CLOSING = {
   WORTH_APPLYING:
     'Some requirements are not shown in your CV yet — that does not mean you lack them.',
-  CONSIDER_CAREFULLY: 'Important requirements are not yet shown in your CV.',
+  CONSIDER_CAREFULLY:
+    'Some important requirements are not clearly shown in your CV yet. If you have this experience, the steps below help you show it.',
   STRETCH_OPPORTUNITY:
-    'Many core requirements are not shown in your CV. Apply if you have this experience and can describe it.',
+    'Many important requirements are not shown in your CV yet. If you have this experience, describe it truthfully using the steps below.',
 } as const;
 
 /** Primary takeaway of the Match Summary. Advisory, never a hiring prediction. */
@@ -101,7 +102,7 @@ export function GuidanceVerdict({ result }: { result: MatchResult }) {
         {[
           low
             ? tr(
-                'Only part of this JD could be interpreted, so this is a cautious read. Check the items marked Could not interpret requirement yourself.',
+                'The system could not analyze several important requirements, so this is a cautious read. Check the items marked System could not analyze yourself — they are not counted against you.',
               )
             : tr('Your CV documents {v0} of {v1} core requirements.', {
                 v0: String(core.withEvidence),
@@ -147,13 +148,16 @@ export function GuidanceActions({
 }) {
   if (!guidance.actions.length) return null;
   return (
-    <Box component="section" aria-label={tr('Before you apply')}>
+    <Box
+      component="section"
+      aria-label={tr('Next steps to strengthen your CV')}
+    >
       <Typography variant="subtitle1" component="h3" sx={{ fontWeight: 600 }}>
-        {tr('Before you apply')}
+        {tr('Next steps to strengthen your CV')}
       </Typography>
       <Box
         component="ol"
-        aria-label={tr('Before you apply')}
+        aria-label={tr('Next steps to strengthen your CV')}
         sx={{ m: 0, mt: 0.5, pl: 2.5 }}
       >
         {groupActions(guidance.actions).map(({ text, labels }) => (
@@ -173,6 +177,11 @@ export function GuidanceActions({
           </Box>
         ))}
       </Box>
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+        {tr(
+          'Then use Tailored CV to prepare a version of your CV for this job, using only experience you actually have.',
+        )}
+      </Typography>
     </Box>
   );
 }

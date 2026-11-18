@@ -7,6 +7,13 @@ import {
   type RequirementGroup,
 } from './cv-match.coverage.js';
 
+/**
+ * Stable API codes for how clearly the current CV documents the JD, used to
+ * frame application preparation — never permission to apply or a prediction:
+ * - WORTH_APPLYING: the CV already shows strong, relevant evidence.
+ * - CONSIDER_CAREFULLY: some important evidence should be clarified.
+ * - STRETCH_OPPORTUNITY: much important evidence is not yet shown in the CV.
+ */
 export type ApplicationRecommendation =
   'WORTH_APPLYING' | 'CONSIDER_CAREFULLY' | 'STRETCH_OPPORTUNITY';
 export type GuidanceActionCode =
@@ -63,8 +70,16 @@ export interface GuidanceRow {
 }
 
 const weight = (row: GuidanceRow) => (row.priority === 'required' ? 3 : 1);
-// Below this share the JD is mostly uninterpreted; never a confident verdict.
+/**
+ * Evaluability policy (weights as in the score):
+ * - Below MIN_EVALUATED of the weighted JD evaluated (or none): `low`; the
+ *   numeric score is withheld and confidence is LOW.
+ * - A quarter or more of the core (required) rows uninterpreted: confidence
+ *   LOW even when the weighted share passes, since key items are unread.
+ *   One uninterpreted row among many stays NORMAL.
+ */
 const MIN_EVALUATED = 0.6;
+const MAX_UNREAD_CORE = 0.25;
 
 export function evaluability(rows: readonly GuidanceRow[]): Evaluability {
   const evaluatedRows = rows.filter((row) => row.status !== 'UNDECOMPOSED');
@@ -104,7 +119,8 @@ function action(row: GuidanceRow, component?: Component): GuidanceAction {
 /**
  * Decision support, not a hiring prediction. Core = required JD items (all
  * items when the JD marks none). No score threshold is used:
- * - LOW confidence (Consider carefully) when much of the JD is uninterpreted.
+ * - LOW confidence (Consider carefully) when much of the JD, or a quarter of
+ *   the core, is uninterpreted (see evaluability policy above).
  * - Worth applying: core evidence includes described work (or every core row
  *   is fully evidenced beyond skills lists), at least half of the evaluated
  *   core rows have some evidence, and at least a third of their credit.
@@ -150,7 +166,7 @@ export function applicationGuidance(
   const uncertain =
     coverage.low ||
     !evaluated.length ||
-    undecomposed * 2 > core.length ||
+    undecomposed >= core.length * MAX_UNREAD_CORE ||
     (stretch && missedEvidence);
   const recommendation: ApplicationRecommendation = uncertain
     ? 'CONSIDER_CAREFULLY'
