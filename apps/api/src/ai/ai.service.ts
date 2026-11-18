@@ -53,6 +53,9 @@ export class AiService {
         prompt: request.prompt,
         schema,
         ...(request.seed === undefined ? {} : { seed: request.seed }),
+        ...(request.maxOutputTokens === undefined
+          ? {}
+          : { maxOutputTokens: request.maxOutputTokens }),
       });
     const text = await (this.usage ? this.usage.run(send) : send());
     let result: unknown;

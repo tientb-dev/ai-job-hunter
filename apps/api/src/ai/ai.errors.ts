@@ -39,6 +39,8 @@ export class AiError extends Error {
     readonly httpStatus?: number,
     // Upstream requests sent for this call, including transient retries.
     readonly attempts?: number,
+    // Provider token counts (integers only), e.g. on OUTPUT_LIMIT_EXCEEDED.
+    readonly usage?: Readonly<Record<string, number>>,
   ) {
     super(messages[code]);
     this.name = 'AiError';

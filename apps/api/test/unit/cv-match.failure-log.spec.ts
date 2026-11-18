@@ -219,10 +219,10 @@ describe('one classified CV_MATCH_FAILURE per failed operation', () => {
       () => setup([fail(new AiError('OUTPUT_LIMIT_EXCEEDED'))]),
       {
         stage: 'INITIAL',
-        errorCode: 'CV_MATCH_UNAVAILABLE',
+        errorCode: 'CV_MATCH_OUTPUT_LIMIT',
         reasonCode: 'OUTPUT_LIMIT_EXCEEDED',
         provider: 'gemini',
-        responseStatus: 503,
+        responseStatus: 422,
       },
     ],
     [
@@ -504,6 +504,34 @@ describe('one classified CV_MATCH_FAILURE per failed operation', () => {
       upstreamAttempts: 3,
       responseStatus: 503,
     });
+  });
+
+  test('MAX_TOKENS is an output-limit failure with integer usage, never resent', async () => {
+    const steps = [
+      fail(
+        new AiError('OUTPUT_LIMIT_EXCEEDED', undefined, undefined, {
+          promptTokenCount: 9000,
+          candidatesTokenCount: 16_384,
+          thoughtsTokenCount: 0,
+          totalTokenCount: 25_384,
+        }),
+      ),
+      () => reply(rows()),
+    ];
+    expect(await failure(setup(steps))).toEqual({
+      stage: 'INITIAL',
+      errorCode: 'CV_MATCH_OUTPUT_LIMIT',
+      reasonCode: 'OUTPUT_LIMIT_EXCEEDED',
+      provider: 'gemini',
+      responseStatus: 422,
+      counts: {
+        promptTokenCount: 9000,
+        candidatesTokenCount: 16_384,
+        thoughtsTokenCount: 0,
+        totalTokenCount: 25_384,
+      },
+    });
+    expect(steps).toHaveLength(1);
   });
 
   test('success writes no failure event', async () => {

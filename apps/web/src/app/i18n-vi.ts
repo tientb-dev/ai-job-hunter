@@ -519,6 +519,8 @@ export const VI_TEXT: Record<string, string> = {
   'Evidence and wording for': 'Bằng chứng và cách diễn đạt cho',
   'The AI cited CV text that could not be verified, so no new fit score was produced. Your saved match is unchanged. Retry; results can differ between attempts.':
     'AI đã trích dẫn nội dung CV không thể xác minh, nên chưa có điểm phù hợp mới. Kết quả đã lưu của bạn không thay đổi. Hãy thử lại; kết quả có thể khác nhau giữa các lần.',
+  "AI couldn't complete this match within the response limit. Your previous result is unchanged. Please try again.":
+    'AI chưa thể hoàn tất đánh giá trong giới hạn phản hồi. Kết quả trước đó không thay đổi. Vui lòng thử lại.',
   'The AI service is temporarily busy. Your saved match is unchanged. Try again in a few minutes.':
     'Dịch vụ AI đang tạm thời quá tải. Kết quả đã lưu của bạn không thay đổi. Hãy thử lại sau vài phút.',
   'Evidence describes the pinned profile fact. It does not independently support your edited wording.':

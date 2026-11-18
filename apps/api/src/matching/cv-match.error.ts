@@ -24,6 +24,10 @@ const failures = {
     503,
     'Matching evidence could not be verified against the saved sources. Retry analysis; no new fit score was produced.',
   ],
+  CV_MATCH_OUTPUT_LIMIT: [
+    422,
+    "AI couldn't complete this match within the response limit. Your previous result is unchanged. Please try again.",
+  ],
   CV_MATCH_PROVIDER_BUSY: [
     503,
     'The AI service is temporarily busy. Your saved match is unchanged. Try again in a few minutes.',
@@ -55,7 +59,8 @@ export type MatchFailureReason =
   | 'COMPLETION_COUNT'
   | 'COMPLETION_UNKNOWN_ID'
   | 'COMPLETION_DUPLICATE_ID'
-  | 'COMPLETION_TEXT_MISMATCH';
+  | 'COMPLETION_TEXT_MISMATCH'
+  | 'OUTPUT_LIMIT_EXCEEDED';
 export class CvMatchError extends HttpException {
   constructor(
     readonly errorCode: keyof typeof failures,
