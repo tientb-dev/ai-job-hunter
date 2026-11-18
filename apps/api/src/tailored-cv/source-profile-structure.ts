@@ -98,8 +98,11 @@ function explicit(text: string, kind: Kind | null): string | undefined {
     [/^certification:/iu, 'certification'],
   ];
   return (
-    labels.find(([pattern]) => pattern.test(value))?.[1] ??
-    (dates(value) ? 'dates' : undefined)
+    labels.find(
+      // A bare year range ("2016 - 2020") also fits the digit-run phone shape.
+      ([pattern, field]) =>
+        pattern.test(value) && !(field === 'phone' && dates(value)),
+    )?.[1] ?? (dates(value) ? 'dates' : undefined)
   );
 }
 const artifact = /[\uFFFD\u25A1\u25AF\u25A0\uE000-\uF8FF\u2709]/u;
@@ -107,6 +110,8 @@ const contactIssue =
   'Unrecognized contact fragment. Assign it explicitly or exclude it after review.';
 const artifactIssue =
   'PDF icon or separator artifact. Review before excluding.';
+const iconPrefix =
+  /^[ \t]*(?:[\uFFFD\u25A1\u25AF\u25A0\uE000-\uF8FF\u2709]\uFE0F?[ \t]*)+/u;
 function locationHint(value: string): string | undefined {
   return /\b(?:city|vietnam|viet nam|hanoi|ho chi minh)\b/iu.test(value) &&
     !/(?:\d[\s().\u2010-\u2015-]*){7}/u.test(value) &&
@@ -382,7 +387,8 @@ export function segmentSource(source: string): Passage[] {
     });
   }
   for (const match of source.matchAll(/[^\n]*(?:\n|$)/gu)) {
-    const text = match[0];
+    let text = match[0],
+      index = match.index;
     if (!text) continue;
     if (!text.trim()) {
       block++;
@@ -394,8 +400,23 @@ export function segmentSource(source: string): Passage[] {
       } else leading += text.length;
       continue;
     }
-    const start = match.index - leading,
-      end = match.index + text.length;
+    // Leading PDF icon glyphs outside contact become their own artifact
+    // passage, so they never become, or sit inside, a fact value.
+    const icon =
+      kind === null || kind === 'contact'
+        ? ''
+        : (iconPrefix.exec(text)?.[0] ?? '');
+    if (icon) {
+      const rest = text.slice(icon.length).trim() ? icon.length : text.length;
+      push(index - leading, index + rest, false, undefined, true);
+      raw.at(-1)!.issue = artifactIssue;
+      leading = 0;
+      if (rest === text.length) continue;
+      text = text.slice(rest);
+      index += rest;
+    }
+    const start = index - leading,
+      end = index + text.length;
     leading = 0;
     const value = text.trim(),
       title = value.replace(/:$/u, '').toLowerCase(),
@@ -416,8 +437,8 @@ export function segmentSource(source: string): Passage[] {
       const pieces = contactParts(text);
       if (pieces.length) {
         for (const [i, piece] of pieces.entries()) {
-          const from = i === 0 ? start : match.index + piece.start;
-          const to = pieces[i + 1] ? match.index + pieces[i + 1]!.start : end;
+          const from = i === 0 ? start : index + piece.start;
+          const to = pieces[i + 1] ? index + pieces[i + 1]!.start : end;
           push(from, to, false, piece.hint, Boolean(piece.issue));
           Object.assign(raw.at(-1)!, {
             text: piece.value,
@@ -442,7 +463,7 @@ export function segmentSource(source: string): Passage[] {
       prefix.length < 60 &&
       (!headings[prefix] || prefix === 'languages');
     if (skillCategory) {
-      const split = match.index + text.indexOf(':') + 1;
+      const split = index + text.indexOf(':') + 1;
       push(
         start,
         value.endsWith(':') ? end : split,
@@ -460,7 +481,7 @@ export function segmentSource(source: string): Passage[] {
     if (inlineKind) {
       kind = inlineKind;
       block++;
-      const split = match.index + text.indexOf(':') + 1;
+      const split = index + text.indexOf(':') + 1;
       push(start, split, true);
       if (source.slice(split, end).trim())
         push(split, end, false, kind === 'summary' ? 'summary' : 'skill');
