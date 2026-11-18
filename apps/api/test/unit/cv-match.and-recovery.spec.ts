@@ -194,7 +194,7 @@ test('unrecognized, ambiguous and non-design AND groups gain no new recovery', (
       assess(
         'Designed temporal routing, flux circuits, APIs, integrations and data flows. Skills: RAG, vector search.',
         job(text),
-      ).score,
+      ).score ?? 0, // never credited (null when the row is unevaluable)
     ).toBe(0);
   }
 });
@@ -277,7 +277,8 @@ test('full public JD with omitted selections gains only the three explicit archi
   const cv =
     "EDUCATION\nSynthetic University\nBachelor's Degree in Information Technology\nGraduated: 2019\nProfessional Summary: 6 years of experience building software systems.\nDesigned REST APIs.\nDesigned service integrations using RabbitMQ.\nDesigned GitLab CI/CD pipelines.";
   const result = assess(cv, saved);
-  expect(result.score).toBe(22);
+  // Unevaluable rows no longer count against the CV (was 22).
+  expect(result.score).toBe(28);
   expect(
     result.requirements.filter((row) => row.status === 'EVIDENCED'),
   ).toHaveLength(2);

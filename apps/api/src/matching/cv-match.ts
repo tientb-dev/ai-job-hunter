@@ -968,7 +968,11 @@ export function scoreCvMatch(
           cv,
           item.category,
         );
-      const credit = coverage?.credit ?? Number(status === 'EVIDENCED');
+      // A single row with relevant but unconfirmed support (e.g. duration not
+      // dated) earns the same half credit as a partial OR alternative.
+      const singleCredit =
+        status === 'EVIDENCED' ? 1 : status === 'PARTIAL' ? 0.5 : 0;
+      const credit = coverage?.credit ?? singleCredit;
       // A CV passage that alone would earn more credit under the same strict
       // rules, while the model's quote did not count: flag for review only.
       // Never credited or shown as a quote, so the score is unchanged.
@@ -1009,7 +1013,7 @@ export function scoreCvMatch(
         evidence: { modelQuote: item.modelQuote, review },
         coverage: coverage ?? {
           mode: 'SINGLE' as const,
-          credit: Number(status === 'EVIDENCED'),
+          credit: singleCredit,
           status,
           reason:
             status === 'CONFLICT'
@@ -1034,14 +1038,15 @@ export function scoreCvMatch(
     });
   const weight = (item: MatchRequirement) =>
     item.priority === 'required' ? 3 : 1;
-  const total = requirements.reduce((sum, item) => sum + weight(item), 0);
-  const earned = requirements.reduce(
+  // UNDECOMPOSED means the system could not evaluate the row, not that the
+  // applicant failed it: it is left out of both earned and possible weight.
+  const scored = requirements.filter((item) => item.status !== 'UNDECOMPOSED');
+  const total = scored.reduce((sum, item) => sum + weight(item), 0);
+  const earned = scored.reduce(
     (sum, item) => sum + item.credit * weight(item),
     0,
   );
-  const score =
-    total && !unverified ? Math.round((100 * earned) / total) : null;
-  const requiredGap = requirements.some(
+  const requiredGap = scored.some(
     (item) => item.priority === 'required' && item.status !== 'EVIDENCED',
   );
   // A required item may have CV support the model missed; see evidence.review.
@@ -1055,6 +1060,12 @@ export function scoreCvMatch(
       components: item.coverage.components,
     })),
   );
+  // Evaluability policy (cv-match.guidance.ts `evaluability`): no score when
+  // nothing could be evaluated or too little of the weighted JD was readable.
+  const score =
+    total && !unverified && !evaluability.low
+      ? Math.round((100 * earned) / total)
+      : null;
   // Legacy label for older consumers, derived from guidance (no score cutoffs).
   const recommendation =
     unverified || score === null || guidance.confidence === 'LOW'
@@ -1069,17 +1080,20 @@ export function scoreCvMatch(
     recommendation,
     evidenceUncertain,
     evaluability,
-    // A withheld score (unverified JD) also withholds the advisory label.
-    guidance: unverified || score === null ? null : guidance,
+    // An unverified JD withholds guidance; insufficient evaluability keeps the
+    // strengths/actions (LOW confidence) so the applicant can still prepare.
+    guidance: unverified || !requirements.length ? null : guidance,
     requirements,
     explanation:
-      'Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Unknown/conflict earns zero. AI links and requirement completeness need human review; this is not a hiring probability.',
+      'Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Conflict earns zero; requirements the system could not interpret are excluded from the score and listed separately. AI links and requirement completeness need human review; this is not a hiring probability.',
     advice: unverified
       ? 'The saved JD has no recognizable requirements section, so these requirements may be incomplete and no fit score is given. Review the job requirements, then analyze again.'
-      : score === null
+      : !total
         ? 'No grounded requirements could be evaluated. Review the saved JD and retry.'
-        : requiredGap
-          ? 'Verify the required evidence gaps before applying. Add only accurate supporting experience to your CV.'
-          : 'Review the quoted evidence and tailor your application using only qualifications you can substantiate.',
+        : score === null
+          ? 'Too few requirements could be evaluated reliably to give a score. Use the strengths and next steps below, and check the requirements the system could not analyze yourself.'
+          : requiredGap
+            ? 'Some required items are not clearly shown in your CV yet. If you have that experience, add accurate examples.'
+            : 'Review the quoted evidence and tailor your application using only qualifications you can substantiate.',
   };
 }

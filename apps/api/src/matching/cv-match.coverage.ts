@@ -40,6 +40,8 @@ export interface RequirementGroup {
   // "Strong proficiency in at least one programming language such as …":
   // professional use is PARTIAL; only a stated proficiency level is full credit.
   languageProficiency?: true;
+  /** "Sử dụng … CSDL": a skills-list mention alone is PARTIAL. */
+  databaseUse?: true;
 }
 export interface ComponentEvidence {
   componentId: string;
@@ -95,6 +97,8 @@ export function requirementGroup(
     const qualification = qualificationGroup(text);
     if (qualification) return qualification;
   }
+  const oneOf = vietnameseOneOf(text);
+  if (oneOf) return oneOf;
   // Bare durations, domains and degree-like rows stay whole; any category with
   // explicit coordination goes through the same grammar below.
   if (
@@ -352,6 +356,74 @@ export function requirementGroup(
 }
 
 const databaseName = /^(?:MySQL|Oracle|SQL Server|PostgreSQL|MariaDB)$/iu;
+// JD shorthand → the product name a CV states; jdQuote keeps the JD spelling.
+const databaseAlias: Record<string, string> = {
+  'my sql': 'MySQL',
+  mongo: 'MongoDB',
+  mongodb: 'MongoDB',
+  maria: 'MariaDB',
+};
+const knownDatabase =
+  /^(?:MySQL|Oracle|SQL Server|PostgreSQL|MariaDB|MongoDB)$/iu;
+
+/**
+ * "Sử dụng tối thiểu 01 loại ngôn ngữ lập trình Golang/Python/Java",
+ * "Sử dụng ít nhất 01 hệ quản trị CSDL (My SQL, SQL Server, Mongo)": one
+ * listed alternative suffices. "Sử dụng" needs demonstrated work use;
+ * "thành thạo" keeps the stricter proficiency rules. Only lists of known
+ * names are decomposed; anything else stays UNKNOWN (never a generic split).
+ */
+function vietnameseOneOf(text: string): RequirementGroup | null {
+  const match =
+    /^((?:sử dụng|thành thạo|sử dụng thành thạo|biết)\s+)?(?:tối thiểu|ít nhất)\s+0?1\s+(?:loại\s+)?(ngôn ngữ(?:\s+lập trình)?|hệ quản trị\s+(?:cơ sở dữ liệu|csdl)|cơ sở dữ liệu|csdl)(?:\s+sau)?\s*(?::\s*(.+)|\((.+)\)|(.+))$/iu.exec(
+      text,
+    );
+  if (!match) return null;
+  const proficient = /thành thạo/iu.test(match[1] ?? '');
+  const database = !/ngôn ngữ/iu.test(match[2]!);
+  const list = match[3] ?? match[4] ?? match[5]!;
+  const quotes = list
+    .split(/\s*[,;/]\s*(?:(?:or|hoặc)\s+)?|\s+(?:or|hoặc)\s+/iu)
+    .map((label) => label.trim())
+    .filter(Boolean);
+  const labels = quotes.map((quote) =>
+    database ? (databaseAlias[quote.toLowerCase()] ?? quote) : quote,
+  );
+  const unknown: RequirementGroup = {
+    mode: 'UNKNOWN',
+    context: 'skill',
+    components: [{ id: 'c1', label: text, jdQuote: text }],
+  };
+  if (
+    quotes.length < 2 ||
+    quotes.length > 10 ||
+    !labels.every((label) =>
+      database ? knownDatabase.test(label) : /^[\w+#.-]{1,20}$/u.test(label),
+    )
+  )
+    return unknown;
+  const components = labels.map((label, index) => ({
+    id: `c${index + 1}`,
+    label,
+    jdQuote: quotes[index]!,
+  }));
+  if (proficient)
+    return database
+      ? { mode: 'OR', context: 'proficiency', components }
+      : {
+          mode: 'OR',
+          context: 'experience',
+          components,
+          languageProficiency: true,
+        };
+  return {
+    mode: 'OR',
+    context: 'experience',
+    components,
+    demonstratedUse: true,
+    ...(database ? { databaseUse: true as const } : {}),
+  };
+}
 
 const aliases: readonly [RegExp, RegExp][] = [
   [
@@ -447,6 +519,15 @@ function mentions(label: string, text: string): boolean {
     );
   const capability = capabilityOf(label);
   if (capability) return capability.evidence.test(text);
+  // Go is the language Golang; case-sensitive whole word so "go", "Google",
+  // "ago", "Go-to-market" or "Go to" never match.
+  if (/^(?:golang|go)$/iu.test(label))
+    return (
+      /\bgolang\b/iu.test(text) ||
+      /(?<![\p{L}\p{N}_.#+-])Go(?![\p{L}\p{N}_#+-])(?!\s+(?:to|live|ahead|back)\b)/u.test(
+        text,
+      )
+    );
   const alias = aliases.find(([pattern]) => pattern.test(label));
   if (alias) return alias[1].test(text);
   // A small spelling normalization, not fuzzy entailment or a skill ontology.
@@ -476,6 +557,14 @@ const uncertain = (text: string) =>
   );
 // Vietnamese work/experience verbs: CVs are often Vietnamese while the JD is
 // English (or the reverse); the same evidence gate must apply to both.
+// Explicit Vietnamese work use: a use/build verb followed, in the same clause,
+// by a professional context ("Sử dụng Java trong dự án …", "Phát triển API
+// bằng Go cho hệ thống …"). A verb or a skills line alone is not enough.
+const vietnameseProfessionalUse =
+  /(?<!\p{L})(?:sử dụng|dùng|phát triển|xây dựng|triển khai|lập trình|tích hợp|vận hành|thiết kế)(?!\p{L})[^.;!?\r\n]{1,80}?(?<!\p{L})(?:trong|cho|tại|ở)\s+(?:các\s+|nhiều\s+)?(?:dự án|hệ thống|sản phẩm|công ty|doanh nghiệp|ứng dụng|dịch vụ|nền tảng|module|mô-đun)(?!\p{L})/iu;
+// Learning, plans or wishes are not completed work.
+const vietnameseAspiration =
+  /(?<!\p{L})(?:đang học|học tập|tìm hiểu|sẽ|dự định|mong muốn|muốn|sau này|khóa học|bài tập|đồ án)(?!\p{L})/iu;
 const vietnameseWork =
   /(?<!\p{L})(?:kinh nghiệm|triển khai|thực hiện|xây dựng|phát triển|quản lý|vận hành|tối ưu|lập kế hoạch|phụ trách|đạt|ký|tư vấn|sử dụng|tạo|phối hợp|trình bày|thiết lập|đàm phán|tăng)(?!\p{L})/iu;
 const active = (text: string) =>
@@ -704,7 +793,9 @@ function supports(
     return languageProficiencyDeclared(label, text);
   if (group.demonstratedUse)
     return (
-      recoveryWork.test(text) &&
+      (recoveryWork.test(text) ||
+        (vietnameseProfessionalUse.test(text) &&
+          !vietnameseAspiration.test(text))) &&
       !skillsDeclaration.test(text) &&
       !aiToolUse.test(text)
     );
@@ -1422,8 +1513,23 @@ export function evaluateCoverage(
       );
       if (use) observations.push({ kind: 'experience', cvQuote: use });
     }
+    // A database named in a skills list, with no described use: PARTIAL.
+    const listed =
+      group.databaseUse && !positive
+        ? all.find(
+            (line) =>
+              mentions(component.label, line) &&
+              !negative(line) &&
+              !uncertain(line) &&
+              (declarationLine(line) ||
+                skillsDeclaration.test(line) ||
+                underSkillsHeading(line, cv)),
+          )
+        : undefined;
+    if (listed) observations.push({ kind: 'mention', cvQuote: listed });
     const work = observations.find((item) => item.kind === 'experience');
     const partial =
+      (!!group.databaseUse && !!listed) ||
       (group.context === 'proficiency' &&
         !!work &&
         databaseProfessionalUse(work.cvQuote)) ||
@@ -1455,7 +1561,7 @@ export function evaluateCoverage(
         (conflict
           ? (positiveInCv ?? work?.cvQuote)
           : partial
-            ? work?.cvQuote
+            ? (work?.cvQuote ?? listed)
             : '') ??
         '',
       conflictingQuotes: conflict ? negatives : [],
@@ -1466,7 +1572,9 @@ export function evaluateCoverage(
               ? `Use is evidenced in the CV; the required ${group.minimumYears}+ years is not established.`
               : work
                 ? 'Project experience is evidenced; proficiency remains unverified.'
-                : 'Mentioned in the CV; proficiency remains unverified.',
+                : group.databaseUse
+                  ? 'Listed as a skill in the CV; work use is not described yet.'
+                  : 'Mentioned in the CV; proficiency remains unverified.',
           }
         : {}),
     };
@@ -1481,7 +1589,9 @@ export function evaluateCoverage(
       : group.mode === 'OR'
         ? supported > 0
           ? 1
-          : (group.context === 'proficiency' || group.languageProficiency) &&
+          : (group.context === 'proficiency' ||
+                group.languageProficiency ||
+                group.databaseUse) &&
               components.some((item) => item.status === 'PARTIAL')
             ? 0.5
             : 0
@@ -1924,6 +2034,15 @@ export function recordMonths(
   cv: string,
   today = new Date(),
 ): number | null {
+  const interval = recordInterval(passage, cv, today);
+  return interval ? interval.to - interval.from + 1 : null;
+}
+/** The record's month interval (inclusive, months since year 0) or null. */
+function recordInterval(
+  passage: string,
+  cv: string,
+  today = new Date(),
+): { from: number; to: number } | null {
   const start = cv.indexOf(passage);
   if (start < 0) return null;
   const lines = cv
@@ -1952,7 +2071,7 @@ export function recordMonths(
       const to = now
         ? today.getFullYear() * 12 + today.getMonth()
         : Number(y2) * 12 + (m2 ? m2 - 1 : 0);
-      return to >= from ? to - from + 1 : null;
+      return to >= from ? { from, to } : null;
     }
     if (line !== lines[0] && headingLine.test(line) && line.trim()) return null;
   }
@@ -1968,6 +2087,7 @@ export function genericSingle(requirement: string, category: string): boolean {
     !capabilityOf(simpleLabel(requirement)) &&
     !skillExperience(requirement) &&
     !roleExperience(requirement) &&
+    !vietnameseRoleExperience(requirement) &&
     perDealAmount(requirement) === null &&
     !/^(?:(?:minimum|at least|min\.?|tối thiểu|ít nhất)\s+)?\d+\+?\s+(?:years?|yrs?|năm)$/iu.test(
       text,
@@ -1977,6 +2097,58 @@ export function genericSingle(requirement: string, category: string): boolean {
     !descriptiveExperience(requirement, category)
   );
 }
+/** "Từ 3 năm kinh nghiệm trở lên vị trí fullstack" → 3 years as fullstack. */
+export function vietnameseRoleExperience(
+  requirement: string,
+): { years: number; role: string } | null {
+  const match =
+    /^(?:có\s+)?(?:(?:từ|ít nhất|tối thiểu)\s+)?(\d+)\+?\s*năm\s+kinh nghiệm(?:\s+trở lên)?\s+(?:(?:làm việc\s+)?(?:ở|tại)\s+)?(?:vị trí|vai trò)\s+(.+?)(?:\s+trở lên)?$/iu.exec(
+      requirement.trim().replace(/[.;]+$/u, ''),
+    );
+  const role = match?.[2]?.trim();
+  if (!role || /[,;()]|hoặc|\b(?:or|and)\b/iu.test(role)) return null;
+  return role.split(/\s+/u).length <= 3
+    ? { years: Number(match![1]), role }
+    : null;
+}
+// Relevant role work with a stated duration, or dated role records whose
+// merged (non-overlapping) intervals reach the minimum, is support; the role
+// without a confirmable duration is PARTIAL. Undated records add nothing.
+function roleDurationStatus(
+  { years, role }: { years: number; role: string },
+  quote: string,
+  cv: string,
+): CoverageStatus {
+  const flat = (value: string) => normalize(value).replace(/[\s\-–]+/gu, '');
+  const isRelevant = (line: string) =>
+    flat(line).includes(flat(role)) &&
+    !negative(line) &&
+    !uncertain(line) &&
+    !declarationLine(line) &&
+    !underSkillsHeading(line, cv);
+  // The selected quote must itself be relevant; other dated records naming the
+  // same role then add their time. Overlapping intervals count once.
+  if (!passages(quote).some(isRelevant)) return 'NOT_EVIDENCED';
+  const relevant = [...new Set([...passages(quote), ...passages(cv)])].filter(
+    isRelevant,
+  );
+  if (
+    relevant.some((line) => Number(statedYears.exec(line)?.[1] ?? 0) >= years)
+  )
+    return 'EVIDENCED';
+  const intervals = relevant
+    .map((line) => recordInterval(line, cv))
+    .filter((item): item is { from: number; to: number } => item !== null)
+    .sort((a, b) => a.from - b.from);
+  let months = 0;
+  let end = -Infinity;
+  for (const { from, to } of intervals) {
+    const start = Math.max(from, end + 1);
+    if (to >= start) months += to - start + 1;
+    end = Math.max(end, to);
+  }
+  return months >= years * 12 ? 'EVIDENCED' : 'PARTIAL';
+}
 export function simpleEvidenceStatus(
   requirement: string,
   quote: string,
@@ -1984,6 +2156,8 @@ export function simpleEvidenceStatus(
   category = 'skill',
 ): CoverageStatus {
   if (!quote) return 'NOT_EVIDENCED';
+  const roleYears = vietnameseRoleExperience(requirement);
+  if (roleYears) return roleDurationStatus(roleYears, quote, cv);
   const skillWork = skillExperience(requirement);
   if (skillWork) return skillExperienceStatus(skillWork, quote, cv);
   // "2+ years of B2B sales experience": years in another field are not support;

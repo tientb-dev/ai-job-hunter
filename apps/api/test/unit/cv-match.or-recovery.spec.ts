@@ -183,7 +183,8 @@ test('unsupported quantity, mixed logic and unrecognized alternatives never gain
   ]) {
     const cv =
       'Built MCP, RAG, tool calling, flux capacitor and temporal routing systems.';
-    expect(omitted(cv, jobFor('', requirement)).score).toBe(0);
+    // Never credited (null when the row is unevaluable).
+    expect(omitted(cv, jobFor('', requirement)).score ?? 0).toBe(0);
   }
 });
 

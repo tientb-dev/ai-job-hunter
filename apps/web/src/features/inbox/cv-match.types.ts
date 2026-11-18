@@ -86,15 +86,34 @@ export const statusLabel = (status: MatchStatus) =>
   ({
     EVIDENCED: tr('Matched'),
     PARTIAL: tr('Partial'),
-    NOT_EVIDENCED: tr('Unknown'),
+    // "Not shown in this CV" is not "lacks the skill"; UNDECOMPOSED is the
+    // system's own limit, never the applicant's.
+    NOT_EVIDENCED: tr('Not clearly shown in CV'),
     CONFLICT: tr('Conflict / Needs review'),
-    UNDECOMPOSED: tr('Could not interpret requirement'),
+    UNDECOMPOSED: tr('System could not analyze'),
   })[status];
+// Preparation framing of the stable API codes: how clearly the CV documents
+// the JD, never permission to apply or a hiring prediction.
 const GUIDANCE_LABEL = {
-  WORTH_APPLYING: 'Worth applying',
-  CONSIDER_CAREFULLY: 'Consider carefully',
-  STRETCH_OPPORTUNITY: 'Stretch opportunity',
+  WORTH_APPLYING: 'Your CV shows strong relevant evidence',
+  CONSIDER_CAREFULLY: 'Clarify key evidence in your CV',
+  STRETCH_OPPORTUNITY: 'Add missing evidence to your CV',
 } as const;
 export const guidanceLabel = (
   recommendation: ApplicationGuidance['recommendation'],
 ): string => tr(GUIDANCE_LABEL[recommendation]);
+// Same framing for the legacy label of matches saved without guidance.
+const LEGACY_LABEL: Record<string, string> = {
+  Apply: GUIDANCE_LABEL.WORTH_APPLYING,
+  Consider: GUIDANCE_LABEL.CONSIDER_CAREFULLY,
+  'Low Fit': GUIDANCE_LABEL.STRETCH_OPPORTUNITY,
+};
+export const recommendationLabel = (recommendation: string): string =>
+  tr(LEGACY_LABEL[recommendation] ?? recommendation);
+/** Requirement shape in the UI language; SINGLE/UNKNOWN show no label. */
+export const coverageModeLabel = (mode: string): string =>
+  mode === 'OR'
+    ? tr('Any one of these')
+    : mode === 'AND'
+      ? tr('All of these')
+      : '';

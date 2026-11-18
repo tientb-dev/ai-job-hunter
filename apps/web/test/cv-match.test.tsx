@@ -49,17 +49,17 @@ test('loads saved CV, displays local analysis and clears stale results after job
   expect(screen.queryByText(/Saved CV:/)).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
   await screen.findByLabelText(/Fit score: 75\/100/);
-  expect(screen.getByText('Consider')).toBeVisible();
+  expect(screen.getByText('Clarify key evidence in your CV')).toBeVisible();
   const requirements = screen.getByRole('region', { name: 'Requirements' });
   expect(screen.queryByLabelText('CV evidence')).toBeNull();
   expect(screen.getByText('Matched: 1')).toBeVisible();
-  expect(screen.getByText('Unknown: 1')).toBeVisible();
+  expect(screen.getByText('Not clearly shown in CV: 1')).toBeVisible();
   expect(screen.getByText('Total: 2')).toBeVisible();
   const matched = within(requirements).getByRole('button', {
     name: 'Matched: Python',
   });
   const gaps = within(requirements).getByRole('button', {
-    name: 'Unknown: Insurance',
+    name: 'Not clearly shown in CV: Insurance',
   });
   expect(matched).toHaveAttribute('aria-expanded', 'false');
   fireEvent.click(matched);
@@ -152,7 +152,9 @@ test('unknown score and long multiline evidence preserve exact source text', asy
   fireEvent.click(screen.getByRole('button', { name: 'Matched: Python' }));
   expect(screen.getByLabelText('CV evidence').textContent).toBe(quote);
   expect(screen.getByLabelText('CV evidence')).toHaveAttribute('tabindex', '0');
-  fireEvent.click(screen.getByRole('button', { name: 'Unknown' }));
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Not clearly shown in CV' }),
+  );
   expect(
     within(screen.getByRole('region', { name: 'Requirements' })).getByText(
       'No unknown requirements reported.',
@@ -316,10 +318,10 @@ test('filters, stable priority/status ordering and keyboard disclosure use exist
       .getAllByRole('button')
       .filter((button) => button.hasAttribute('aria-expanded'));
   expect(rows().map((button) => button.getAttribute('aria-label'))).toEqual([
-    'Unknown: Required gap first',
-    'Unknown: Required gap second',
+    'Not clearly shown in CV: Required gap first',
+    'Not clearly shown in CV: Required gap second',
     'Matched: Required matched',
-    'Unknown: Preferred gap',
+    'Not clearly shown in CV: Preferred gap',
     'Matched: Preferred matched',
   ]);
   expect(
@@ -336,13 +338,15 @@ test('filters, stable priority/status ordering and keyboard disclosure use exist
   expect(rows()).toHaveLength(2);
   expect(within(list).queryByText('Required gap first')).toBeNull();
   expect(screen.getByText('Preferred')).toBeVisible();
-  await user.click(screen.getByRole('button', { name: 'Unknown' }));
+  await user.click(
+    screen.getByRole('button', { name: 'Not clearly shown in CV' }),
+  );
   expect(rows()).toHaveLength(3);
   expect(within(list).queryByText('Required matched')).toBeNull();
   await user.click(screen.getByRole('button', { name: 'All' }));
   expect(rows()).toHaveLength(5);
   expect(screen.getByText('Matched: 2')).toBeVisible();
-  expect(screen.getByText('Unknown: 3')).toBeVisible();
+  expect(screen.getByText('Not clearly shown in CV: 3')).toBeVisible();
 });
 
 test('no saved CV keeps the initial empty state and analyze disabled', async () => {
@@ -415,7 +419,7 @@ test('overview surfaces source labels for strengths and required gaps with a neu
   const all = screen.getByRole('region', { name: 'Requirements' });
   expect(
     within(all).getByRole('button', {
-      name: 'Unknown: Preferred source gap',
+      name: 'Not clearly shown in CV: Preferred source gap',
     }),
   ).toBeVisible();
 });
@@ -453,7 +457,9 @@ test('preview links reveal the exact requirement across filters and support keyb
     name: 'Key strengths',
   });
   const gaps = screen.getByRole('region', { name: 'Required gaps' });
-  await user.click(screen.getByRole('button', { name: 'Unknown' }));
+  await user.click(
+    screen.getByRole('button', { name: 'Not clearly shown in CV' }),
+  );
   const preview = within(strengths).getByRole('button', {
     name: 'View evidence: Same label',
   });
@@ -474,7 +480,9 @@ test('preview links reveal the exact requirement across filters and support keyb
   await user.click(
     within(gaps).getByRole('button', { name: 'View evidence: Same label' }),
   );
-  const gap = screen.getByRole('button', { name: 'Unknown: Same label' });
+  const gap = screen.getByRole('button', {
+    name: 'Not clearly shown in CV: Same label',
+  });
   await waitFor(() => expect(gap).toHaveFocus());
   expect(gap).toHaveAttribute('aria-current', 'true');
   expect(
@@ -487,13 +495,15 @@ test('preview links reveal the exact requirement across filters and support keyb
     'aria-pressed',
     'true',
   );
-  await user.click(screen.getByRole('button', { name: 'Unknown' }));
+  await user.click(
+    screen.getByRole('button', { name: 'Not clearly shown in CV' }),
+  );
   expect(
-    screen.getByRole('button', { name: 'Unknown: Same label' }),
+    screen.getByRole('button', { name: 'Not clearly shown in CV: Same label' }),
   ).toHaveAttribute('aria-current', 'true');
   await user.click(screen.getByRole('button', { name: 'All' }));
   expect(
-    screen.getByRole('button', { name: 'Unknown: Same label' }),
+    screen.getByRole('button', { name: 'Not clearly shown in CV: Same label' }),
   ).toHaveAttribute('aria-current', 'true');
   gap.focus();
   await user.keyboard(' ');
@@ -528,7 +538,9 @@ test('preferred gap previews retain their actual priority and disclose no requir
   fireEvent.click(
     within(gaps).getByRole('button', { name: 'View evidence: Insurance' }),
   );
-  const row = screen.getByRole('button', { name: 'Unknown: Insurance' });
+  const row = screen.getByRole('button', {
+    name: 'Not clearly shown in CV: Insurance',
+  });
   expect(row).toHaveAttribute('aria-expanded', 'true');
   expect(within(row).getByText('Preferred · Domain')).toBeVisible();
 });
@@ -674,7 +686,7 @@ test('compound states, component evidence and conflict passages survive filterin
   ).toHaveTextContent('synthetic.pdf');
   await user.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
   await screen.findByText('Partial: 1');
-  expect(screen.getByText('Unknown: 1')).toBeVisible();
+  expect(screen.getByText('Not clearly shown in CV: 1')).toBeVisible();
   expect(screen.getByText('Conflict / Needs review: 1')).toBeVisible();
   await user.click(screen.getByRole('button', { name: 'Partial' }));
   const partial = screen.getByRole('button', {
@@ -683,7 +695,14 @@ test('compound states, component evidence and conflict passages survive filterin
   partial.focus();
   await user.keyboard('{Enter}');
   expect(partial).toHaveAttribute('aria-expanded', 'true');
-  expect(screen.getByText('AND · 1/2 components supported')).toBeVisible();
+  expect(
+    screen.getByText('All of these · 1/2 components supported'),
+  ).toBeVisible();
+  // No internal mode codes or generic English diagnostics reach the user.
+  expect(screen.queryByText(/\b(?:SINGLE|UNKNOWN|AND|OR) ·/u)).toBeNull();
+  expect(
+    screen.queryByText('Review the selected component evidence.'),
+  ).toBeNull();
   expect(screen.getByLabelText('CV evidence: APIs').textContent).toBe(
     'Designed APIs.',
   );
@@ -708,12 +727,16 @@ test('compound states, component evidence and conflict passages survive filterin
     'tabindex',
     '0',
   );
-  await user.click(screen.getByRole('button', { name: 'Unknown' }));
+  await user.click(
+    screen.getByRole('button', { name: 'Not clearly shown in CV' }),
+  );
   expect(
     screen.queryByRole('button', { name: 'Partial: APIs and integrations' }),
   ).toBeNull();
   expect(
-    screen.getByRole('button', { name: 'Unknown: RAG knowledge' }),
+    screen.getByRole('button', {
+      name: 'Not clearly shown in CV: RAG knowledge',
+    }),
   ).toBeVisible();
   view.rerender(<CvMatchPanel jobId="synthetic" revision="2" />);
   expect(screen.queryByLabelText(/Fit score:/)).toBeNull();
@@ -775,7 +798,7 @@ test('an unverified requirement set shows a review state, not a numeric Low Fit'
     'Fit score: requirements may be incomplete (heuristic)',
   );
   expect(screen.getAllByText('Review requirements')[0]).toBeVisible();
-  expect(screen.queryByText('Low Fit')).toBeNull();
+  expect(screen.queryByText('Add missing evidence to your CV')).toBeNull();
   expect(screen.queryByText(/\/ 100/)).toBeNull();
 });
 

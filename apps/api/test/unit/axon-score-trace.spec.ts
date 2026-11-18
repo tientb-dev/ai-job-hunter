@@ -213,7 +213,8 @@ test('a source-valid tool list is not evidence of evaluating and integrating too
   expect(
     result.requirements[3]!.coverage.components.map((c) => c.status),
   ).toEqual(['NOT_EVIDENCED', 'NOT_EVIDENCED']);
-  expect(result).toMatchObject({ score: 60, recommendation: 'Consider' });
+  // The unparsed fifth row is excluded from the score (3 of 4, was 3 of 5).
+  expect(result).toMatchObject({ score: 75, recommendation: 'Consider' });
 });
 
 const toolingActivity =

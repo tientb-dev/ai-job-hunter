@@ -1255,7 +1255,7 @@ export const VI_TEXT: Record<string, string> = {
     'Đang yêu cầu gợi ý. Kết quả đối chiếu được giữ lại.',
   'Requesting suggestions…': 'Đang yêu cầu gợi ý…',
   Required: 'Bắt buộc',
-  'Required gaps': 'Thiếu sót bắt buộc',
+  'Required gaps': 'Yêu cầu bắt buộc cần làm rõ',
   'Required qualifications needing more evidence':
     'Tiêu chí bắt buộc cần thêm bằng chứng',
   'Required qualifications not evidenced in your CV':
@@ -2267,12 +2267,72 @@ export const VI_TEXT: Record<string, string> = {
     'Hãy rà soát CV mà công việc này dùng trước khi Đối chiếu CV.',
   'Review this CV first. Suggestions need a completed Source CV Review and a CV Match for this job.':
     'Hãy rà soát CV này trước. Gợi ý cần bản rà soát CV gốc đã hoàn tất và kết quả Đối chiếu CV cho công việc này.',
-  'Could not interpret requirement': 'Chưa phân tích được yêu cầu',
-  'Application guidance': 'Gợi ý ứng tuyển',
+  'Could not interpret requirement': 'Hệ thống chưa phân tích được',
+  'Application guidance': 'Chuẩn bị hồ sơ ứng tuyển',
   'Worth applying': 'Nên ứng tuyển',
   'Consider carefully': 'Cân nhắc kỹ',
   'Stretch opportunity': 'Cơ hội thử thách',
   'Low confidence': 'Độ tin cậy thấp',
+  'Not analyzed by the system': 'Hệ thống chưa phân tích được',
+  'Listed as a skill in the CV; work use is not described yet.':
+    'Có liệt kê trong phần kỹ năng; CV chưa mô tả việc sử dụng trong công việc.',
+  'Not clearly shown in CV': 'CV chưa thể hiện rõ',
+  'System could not analyze': 'Hệ thống chưa phân tích được',
+  'Your CV shows strong relevant evidence':
+    'CV đã thể hiện rõ nhiều yêu cầu liên quan',
+  'Clarify key evidence in your CV': 'Làm rõ thêm các điểm quan trọng trong CV',
+  'Add missing evidence to your CV': 'Bổ sung bằng chứng còn thiếu vào CV',
+  'Any one of these': 'Cần một trong các mục',
+  'All of these': 'Cần tất cả các mục',
+  'Some important requirements are not clearly shown in your CV yet. If you have this experience, the steps below help you show it.':
+    'Một số yêu cầu quan trọng chưa được thể hiện rõ trong CV. Nếu bạn có kinh nghiệm này, các bước bên dưới giúp bạn thể hiện nó.',
+  'Many important requirements are not shown in your CV yet. If you have this experience, describe it truthfully using the steps below.':
+    'Nhiều yêu cầu quan trọng chưa được thể hiện trong CV. Nếu bạn có kinh nghiệm này, hãy mô tả trung thực theo các bước bên dưới.',
+  'The system could not analyze several important requirements, so this is a cautious read. Check the items marked System could not analyze yourself — they are not counted against you.':
+    'Hệ thống chưa phân tích được một số yêu cầu quan trọng nên đây chỉ là nhận định thận trọng. Hãy tự kiểm tra các mục được đánh dấu Hệ thống chưa phân tích được — các mục này không bị tính là điểm yếu của bạn.',
+  'Next steps to strengthen your CV': 'Các bước để CV thể hiện tốt hơn',
+  'Then use Tailored CV to prepare a version of your CV for this job, using only experience you actually have.':
+    'Sau đó, dùng CV tùy chỉnh để chuẩn bị bản CV cho công việc này, chỉ dùng kinh nghiệm bạn thực sự có.',
+  'insufficient information to assess reliably':
+    'chưa đủ thông tin để đánh giá đáng tin cậy',
+  'Insufficient information to assess reliably, so no score is shown.':
+    'Chưa đủ thông tin để đánh giá đáng tin cậy nên không hiển thị điểm.',
+  'The system could not analyze {v0} requirement(s); they are not counted in the score.':
+    'Hệ thống chưa phân tích được {v0} yêu cầu; các yêu cầu này không được tính vào điểm.',
+  'The system could not analyze this requirement. Check it against your experience yourself.':
+    'Hệ thống chưa phân tích được yêu cầu này. Hãy tự đối chiếu với kinh nghiệm của bạn.',
+  'Supported by the CV evidence shown.':
+    'Được hỗ trợ bởi bằng chứng trong CV ở trên.',
+  'Partly supported; the CV could show this more clearly.':
+    'Có bằng chứng một phần; CV có thể thể hiện rõ hơn.',
+  'Contradictory CV statements need review.':
+    'CV có nội dung mâu thuẫn, cần kiểm tra lại.',
+  'Not clearly shown in this CV yet. If you have this experience, add it.':
+    'CV này chưa thể hiện rõ. Nếu bạn có kinh nghiệm này, hãy bổ sung.',
+  'Too few requirements could be evaluated reliably to give a score. Use the strengths and next steps below, and check the requirements the system could not analyze yourself.':
+    'Quá ít yêu cầu được đánh giá đáng tin cậy để cho điểm. Hãy dùng điểm mạnh và các bước bên dưới, và tự kiểm tra các yêu cầu hệ thống chưa phân tích được.',
+  'No grounded requirements could be evaluated. Review the saved JD and retry.':
+    'Không đánh giá được yêu cầu nào có căn cứ. Hãy xem lại JD đã lưu rồi thử lại.',
+  'The saved JD has no recognizable requirements section, so these requirements may be incomplete and no fit score is given. Review the job requirements, then analyze again.':
+    'JD đã lưu không có phần yêu cầu rõ ràng nên danh sách yêu cầu có thể chưa đầy đủ và không có điểm. Hãy xem lại yêu cầu công việc rồi phân tích lại.',
+  'Some required items are not clearly shown in your CV yet. If you have that experience, add accurate examples.':
+    'Một số yêu cầu bắt buộc chưa được thể hiện rõ trong CV. Nếu bạn có kinh nghiệm đó, hãy bổ sung ví dụ chính xác.',
+  'Review the quoted evidence and tailor your application using only qualifications you can substantiate.':
+    'Xem lại bằng chứng được trích và điều chỉnh hồ sơ chỉ với những gì bạn chứng minh được.',
+  'Personal delivery beyond prototype is not evidenced.':
+    'CV chưa thể hiện việc tự xây dựng và triển khai sản phẩm vượt mức prototype.',
+  'Project experience is evidenced; proficiency remains unverified.':
+    'Có kinh nghiệm dự án; mức thành thạo chưa được xác nhận.',
+  'Mentioned in the CV; proficiency remains unverified.':
+    'Có nhắc trong CV; mức thành thạo chưa được xác nhận.',
+  'Database mentions are present in the CV; proficiency at the requested level remains unverified.':
+    'CV có nhắc đến cơ sở dữ liệu; mức thành thạo theo yêu cầu chưa được xác nhận.',
+  'Proficiency in one database alternative is not evidenced; names or ordinary use alone do not establish the requested level.':
+    'CV chưa thể hiện mức thành thạo một cơ sở dữ liệu trong danh sách; chỉ nêu tên hoặc sử dụng thông thường chưa đủ.',
+  'Professional use of a listed language is evidenced; proficiency at the requested level remains unverified.':
+    'Có dùng một ngôn ngữ trong danh sách khi làm việc; mức thành thạo theo yêu cầu chưa được xác nhận.',
+  'Proficiency in one listed language is not evidenced; a skills list or name alone does not establish it.':
+    'CV chưa thể hiện mức thành thạo một ngôn ngữ trong danh sách; chỉ liệt kê kỹ năng chưa đủ.',
   'Before you apply': 'Trước khi ứng tuyển',
   'Documented CV evidence coverage': 'Mức bằng chứng được ghi trong CV',
   'Evaluated: {v0} of {v1} JD requirements':
@@ -2340,8 +2400,8 @@ export const VI_TEXT: Record<string, string> = {
   'Required requirements matched: {v0} of {v1}':
     'Yêu cầu bắt buộc đã khớp: {v0} / {v1}',
   'Overall assessment': 'Đánh giá tổng quan',
-  'Unknown means no evidence was found in the reviewed CV, not that you lack the skill.':
-    'Chưa rõ nghĩa là chưa tìm thấy bằng chứng trong CV đã rà soát, không có nghĩa là bạn thiếu kỹ năng đó.',
+  'Not clearly shown in CV means no evidence was found in the reviewed CV, not that you lack the skill.':
+    'CV chưa thể hiện rõ nghĩa là chưa tìm thấy bằng chứng trong CV đã rà soát, không có nghĩa là bạn thiếu kỹ năng đó.',
   'Heuristic Match score: {v0}/100 · details below':
     'Điểm đối chiếu ước lượng: {v0}/100 · xem chi tiết bên dưới',
 };

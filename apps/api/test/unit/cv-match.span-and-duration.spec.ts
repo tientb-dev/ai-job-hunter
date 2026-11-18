@@ -113,7 +113,8 @@ describe('component JD spans', () => {
       ['EVIDENCED', 1],
       ['UNDECOMPOSED', 0],
     ]);
-    expect(result.score).toBe(50);
+    // The unevaluable row is excluded; half the weighted JD unread: no score.
+    expect(result.score).toBeNull();
     expect(result.evaluability).toMatchObject({ total: 2, evaluated: 1 });
   });
 

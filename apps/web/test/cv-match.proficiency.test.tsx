@@ -94,7 +94,9 @@ test('bare database mentions remain Unknown with exact original mention quotes',
   await mount(fixture(false));
   const region = await screen.findByRole('region', { name: 'Requirements' });
   fireEvent.click(
-    within(region).getByRole('button', { name: `Unknown: ${requirement}` }),
+    within(region).getByRole('button', {
+      name: `Not clearly shown in CV: ${requirement}`,
+    }),
   );
   expect(
     screen.getByLabelText('Technology mention: SQL Server').textContent,

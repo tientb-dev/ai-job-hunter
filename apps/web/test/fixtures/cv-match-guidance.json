@@ -195,11 +195,11 @@
         }
       }
     ],
-    "explanation": "Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Unknown/conflict earns zero. AI links and requirement completeness need human review; this is not a hiring probability.",
-    "advice": "Verify the required evidence gaps before applying. Add only accurate supporting experience to your CV."
+    "explanation": "Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Conflict earns zero; requirements the system could not interpret are excluded from the score and listed separately. AI links and requirement completeness need human review; this is not a hiring probability.",
+    "advice": "Some required items are not clearly shown in your CV yet. If you have that experience, add accurate examples."
   },
   "low": {
-    "score": 10,
+    "score": null,
     "recommendation": "Review requirements",
     "evidenceUncertain": false,
     "evaluability": {
@@ -365,8 +365,8 @@
         }
       }
     ],
-    "explanation": "Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Unknown/conflict earns zero. AI links and requirement completeness need human review; this is not a hiring probability.",
-    "advice": "Verify the required evidence gaps before applying. Add only accurate supporting experience to your CV."
+    "explanation": "Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Conflict earns zero; requirements the system could not interpret are excluded from the score and listed separately. AI links and requirement completeness need human review; this is not a hiring probability.",
+    "advice": "Too few requirements could be evaluated reliably to give a score. Use the strengths and next steps below, and check the requirements the system could not analyze yourself."
   },
   "stretch": {
     "score": 0,
@@ -566,7 +566,7 @@
         }
       }
     ],
-    "explanation": "Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Unknown/conflict earns zero. AI links and requirement completeness need human review; this is not a hiring probability.",
-    "advice": "Verify the required evidence gaps before applying. Add only accurate supporting experience to your CV."
+    "explanation": "Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Conflict earns zero; requirements the system could not interpret are excluded from the score and listed separately. AI links and requirement completeness need human review; this is not a hiring probability.",
+    "advice": "Some required items are not clearly shown in your CV yet. If you have that experience, add accurate examples."
   }
 }

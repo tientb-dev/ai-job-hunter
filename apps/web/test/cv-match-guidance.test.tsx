@@ -28,20 +28,22 @@ async function mount(result: unknown, jobId: string, vi_VN = false) {
     }),
   );
   return screen.findByRole('region', {
-    name: vi_VN ? 'Gợi ý ứng tuyển' : 'Application guidance',
+    name: vi_VN ? 'Chuẩn bị hồ sơ ứng tuyển' : 'Application guidance',
   });
 }
 
 test('guidance is the primary takeaway; score stays secondary and labeled as CV evidence coverage', async () => {
   const guidance = await mount(fixture.worth, 'job-worth');
-  expect(within(guidance).getByText('Worth applying')).toBeVisible();
+  expect(
+    within(guidance).getByText('Your CV shows strong relevant evidence'),
+  ).toBeVisible();
   expect(
     within(guidance).getByText(
       /Your CV documents 2 of 3 core requirements\. Relevant experience appears in your work history\./u,
     ),
   ).toBeVisible();
   const actions = within(
-    screen.getByRole('list', { name: 'Before you apply' }),
+    screen.getByRole('list', { name: 'Next steps to strengthen your CV' }),
   ).getAllByRole('listitem');
   // Action sentences never embed raw JD wording; it is shown separately.
   expect(actions.map((item) => item.textContent)).toEqual([
@@ -65,9 +67,13 @@ test('guidance is the primary takeaway; score stays secondary and labeled as CV 
 
 test('low evaluability is qualified and uninterpreted requirements are distinct from missing evidence', async () => {
   const guidance = await mount(fixture.low, 'job-low');
-  expect(within(guidance).getByText('Consider carefully')).toBeVisible();
+  expect(
+    within(guidance).getByText('Clarify key evidence in your CV'),
+  ).toBeVisible();
   expect(within(guidance).getByText('Low confidence')).toBeVisible();
-  expect(within(guidance).queryByText('Worth applying')).toBeNull();
+  expect(
+    within(guidance).queryByText('Your CV shows strong relevant evidence'),
+  ).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Technical details' }));
   expect(
     screen.getByText(/Evaluated: 1 of 4 JD requirements · Low confidence/u),
@@ -75,20 +81,42 @@ test('low evaluability is qualified and uninterpreted requirements are distinct 
   const region = screen.getByRole('region', { name: 'Requirements' });
   fireEvent.click(
     within(region).getByRole('button', {
-      name: 'Could not interpret requirement',
+      name: 'System could not analyze',
     }),
   );
   expect(
     within(region).getAllByRole('button', {
-      name: /^Could not interpret requirement: /u,
+      name: /^System could not analyze: /u,
     }),
   ).toHaveLength(3);
+  // Score withheld; an unanalyzed row is not reported as missing CV evidence.
+  expect(
+    screen.getByText(
+      'Insufficient information to assess reliably, so no score is shown.',
+    ),
+  ).toBeVisible();
+  fireEvent.click(
+    within(region).getAllByRole('button', {
+      name: /^System could not analyze: /u,
+    })[0]!,
+  );
+  expect(
+    within(region).getAllByText('Not analyzed by the system')[0],
+  ).toBeVisible();
+  expect(within(region).queryByText('Not evidenced in CV')).toBeNull();
 });
 
 test('a mismatched candidate gets no positive label; vi-VN wording renders', async () => {
   const guidance = await mount(fixture.stretch, 'job-stretch', true);
-  expect(within(guidance).getByText('Cơ hội thử thách')).toBeVisible();
-  expect(within(guidance).queryByText('Nên ứng tuyển')).toBeNull();
+  expect(
+    within(guidance).getByText('Bổ sung bằng chứng còn thiếu vào CV'),
+  ).toBeVisible();
+  expect(
+    within(guidance).queryByText(/Cân nhắc kỹ|Cơ hội thử thách/u),
+  ).toBeNull();
+  expect(
+    within(guidance).queryByText('CV đã thể hiện rõ nhiều yêu cầu liên quan'),
+  ).toBeNull();
   expect(
     screen.getByText(
       'Nếu bạn đã áp dụng nguyên lý OOP trong dự án, hãy mô tả một ví dụ cụ thể.',
@@ -112,7 +140,9 @@ test('identical action instructions are grouped with every JD reference', async 
     'job-grouped',
   );
   const items = within(
-    await screen.findByRole('list', { name: 'Before you apply' }),
+    await screen.findByRole('list', {
+      name: 'Next steps to strengthen your CV',
+    }),
   ).getAllByRole('listitem');
   expect(items.map((item) => item.textContent)).toEqual([
     'If you have done this, add one concrete example to the role or project where you did it.JD: “Git”JD: “Docker”',
