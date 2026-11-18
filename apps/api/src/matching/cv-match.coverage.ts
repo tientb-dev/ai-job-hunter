@@ -11,8 +11,10 @@ import {
 } from './cv-match.evidence.js';
 import { normalize } from './matching.policy.js';
 
+// UNDECOMPOSED: the requirement could not be safely interpreted. It is never
+// a statement about the candidate; it earns no credit and lowers evaluability.
 export type CoverageStatus =
-  'EVIDENCED' | 'PARTIAL' | 'NOT_EVIDENCED' | 'CONFLICT';
+  'EVIDENCED' | 'PARTIAL' | 'NOT_EVIDENCED' | 'CONFLICT' | 'UNDECOMPOSED';
 export interface RequirementComponent {
   qualification?: QualificationPredicate;
   id: string;
@@ -93,7 +95,13 @@ export function requirementGroup(
     const qualification = qualificationGroup(text);
     if (qualification) return qualification;
   }
-  if (category !== 'skill') return group('SINGLE', [text]);
+  // Bare durations, domains and degree-like rows stay whole; any category with
+  // explicit coordination goes through the same grammar below.
+  if (
+    category !== 'skill' &&
+    !/\b(?:and|or)\b|(?<!\p{L})(?:và|hoặc)(?!\p{L})|,/iu.test(text)
+  )
+    return group('SINGLE', [text]);
   if (
     /^Familiarity with or interest in AI-assisted development tools, code generation, and automation workflows$/iu.test(
       text,
@@ -256,7 +264,7 @@ export function requirementGroup(
   const prefixPattern =
     // Same generic prefixes simpleLabel strips; a kept prefix ("Familiarity with
     // Kafka") makes the first component label unmatchable by any CV passage.
-    /^(?:Experience designing|(?:(?:strong|solid|good|excellent|proven|hands-on|deep)\s+)?(?:Working knowledge of|Understanding of|Experience (?:with|in|using)|Knowledge of|Familiarity with|proficiency (?:in|with)|proficient (?:in|with)))\s+/iu;
+    /^(?:Experience designing|(?:(?:strong|solid|good|excellent|proven|hands-on|deep)\s+)?(?:Working knowledge of|Understanding of|Experience (?:with|in|using)|Knowledge of|Familiarity with|proficiency (?:in|with)|proficient (?:in|with)))\s+|^(?:(?:có\s+)?kinh nghiệm(?:\s+(?:làm việc\s+)?(?:với|về|trong|sử dụng|lập trình))?|(?:có\s+)?(?:kiến thức|hiểu biết|am hiểu)(?:\s+(?:tốt\s+)?(?:về|với))?|(?:sử dụng\s+)?thành thạo|biết sử dụng)\s+/iu;
   // A short topic heading ("Java development: Working knowledge of …") is a
   // label, not a component; strip it only when a known prefix follows.
   const heading = /^[\p{L}][\p{L}\d .+#/-]{0,38}:\s+/u.exec(text);
@@ -269,7 +277,7 @@ export function requirementGroup(
   if (prefix) {
     context = /designing/iu.test(prefix[0])
       ? 'design'
-      : /knowledge|understanding/iu.test(prefix[0])
+      : /knowledge|understanding|kiến thức|hiểu biết|am hiểu/iu.test(prefix[0])
         ? 'knowledge'
         : 'experience';
     body = body.slice(prefix[0].length);
@@ -289,8 +297,8 @@ export function requirementGroup(
     /,?\s+or\s+(?:more|above|higher|greater|later)\b\.?$/iu,
     '',
   );
-  const hasAnd = /\band\b/iu.test(body);
-  const hasOr = /\bor\b/iu.test(body);
+  const hasAnd = /\band\b|(?<!\p{L})và(?!\p{L})/iu.test(body);
+  const hasOr = /\bor\b|(?<!\p{L})hoặc(?!\p{L})/iu.test(body);
   // A stated duration ("2–3 years in … Sales or Account Management", "1-2 năm
   // … Performance Marketing OR Digital Marketing") applies to every component.
   const groupYears =
@@ -326,7 +334,7 @@ export function requirementGroup(
     (prefix && /[,;]/u.test(body.replace(/\([^)]*\)/gu, '')))
   ) {
     const labels = body
-      .split(/[,;]\s*(?:(?:and|or)\s+)?|\s+(?:and|or)\s+/iu)
+      .split(/[,;]\s*(?:(?:and|or|và|hoặc)\s+)?|\s+(?:and|or|và|hoặc)\s+/iu)
       .map((part) => part.trim())
       .filter(Boolean);
     // Coordinated verbs/nested qualifications cannot safely become a flat list.
@@ -370,6 +378,66 @@ const aliases: readonly [RegExp, RegExp][] = [
   [/^sql$/iu, /\b(?:sql|postgresql|sql server)\b/iu],
   [/^nosql data stores$/iu, /\b(?:nosql|mongodb|dynamodb)\b/iu],
 ];
+// Capability concepts (EN/VI): a component naming one needs CV text showing
+// that capability. A related tool or product name alone (SQL Server for writing
+// queries, GitLab CI/CD for Git) is not support. Not a skill ontology.
+export const CAPABILITIES: readonly {
+  id: string;
+  label: RegExp;
+  evidence: RegExp;
+  // The evidence pattern itself states the activity (no extra work verb needed).
+  activity?: true;
+}[] = [
+  {
+    id: 'sql-writing',
+    activity: true,
+    label:
+      /(?:\b(?:writ\w*)\b|(?<!\p{L})viết(?!\p{L})).*(?:\bquer(?:y|ies)\b|truy vấn)|truy vấn sql|\bsql quer/iu,
+    evidence:
+      /\b(?:wr[io]t\w*|author\w*|optimi[sz]\w*|tun(?:e|ed|ing)|develop\w*|creat\w*|implement\w*)\b[^.;\n]{0,40}\b(?:quer(?:y|ies)|stored procedures?)\b|\bsql quer(?:y|ies)\b|(?<!\p{L})(?:viết|tối ưu)(?!\p{L})[^.;\n]{0,30}(?:truy vấn|câu lệnh sql|quer)/iu,
+  },
+  {
+    id: 'data-analysis',
+    activity: true,
+    label: /phân tích dữ liệu|\bdata analy[sz]/iu,
+    evidence:
+      /phân tích dữ liệu|\bdata analy[sz]\w*|\banaly[sz]\w*\s+(?:\w+\s+){0,2}data\b/iu,
+  },
+  {
+    id: 'business-logic',
+    label: /logic nghiệp vụ|\bbusiness (?:logic|rules)\b/iu,
+    evidence: /logic nghiệp vụ|nghiệp vụ|\bbusiness (?:logic|rules)\b/iu,
+  },
+  {
+    id: 'source-control',
+    label:
+      /công cụ quản lý (?:mã nguồn|phiên bản)|\b(?:source|version)[- ]control\b/iu,
+    // Git must stand alone: GitLab/GitHub (CI/CD, Actions) are other products.
+    evidence:
+      /(?<![\p{L}\p{N}])(?:git|svn|subversion|mercurial|perforce|tfvc)(?![\p{L}\p{N}])|\b(?:source|version)[- ]control\b|quản lý (?:mã nguồn|phiên bản)/iu,
+  },
+  {
+    id: 'oop',
+    label:
+      /^(?:oop|object[- ]oriented(?: programming| design)?)$|hướng đối tượng/iu,
+    evidence: /\boop\b|\bobject[- ]oriented\b|hướng đối tượng/iu,
+  },
+  {
+    id: 'java-core',
+    label: /^(?:java core|core java)$/iu,
+    evidence: /\bjava\b(?!\s*script)/iu,
+  },
+  {
+    id: 'maintain-debug-enhance',
+    activity: true,
+    // All three actions are required; one ("debugged") is not enough.
+    label: /^(?=.*\bmaintain)(?=.*\bdebug)(?=.*\benhanc)/iu,
+    evidence:
+      /^(?=[^]*\b(?:maintain\w*|maintenance)\b)(?=[^]*\bdebug\w*)(?=[^]*\b(?:enhanc\w*|improv\w*|extend\w*))/iu,
+  },
+];
+export const capabilityOf = (label: string) =>
+  CAPABILITIES.find((item) => item.label.test(label));
 const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
 function mentions(label: string, text: string): boolean {
   // Explicit integration action, not mere LLM API usage or a tool declaration.
@@ -377,6 +445,8 @@ function mentions(label: string, text: string): boolean {
     return /\b(?:integrat(?:ed|ing) LLM APIs?|LLM API integration)\b/iu.test(
       text,
     );
+  const capability = capabilityOf(label);
+  if (capability) return capability.evidence.test(text);
   const alias = aliases.find(([pattern]) => pattern.test(label));
   if (alias) return alias[1].test(text);
   // A small spelling normalization, not fuzzy entailment or a skill ontology.
@@ -664,6 +734,7 @@ function supports(
       text,
     );
   return (
+    !!capabilityOf(label)?.activity ||
     active(text) ||
     recoveryWork.test(text) ||
     /^\s*(?:technical skills[:\s]*|(?:backend|databases)\s*[:—–-])/iu.test(text)
@@ -1417,11 +1488,13 @@ export function evaluateCoverage(
         : supported / components.length;
   const status: CoverageStatus = conflict
     ? 'CONFLICT'
-    : credit === 1
-      ? 'EVIDENCED'
-      : credit > 0
-        ? 'PARTIAL'
-        : 'NOT_EVIDENCED';
+    : group.mode === 'UNKNOWN'
+      ? 'UNDECOMPOSED'
+      : credit === 1
+        ? 'EVIDENCED'
+        : credit > 0
+          ? 'PARTIAL'
+          : 'NOT_EVIDENCED';
   const workLabels = components
     .filter((component) =>
       component.observations?.some((item) => item.kind === 'experience'),
@@ -1456,7 +1529,7 @@ export function evaluateCoverage(
 
 const skillsDeclaration =
   /^\s*(?:(?:technical )?skills|backend|databases|tools|frontend)\s*[:—–-]/iu;
-const simpleLabel = (requirement: string) =>
+export const simpleLabel = (requirement: string) =>
   requirement
     .trim()
     .replace(/\.$/u, '')
@@ -1800,6 +1873,24 @@ function skillExperienceStatus(
     : 'EVIDENCED';
 }
 
+// A SINGLE row that no specific rule interprets and is too long to be one
+// named skill: its meaning must come from decomposition, not a keyword hit.
+export function genericSingle(requirement: string, category: string): boolean {
+  const text = requirement.trim().replace(/\.$/u, '');
+  return (
+    simpleLabel(requirement).split(/\s+/u).length > 4 &&
+    !capabilityOf(simpleLabel(requirement)) &&
+    !skillExperience(requirement) &&
+    !roleExperience(requirement) &&
+    perDealAmount(requirement) === null &&
+    !/^(?:(?:minimum|at least|min\.?|tối thiểu|ít nhất)\s+)?\d+\+?\s+(?:years?|yrs?|năm)$/iu.test(
+      text,
+    ) &&
+    !singleManagedLanguage.test(text) &&
+    !namedTechnology(requirement, category) &&
+    !descriptiveExperience(requirement, category)
+  );
+}
 export function simpleEvidenceStatus(
   requirement: string,
   quote: string,
@@ -1859,6 +1950,16 @@ export function simpleEvidenceStatus(
       return 'NOT_EVIDENCED';
     return 'EVIDENCED';
   }
+  if (genericSingle(requirement, category)) {
+    // Whole-sentence prose: an active verb in the quote is not support. Only
+    // a passage naming the full label counts; otherwise it needs interpretation.
+    const label = simpleLabel(requirement);
+    return passages(quote).some(
+      (line) => mentions(label, line) && !negative(line) && !uncertain(line),
+    )
+      ? 'EVIDENCED'
+      : 'UNDECOMPOSED';
+  }
   const language = singleManagedLanguage.exec(
     requirement.trim().replace(/\.$/u, ''),
   )?.[1];
@@ -1903,3 +2004,15 @@ export function simpleContradictions(
   const label = language ?? simpleLabel(requirement);
   return passages(cv).filter((line) => mentions(label, line) && negative(line));
 }
+
+// A work passage (not a skills list or "Label: …" declaration) that states
+// what the candidate did. Used by application guidance, never for credit.
+export const workEvidence = (quote: string): boolean =>
+  !!quote.trim() &&
+  passages(quote).some(
+    (line) =>
+      !declarationLine(line) &&
+      !negative(line) &&
+      !uncertain(line) &&
+      (recoveryWork.test(line) || vietnameseWork.test(line)),
+  );

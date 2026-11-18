@@ -204,7 +204,27 @@ test('synthetic CV upload persists and matching reuses latest CV/job without mod
     .post(`/api/v1/opportunities/${id}/match`)
     .set(origin)
     .expect(200);
-  expect(first.body).toMatchObject({ score: 100, recommendation: 'Apply' });
+  expect(first.body).toMatchObject({
+    score: 100,
+    recommendation: 'Apply',
+    evaluability: { total: 1, evaluated: 1, low: false },
+    guidance: {
+      recommendation: 'WORTH_APPLYING',
+      confidence: 'NORMAL',
+      actions: [],
+    },
+  });
+  // Guidance is persisted with the assessment and served unchanged.
+  const current = await request(app.getHttpServer())
+    .get(`/api/v1/opportunities/${id}/match`)
+    .expect(200);
+  expect(current.body).toMatchObject({
+    status: 'VALID',
+    result: {
+      guidance: first.body.guidance,
+      evaluability: first.body.evaluability,
+    },
+  });
   const unchanged = await request(app.getHttpServer())
     .get(`/api/v1/opportunities/${id}`)
     .expect(200);

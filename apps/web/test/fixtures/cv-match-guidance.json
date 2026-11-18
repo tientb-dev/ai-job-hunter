@@ -1,0 +1,572 @@
+{
+  "worth": {
+    "score": 50,
+    "recommendation": "Apply",
+    "evidenceUncertain": false,
+    "evaluability": {
+      "total": 4,
+      "evaluated": 4,
+      "weightedFraction": 1,
+      "low": false
+    },
+    "guidance": {
+      "recommendation": "WORTH_APPLYING",
+      "confidence": "NORMAL",
+      "core": {
+        "total": 3,
+        "evaluated": 3,
+        "supported": 1.3,
+        "withEvidence": 2
+      },
+      "demonstratedWork": true,
+      "strengths": ["3+ years of experience with Java and Spring Boot"],
+      "gaps": [
+        "Strong knowledge of Java Core and OOP, with the ability to maintain, debug, and enhance existing applications",
+        "Experience with Git"
+      ],
+      "actions": [
+        {
+          "code": "CLARIFY_CAPABILITY",
+          "label": "OOP",
+          "capability": "oop"
+        },
+        {
+          "code": "CLARIFY_CAPABILITY",
+          "label": "ability to maintain, debug, and enhance existing applications",
+          "capability": "maintain-debug-enhance"
+        },
+        {
+          "code": "ADD_EXAMPLE",
+          "label": "Git"
+        }
+      ]
+    },
+    "requirements": [
+      {
+        "parentId": "p1",
+        "requirement": "Strong knowledge of Java Core and OOP, with the ability to maintain, debug, and enhance existing applications",
+        "priority": "required",
+        "category": "skill",
+        "jdQuote": "Strong knowledge of Java Core and OOP, with the ability to maintain, debug, and enhance existing applications",
+        "cvQuote": "- Developed Java Spring Boot microservices for payment processing.",
+        "status": "PARTIAL",
+        "credit": 0.3333333333333333,
+        "evidence": {
+          "modelQuote": "EMPTY",
+          "review": false
+        },
+        "coverage": {
+          "mode": "AND",
+          "components": [
+            {
+              "id": "c1",
+              "label": "Java Core",
+              "jdQuote": "Java Core",
+              "status": "EVIDENCED",
+              "cvQuote": "- Developed Java Spring Boot microservices for payment processing.",
+              "conflictingQuotes": []
+            },
+            {
+              "id": "c2",
+              "label": "OOP",
+              "jdQuote": "OOP",
+              "status": "NOT_EVIDENCED",
+              "cvQuote": "",
+              "conflictingQuotes": []
+            },
+            {
+              "id": "c3",
+              "label": "ability to maintain, debug, and enhance existing applications",
+              "jdQuote": "ability to maintain, debug, and enhance existing applications",
+              "status": "NOT_EVIDENCED",
+              "cvQuote": "",
+              "conflictingQuotes": []
+            }
+          ],
+          "credit": 0.3333333333333333,
+          "status": "PARTIAL",
+          "reason": "Review the selected component evidence."
+        }
+      },
+      {
+        "parentId": "p2",
+        "requirement": "3+ years of experience with Java and Spring Boot",
+        "priority": "required",
+        "category": "skill",
+        "jdQuote": "3+ years of experience with Java and Spring Boot",
+        "cvQuote": "Summary: 5 years of experience with Java and Spring Boot.",
+        "status": "EVIDENCED",
+        "credit": 1,
+        "evidence": {
+          "modelQuote": "EMPTY",
+          "review": false
+        },
+        "coverage": {
+          "mode": "AND",
+          "components": [
+            {
+              "id": "c1",
+              "label": "Java",
+              "jdQuote": "Java",
+              "status": "EVIDENCED",
+              "cvQuote": "Summary: 5 years of experience with Java and Spring Boot.",
+              "conflictingQuotes": []
+            },
+            {
+              "id": "c2",
+              "label": "Spring Boot",
+              "jdQuote": "Spring Boot",
+              "status": "EVIDENCED",
+              "cvQuote": "Summary: 5 years of experience with Java and Spring Boot.",
+              "conflictingQuotes": []
+            }
+          ],
+          "credit": 1,
+          "status": "EVIDENCED",
+          "reason": "Review the selected component evidence."
+        }
+      },
+      {
+        "parentId": "p3",
+        "requirement": "Experience with Git",
+        "priority": "required",
+        "category": "skill",
+        "jdQuote": "Experience with Git",
+        "cvQuote": "",
+        "status": "NOT_EVIDENCED",
+        "credit": 0,
+        "evidence": {
+          "modelQuote": "UNSUPPORTING",
+          "review": false
+        },
+        "coverage": {
+          "mode": "SINGLE",
+          "credit": 0,
+          "status": "NOT_EVIDENCED",
+          "reason": "Review the selected evidence.",
+          "components": [
+            {
+              "id": "c1",
+              "label": "Experience with Git",
+              "jdQuote": "Experience with Git",
+              "status": "NOT_EVIDENCED",
+              "cvQuote": "",
+              "conflictingQuotes": []
+            }
+          ]
+        }
+      },
+      {
+        "parentId": "p4",
+        "requirement": "Experience with Docker or Kubernetes",
+        "priority": "preferred",
+        "category": "skill",
+        "jdQuote": "Experience with Docker or Kubernetes",
+        "cvQuote": "Skills: Java, Spring Boot, SQL Server, Docker",
+        "status": "EVIDENCED",
+        "credit": 1,
+        "evidence": {
+          "modelQuote": "EMPTY",
+          "review": false
+        },
+        "coverage": {
+          "mode": "OR",
+          "components": [
+            {
+              "id": "c1",
+              "label": "Docker",
+              "jdQuote": "Docker",
+              "status": "EVIDENCED",
+              "cvQuote": "Skills: Java, Spring Boot, SQL Server, Docker",
+              "conflictingQuotes": []
+            },
+            {
+              "id": "c2",
+              "label": "Kubernetes",
+              "jdQuote": "Kubernetes",
+              "status": "NOT_EVIDENCED",
+              "cvQuote": "",
+              "conflictingQuotes": []
+            }
+          ],
+          "credit": 1,
+          "status": "EVIDENCED",
+          "reason": "Review the selected component evidence."
+        }
+      }
+    ],
+    "explanation": "Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Unknown/conflict earns zero. AI links and requirement completeness need human review; this is not a hiring probability.",
+    "advice": "Verify the required evidence gaps before applying. Add only accurate supporting experience to your CV."
+  },
+  "low": {
+    "score": 10,
+    "recommendation": "Review requirements",
+    "evidenceUncertain": false,
+    "evaluability": {
+      "total": 4,
+      "evaluated": 1,
+      "weightedFraction": 0.1,
+      "low": true
+    },
+    "guidance": {
+      "recommendation": "CONSIDER_CAREFULLY",
+      "confidence": "LOW",
+      "core": {
+        "total": 3,
+        "evaluated": 0,
+        "supported": 0,
+        "withEvidence": 0
+      },
+      "demonstratedWork": false,
+      "strengths": [],
+      "gaps": [],
+      "actions": [
+        {
+          "code": "REVIEW_REQUIREMENT",
+          "label": "Proficiency in multiple programming languages such as Java, Python"
+        },
+        {
+          "code": "REVIEW_REQUIREMENT",
+          "label": "Bachelor's Degree in Computer Science or (2 years of relevant experience and equivalent practical experience)"
+        },
+        {
+          "code": "REVIEW_REQUIREMENT",
+          "label": "Experience building and either maintaining or operating distributed systems"
+        }
+      ]
+    },
+    "requirements": [
+      {
+        "parentId": "p1",
+        "requirement": "Proficiency in multiple programming languages such as Java, Python",
+        "priority": "required",
+        "category": "skill",
+        "jdQuote": "Proficiency in multiple programming languages such as Java, Python",
+        "cvQuote": "",
+        "status": "UNDECOMPOSED",
+        "credit": 0,
+        "evidence": {
+          "modelQuote": "EMPTY",
+          "review": false
+        },
+        "coverage": {
+          "mode": "UNKNOWN",
+          "components": [
+            {
+              "id": "c1",
+              "label": "Proficiency in multiple programming languages such as Java, Python",
+              "jdQuote": "Proficiency in multiple programming languages such as Java, Python",
+              "status": "NOT_EVIDENCED",
+              "cvQuote": "",
+              "conflictingQuotes": []
+            }
+          ],
+          "credit": 0,
+          "status": "UNDECOMPOSED",
+          "reason": "Compound meaning needs review."
+        }
+      },
+      {
+        "parentId": "p2",
+        "requirement": "Bachelor's Degree in Computer Science or (2 years of relevant experience and equivalent practical experience)",
+        "priority": "required",
+        "category": "skill",
+        "jdQuote": "Bachelor's Degree in Computer Science or (2 years of relevant experience and equivalent practical experience)",
+        "cvQuote": "",
+        "status": "UNDECOMPOSED",
+        "credit": 0,
+        "evidence": {
+          "modelQuote": "EMPTY",
+          "review": false
+        },
+        "coverage": {
+          "mode": "UNKNOWN",
+          "components": [
+            {
+              "id": "c1",
+              "label": "Bachelor's Degree in Computer Science or (2 years of relevant experience and equivalent practical experience)",
+              "jdQuote": "Bachelor's Degree in Computer Science or (2 years of relevant experience and equivalent practical experience)",
+              "status": "NOT_EVIDENCED",
+              "cvQuote": "",
+              "conflictingQuotes": []
+            }
+          ],
+          "credit": 0,
+          "status": "UNDECOMPOSED",
+          "reason": "Compound meaning needs review."
+        }
+      },
+      {
+        "parentId": "p3",
+        "requirement": "Experience building and either maintaining or operating distributed systems",
+        "priority": "required",
+        "category": "skill",
+        "jdQuote": "Experience building and either maintaining or operating distributed systems",
+        "cvQuote": "",
+        "status": "UNDECOMPOSED",
+        "credit": 0,
+        "evidence": {
+          "modelQuote": "EMPTY",
+          "review": false
+        },
+        "coverage": {
+          "mode": "UNKNOWN",
+          "components": [
+            {
+              "id": "c1",
+              "label": "Experience building and either maintaining or operating distributed systems",
+              "jdQuote": "Experience building and either maintaining or operating distributed systems",
+              "status": "NOT_EVIDENCED",
+              "cvQuote": "",
+              "conflictingQuotes": []
+            }
+          ],
+          "credit": 0,
+          "status": "UNDECOMPOSED",
+          "reason": "Compound meaning needs review."
+        }
+      },
+      {
+        "parentId": "p4",
+        "requirement": "Experience with Docker or Kubernetes",
+        "priority": "preferred",
+        "category": "skill",
+        "jdQuote": "Experience with Docker or Kubernetes",
+        "cvQuote": "Skills: Java, Spring Boot, SQL Server, Docker",
+        "status": "EVIDENCED",
+        "credit": 1,
+        "evidence": {
+          "modelQuote": "EMPTY",
+          "review": false
+        },
+        "coverage": {
+          "mode": "OR",
+          "components": [
+            {
+              "id": "c1",
+              "label": "Docker",
+              "jdQuote": "Docker",
+              "status": "EVIDENCED",
+              "cvQuote": "Skills: Java, Spring Boot, SQL Server, Docker",
+              "conflictingQuotes": []
+            },
+            {
+              "id": "c2",
+              "label": "Kubernetes",
+              "jdQuote": "Kubernetes",
+              "status": "NOT_EVIDENCED",
+              "cvQuote": "",
+              "conflictingQuotes": []
+            }
+          ],
+          "credit": 1,
+          "status": "EVIDENCED",
+          "reason": "Review the selected component evidence."
+        }
+      }
+    ],
+    "explanation": "Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Unknown/conflict earns zero. AI links and requirement completeness need human review; this is not a hiring probability.",
+    "advice": "Verify the required evidence gaps before applying. Add only accurate supporting experience to your CV."
+  },
+  "stretch": {
+    "score": 0,
+    "recommendation": "Low Fit",
+    "evidenceUncertain": false,
+    "evaluability": {
+      "total": 4,
+      "evaluated": 4,
+      "weightedFraction": 1,
+      "low": false
+    },
+    "guidance": {
+      "recommendation": "STRETCH_OPPORTUNITY",
+      "confidence": "NORMAL",
+      "core": {
+        "total": 3,
+        "evaluated": 3,
+        "supported": 0,
+        "withEvidence": 0
+      },
+      "demonstratedWork": false,
+      "strengths": [],
+      "gaps": [
+        "Strong knowledge of Java Core and OOP, with the ability to maintain, debug, and enhance existing applications",
+        "3+ years of experience with Java and Spring Boot",
+        "Experience with Git"
+      ],
+      "actions": [
+        {
+          "code": "CLARIFY_CAPABILITY",
+          "label": "Java Core",
+          "capability": "java-core"
+        },
+        {
+          "code": "CLARIFY_CAPABILITY",
+          "label": "OOP",
+          "capability": "oop"
+        },
+        {
+          "code": "CLARIFY_CAPABILITY",
+          "label": "ability to maintain, debug, and enhance existing applications",
+          "capability": "maintain-debug-enhance"
+        }
+      ]
+    },
+    "requirements": [
+      {
+        "parentId": "p1",
+        "requirement": "Strong knowledge of Java Core and OOP, with the ability to maintain, debug, and enhance existing applications",
+        "priority": "required",
+        "category": "skill",
+        "jdQuote": "Strong knowledge of Java Core and OOP, with the ability to maintain, debug, and enhance existing applications",
+        "cvQuote": "",
+        "status": "NOT_EVIDENCED",
+        "credit": 0,
+        "evidence": {
+          "modelQuote": "EMPTY",
+          "review": false
+        },
+        "coverage": {
+          "mode": "AND",
+          "components": [
+            {
+              "id": "c1",
+              "label": "Java Core",
+              "jdQuote": "Java Core",
+              "status": "NOT_EVIDENCED",
+              "cvQuote": "",
+              "conflictingQuotes": []
+            },
+            {
+              "id": "c2",
+              "label": "OOP",
+              "jdQuote": "OOP",
+              "status": "NOT_EVIDENCED",
+              "cvQuote": "",
+              "conflictingQuotes": []
+            },
+            {
+              "id": "c3",
+              "label": "ability to maintain, debug, and enhance existing applications",
+              "jdQuote": "ability to maintain, debug, and enhance existing applications",
+              "status": "NOT_EVIDENCED",
+              "cvQuote": "",
+              "conflictingQuotes": []
+            }
+          ],
+          "credit": 0,
+          "status": "NOT_EVIDENCED",
+          "reason": "Review the selected component evidence."
+        }
+      },
+      {
+        "parentId": "p2",
+        "requirement": "3+ years of experience with Java and Spring Boot",
+        "priority": "required",
+        "category": "skill",
+        "jdQuote": "3+ years of experience with Java and Spring Boot",
+        "cvQuote": "",
+        "status": "NOT_EVIDENCED",
+        "credit": 0,
+        "evidence": {
+          "modelQuote": "EMPTY",
+          "review": false
+        },
+        "coverage": {
+          "mode": "AND",
+          "components": [
+            {
+              "id": "c1",
+              "label": "Java",
+              "jdQuote": "Java",
+              "status": "NOT_EVIDENCED",
+              "cvQuote": "",
+              "conflictingQuotes": []
+            },
+            {
+              "id": "c2",
+              "label": "Spring Boot",
+              "jdQuote": "Spring Boot",
+              "status": "NOT_EVIDENCED",
+              "cvQuote": "",
+              "conflictingQuotes": []
+            }
+          ],
+          "credit": 0,
+          "status": "NOT_EVIDENCED",
+          "reason": "Review the selected component evidence."
+        }
+      },
+      {
+        "parentId": "p3",
+        "requirement": "Experience with Git",
+        "priority": "required",
+        "category": "skill",
+        "jdQuote": "Experience with Git",
+        "cvQuote": "",
+        "status": "NOT_EVIDENCED",
+        "credit": 0,
+        "evidence": {
+          "modelQuote": "UNSUPPORTING",
+          "review": false
+        },
+        "coverage": {
+          "mode": "SINGLE",
+          "credit": 0,
+          "status": "NOT_EVIDENCED",
+          "reason": "Review the selected evidence.",
+          "components": [
+            {
+              "id": "c1",
+              "label": "Experience with Git",
+              "jdQuote": "Experience with Git",
+              "status": "NOT_EVIDENCED",
+              "cvQuote": "",
+              "conflictingQuotes": []
+            }
+          ]
+        }
+      },
+      {
+        "parentId": "p4",
+        "requirement": "Experience with Docker or Kubernetes",
+        "priority": "preferred",
+        "category": "skill",
+        "jdQuote": "Experience with Docker or Kubernetes",
+        "cvQuote": "",
+        "status": "NOT_EVIDENCED",
+        "credit": 0,
+        "evidence": {
+          "modelQuote": "EMPTY",
+          "review": false
+        },
+        "coverage": {
+          "mode": "OR",
+          "components": [
+            {
+              "id": "c1",
+              "label": "Docker",
+              "jdQuote": "Docker",
+              "status": "NOT_EVIDENCED",
+              "cvQuote": "",
+              "conflictingQuotes": []
+            },
+            {
+              "id": "c2",
+              "label": "Kubernetes",
+              "jdQuote": "Kubernetes",
+              "status": "NOT_EVIDENCED",
+              "cvQuote": "",
+              "conflictingQuotes": []
+            }
+          ],
+          "credit": 0,
+          "status": "NOT_EVIDENCED",
+          "reason": "Review the selected component evidence."
+        }
+      }
+    ],
+    "explanation": "Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Unknown/conflict earns zero. AI links and requirement completeness need human review; this is not a hiring probability.",
+    "advice": "Verify the required evidence gaps before applying. Add only accurate supporting experience to your CV."
+  }
+}

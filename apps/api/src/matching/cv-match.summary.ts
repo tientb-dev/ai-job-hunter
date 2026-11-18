@@ -3,7 +3,6 @@ import {
   demonstratedUseReason,
   evaluateCoverage,
   recoverSimpleQuote,
-  requirementGroup,
 } from './cv-match.coverage.js';
 import {
   alignToPassage,
@@ -12,6 +11,7 @@ import {
   resolveCvQuote,
 } from './cv-match.evidence.js';
 import {
+  groupOf,
   linksCanonicalRequirement,
   type MatchRequirement,
   type scoreCvMatch,
@@ -63,7 +63,13 @@ function componentQuoteClass(
     return 'SKILLS_DECLARATION';
   return allowed && !allowed.has(quote) ? 'WIDENED' : 'ALLOWED';
 }
-const STATUSES = ['EVIDENCED', 'PARTIAL', 'NOT_EVIDENCED', 'CONFLICT'];
+const STATUSES = [
+  'EVIDENCED',
+  'PARTIAL',
+  'NOT_EVIDENCED',
+  'CONFLICT',
+  'UNDECOMPOSED',
+];
 const MODES = ['SINGLE', 'AND', 'OR', 'UNKNOWN'];
 
 // Success-path evidence summary: fixed codes and counts only. It is computed
@@ -101,7 +107,7 @@ export function evidenceSummary(
     ])
       if (quote.trim()) quotes[classify(quote)]++;
   const requirements = canonical.map((seed, index) => {
-    const group = requirementGroup(seed.requirement, seed.category);
+    const group = groupOf(seed);
     const blocked = verified.some(
       (item) =>
         linksCanonicalRequirement(item, seed) &&

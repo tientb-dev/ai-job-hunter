@@ -7,6 +7,7 @@ import {
   simpleContradictions,
   recoverSimpleQuote,
   type ComponentEvidence,
+  type RequirementGroup,
 } from './cv-match.coverage.js';
 import {
   emitMatchEvidenceRejection,
@@ -32,6 +33,7 @@ import {
   databaseAttributedQuoteChoices,
 } from './cv-match.evidence.js';
 import { normalize } from './matching.policy.js';
+import { applicationGuidance } from './cv-match.guidance.js';
 import {
   requirementHeading,
   requirementLines,
@@ -50,7 +52,13 @@ export interface MatchRequirement {
   cvEvidenceUnverified?: true;
   // Internal only: an ambiguous component quote was dropped; blocks recovery.
   componentEvidenceUnverified?: true;
+  // Canonical only: a validated AI decomposition of an otherwise UNKNOWN row.
+  decomposition?: RequirementGroup;
 }
+export const groupOf = (
+  item: Pick<MatchRequirement, 'requirement' | 'category' | 'decomposition'>,
+): RequirementGroup =>
+  item.decomposition ?? requirementGroup(item.requirement, item.category);
 export const MATCH_SCHEMA = {
   type: 'object',
   additionalProperties: false,
@@ -98,11 +106,7 @@ export function matchQuoteChoices(
   return [
     ...new Set([
       ...cvQuoteChoices(cv),
-      ...(canonical.some(
-        (item) =>
-          requirementGroup(item.requirement, item.category).context ===
-          'proficiency',
-      )
+      ...(canonical.some((item) => groupOf(item).context === 'proficiency')
         ? databaseAttributedQuoteChoices(cv)
         : []),
     ]),
@@ -498,7 +502,7 @@ An isolated keyword outside a skills declaration, negation, aspiration (except e
 A missing CV quote means not evidenced, never that the person lacks the skill. Do not infer years, domains or experience from job titles.
 Return only canonical parents; extra requirements never receive scoring weight. Include each parentId unchanged. For each supplied group component return components [{componentId, jdQuote, cvQuote}], selecting a separate allowed CV passage or empty string. Keep component IDs and JD spans exactly; never invent components. AND requires every component, OR requires one alternative plus all shared constraints. Personal delivery beyond prototype requires explicit personal build and production delivery, not team contribution or a prototype. Flag gaps with empty quotes, never with unrelated passages.
 Return JSON only, with requirements; priority required/preferred; category skill/experience/domain.
-${JSON.stringify({ cv, job: jd, canonicalRequirements: canonical.map((item) => ({ parentId: item.parentId, requirement: item.requirement, priority: item.priority, category: item.category, jdQuote: item.jdQuote, group: requirementGroup(item.requirement, item.category) })) })}`;
+${JSON.stringify({ cv, job: jd, canonicalRequirements: canonical.map((item) => ({ parentId: item.parentId, requirement: item.requirement, priority: item.priority, category: item.category, jdQuote: item.jdQuote, group: groupOf(item) })) })}`;
 }
 export const linksCanonicalRequirement = (
   candidate: MatchRequirement,
@@ -642,7 +646,7 @@ export function validateMatchAssessment(
     for (const component of proposal.components ?? []) {
       const seed =
         parent &&
-        requirementGroup(parent.requirement, parent.category).components.find(
+        groupOf(parent).components.find(
           (item) => item.id === component.componentId,
         );
       const at = { requirementIndex: index };
@@ -852,7 +856,7 @@ export function scoreCvMatch(
     const usable =
       !!quote.trim() &&
       cv.includes(quote) &&
-      (requirementGroup(item.requirement, item.category).mode !== 'SINGLE' ||
+      (groupOf(item).mode !== 'SINGLE' ||
         simpleEvidenceStatus(item.requirement, quote, cv, item.category) !==
           'NOT_EVIDENCED');
     // Why the model's own quote did or did not count (diagnostic only).
@@ -885,6 +889,7 @@ export function scoreCvMatch(
             recoverSimpleQuote(item.requirement, item.category, cv),
     };
   });
+  const groups: RequirementGroup[] = [];
   const requirements = merged
     .filter((item) => {
       const key = item.requirement.trim().toLocaleLowerCase();
@@ -894,7 +899,8 @@ export function scoreCvMatch(
       return true;
     })
     .map((item) => {
-      const group = requirementGroup(item.requirement, item.category);
+      const group = groupOf(item);
+      groups.push(group);
       const selected = [
         ...item.selectedQuotes,
         item.cvQuote,
@@ -1006,22 +1012,29 @@ export function scoreCvMatch(
   const evidenceUncertain = requirements.some(
     (item) => item.priority === 'required' && item.evidence.review,
   );
-  const recommendation = unverified
-    ? 'Review requirements'
-    : score === null
-      ? 'Consider'
-      : score >= 75 && !requiredGap
-        ? 'Apply'
-        : score >= 40
-          ? 'Consider'
-          : // A low score built on unverified evidence is not a trustworthy Low Fit.
-            evidenceUncertain
-            ? 'Review requirements'
-            : 'Low Fit';
+  const { evaluability, ...guidance } = applicationGuidance(
+    requirements.map((item, index) => ({
+      ...item,
+      group: groups[index]!,
+      components: item.coverage.components,
+    })),
+  );
+  // Legacy label for older consumers, derived from guidance (no score cutoffs).
+  const recommendation =
+    unverified || score === null || guidance.confidence === 'LOW'
+      ? 'Review requirements'
+      : {
+          WORTH_APPLYING: 'Apply',
+          CONSIDER_CAREFULLY: 'Consider',
+          STRETCH_OPPORTUNITY: 'Low Fit',
+        }[guidance.recommendation];
   return {
     score,
     recommendation,
     evidenceUncertain,
+    evaluability,
+    // A withheld score (unverified JD) also withholds the advisory label.
+    guidance: unverified || score === null ? null : guidance,
     requirements,
     explanation:
       'Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Unknown/conflict earns zero. AI links and requirement completeness need human review; this is not a hiring probability.',

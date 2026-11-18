@@ -37,7 +37,7 @@ const work = (...lines: string[]) => [
   ...lines,
 ];
 
-type Status = 'EVIDENCED' | 'PARTIAL' | 'NOT_EVIDENCED';
+type Status = 'EVIDENCED' | 'PARTIAL' | 'NOT_EVIDENCED' | 'UNDECOMPOSED';
 interface Scenario {
   id: string;
   description: string;
@@ -377,10 +377,10 @@ const golden: Scenario[] = [
       '- Built Python tools for reporting services.',
     ),
     quote: '',
-    status: 'NOT_EVIDENCED',
+    status: 'UNDECOMPOSED',
     credit: 0,
     policy: 'CURRENT',
-    rationale: 'Quantities are UNKNOWN and never credited.',
+    rationale: 'Quantities are UNKNOWN (Needs review) and never credited.',
   },
   {
     id: 'S27',

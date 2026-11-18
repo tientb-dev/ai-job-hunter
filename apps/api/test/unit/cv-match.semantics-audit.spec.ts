@@ -168,14 +168,24 @@ const probes = [
   ['education absent', clauses.education, '', 0, 'NOT_EVIDENCED'],
 ] as const;
 
-test.each(probes)('%s', (_name, requirement, cvText, score, status) => {
+test.each(probes)('%s', (name, requirement, cvText, score, status) => {
   const cv = cvText || 'Synthetic CV: unrelated work.';
   const result = assess(jobFor(requirement), cv, cvText);
   expect(result.score).toBe(score);
   expect(result.requirements).toHaveLength(1);
   expect(result.requirements[0]!.status).toBe(status);
+  // "Label: …" evidence reads as a declaration, not described work.
   expect(result.recommendation).toBe(
-    score === 100 ? 'Apply' : score >= 40 ? 'Consider' : 'Low Fit',
+    name === 'education practical alternative'
+      ? 'Consider'
+      : // Partial AND with described work: guidance, not a score cutoff.
+        name === 'some AND components'
+        ? 'Apply'
+        : score === 100
+          ? 'Apply'
+          : score >= 40
+            ? 'Consider'
+            : 'Low Fit',
   );
   for (const component of result.requirements[0]!.coverage!.components) {
     expect(requirement).toContain(component.jdQuote);
@@ -192,10 +202,10 @@ test('intact AND partial evidence earns proportional credit', () => {
       'Designed APIs.',
       'Designed APIs.',
     ),
-  ).toMatchObject({ score: 50, recommendation: 'Consider' });
+  ).toMatchObject({ score: 50, recommendation: 'Apply' });
 });
 
-test('parent weight stays 3 regardless of component count and partial required blocks Apply', () => {
+test('parent weight stays 3 regardless of component count', () => {
   const cv = 'Designed cloud-based architectures.';
   expect(assess(jobFor(clauses.and, 'Rust'), cv, cv).score).toBe(15);
   // Four of five required components plus a full preferred row = 85, still Consider.
@@ -203,7 +213,7 @@ test('parent weight stays 3 regardless of component count and partial required b
     'Designed cloud-based architectures, APIs, integrations and data flows. Skills: Rust.';
   expect(assess(jobFor(clauses.and, 'Rust'), text, text)).toMatchObject({
     score: 85,
-    recommendation: 'Consider',
+    recommendation: 'Apply',
   });
   const preferred = assess(jobFor('Rust', clauses.and), text, text);
   expect(preferred).toMatchObject({ score: 95, recommendation: 'Apply' });
@@ -348,9 +358,12 @@ test('ambiguous nested compounds and multiple-language quantities remain Unknown
       'Skills: Java, Python, Rust, Scala, Go.',
       'Skills: Java, Python, Rust, Scala, Go.',
     );
-    expect(result).toMatchObject({ score: 0, recommendation: 'Low Fit' });
+    expect(result).toMatchObject({
+      score: 0,
+      recommendation: 'Review requirements',
+    });
     expect(result.requirements[0]).toMatchObject({
-      status: 'NOT_EVIDENCED',
+      status: 'UNDECOMPOSED',
       coverage: { mode: 'UNKNOWN' },
     });
   }
@@ -516,7 +529,7 @@ test('a negative AND component blocks full coverage without crediting a negated 
   const cv = 'Designed APIs.\nI have never designed integrations.';
   expect(
     assess(jobFor('Experience designing APIs and integrations'), cv, cv),
-  ).toMatchObject({ score: 50, recommendation: 'Consider' });
+  ).toMatchObject({ score: 50, recommendation: 'Apply' });
 });
 
 test('one-of alternative syntax is accepted but unsupported larger quantity is never inferred', () => {
@@ -693,7 +706,7 @@ test.each([
         'Completed a coding boot camp.',
         'Completed a coding boot camp.',
       ).requirements[0],
-    ).toMatchObject({ status: 'NOT_EVIDENCED', coverage: { mode: 'UNKNOWN' } });
+    ).toMatchObject({ status: 'UNDECOMPOSED', coverage: { mode: 'UNKNOWN' } });
   }
 });
 

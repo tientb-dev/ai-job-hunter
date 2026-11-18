@@ -200,13 +200,15 @@ describe('per-contract deal size is not aggregate revenue', () => {
     '- Signed 3 contracts, the largest contract valued at VND 2,000,000,000.',
   ])('credited: %s', (line) => expect(check(deal, line)).toBe('EVIDENCED'));
 
-  test('an annual revenue target is still credited by stated revenue', () => {
+  // An annual figure is not a monthly target; an active verb alone no longer
+  // credits whole-sentence prose, so the row needs review instead.
+  test('an annual revenue figure does not prove a monthly target', () => {
     expect(
       check(
         target,
         '\uf0b7 Đạt doanh thu 2.400.000.000 VND trong năm 2025, tương đương 109% chỉ tiêu cá nhân.',
       ),
-    ).toBe('EVIDENCED');
+    ).toBe('UNDECOMPOSED');
   });
 });
 

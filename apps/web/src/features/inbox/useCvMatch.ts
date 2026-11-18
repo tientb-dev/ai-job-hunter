@@ -401,9 +401,13 @@ function validCoverage(value: unknown): boolean {
         typeof component.label === 'string' &&
         typeof component.jdQuote === 'string' &&
         typeof component.cvQuote === 'string' &&
-        ['EVIDENCED', 'PARTIAL', 'NOT_EVIDENCED', 'CONFLICT'].includes(
-          component.status,
-        ) &&
+        [
+          'EVIDENCED',
+          'PARTIAL',
+          'NOT_EVIDENCED',
+          'CONFLICT',
+          'UNDECOMPOSED',
+        ].includes(component.status) &&
         (!['EVIDENCED', 'PARTIAL'].includes(component.status) ||
           component.cvQuote.trim()) &&
         (component.observations === undefined ||
@@ -420,6 +424,29 @@ function validCoverage(value: unknown): boolean {
           typeof component.qualificationReason === 'string') &&
         Array.isArray(component.conflictingQuotes) &&
         component.conflictingQuotes.every((quote) => typeof quote === 'string'),
+    )
+  );
+}
+
+// Guidance is optional (older saved matches); when present it must be intact.
+function validGuidance(value: unknown): boolean {
+  const row = value as MatchResult['guidance'];
+  return (
+    !!row &&
+    ['WORTH_APPLYING', 'CONSIDER_CAREFULLY', 'STRETCH_OPPORTUNITY'].includes(
+      row.recommendation,
+    ) &&
+    ['NORMAL', 'LOW'].includes(row.confidence) &&
+    !!row.core &&
+    typeof row.core.withEvidence === 'number' &&
+    typeof row.core.evaluated === 'number' &&
+    Array.isArray(row.actions) &&
+    row.actions.length <= 3 &&
+    row.actions.every(
+      (action) =>
+        action &&
+        typeof action.code === 'string' &&
+        typeof action.label === 'string',
     )
   );
 }
@@ -443,6 +470,7 @@ export function isMatchResult(value: unknown): value is MatchResult {
     ) &&
     typeof row.explanation === 'string' &&
     typeof row.advice === 'string' &&
+    (row.guidance == null || validGuidance(row.guidance)) &&
     Array.isArray(row.requirements) &&
     row.requirements.length > 0 &&
     row.requirements.every(
@@ -455,9 +483,13 @@ export function isMatchResult(value: unknown): value is MatchResult {
         typeof item.cvQuote === 'string' &&
         ['required', 'preferred'].includes(item.priority) &&
         ['skill', 'experience', 'domain'].includes(item.category) &&
-        ['EVIDENCED', 'PARTIAL', 'NOT_EVIDENCED', 'CONFLICT'].includes(
-          item.status,
-        ) &&
+        [
+          'EVIDENCED',
+          'PARTIAL',
+          'NOT_EVIDENCED',
+          'CONFLICT',
+          'UNDECOMPOSED',
+        ].includes(item.status) &&
         (item.status !== 'EVIDENCED' || item.cvQuote.trim()) &&
         (item.coverage === undefined || validCoverage(item.coverage)) &&
         (!['PARTIAL', 'CONFLICT'].includes(item.status) ||

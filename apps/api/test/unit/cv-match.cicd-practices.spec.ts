@@ -130,7 +130,7 @@ test('only pipeline evidence changes when design wording is replaced by optimiza
   const cv = 'Designed REST APIs.\nOptimized GitLab CI/CD pipelines.';
   expect(assess(cv)).toMatchObject({
     score: 40,
-    recommendation: 'Consider',
+    recommendation: 'Apply',
     requirements: [{ status: 'PARTIAL', credit: 0.4 }],
   });
 });
@@ -181,7 +181,7 @@ test('canonical parent weights and partial required recommendation guard remain'
     ),
   ).toMatchObject({
     score: 40,
-    recommendation: 'Consider',
+    recommendation: 'Low Fit',
     requirements: [{ credit: 0.2 }, { credit: 1 }],
   });
 });

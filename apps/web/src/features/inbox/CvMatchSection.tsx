@@ -2,7 +2,13 @@ import { dateLocale, tr } from '../../app/i18n';
 import { AutoAwesomeIcon, RefreshIcon } from '../../components/icons';
 import { Link, Navigate, useInRouterContext } from 'react-router-dom';
 import { validSourceDate } from './cv-suggestions.contract';
-import { type CvOrigin, type MatchResult, statusLabel } from './cv-match.types';
+import {
+  type CvOrigin,
+  guidanceLabel,
+  type MatchResult,
+  statusLabel,
+} from './cv-match.types';
+import { ApplicationGuidance } from './ApplicationGuidance';
 import { JobCvPicker } from './JobCvPicker';
 import {
   matchStatusMessages,
@@ -42,6 +48,7 @@ const requirementColors = {
   PARTIAL: 'text.primary',
   NOT_EVIDENCED: 'text.secondary',
   CONFLICT: 'error.dark',
+  UNDECOMPOSED: 'warning.dark',
 } as const;
 
 export interface MatchInspection {
@@ -393,9 +400,15 @@ function MatchOverview({
       Number(a.item.priority === 'required'),
   );
   const explanationId = useId();
+  const evaluability = result.evaluability;
   return (
     <Stack spacing={3}>
       <Box sx={{ bgcolor: 'action.selected', borderRadius: 1, p: 2 }}>
+        {result.guidance && (
+          <Box sx={{ mb: 2, pb: 2, borderBottom: 1, borderColor: 'divider' }}>
+            <ApplicationGuidance result={result} />
+          </Box>
+        )}
         <Box
           sx={{
             display: 'grid',
@@ -413,7 +426,9 @@ function MatchOverview({
               component="h3"
               sx={{ fontWeight: 600 }}
             >
-              {tr('Documented fit')}
+              {result.guidance
+                ? tr('Documented CV evidence coverage')
+                : tr('Documented fit')}
             </Typography>
             <Stack
               direction="row"
@@ -421,7 +436,7 @@ function MatchOverview({
               sx={{ alignItems: 'center', mt: 0.5, flexWrap: 'wrap' }}
             >
               <Typography
-                variant="h3"
+                variant={result.guidance ? 'h4' : 'h3'}
                 component="p"
                 sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}
                 aria-label={tr('Fit score: {v0} (heuristic)', {
@@ -443,11 +458,13 @@ function MatchOverview({
                   </Typography>
                 )}
               </Typography>
-              <Chip
-                size="small"
-                variant="outlined"
-                label={tr(result.recommendation)}
-              />
+              {!result.guidance && (
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  label={tr(result.recommendation)}
+                />
+              )}
             </Stack>
             <Typography variant="body2" color="text.secondary">
               {tr('Heuristic evidence coverage · Not a hiring probability')}
@@ -470,22 +487,43 @@ function MatchOverview({
               >
                 {tr('Matched:')} {matched.length}
               </Typography>
-              {(['PARTIAL', 'NOT_EVIDENCED', 'CONFLICT'] as const).map(
-                (status) => (
-                  <Typography
-                    key={status}
-                    variant="body2"
-                    sx={{ color: requirementColors[status], fontWeight: 500 }}
-                  >
-                    {statusLabel(status)}:{' '}
-                    {rows.filter(({ item }) => item.status === status).length}
-                  </Typography>
-                ),
-              )}
+              {(
+                [
+                  'PARTIAL',
+                  'NOT_EVIDENCED',
+                  'CONFLICT',
+                  ...(rows.some(({ item }) => item.status === 'UNDECOMPOSED')
+                    ? (['UNDECOMPOSED'] as const)
+                    : []),
+                ] as const
+              ).map((status) => (
+                <Typography
+                  key={status}
+                  variant="body2"
+                  sx={{ color: requirementColors[status], fontWeight: 500 }}
+                >
+                  {statusLabel(status)}:{' '}
+                  {rows.filter(({ item }) => item.status === status).length}
+                </Typography>
+              ))}
               <Typography variant="body2" color="text.secondary">
                 {tr('Total:')} {rows.length}
               </Typography>
             </Stack>
+            {evaluability && (
+              <Typography
+                variant="body2"
+                color={evaluability.low ? 'warning.dark' : 'text.secondary'}
+                sx={{ mb: 1 }}
+              >
+                {tr('Evaluated: {v0} of {v1} JD requirements', {
+                  v0: String(evaluability.evaluated),
+                  v1: String(evaluability.total),
+                })}
+                {evaluability.low &&
+                  ` · ${tr('Low confidence: interpret this score with care.')}`}
+              </Typography>
+            )}
             {result.score === null ? (
               <Typography variant="body2" color="text.secondary">
                 {tr('Not enough evidence')}
@@ -693,6 +731,7 @@ function RequirementsList({
               partial: 'PARTIAL',
               unknown: 'NOT_EVIDENCED',
               conflict: 'CONFLICT',
+              review: 'UNDECOMPOSED',
             } as Record<string, string>
           )[filter],
     )
@@ -766,6 +805,9 @@ function RequirementsList({
             ['partial', 'PARTIAL'],
             ['unknown', 'NOT_EVIDENCED'],
             ['conflict', 'CONFLICT'],
+            ...(requirements.some((item) => item.status === 'UNDECOMPOSED')
+              ? ([['review', 'UNDECOMPOSED']] as const)
+              : []),
           ] as const
         ).map(([value, status]) => (
           <ToggleButton
@@ -1219,7 +1261,7 @@ export function MatchGate({
                     : `${result.score}/100`,
               })}
               color={result.recommendation === 'Apply' ? 'success' : 'default'}
-              label={`${tr(result.recommendation)} · ${result.score === null ? tr(incompleteLabel(result, 'not enough evidence')) : `${result.score}/100`}`}
+              label={`${result.guidance ? guidanceLabel(result.guidance.recommendation) : tr(result.recommendation)} · ${result.score === null ? tr(incompleteLabel(result, 'not enough evidence')) : `${result.score}/100`}`}
               sx={{ alignSelf: 'flex-start' }}
             />
             <Typography
@@ -1322,7 +1364,7 @@ export function MatchGate({
                   color={
                     result.recommendation === 'Apply' ? 'success' : 'default'
                   }
-                  label={`${tr(result.recommendation)} · ${result.score === null ? tr(incompleteLabel(result, 'not enough evidence')) : `${result.score}/100`}`}
+                  label={`${result.guidance ? guidanceLabel(result.guidance.recommendation) : tr(result.recommendation)} · ${result.score === null ? tr(incompleteLabel(result, 'not enough evidence')) : `${result.score}/100`}`}
                 />
                 {counts && (
                   <Typography variant="body2" color="text.secondary">
