@@ -110,6 +110,13 @@ const contactIssue =
   'Unrecognized contact fragment. Assign it explicitly or exclude it after review.';
 const artifactIssue =
   'PDF icon or separator artifact. Review before excluding.';
+// Confidently decorative icon-font/separator glyphs: excluded automatically
+// (source text and coverage stay intact for audit). U+FFFD glued to a letter
+// may be a lost real character, so it stays in normal review.
+const decorativeReason =
+  'Decorative PDF icon or separator removed automatically; not CV content.';
+const decorative = (glyphs: string, after: string) =>
+  !/\uFFFD/u.test(glyphs) || !/^\p{L}/u.test(after);
 const iconPrefix =
   /^[ \t]*(?:[\uFFFD\u25A1\u25AF\u25A0\uE000-\uF8FF\u2709]\uFE0F?[ \t]*)+/u;
 function locationHint(value: string): string | undefined {
@@ -180,7 +187,9 @@ function contactParts(text: string): ContactPart[] {
         start: m.index,
         end: m.index + m[0].length,
         value: m[0],
-        issue: artifactIssue,
+        issue: decorative(m[0], text.slice(m.index + 1))
+          ? decorativeReason
+          : artifactIssue,
       });
   }
   if (!cores.length) return [];
@@ -409,7 +418,9 @@ export function segmentSource(source: string): Passage[] {
     if (icon) {
       const rest = text.slice(icon.length).trim() ? icon.length : text.length;
       push(index - leading, index + rest, false, undefined, true);
-      raw.at(-1)!.issue = artifactIssue;
+      raw.at(-1)!.issue = decorative(icon, text.slice(icon.length))
+        ? decorativeReason
+        : artifactIssue;
       leading = 0;
       if (rest === text.length) continue;
       text = text.slice(rest);
@@ -948,7 +959,11 @@ export function reconstructSource(
     document.coverage.push({
       start: p.start,
       end: p.end,
-      disposition: factId ? 'mapped' : 'unresolved',
+      disposition: factId
+        ? 'mapped'
+        : p.issue === decorativeReason
+          ? 'excluded'
+          : 'unresolved',
       factIds: factId ? [factId] : [],
       reason: factId
         ? null

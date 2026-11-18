@@ -376,7 +376,11 @@ test('PDF-like contact glyphs and omitted Backend/Frontend/Leadership remain ful
     text,
   );
   expect(
-    doc.coverage.filter((c) => c.reason?.startsWith('PDF icon')).length,
+    doc.coverage.filter(
+      (c) =>
+        c.disposition === 'excluded' &&
+        c.reason?.startsWith('Decorative PDF icon'),
+    ).length,
   ).toBe(4);
   expect(
     doc.coverage.some(
@@ -742,8 +746,8 @@ test('PDF icon glyphs outside contact never become fact values and year-only ran
   expect(
     doc.coverage.filter(
       (r) =>
-        r.disposition === 'unresolved' &&
-        r.reason?.startsWith('PDF icon') &&
+        r.disposition === 'excluded' &&
+        r.reason?.startsWith('Decorative PDF icon') &&
         /^[\s-]+$/u.test(text.slice(r.start, r.end)),
     ),
   ).toHaveLength(4);
@@ -767,4 +771,45 @@ test('PDF icon glyphs outside contact never become fact values and year-only ran
   expect(
     facts(doc).some((f) => f.field === 'phone' && /2016|2021/u.test(f.value)),
   ).toBe(false);
+});
+
+test('recognizable icon-font artifacts in every section are excluded automatically without touching real content', () => {
+  const text =
+    'Synthetic Linh Tran\nBackend Developer\n linh@example.invalid |  +84 912 345 678\n\n' +
+    'Experience\n Example Alpha\nBackend Developer\n2021 - Present\n• Built C++ and C# APIs.\n\n' +
+    'Education\n Example University\nBachelor of Computer Science\n2016 - 2020\n\n' +
+    'Projects\n■ Example Tracker\n\n' +
+    'Additional\n�ng dung\n';
+  const doc = assembleProposal(sourceId, text, structureChoices(text));
+  expect(profileDocument(doc, sourceId, text)).toEqual(doc);
+  expect(doc.coverage.map((r) => text.slice(r.start, r.end)).join('')).toBe(
+    text,
+  );
+  const auto = doc.coverage.filter(
+    (r) =>
+      r.disposition === 'excluded' &&
+      r.reason?.startsWith('Decorative PDF icon'),
+  );
+  expect(auto).toHaveLength(5);
+  expect(
+    auto.every((r) => /^[\s■|]+$/u.test(text.slice(r.start, r.end))),
+  ).toBe(true);
+  const values = facts(doc).map((f) => f.value.trim());
+  expect(values).toEqual(
+    expect.arrayContaining([
+      'linh@example.invalid',
+      'Example Alpha',
+      'Example University',
+      '• Built C++ and C# APIs.',
+    ]),
+  );
+  expect(values.some((v) => /[-■]/u.test(v))).toBe(false);
+  // U+FFFD glued to a word may hide a real letter: it stays in review.
+  expect(
+    doc.coverage.some(
+      (r) =>
+        r.disposition !== 'excluded' &&
+        text.slice(r.start, r.end).includes('�'),
+    ),
+  ).toBe(true);
 });

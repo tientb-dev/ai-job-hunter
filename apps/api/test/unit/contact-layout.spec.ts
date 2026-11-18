@@ -45,7 +45,7 @@ test('envelope icons remain independently excludable while exact email and profi
   const before = JSON.stringify(layout);
   const passages = sourcePassages(text, layout);
   expect(passages.find((p) => p.text.trim() === '✉')!.issue).toMatch(
-    /^PDF icon or separator artifact/u,
+    /^Decorative PDF icon/u,
   );
   expect(passages.find((p) => p.hint === 'email')!.text).toBe(
     'person@example.invalid',
