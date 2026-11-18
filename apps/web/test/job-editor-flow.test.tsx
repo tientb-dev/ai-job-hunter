@@ -293,8 +293,9 @@ test('unsaved link navigation, browser back, and refresh are guarded; stay retai
   const indicator = screen
     .getByText('Unsaved changes')
     .closest('.MuiChip-root');
-  expect(indicator).toHaveStyle({
-    color: theme.palette.grey[900],
+  // Subtle outlined indicator, not a filled warning colour.
+  expect(indicator).toHaveClass('MuiChip-outlined');
+  expect(indicator).not.toHaveStyle({
     backgroundColor: theme.palette.warning.main,
   });
   const unload = new Event('beforeunload', { cancelable: true });

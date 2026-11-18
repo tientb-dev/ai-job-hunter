@@ -114,7 +114,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
             <DialogContent>
               <DialogContentText
                 id="notification-failure-text"
-                sx={{ overflowWrap: 'anywhere' }}
+                sx={{ overflowWrap: 'anywhere', whiteSpace: 'pre-line' }}
               >
                 {last.text}
               </DialogContentText>
@@ -155,7 +155,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
           paper: {
             role: 'status',
             'aria-live': 'polite',
-            sx: { maxWidth: 340 },
+            sx: { maxWidth: 420 },
           },
         }}
       >
@@ -177,7 +177,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
               <Typography
                 variant="body2"
                 color="text.secondary"
-                sx={{ mt: 1, overflowWrap: 'anywhere' }}
+                // A "\n" separates the primary sentence from a secondary line.
+                sx={{ mt: 1, overflowWrap: 'anywhere', whiteSpace: 'pre-line' }}
               >
                 {last.text}
               </Typography>

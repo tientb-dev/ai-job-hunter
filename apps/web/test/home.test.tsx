@@ -465,3 +465,26 @@ test('a follow-up already resolved elsewhere is not overwritten', async () => {
     within(followUps).getByText('No follow-ups are due today or overdue.'),
   ).toBeVisible();
 });
+
+test('first run with no CV and no jobs leads with one Save your CV action', async () => {
+  stub(
+    () => Promise.resolve(Response.json([])),
+    () =>
+      Promise.resolve(
+        Response.json({
+          contractVersion: '1',
+          ...facts([], { saved: false, sourceReason: null }),
+        }),
+      ),
+  );
+  expect(
+    await screen.findByRole('heading', { name: 'Save your CV' }),
+  ).toBeVisible();
+  expect(screen.getByRole('link', { name: 'Open My CV' })).toHaveAttribute(
+    'href',
+    '/cv',
+  );
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: 'Discover jobs' })).toBeNull();
+  expect(screen.getAllByRole('link', { name: 'Add job' })).toHaveLength(1);
+});
