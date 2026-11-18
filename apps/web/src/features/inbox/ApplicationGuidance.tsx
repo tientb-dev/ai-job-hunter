@@ -27,29 +27,28 @@ const CAPABILITY: Record<string, string> = {
     'If you maintained, debugged or enhanced existing applications, add a concrete example.',
 };
 
+// The action sentence is in the UI language; the JD wording it refers to is
+// shown separately, verbatim, so sentences never mix languages.
 function actionText(action: GuidanceAction): string {
   const capability = action.capability && CAPABILITY[action.capability];
   if (capability) return tr(capability);
   switch (action.code) {
     case 'STATE_DURATION':
       return tr(
-        'If you have {v1}+ years with “{v0}”, state the duration or dates in your CV.',
-        { v0: action.label, v1: String(action.years ?? '') },
+        'If you have at least {v0} years of this experience, show the dates of the roles or projects where you did it.',
+        { v0: String(action.years ?? '') },
       );
     case 'SHOW_IN_WORK':
       return tr(
-        '“{v0}” appears only in a list. If you used it in a role, describe how.',
-        { v0: action.label },
+        'Listed only as a skill. If you used it at work, describe how in that role.',
       );
     case 'REVIEW_REQUIREMENT':
       return tr(
-        'Check “{v0}” yourself — it could not be interpreted reliably.',
-        { v0: action.label },
+        'This could not be interpreted reliably. Check it against your experience yourself.',
       );
     default:
       return tr(
-        'If you have experience with “{v0}”, add a concrete example to the relevant role.',
-        { v0: action.label },
+        'If you have done this, add one concrete example to the role or project where you did it.',
       );
   }
 }
@@ -62,6 +61,35 @@ const CLOSING = {
     'Many core requirements are not shown in your CV. Apply if you have this experience and can describe it.',
 } as const;
 
+function RequirementList({
+  title,
+  items,
+}: {
+  title: string;
+  items: readonly string[];
+}) {
+  if (!items.length) return null;
+  return (
+    <Box sx={{ minWidth: 0 }}>
+      <Typography variant="subtitle2" component="h4">
+        {title}
+      </Typography>
+      <Box component="ul" sx={{ m: 0, mt: 0.5, pl: 2.5 }}>
+        {items.map((item) => (
+          <Typography
+            key={item}
+            component="li"
+            variant="body2"
+            sx={{ overflowWrap: 'anywhere' }}
+          >
+            {item}
+          </Typography>
+        ))}
+      </Box>
+    </Box>
+  );
+}
+
 /** Primary takeaway of the Match Summary. Advisory, never a hiring prediction. */
 export function ApplicationGuidance({ result }: { result: MatchResult }) {
   const guidance = result.guidance;
@@ -69,7 +97,10 @@ export function ApplicationGuidance({ result }: { result: MatchResult }) {
   const { core, confidence, recommendation } = guidance;
   const low = confidence === 'LOW';
   return (
-    <Box component="section" aria-labelledby="application-guidance-title">
+    <Box component="section" aria-label={tr('Application guidance')}>
+      <Typography variant="overline" color="text.secondary" component="p">
+        {tr('Application guidance')}
+      </Typography>
       <Stack
         direction="row"
         spacing={1.5}
@@ -78,58 +109,90 @@ export function ApplicationGuidance({ result }: { result: MatchResult }) {
       >
         <Typography
           id="application-guidance-title"
-          variant="subtitle1"
+          variant="h5"
           component="h3"
-          sx={{ fontWeight: 600 }}
+          sx={{
+            fontWeight: 600,
+            color:
+              COLOR[recommendation] === 'success'
+                ? 'success.dark'
+                : 'text.primary',
+          }}
         >
-          {tr('Application guidance')}
+          {guidanceLabel(recommendation)}
         </Typography>
-        <Chip
-          size="small"
-          color={COLOR[recommendation]}
-          label={guidanceLabel(recommendation)}
-        />
         {low && (
           <Chip size="small" variant="outlined" label={tr('Low confidence')} />
         )}
       </Stack>
       <Typography variant="body2" sx={{ mt: 1 }}>
-        {low
-          ? tr(
-              'Only part of this JD could be interpreted, so this is a cautious read. Check the items marked Could not interpret requirement yourself.',
-            )
-          : [
-              tr('Your CV documents {v0} of {v1} core requirements.', {
+        {[
+          low
+            ? tr(
+                'Only part of this JD could be interpreted, so this is a cautious read. Check the items marked Could not interpret requirement yourself.',
+              )
+            : tr('Your CV documents {v0} of {v1} core requirements.', {
                 v0: String(core.withEvidence),
                 v1: String(core.evaluated),
               }),
-              core.withEvidence
-                ? guidance.demonstratedWork
-                  ? tr('Relevant experience appears in your work history.')
-                  : tr(
-                      'This evidence comes mainly from skills lists, not described work.',
-                    )
-                : '',
-              tr(CLOSING[recommendation]),
-            ]
-              .filter(Boolean)
-              .join(' ')}
+          core.withEvidence
+            ? guidance.demonstratedWork
+              ? tr('Relevant experience appears in your work history.')
+              : tr(
+                  'This evidence comes mainly from skills lists, not described work.',
+                )
+            : '',
+          tr(CLOSING[recommendation]),
+        ]
+          .filter(Boolean)
+          .join(' ')}
       </Typography>
+      {(guidance.strengths.length > 0 || guidance.gaps.length > 0) && (
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: 'minmax(0, 1fr)',
+              sm: 'repeat(2, minmax(0, 1fr))',
+            },
+            gap: 2,
+            mt: 1.5,
+          }}
+        >
+          <RequirementList
+            title={tr('Documented in your CV')}
+            items={guidance.strengths}
+          />
+          <RequirementList
+            title={tr('Not yet shown in your CV')}
+            items={guidance.gaps}
+          />
+        </Box>
+      )}
       {guidance.actions.length > 0 && (
         <>
           <Typography variant="subtitle2" component="h4" sx={{ mt: 1.5 }}>
             {tr('Before you apply')}
           </Typography>
-          <Box component="ol" sx={{ m: 0, mt: 0.5, pl: 2.5 }}>
+          <Box
+            component="ol"
+            aria-label={tr('Before you apply')}
+            sx={{ m: 0, mt: 0.5, pl: 2.5 }}
+          >
             {guidance.actions.map((action, index) => (
-              <Typography
-                key={index}
-                component="li"
-                variant="body2"
-                sx={{ mb: 0.5 }}
-              >
-                {actionText(action)}
-              </Typography>
+              <Box component="li" key={index} sx={{ mb: 0.75 }}>
+                <Typography variant="body2">{actionText(action)}</Typography>
+                {!(action.capability && CAPABILITY[action.capability]) && (
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    component="p"
+                    sx={{ overflowWrap: 'anywhere' }}
+                  >
+                    {tr('JD: “{v0}”', { v0: action.label })}
+                  </Typography>
+                )}
+              </Box>
             ))}
           </Box>
         </>
