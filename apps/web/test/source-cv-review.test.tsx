@@ -158,7 +158,8 @@ test('section review is lightweight, ambiguous fields require individual confirm
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
   await screen.findByText('Draft saved. You can finish the review later.');
   expect(state.profile().revision).toBe(2);
-  expect(screen.getByRole('button', { name: 'Save draft' })).toBeDisabled();
+  expect(screen.queryByRole('button', { name: 'Save draft' })).toBeNull();
+  expect(screen.getByText('All changes saved')).toBeVisible();
 });
 test('editing keeps exact source evidence and stores a distinct user-entered replacement', async () => {
   const state = setup();
@@ -471,7 +472,8 @@ test('default review is readable cards; a correction is confirmed by checking it
       name: 'Mark Personal details section as checked',
     }),
   ).toBeNull();
-  expect(screen.getByRole('button', { name: 'Save draft' })).toBeDisabled();
+  expect(screen.queryByRole('button', { name: 'Save draft' })).toBeNull();
+  expect(screen.getByText('All changes saved')).toBeVisible();
 });
 
 test('AI-flagged details still need their own confirmation before the section can be checked', async () => {

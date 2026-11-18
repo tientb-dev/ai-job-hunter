@@ -31,9 +31,9 @@ import {
   Typography,
   Paper,
   LinearProgress,
-  Link,
   List,
   ListItemButton,
+  ListSubheader,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -538,12 +538,16 @@ export function SourceCvReview({
     active && navItems.some((item) => item.id === active) ? active : firstWork;
   const show = (id: string) => !page || panel === id;
   const panelIndex = navItems.findIndex((item) => item.id === panel);
+  const sectionCount = document?.sections.length ?? 0;
   function goPanel(id: string) {
     setActive(id);
     if (id === 'unassigned') setIssuesOpen(true);
     requestAnimationFrame(() => {
       const el = window.document.getElementById('source-review-panel');
-      el?.scrollIntoView?.({ block: 'start' });
+      // Scroll only when the new section heading is off screen.
+      const top = el?.getBoundingClientRect().top ?? 0;
+      if (top < 64 || top > window.innerHeight / 2)
+        el?.scrollIntoView?.({ block: 'start' });
       el?.focus({ preventScroll: true });
     });
   }
@@ -572,7 +576,27 @@ export function SourceCvReview({
           }}
         >
           <List disablePadding sx={{ display: 'grid', gap: 0.5 }}>
-            {navItems.map((item) => (
+            {navItems.map((item, index) => [
+              // Review utilities follow the CV sections as a separate group.
+              index === sectionCount && (
+                <ListSubheader
+                  key="tools"
+                  disableSticky
+                  sx={{
+                    mt: 1.5,
+                    pt: 1.5,
+                    px: 2,
+                    lineHeight: 1.5,
+                    borderTop: 1,
+                    borderColor: 'divider',
+                    bgcolor: 'transparent',
+                    typography: 'overline',
+                    color: 'text.secondary',
+                  }}
+                >
+                  {tr('Review tools')}
+                </ListSubheader>
+              ),
               <ListItemButton
                 key={item.id}
                 selected={item.id === panel}
@@ -597,21 +621,45 @@ export function SourceCvReview({
                   )}
                   {item.label}
                 </Typography>
+                {/* Done items show only the check; the status stays for screen readers. */}
                 {item.status && (
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    component="span"
+                    sx={item.done ? visuallyHidden : { display: 'block' }}
+                  >
                     {item.status}
                   </Typography>
                 )}
-              </ListItemButton>
-            ))}
+              </ListItemButton>,
+            ])}
           </List>
         </Box>
         <Stack
           id="source-review-panel"
           tabIndex={-1}
           spacing={2}
+          useFlexGap
           sx={{ minWidth: 0, outline: 'none', scrollMarginTop: 80 }}
         >
+          {panelIndex >= 0 && (
+            <Typography
+              variant="overline"
+              color="text.secondary"
+              sx={{ lineHeight: 1.5 }}
+            >
+              {panelIndex < sectionCount
+                ? tr('Section {n} of {total} — {label}', {
+                    n: panelIndex + 1,
+                    total: sectionCount,
+                    label: navItems[panelIndex]!.label,
+                  })
+                : tr('Review tools — {label}', {
+                    label: navItems[panelIndex]!.label,
+                  })}
+            </Typography>
+          )}
           <TextField
             select
             label={tr('Section')}
@@ -883,6 +931,7 @@ export function SourceCvReview({
                   )}
                   {!!separatorFragments.length && (
                     <Button
+                      variant="outlined"
                       disabled={blocked}
                       onClick={() =>
                         change((next) => {
@@ -904,6 +953,7 @@ export function SourceCvReview({
                     </Button>
                   )}
                   <Button
+                    variant="outlined"
                     disabled={blocked}
                     onClick={() => {
                       setIssuesOpen(true);
@@ -957,20 +1007,25 @@ export function SourceCvReview({
               {tr('Organize my CV')}
             </Button>
           ) : (
-            <Box>
-              <Button
-                variant={legacy ? 'contained' : 'outlined'}
-                disabled={
-                  blocked || dirty || cv?.updatedAt !== source.savedCvUpdatedAt
-                }
-                onClick={() => setRebuildOpen(true)}
-              >
-                {legacy ? tr('Organize my CV') : tr('Reorganize from source')}
-              </Button>
-            </Box>
+            legacy && (
+              <Box>
+                <Button
+                  variant="contained"
+                  disabled={
+                    blocked ||
+                    dirty ||
+                    cv?.updatedAt !== source.savedCvUpdatedAt
+                  }
+                  onClick={() => setRebuildOpen(true)}
+                >
+                  {tr('Organize my CV')}
+                </Button>
+              </Box>
+            )
           )}
           {legacy && (error || cv?.updatedAt !== source.savedCvUpdatedAt) && (
             <Button
+              variant="outlined"
               startIcon={<RefreshIcon />}
               disabled={blocked}
               onClick={() => void run(openReview)}
@@ -1108,19 +1163,67 @@ export function SourceCvReview({
                             >
                               {sectionTitles[section.kind]}
                             </Typography>
-                            <Chip
-                              variant="outlined"
-                              size="small"
-                              label={
-                                section.review === 'confirmed'
-                                  ? tr('Reviewed')
-                                  : issues.length
-                                    ? tr('{length} details to check', {
-                                        length: issues.length,
-                                      })
-                                    : tr('Ready to review')
-                              }
-                            />
+                            <Stack
+                              direction="row"
+                              spacing={1}
+                              sx={{ alignItems: 'center' }}
+                            >
+                              <Chip
+                                variant="outlined"
+                                size="small"
+                                color={
+                                  section.review === 'confirmed'
+                                    ? 'success'
+                                    : 'default'
+                                }
+                                label={
+                                  section.review === 'confirmed'
+                                    ? tr('Reviewed')
+                                    : issues.length
+                                      ? tr('{length} details to check', {
+                                          length: issues.length,
+                                        })
+                                      : tr('Ready to review')
+                                }
+                              />
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                // Theme small height (32px) beats the screen-wide floor; the
+                                // invisible ::after keeps a 44px tall touch target.
+                                sx={{
+                                  '&&': { minHeight: 32 },
+                                  '&::after': {
+                                    content: '""',
+                                    position: 'absolute',
+                                    inset: '-6px 0',
+                                  },
+                                }}
+                                startIcon={
+                                  editing === section.id ? (
+                                    <CheckIcon />
+                                  ) : (
+                                    <EditIcon />
+                                  )
+                                }
+                                disabled={blocked || legacy}
+                                aria-pressed={editing === section.id}
+                                aria-label={`${
+                                  editing === section.id
+                                    ? tr('Finish editing')
+                                    : tr('Edit')
+                                } ${sectionTitles[section.kind]}`}
+                                onClick={() =>
+                                  setEditing(
+                                    editing === section.id ? null : section.id,
+                                  )
+                                }
+                              >
+                                {editing === section.id
+                                  ? tr('Done')
+                                  : tr('Edit')}
+                              </Button>
+                            </Stack>
                           </Stack>
                           {section.entries.map((entry, index) => {
                             const fields = visibleFacts(entry.facts);
@@ -1281,57 +1384,72 @@ export function SourceCvReview({
                                       {tr('before confirming this section.')}
                                     </Alert>
                                   )}
-                                {editing === section.id && !legacy
-                                  ? fields.map(({ original, shown }) => (
-                                      <Stack key={original.id} spacing={1}>
-                                        <TextField
-                                          id={`source-field-${original.id}`}
-                                          label={fieldTitle(shown.field)}
-                                          value={shown.value}
-                                          multiline
-                                          fullWidth
-                                          disabled={blocked}
-                                          error={!shown.value.trim()}
-                                          onChange={(event) =>
-                                            editFact(
-                                              section.id,
-                                              entry.id,
-                                              original.id,
-                                              event.target.value,
-                                            )
-                                          }
-                                          helperText={
-                                            needs(original)
+                                {editing === section.id && !legacy ? (
+                                  fields.map(({ original, shown }) => (
+                                    <Stack key={original.id} spacing={1}>
+                                      <TextField
+                                        id={`source-field-${original.id}`}
+                                        label={fieldTitle(shown.field)}
+                                        value={shown.value}
+                                        multiline
+                                        fullWidth
+                                        disabled={blocked}
+                                        error={!shown.value.trim()}
+                                        onChange={(event) =>
+                                          editFact(
+                                            section.id,
+                                            entry.id,
+                                            original.id,
+                                            event.target.value,
+                                          )
+                                        }
+                                        helperText={
+                                          needs(original)
+                                            ? tr(
+                                                'Check this detail and its attribution against the source, then confirm it.',
+                                              )
+                                            : shown.origin === 'user_entered'
                                               ? tr(
-                                                  'Check this detail and its attribution against the source, then confirm it.',
+                                                  'Your correction; it does not become original-source evidence.',
                                                 )
-                                              : shown.origin === 'user_entered'
-                                                ? tr(
-                                                    'Your correction; it does not become original-source evidence.',
-                                                  )
-                                                : undefined
+                                              : undefined
+                                        }
+                                        slotProps={{
+                                          htmlInput: { maxLength: 4000 },
+                                        }}
+                                      />
+                                      {(needs(original) || needs(shown)) && (
+                                        <Button
+                                          variant="outlined"
+                                          disabled={
+                                            blocked || !shown.value.trim()
                                           }
-                                          slotProps={{
-                                            htmlInput: { maxLength: 4000 },
-                                          }}
-                                        />
-                                        {(needs(original) || needs(shown)) && (
-                                          <Button
-                                            variant="outlined"
-                                            disabled={
-                                              blocked || !shown.value.trim()
-                                            }
-                                            onClick={() =>
-                                              confirm(section.id, original.id)
-                                            }
-                                          >
-                                            {tr('Confirm')}{' '}
-                                            {fieldTitle(shown.field)}
-                                          </Button>
-                                        )}
-                                      </Stack>
-                                    ))
-                                  : fields
+                                          onClick={() =>
+                                            confirm(section.id, original.id)
+                                          }
+                                        >
+                                          {tr('Confirm')}{' '}
+                                          {fieldTitle(shown.field)}
+                                        </Button>
+                                      )}
+                                    </Stack>
+                                  ))
+                                ) : (
+                                  <Box
+                                    sx={
+                                      section.kind === 'contact'
+                                        ? {
+                                            display: 'grid',
+                                            gap: 1.5,
+                                            gridTemplateColumns: {
+                                              xs: 'minmax(0, 1fr)',
+                                              sm: 'repeat(2, minmax(0, 1fr))',
+                                            },
+                                          }
+                                        : { display: 'grid', gap: 1 }
+                                    }
+                                  >
+                                    {fields
                                       .filter(
                                         ({ shown }) =>
                                           !(
@@ -1340,6 +1458,15 @@ export function SourceCvReview({
                                       )
                                       .map(({ original, shown }) => (
                                         <Box key={original.id}>
+                                          {section.kind === 'contact' && (
+                                            <Typography
+                                              variant="caption"
+                                              color="text.secondary"
+                                              component="div"
+                                            >
+                                              {fieldTitle(shown.field)}
+                                            </Typography>
+                                          )}
                                           <Typography
                                             sx={{
                                               fontWeight: [
@@ -1380,10 +1507,14 @@ export function SourceCvReview({
                                           )}
                                         </Box>
                                       ))}
+                                  </Box>
+                                )}
                                 <Box component="details">
                                   <Typography
                                     component="summary"
-                                    variant="body2"
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{ cursor: 'pointer' }}
                                   >
                                     {tr('View source evidence')}
                                     {title
@@ -1432,10 +1563,10 @@ export function SourceCvReview({
                             <Typography variant="body2" color="text.secondary">
                               {flagged.length
                                 ? tr(
-                                    'Review and confirm the highlighted details to enable section confirmation. Editing is available below.',
+                                    'Review and confirm the highlighted details to enable section confirmation.',
                                   )
                                 : tr(
-                                    'This section is confirmed. Edit it if you need to make a correction.',
+                                    'This section is confirmed. Use Edit at the top of the section to make a correction.',
                                   )}
                             </Typography>
                           )}
@@ -1466,21 +1597,9 @@ export function SourceCvReview({
                                 {tr('Mark section as checked')}
                               </Button>
                             )}
-                            <Button
-                              disabled={blocked || legacy}
-                              onClick={() =>
-                                setEditing(
-                                  editing === section.id ? null : section.id,
-                                )
-                              }
-                            >
-                              {editing === section.id
-                                ? tr('Finish editing')
-                                : tr('Edit')}{' '}
-                              {sectionTitles[section.kind]}
-                            </Button>
                             {!!issues.length && (
                               <Button
+                                variant="outlined"
                                 disabled={blocked || legacy}
                                 onClick={() => {
                                   setEditing(section.id);
@@ -1574,6 +1693,7 @@ export function SourceCvReview({
                                   )}
                                 />
                                 <Button
+                                  variant="outlined"
                                   disabled={blocked || !linkedinConfirmed}
                                   onClick={() =>
                                     change((next) => {
@@ -1755,6 +1875,7 @@ export function SourceCvReview({
                               slotProps={{ htmlInput: { maxLength: 1000 } }}
                             />
                             <Button
+                              variant="outlined"
                               disabled={blocked || !reason.trim()}
                               onClick={() => {
                                 change((next) => {
@@ -1904,6 +2025,7 @@ export function SourceCvReview({
                           {tr('Earlier review and corrections')}
                         </Typography>
                         <Button
+                          variant="outlined"
                           disabled={blocked}
                           onClick={() =>
                             void run(async () => {
@@ -1948,25 +2070,37 @@ export function SourceCvReview({
                 )}
                 {page && (
                   <Stack
+                    component="nav"
+                    aria-label={tr('Section navigation')}
                     direction="row"
                     spacing={1}
-                    sx={{ justifyContent: 'space-between' }}
+                    sx={{
+                      justifyContent: 'space-between',
+                      pt: 1,
+                      borderTop: 1,
+                      borderColor: 'divider',
+                    }}
                   >
                     <Button
+                      variant="outlined"
                       startIcon={<ArrowBackIcon />}
                       disabled={panelIndex <= 0}
+                      title={navItems[panelIndex - 1]?.label}
                       onClick={() => goPanel(navItems[panelIndex - 1]!.id)}
                     >
-                      {tr('Previous')}
+                      {tr('Previous section')}
                     </Button>
                     <Button
+                      // Primary step action, unless the review is ready and Complete review takes over.
+                      variant={blockers.length ? 'contained' : 'outlined'}
                       endIcon={<ArrowForwardIcon />}
                       disabled={
                         panelIndex < 0 || panelIndex >= navItems.length - 1
                       }
+                      title={navItems[panelIndex + 1]?.label}
                       onClick={() => goPanel(navItems[panelIndex + 1]!.id)}
                     >
-                      {tr('Next')}
+                      {tr('Next section')}
                     </Button>
                   </Stack>
                 )}
@@ -2059,8 +2193,21 @@ export function SourceCvReview({
                       <Typography
                         id="source-review-remaining"
                         role="status"
-                        sx={{ fontWeight: 600 }}
+                        sx={{
+                          fontWeight: 600,
+                          color: blockers.length ? undefined : 'success.main',
+                        }}
                       >
+                        {!blockers.length && (
+                          <CheckIcon
+                            aria-hidden
+                            sx={{
+                              fontSize: 18,
+                              mr: 0.5,
+                              verticalAlign: 'text-bottom',
+                            }}
+                          />
+                        )}
                         {blockers.length
                           ? tr(
                               '{n} items left before you can complete the review',
@@ -2069,14 +2216,13 @@ export function SourceCvReview({
                               },
                             )
                           : tr(
-                              'Everything is checked. You can complete the review.',
+                              'All sections checked — ready to complete the review.',
                             )}
                       </Typography>
                       {blockers.length > 0 && (
-                        <Link
-                          component="button"
-                          type="button"
-                          variant="body2"
+                        <Button
+                          variant="outlined"
+                          size="small"
                           aria-expanded={showAllBlockers}
                           aria-controls="source-review-blockers"
                           sx={{ alignSelf: 'flex-start' }}
@@ -2086,13 +2232,12 @@ export function SourceCvReview({
                           }}
                         >
                           {tr('View items to resolve')}
-                        </Link>
+                        </Button>
                       )}
                     </Stack>
                   )}
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
                     <Button
-                      startIcon={<CheckIcon />}
                       variant="contained"
                       aria-describedby={
                         page ? 'source-review-remaining' : undefined
@@ -2139,37 +2284,50 @@ export function SourceCvReview({
                         )}
                       </Alert>
                     )}
-                    <Button
-                      startIcon={<SaveIcon />}
-                      variant="outlined"
-                      disabled={
-                        blocked ||
-                        !documentDirty ||
-                        blank ||
-                        Boolean(newValue || reason)
-                      }
-                      onClick={() =>
-                        void run(async () => {
-                          const token = epoch.current;
-                          const value = await sourceCvRequest(
-                            `/profiles/${profile.profileId}/revisions`,
-                            { expectedRevision: profile.revision, document },
-                          );
-                          if (token === epoch.current) {
-                            accept(value, source);
-                            setMessage(
-                              tr(
-                                'Draft saved. You can finish the review later.',
-                              ),
+                    {!dirty ? (
+                      <Typography
+                        role="status"
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 0.5,
+                          minHeight: 44,
+                        }}
+                      >
+                        {tr('All changes saved')}
+                      </Typography>
+                    ) : (
+                      <Button
+                        startIcon={<SaveIcon />}
+                        variant="outlined"
+                        disabled={
+                          blocked || blank || Boolean(newValue || reason)
+                        }
+                        onClick={() =>
+                          void run(async () => {
+                            const token = epoch.current;
+                            const value = await sourceCvRequest(
+                              `/profiles/${profile.profileId}/revisions`,
+                              { expectedRevision: profile.revision, document },
                             );
-                          }
-                        })
-                      }
-                    >
-                      {tr('Save draft')}
-                    </Button>
+                            if (token === epoch.current) {
+                              accept(value, source);
+                              setMessage(
+                                tr(
+                                  'Draft saved. You can finish the review later.',
+                                ),
+                              );
+                            }
+                          })
+                        }
+                      >
+                        {tr('Save draft')}
+                      </Button>
+                    )}
                   </Stack>
-                  {!page && (
+                  {!page && dirty && (
                     <Typography variant="body2" color="text.secondary">
                       {dirty
                         ? tr(
@@ -2189,6 +2347,9 @@ export function SourceCvReview({
                     sx={{ mt: 1 }}
                   >
                     <Button
+                      variant="outlined"
+                      size="small"
+                      color="error"
                       disabled={blocked || !dirty}
                       onClick={() => {
                         setDocument(structuredClone(profile.document));
@@ -2201,12 +2362,28 @@ export function SourceCvReview({
                       {tr('Discard unsaved changes')}
                     </Button>
                     <Button
+                      variant="outlined"
+                      size="small"
                       startIcon={<RefreshIcon />}
                       disabled={blocked || dirty}
                       onClick={() => void run(openReview)}
                     >
                       {tr('Reload saved review')}
                     </Button>
+                    {!legacy && (
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        disabled={
+                          blocked ||
+                          dirty ||
+                          cv?.updatedAt !== source.savedCvUpdatedAt
+                        }
+                        onClick={() => setRebuildOpen(true)}
+                      >
+                        {tr('Reorganize from source')}
+                      </Button>
+                    )}
                   </Stack>
                 </Box>
               </>,
@@ -2216,6 +2393,18 @@ export function SourceCvReview({
     </Stack>
   );
 }
+const visuallyHidden = {
+  // Pixel strings: in sx a bare 1 means 100%.
+  position: 'absolute',
+  width: '1px',
+  height: '1px',
+  margin: '-1px',
+  padding: 0,
+  border: 0,
+  overflow: 'hidden',
+  clip: 'rect(0 0 0 0)',
+  whiteSpace: 'nowrap',
+} as const;
 // Read-only presentation strips explicit field labels, never the stored wording or evidence.
 const displayText = (fact: CvFact) =>
   fact.value
@@ -2387,6 +2576,7 @@ function RecordAdjustments({
             ))}
         </TextField>
         <Button
+          variant="outlined"
           disabled={blocked || !selected}
           onClick={() =>
             change((next) => {
@@ -2431,6 +2621,7 @@ function RecordAdjustments({
           )}
         </TextField>
         <Button
+          variant="outlined"
           disabled={blocked || !selected || !destination}
           onClick={() =>
             change((next) => {

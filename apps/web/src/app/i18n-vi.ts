@@ -2307,4 +2307,17 @@ export const VI_TEXT: Record<string, string> = {
   'JD: “{v0}”': 'JD: “{v0}”',
   'Assessment details': 'Chi tiết đánh giá',
   'Evidence coverage {v0}/100': 'Mức bằng chứng {v0}/100',
+  'Review tools': 'Công cụ rà soát',
+  'Section {n} of {total} — {label}': 'Phần {n}/{total} — {label}',
+  'Review tools — {label}': 'Công cụ rà soát — {label}',
+  'Section navigation': 'Điều hướng giữa các phần',
+  'Previous section': 'Phần trước',
+  'Next section': 'Phần tiếp theo',
+  'All sections checked — ready to complete the review.':
+    'Đã kiểm tra mọi phần — sẵn sàng hoàn tất rà soát.',
+  'All changes saved': 'Đã lưu mọi thay đổi',
+  'Review and confirm the highlighted details to enable section confirmation.':
+    'Rà soát và xác nhận các chi tiết được đánh dấu để có thể xác nhận phần này.',
+  'This section is confirmed. Use Edit at the top of the section to make a correction.':
+    'Phần này đã được xác nhận. Dùng nút Sửa ở đầu phần để chỉnh sửa.',
 };

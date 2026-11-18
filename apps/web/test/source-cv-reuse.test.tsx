@@ -94,7 +94,8 @@ test('Complete review lists exact blockers instead of saving unfinished work', a
   expect(
     state.fetch.mock.calls.some(([url]) => String(url).endsWith('/revisions')),
   ).toBe(false);
-  expect(screen.getByRole('button', { name: 'Save draft' })).toBeDisabled();
+  expect(screen.queryByRole('button', { name: 'Save draft' })).toBeNull();
+  expect(screen.getByText('All changes saved')).toBeVisible();
 });
 
 test('institution/date split is only offered for a clear trailing range', () => {
