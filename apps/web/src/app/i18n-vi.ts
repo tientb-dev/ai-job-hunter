@@ -7,6 +7,7 @@ export const VI_TEXT: Record<string, string> = {
   'Generating questions…': 'Đang tạo câu hỏi…',
   'Analyzing CV Match…': 'Đang phân tích CV Match…',
   'Organizing CV…': 'Đang sắp xếp CV…',
+  'Please wait. No action is needed.': 'Vui lòng đợi, không cần thao tác thêm.',
   OK: 'Đã hiểu',
   'Questions generated': 'Tạo câu hỏi thành công',
   'Could not delete CV': 'Không thể xóa CV',
@@ -2256,8 +2257,10 @@ export const VI_TEXT: Record<string, string> = {
     'Mỗi CV cần được rà soát một lần trước khi Đối chiếu CV. Tiến độ được lưu khi bạn làm; khi hoàn tất, bạn sẽ quay lại công việc để bắt đầu Đối chiếu CV.',
   'Review is required once per CV before CV Match and Tailored CV. Your progress is saved as you go.':
     'Mỗi CV cần được rà soát một lần trước khi Đối chiếu CV và tạo CV tùy chỉnh. Tiến độ được lưu khi bạn làm.',
-  'CV saved. Review it next; CV Match needs a completed review.':
-    'Đã lưu CV. Hãy rà soát CV tiếp theo; Đối chiếu CV cần một bản rà soát đã hoàn tất.',
+  'CV saved': 'Đã lưu CV',
+  'Continue reviewing your CV.': 'Hãy tiếp tục rà soát CV.',
+  'Complete the review before using CV Match.':
+    'Bạn cần hoàn tất rà soát trước khi đối chiếu CV.',
   'Each new CV opens Source CV Review, required once before CV Match.':
     'Mỗi CV mới sẽ mở phần rà soát CV gốc, cần làm một lần trước khi Đối chiếu CV.',
   'Review the CV this job uses before CV Match.':

@@ -38,6 +38,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  CircularProgress,
+  alpha,
 } from '@mui/material';
 import {
   cvSectionKinds,
@@ -88,6 +90,8 @@ export function SourceCvReview({
   const [profile, setProfile] = useState<CvProfile | null>(null);
   const [document, setDocument] = useState<CvProfileDocument | null>(null);
   const [busy, setBusy] = useState(false);
+  // Long AI/preparation steps block the whole review until they settle.
+  const [overlay, setOverlay] = useState('');
   const [error, setError] = useState('');
   // Transient completion messages are toasts; persistent workflow states
   // (approval, readiness, blockers) stay inline below.
@@ -145,9 +149,10 @@ export function SourceCvReview({
     },
     [],
   );
-  async function run(action: () => Promise<void>) {
+  async function run(action: () => Promise<void>, blocking = '') {
     const request = ++epoch.current;
     setBusy(true);
+    setOverlay(blocking);
     onBusyChange(true);
     setError('');
     setMessage('');
@@ -172,6 +177,7 @@ export function SourceCvReview({
     } finally {
       if (request === epoch.current) {
         setBusy(false);
+        setOverlay('');
         onBusyChange(false);
       }
     }
@@ -369,10 +375,58 @@ export function SourceCvReview({
     /^[a-z0-9]+(?:-[a-z0-9]+){1,8}$/u.test(selectedText.trim()) &&
     selectedText.trim().length <= 100;
   const blocked = disabled || busy;
+  // Both LinkedIn paths store the same state: the exact source text plus a
+  // user-confirmed URL replacement, so the unchanged value is not re-asked.
+  function keepConfirmedProfile(kind = targetKind, record = targetRecord) {
+    if (!source || !first) return;
+    change((next) => {
+      const fact: CvFact = {
+        id: crypto.randomUUID(),
+        field: 'link',
+        value: selectedText,
+        origin: 'source',
+        review: 'confirmed',
+        evidence: [
+          {
+            sourceRevisionId: source.id,
+            start: first.start,
+            end: selectedEnd,
+            quote: selectedText,
+          },
+        ],
+      };
+      addFact(next, fact, kind, record);
+      const entry = next.sections
+        .flatMap((s) => s.entries)
+        .find((e) => e.facts.some((f) => f.id === fact.id))!;
+      entry.facts.push({
+        id: crypto.randomUUID(),
+        field: 'link',
+        value: `https://www.linkedin.com/in/${selectedText.trim()}`,
+        origin: 'user_entered',
+        review: 'confirmed',
+        evidence: [],
+        replacesFactId: fact.id,
+      });
+      const index = next.coverage.findIndex((row) => row.start === first.start);
+      next.coverage.splice(
+        index,
+        1,
+        {
+          start: first.start,
+          end: selectedEnd,
+          disposition: 'mapped',
+          factIds: [fact.id],
+          reason: null,
+        },
+        ...(selectedEnd < first.end ? [{ ...first, start: selectedEnd }] : []),
+      );
+    });
+  }
   // Opens once per mount. The cleanup cancels a pending open, so StrictMode's
   // simulated unmount (which also bumps the epoch) leaves one live attempt.
   const openOnMount = useEffectEvent(() => {
-    if (autoOpen && cv) void run(openReview);
+    if (autoOpen && cv) void run(openReview, tr('Preparing source review…'));
   });
   useEffect(() => {
     const timer = setTimeout(openOnMount);
@@ -385,8 +439,6 @@ export function SourceCvReview({
   const legacy = Boolean(
     document?.sections.length && document.reconstruction?.version !== '3',
   );
-  const reviewed =
-    document?.sections.filter((s) => s.review === 'confirmed').length ?? 0;
   const needs = (fact: CvFact) =>
     fact.review === 'needs_clarification' ||
     (fact.origin === 'user_entered' && fact.review !== 'confirmed');
@@ -400,6 +452,13 @@ export function SourceCvReview({
               replacement.replacesFactId === f.id && needs(replacement),
           )),
     );
+  // Same rule as the section nav: a section with open issues is not reviewed.
+  const reviewed =
+    document?.sections.filter(
+      (s) =>
+        s.review === 'confirmed' &&
+        !s.entries.some((e) => issuesFor(e.facts).length),
+    ).length ?? 0;
   const attention =
     document?.sections.flatMap((s) =>
       s.entries.flatMap((e) => issuesFor(e.facts)),
@@ -698,9 +757,10 @@ export function SourceCvReview({
       section.review = 'pending';
     });
   }
-  return (
+  const content = (
     <Stack
       component="section"
+      inert={!!overlay}
       spacing={2}
       sx={{
         mt: onContinue && !page ? 3 : 0,
@@ -792,7 +852,7 @@ export function SourceCvReview({
           variant="outlined"
           sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
           disabled={blocked || !cv}
-          onClick={() => void run(openReview)}
+          onClick={() => void run(openReview, tr('Preparing source review…'))}
         >
           {tr('Open review')}
         </Button>
@@ -803,7 +863,7 @@ export function SourceCvReview({
           variant={wizardEntry ? 'contained' : 'outlined'}
           sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
           disabled={blocked || !cv}
-          onClick={() => void run(openReview)}
+          onClick={() => void run(openReview, tr('Preparing source review…'))}
         >
           {myCv && !wizardEntry
             ? tr('View / Edit review')
@@ -820,7 +880,7 @@ export function SourceCvReview({
           {tr('Save or discard your job changes to enable CV review actions.')}
         </Typography>
       )}
-      {busy && (
+      {busy && !overlay && (
         <Typography role="status">
           {legacy
             ? tr(
@@ -841,7 +901,9 @@ export function SourceCvReview({
                 color="inherit"
                 size="small"
                 startIcon={<RefreshIcon />}
-                onClick={() => void run(openReview)}
+                onClick={() =>
+                  void run(openReview, tr('Preparing source review…'))
+                }
               >
                 {tr('Retry')}
               </Button>
@@ -956,12 +1018,10 @@ export function SourceCvReview({
                     variant="outlined"
                     disabled={blocked}
                     onClick={() => {
+                      // Page mode shows one panel: switch to it, not just expand.
+                      setActive('unassigned');
                       setIssuesOpen(true);
-                      requestAnimationFrame(() =>
-                        window.document
-                          .getElementById('unassigned-source-content')
-                          ?.focus(),
-                      );
+                      focusById('unassigned-source-content');
                     }}
                   >
                     {tr('Review unassigned contact text')}
@@ -1003,7 +1063,7 @@ export function SourceCvReview({
                       ),
                     );
                   }
-                })
+                }, tr('Organizing CV…'))
               }
             >
               {busy ? tr('Organizing CV…') : tr('Organize my CV')}
@@ -1032,7 +1092,9 @@ export function SourceCvReview({
               variant="outlined"
               startIcon={<RefreshIcon />}
               disabled={blocked}
-              onClick={() => void run(openReview)}
+              onClick={() =>
+                void run(openReview, tr('Preparing source review…'))
+              }
             >
               {tr('Reload saved review')}
             </Button>
@@ -1086,7 +1148,7 @@ export function SourceCvReview({
                         ),
                       );
                     }
-                  });
+                  }, tr('Organizing CV…'));
                 }}
               >
                 {tr('Organize as new review')}
@@ -1700,55 +1762,15 @@ export function SourceCvReview({
                                   variant="outlined"
                                   disabled={blocked || !linkedinConfirmed}
                                   onClick={() =>
-                                    change((next) => {
-                                      const fact: CvFact = {
-                                        id: crypto.randomUUID(),
-                                        field: 'link',
-                                        value: selectedText,
-                                        origin: 'source',
-                                        review: 'confirmed',
-                                        evidence: [
-                                          {
-                                            sourceRevisionId: source.id,
-                                            start: first.start,
-                                            end: selectedEnd,
-                                            quote: selectedText,
-                                          },
-                                        ],
-                                      };
-                                      addFact(next, fact, 'links', '');
-                                      const entry = next.sections
-                                        .flatMap((s) => s.entries)
-                                        .find((e) =>
-                                          e.facts.some((f) => f.id === fact.id),
-                                        )!;
-                                      entry.facts.push({
-                                        id: crypto.randomUUID(),
-                                        field: 'link',
-                                        value: `https://www.linkedin.com/in/${selectedText.trim()}`,
-                                        origin: 'user_entered',
-                                        review: 'confirmed',
-                                        evidence: [],
-                                        replacesFactId: fact.id,
-                                      });
-                                      const index = next.coverage.findIndex(
-                                        (row) => row.start === first.start,
-                                      );
-                                      next.coverage.splice(
-                                        index,
-                                        1,
-                                        {
-                                          start: first.start,
-                                          end: selectedEnd,
-                                          disposition: 'mapped',
-                                          factIds: [fact.id],
-                                          reason: null,
-                                        },
-                                        ...(selectedEnd < first.end
-                                          ? [{ ...first, start: selectedEnd }]
-                                          : []),
-                                      );
-                                    })
+                                    // Prefer a section the review already has; never add a new step.
+                                    keepConfirmedProfile(
+                                      document.sections.some(
+                                        (s) => s.kind === 'links',
+                                      )
+                                        ? 'links'
+                                        : 'contact',
+                                      '',
+                                    )
                                   }
                                 >
                                   {tr('Confirm LinkedIn and use URL')}
@@ -1830,41 +1852,45 @@ export function SourceCvReview({
                               variant="outlined"
                               disabled={blocked || !selectedText.trim()}
                               onClick={() =>
-                                change((next) => {
-                                  const fact: CvFact = {
-                                    id: crypto.randomUUID(),
-                                    field: retainedField,
-                                    value: selectedText,
-                                    origin: 'source',
-                                    review: 'needs_clarification',
-                                    evidence: [
-                                      {
-                                        sourceRevisionId: source.id,
-                                        start: first.start,
-                                        end: selectedEnd,
-                                        quote: selectedText,
-                                      },
-                                    ],
-                                  };
-                                  addFact(next, fact);
-                                  const index = next.coverage.findIndex(
-                                    (row) => row.start === first.start,
-                                  );
-                                  next.coverage.splice(
-                                    index,
-                                    1,
-                                    {
-                                      start: first.start,
-                                      end: selectedEnd,
-                                      disposition: 'mapped',
-                                      factIds: [fact.id],
-                                      reason: null,
-                                    },
-                                    ...(selectedEnd < first.end
-                                      ? [{ ...first, start: selectedEnd }]
-                                      : []),
-                                  );
-                                })
+                                possibleProfile &&
+                                linkedinConfirmed &&
+                                retainedField === 'link'
+                                  ? keepConfirmedProfile()
+                                  : change((next) => {
+                                      const fact: CvFact = {
+                                        id: crypto.randomUUID(),
+                                        field: retainedField,
+                                        value: selectedText,
+                                        origin: 'source',
+                                        review: 'needs_clarification',
+                                        evidence: [
+                                          {
+                                            sourceRevisionId: source.id,
+                                            start: first.start,
+                                            end: selectedEnd,
+                                            quote: selectedText,
+                                          },
+                                        ],
+                                      };
+                                      addFact(next, fact);
+                                      const index = next.coverage.findIndex(
+                                        (row) => row.start === first.start,
+                                      );
+                                      next.coverage.splice(
+                                        index,
+                                        1,
+                                        {
+                                          start: first.start,
+                                          end: selectedEnd,
+                                          disposition: 'mapped',
+                                          factIds: [fact.id],
+                                          reason: null,
+                                        },
+                                        ...(selectedEnd < first.end
+                                          ? [{ ...first, start: selectedEnd }]
+                                          : []),
+                                      );
+                                    })
                               }
                             >
                               {tr('Keep in')} {sectionTitles[targetKind]}
@@ -2149,7 +2175,11 @@ export function SourceCvReview({
                             <Button
                               variant="text"
                               size="small"
-                              sx={{ minHeight: 32, p: 0.5, textAlign: 'left' }}
+                              sx={{
+                                minHeight: 32,
+                                p: 0.5,
+                                textAlign: 'left',
+                              }}
                               onClick={item.go}
                             >
                               {item.label}
@@ -2259,7 +2289,10 @@ export function SourceCvReview({
                           if (documentDirty) {
                             const value = await sourceCvRequest(
                               `/profiles/${profile.profileId}/revisions`,
-                              { expectedRevision: profile.revision, document },
+                              {
+                                expectedRevision: profile.revision,
+                                document,
+                              },
                             );
                             if (token !== epoch.current) return;
                             accept(value, source);
@@ -2314,7 +2347,10 @@ export function SourceCvReview({
                             const token = epoch.current;
                             const value = await sourceCvRequest(
                               `/profiles/${profile.profileId}/revisions`,
-                              { expectedRevision: profile.revision, document },
+                              {
+                                expectedRevision: profile.revision,
+                                document,
+                              },
                             );
                             if (token === epoch.current) {
                               accept(value, source);
@@ -2370,7 +2406,9 @@ export function SourceCvReview({
                       size="small"
                       startIcon={<RefreshIcon />}
                       disabled={blocked || dirty}
-                      onClick={() => void run(openReview)}
+                      onClick={() =>
+                        void run(openReview, tr('Preparing source review…'))
+                      }
                     >
                       {tr('Reload saved review')}
                     </Button>
@@ -2395,6 +2433,50 @@ export function SourceCvReview({
         </>
       )}
     </Stack>
+  );
+  return (
+    <Box sx={{ position: 'relative', minWidth: 0 }}>
+      {content}
+      {overlay && (
+        <Box
+          role="status"
+          aria-live="polite"
+          sx={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 2,
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'center',
+            pt: 12,
+            bgcolor: (t) => alpha(t.palette.background.default, 0.7),
+            borderRadius: 2,
+          }}
+        >
+          <Stack
+            spacing={1.5}
+            sx={{
+              alignItems: 'center',
+              textAlign: 'center',
+              position: 'sticky',
+              top: 120,
+              p: 3,
+              maxWidth: 420,
+              bgcolor: 'background.paper',
+              border: 1,
+              borderColor: 'divider',
+              borderRadius: 2,
+            }}
+          >
+            <CircularProgress size={28} aria-hidden />
+            <Typography sx={{ fontWeight: 600 }}>{overlay}</Typography>
+            <Typography variant="body2" color="text.secondary">
+              {tr('Please wait. No action is needed.')}
+            </Typography>
+          </Stack>
+        </Box>
+      )}
+    </Box>
   );
 }
 const visuallyHidden = {

@@ -809,3 +809,99 @@ test('response validation rejects dangling or mistyped shared employer links; le
   }
   expect(() => decodeCvProfile(richProfile(), richSource)).not.toThrow();
 });
+
+const unresolvedProfileFacts = (
+  document: ReturnType<typeof profileReferenceFixture>['profile']['document'],
+) => document.sections.flatMap((s) => s.entries.flatMap((e) => e.facts));
+
+test('confirmed LinkedIn kept manually as a Link converges with the confirm button: no second confirmation', async () => {
+  const state = setup(false, false, false, false, 'reference');
+  await open();
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Exclude reviewed separator symbols' }),
+  );
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Review unassigned contact text' }),
+  );
+  fireEvent.click(
+    screen.getByRole('checkbox', {
+      name: 'I confirm this is my LinkedIn profile reference',
+    }),
+  );
+  fireEvent.mouseDown(
+    screen.getByRole('combobox', { name: 'Detail type for this content' }),
+  );
+  fireEvent.click(screen.getByRole('option', { name: 'Link' }));
+  fireEvent.mouseDown(
+    screen.getByRole('combobox', { name: 'Section for this content' }),
+  );
+  fireEvent.click(screen.getByRole('option', { name: 'Personal details' }));
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Keep in Personal details' }),
+  );
+  expect(screen.queryByText(/Check Link in Personal details/)).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  await screen.findByText(/Draft saved\. You can finish/);
+  const document = state.profile().document;
+  expect(document.sections.map((s) => s.kind)).toEqual(['contact']);
+  const facts = unresolvedProfileFacts(document);
+  const original = facts.find((f) => f.value === 'synthetic-person-123\n')!;
+  expect(original).toMatchObject({ origin: 'source', review: 'confirmed' });
+  expect(facts.find((f) => f.replacesFactId === original.id)).toMatchObject({
+    origin: 'user_entered',
+    review: 'confirmed',
+    value: 'https://www.linkedin.com/in/synthetic-person-123',
+  });
+});
+
+test('confirm LinkedIn button uses the existing Personal details section instead of adding a review step', async () => {
+  const state = setup(false, false, false, false, 'reference');
+  await open();
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Exclude reviewed separator symbols' }),
+  );
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Review unassigned contact text' }),
+  );
+  fireEvent.click(
+    screen.getByRole('checkbox', {
+      name: 'I confirm this is my LinkedIn profile reference',
+    }),
+  );
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Confirm LinkedIn and use URL' }),
+  );
+  expect(screen.queryByText(/Check Link in Personal details/)).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  await screen.findByText(/Draft saved\. You can finish/);
+  expect(state.profile().document.sections.map((s) => s.kind)).toEqual([
+    'contact',
+  ]);
+});
+
+test('organizing blocks the review behind an overlay that clears after failure', async () => {
+  const state = setup();
+  state.profile().document.reconstruction = {
+    version: '2',
+    previousRevisionId: null,
+  };
+  state.failAi(true);
+  await open();
+  fireEvent.click(screen.getByRole('button', { name: 'Organize my CV' }));
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Organize as new review' }),
+  );
+  expect(screen.getByText('Please wait. No action is needed.')).toBeVisible();
+  expect(
+    document.querySelector('section[aria-labelledby="source-cv-review-title"]'),
+  ).toHaveAttribute('inert');
+  await screen.findByText(/model could not organize this CV safely/);
+  await waitFor(() =>
+    expect(
+      document.querySelector(
+        'section[aria-labelledby="source-cv-review-title"]',
+      ),
+    ).not.toHaveAttribute('inert'),
+  );
+  expect(screen.queryByText('Please wait. No action is needed.')).toBeNull();
+});

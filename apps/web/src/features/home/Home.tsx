@@ -847,6 +847,8 @@ export function Home() {
     action: known.cv.saved ? copy.cvReviewAction : copy.cvAction,
   };
   const loaded = sections && rows.length > 0;
+  // First run: no CV and no jobs. Saving the CV is the single first action.
+  const firstRun = !!known && !known.cv.saved && rows?.length === 0;
   return (
     <Stack spacing={{ xs: 3, md: 2 }} sx={{ minWidth: 0 }}>
       <PageHeader
@@ -857,14 +859,14 @@ export function Home() {
             startIcon={<AddIcon />}
             component={Link}
             to="/jobs/new"
-            variant="contained"
+            variant={firstRun ? 'outlined' : 'contained'}
           >
             {copy.addJob}
           </Button>
         }
       />
       {/* With jobs loaded the CV step moves into the side column. */}
-      {cvNotice && !loaded && (
+      {cvNotice && !loaded && !firstRun && (
         <Alert
           severity="info"
           action={
@@ -937,29 +939,40 @@ export function Home() {
             <WorkIcon />
           </IconBadge>
           <Typography component="h2" variant="h6" sx={{ mt: 2 }}>
-            {copy.emptyTitle}
+            {firstRun ? copy.cvTitle : copy.emptyTitle}
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 0.5, mb: 2.5 }}>
-            {copy.emptyBody}
+            {firstRun ? copy.cvBody : copy.emptyBody}
           </Typography>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+          {firstRun ? (
             <Button
-              startIcon={<AddIcon />}
+              startIcon={<DescriptionIcon />}
               component={Link}
-              to="/jobs/new"
+              to="/cv"
               variant="contained"
             >
-              {copy.addJob}
+              {copy.cvAction}
             </Button>
-            <Button
-              startIcon={<ExploreIcon />}
-              component={Link}
-              to="/discover"
-              variant="outlined"
-            >
-              {copy.discover}
-            </Button>
-          </Stack>
+          ) : (
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+              <Button
+                startIcon={<AddIcon />}
+                component={Link}
+                to="/jobs/new"
+                variant="contained"
+              >
+                {copy.addJob}
+              </Button>
+              <Button
+                startIcon={<ExploreIcon />}
+                component={Link}
+                to="/discover"
+                variant="outlined"
+              >
+                {copy.discover}
+              </Button>
+            </Stack>
+          )}
         </Paper>
       ) : (
         <>

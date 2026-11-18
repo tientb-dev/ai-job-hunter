@@ -320,3 +320,26 @@ test('an untrusted returnTo falls back to My CV', async () => {
     await screen.findByRole('link', { name: 'Back to My CV' }),
   ).toHaveAttribute('href', '/cv');
 });
+
+test('Review unassigned contact text switches the page to the unassigned panel', async () => {
+  const { profileReferenceFixture } =
+    await import('./fixtures/contact-skills-review');
+  const reference = profileReferenceFixture();
+  const user = userEvent.setup();
+  mount({
+    source: reference.source,
+    profile: async () => Response.json(reference.profile),
+  });
+  await user.click(await screen.findByRole('button', { name: 'Show details' }));
+  await user.click(
+    screen.getByRole('button', { name: 'Review unassigned contact text' }),
+  );
+  await waitFor(() =>
+    expect(
+      screen.getByRole('heading', { name: 'Unassigned source content' }),
+    ).toHaveFocus(),
+  );
+  expect(
+    screen.getByRole('button', { name: 'Hide unassigned content' }),
+  ).toBeVisible();
+});

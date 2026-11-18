@@ -556,3 +556,21 @@ test('empty Inbox keeps primary Add and outlined task navigation alternatives', 
   expect(add[0]).toHaveClass('MuiButton-contained');
   expect(add[1]).toHaveClass('MuiButton-outlined');
 });
+
+test('Add job shows the unsaved badge only after a user edit, not on load', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => Response.json([])),
+  );
+  mount('/jobs/new');
+  fireEvent.click(screen.getByRole('button', { name: /Paste JD/ }));
+  expect(screen.queryByText('Unsaved changes')).toBeNull();
+  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+    target: { value: 'Synthetic JD' },
+  });
+  expect(screen.getByText('Unsaved changes')).toBeVisible();
+  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+    target: { value: '' },
+  });
+  expect(screen.queryByText('Unsaved changes')).toBeNull();
+});

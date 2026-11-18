@@ -289,6 +289,7 @@ export function JobEditor() {
   const fetchedJob = useRef<UrlJobPreview | null>(null);
   const editedFields = useRef(new Set<keyof OpportunityInput>());
   const [loading, setLoading] = useState(Boolean(id));
+  const [touched, setTouched] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [extracting, setExtracting] = useState(false);
@@ -409,6 +410,7 @@ export function JobEditor() {
     }
     if (importFields.includes(key as ImportFieldName) || key === 'description')
       editedFields.current.add(key);
+    setTouched(true);
     setForm((row) => ({ ...row, [key]: value }));
   };
   const sourcesChanged = () => {
@@ -1536,17 +1538,18 @@ export function JobEditor() {
                 <Chip
                   label={tr('Unsaved changes')}
                   size="small"
-                  color="warning"
+                  variant="outlined"
                   aria-hidden={!dirty}
                   sx={{ display: dirty ? 'inline-flex' : 'none' }}
                 />
               </Stack>
             )}
-            {!id && dirty && (
+            {/* Imported or default values alone are not user edits. */}
+            {!id && dirty && (touched || file) && (
               <Chip
                 label={tr('Unsaved changes')}
                 size="small"
-                color="warning"
+                variant="outlined"
                 sx={{ mt: 1 }}
               />
             )}

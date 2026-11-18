@@ -163,9 +163,8 @@ export function MyCv() {
       setSelectedId(next.id);
       notify({
         severity: 'success',
-        text: tr(
-          'CV saved. Review it next; CV Match needs a completed review.',
-        ),
+        title: tr('CV saved'),
+        text: `${tr('Continue reviewing your CV.')}\n${tr('Complete the review before using CV Match.')}`,
       });
       // Source CV Review is the mandatory next step for every new CV.
       navigate(`/cv/${next.id}/review`);
