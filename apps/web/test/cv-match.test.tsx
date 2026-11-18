@@ -73,6 +73,7 @@ test('loads saved CV, displays local analysis and clears stale results after job
   expect(within(matched).getByText('Required')).toBeVisible();
   expect(within(matched).queryByText('Skill')).toBeNull();
   expect(within(matched).getByRole('img', { name: 'Matched' })).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Technical details' }));
   expect(
     screen.getByRole('progressbar', { name: 'Heuristic fit score' }),
   ).toHaveAttribute('aria-valuenow', '75');
@@ -195,7 +196,7 @@ test.each([
     await screen.findByLabelText(/Fit score: 75\/100/);
     fireEvent.click(screen.getByRole('button', { name: 'Reanalyze CV Match' }));
     await screen.findByText(/last successful result.*retained/i);
-    expect(screen.getByLabelText(/Fit score: 75\/100/)).toBeVisible();
+    expect(screen.getByLabelText(/Fit score: 75\/100/)).toBeInTheDocument();
     expect(screen.queryByLabelText(/Fit score: 0\/100/)).toBeNull();
     expect(screen.getByText(/last successful result.*retained/i)).toBeVisible();
   },
@@ -402,6 +403,7 @@ test('overview surfaces source labels for strengths and required gaps with a neu
   const gaps = screen.getByRole('region', { name: 'Required gaps' });
   expect(within(gaps).getByText('Required source gap')).toBeVisible();
   expect(within(gaps).queryByText('Preferred source gap')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Technical details' }));
   expect(
     screen.getByRole('progressbar', { name: 'Heuristic fit score' }),
   ).toHaveAttribute('aria-valuenow', '39');
@@ -596,7 +598,9 @@ test('a result arriving after a saved-job revision change stays invalidated and 
   expect(screen.queryByLabelText(/Fit score:/)).toBeNull();
   fetch.mockResolvedValueOnce(Response.json(result));
   fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
-  expect(await screen.findByLabelText(/Fit score: 75\/100/)).toBeVisible();
+  expect(
+    await screen.findByLabelText(/Fit score: 75\/100/),
+  ).toBeInTheDocument();
 });
 
 test('compound states, component evidence and conflict passages survive filtering and keyboard reveal', async () => {
@@ -853,6 +857,6 @@ test.each([
     await screen.findByLabelText(/Fit score: 75\/100/);
     fireEvent.click(screen.getByRole('button', { name: /analyze CV Match/i }));
     expect(await screen.findByText(message)).toBeVisible();
-    expect(screen.getByLabelText(/Fit score: 75\/100/)).toBeVisible();
+    expect(screen.getByLabelText(/Fit score: 75\/100/)).toBeInTheDocument();
   },
 );

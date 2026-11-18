@@ -1,6 +1,7 @@
 import { Box, Chip, Stack, Typography } from '@mui/material';
 import { tr } from '../../app/i18n';
 import {
+  type ApplicationGuidance as ApplicationGuidanceData,
   guidanceLabel,
   type GuidanceAction,
   type MatchResult,
@@ -61,37 +62,8 @@ const CLOSING = {
     'Many core requirements are not shown in your CV. Apply if you have this experience and can describe it.',
 } as const;
 
-function RequirementList({
-  title,
-  items,
-}: {
-  title: string;
-  items: readonly string[];
-}) {
-  if (!items.length) return null;
-  return (
-    <Box sx={{ minWidth: 0 }}>
-      <Typography variant="subtitle2" component="h4">
-        {title}
-      </Typography>
-      <Box component="ul" sx={{ m: 0, mt: 0.5, pl: 2.5 }}>
-        {items.map((item) => (
-          <Typography
-            key={item}
-            component="li"
-            variant="body2"
-            sx={{ overflowWrap: 'anywhere' }}
-          >
-            {item}
-          </Typography>
-        ))}
-      </Box>
-    </Box>
-  );
-}
-
 /** Primary takeaway of the Match Summary. Advisory, never a hiring prediction. */
-export function ApplicationGuidance({ result }: { result: MatchResult }) {
+export function GuidanceVerdict({ result }: { result: MatchResult }) {
   const guidance = result.guidance;
   if (!guidance) return null;
   const { core, confidence, recommendation } = guidance;
@@ -147,61 +119,60 @@ export function ApplicationGuidance({ result }: { result: MatchResult }) {
           .filter(Boolean)
           .join(' ')}
       </Typography>
-      {(guidance.strengths.length > 0 || guidance.gaps.length > 0) && (
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: {
-              xs: 'minmax(0, 1fr)',
-              sm: 'repeat(2, minmax(0, 1fr))',
-            },
-            gap: 2,
-            mt: 1.5,
-          }}
-        >
-          <RequirementList
-            title={tr('Documented in your CV')}
-            items={guidance.strengths}
-          />
-          <RequirementList
-            title={tr('Not yet shown in your CV')}
-            items={guidance.gaps}
-          />
-        </Box>
-      )}
-      {guidance.actions.length > 0 && (
-        <>
-          <Typography variant="subtitle2" component="h4" sx={{ mt: 1.5 }}>
-            {tr('Before you apply')}
-          </Typography>
-          <Box
-            component="ol"
-            aria-label={tr('Before you apply')}
-            sx={{ m: 0, mt: 0.5, pl: 2.5 }}
-          >
-            {guidance.actions.map((action, index) => (
-              <Box component="li" key={index} sx={{ mb: 0.75 }}>
-                <Typography variant="body2">{actionText(action)}</Typography>
-                {!(action.capability && CAPABILITY[action.capability]) && (
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    component="p"
-                    sx={{ overflowWrap: 'anywhere' }}
-                  >
-                    {tr('JD: “{v0}”', { v0: action.label })}
-                  </Typography>
-                )}
-              </Box>
+    </Box>
+  );
+}
+
+// Identical instructions (after whitespace/case normalization) share one item
+// and keep every JD reference; first-seen order is preserved.
+function groupActions(actions: readonly GuidanceAction[]) {
+  const groups = new Map<string, { text: string; labels: string[] }>();
+  for (const action of actions) {
+    const text = actionText(action);
+    const key = text.replace(/\s+/gu, ' ').trim().toLocaleLowerCase();
+    const group = groups.get(key) ?? { text, labels: [] };
+    // Capability sentences already name the skill; no JD quote shown, as before.
+    if (!(action.capability && CAPABILITY[action.capability]))
+      group.labels.push(action.label);
+    groups.set(key, group);
+  }
+  return [...groups.values()];
+}
+
+/** Up to three API-ranked actions; never padded with invented ones. */
+export function GuidanceActions({
+  guidance,
+}: {
+  guidance: ApplicationGuidanceData;
+}) {
+  if (!guidance.actions.length) return null;
+  return (
+    <Box component="section" aria-label={tr('Before you apply')}>
+      <Typography variant="subtitle1" component="h3" sx={{ fontWeight: 600 }}>
+        {tr('Before you apply')}
+      </Typography>
+      <Box
+        component="ol"
+        aria-label={tr('Before you apply')}
+        sx={{ m: 0, mt: 0.5, pl: 2.5 }}
+      >
+        {groupActions(guidance.actions).map(({ text, labels }) => (
+          <Box component="li" key={text} sx={{ mb: 0.75 }}>
+            <Typography variant="body2">{text}</Typography>
+            {labels.map((label, index) => (
+              <Typography
+                key={index}
+                variant="caption"
+                color="text.secondary"
+                component="p"
+                sx={{ overflowWrap: 'anywhere' }}
+              >
+                {tr('JD: “{v0}”', { v0: label })}
+              </Typography>
             ))}
           </Box>
-        </>
-      )}
-      <Typography variant="caption" color="text.secondary" component="p">
-        {tr(
-          'Advisory only, not a hiring prediction. Add only experience you actually have.',
-        )}
-      </Typography>
+        ))}
+      </Box>
     </Box>
   );
 }

@@ -2320,4 +2320,13 @@ export const VI_TEXT: Record<string, string> = {
     'Rà soát và xác nhận các chi tiết được đánh dấu để có thể xác nhận phần này.',
   'This section is confirmed. Use Edit at the top of the section to make a correction.':
     'Phần này đã được xác nhận. Dùng nút Sửa ở đầu phần để chỉnh sửa.',
+  'Counts of JD requirements by status. This is separate from the heuristic score in Technical details.':
+    'Số yêu cầu của JD theo từng trạng thái. Chỉ số này khác với điểm ước lượng trong Chi tiết kỹ thuật.',
+  'Required requirements matched: {v0} of {v1}':
+    'Yêu cầu bắt buộc đã khớp: {v0} / {v1}',
+  'Overall assessment': 'Đánh giá tổng quan',
+  'Unknown means no evidence was found in the reviewed CV, not that you lack the skill.':
+    'Chưa rõ nghĩa là chưa tìm thấy bằng chứng trong CV đã rà soát, không có nghĩa là bạn thiếu kỹ năng đó.',
+  'Heuristic Match score: {v0}/100 · details below':
+    'Điểm đối chiếu ước lượng: {v0}/100 · xem chi tiết bên dưới',
 };
