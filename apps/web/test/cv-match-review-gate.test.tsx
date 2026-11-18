@@ -146,6 +146,9 @@ test('user-entered evidence is labelled as added in review, not from the file', 
   });
   await waitFor(() => expect(analyze).toBeEnabled());
   fireEvent.click(analyze);
+  fireEvent.click(
+    await screen.findByRole('button', { name: /^Already matched \(/u }),
+  );
   fireEvent.click(await screen.findByRole('button', { name: 'Matched: AWS' }));
   expect(
     await screen.findByText(

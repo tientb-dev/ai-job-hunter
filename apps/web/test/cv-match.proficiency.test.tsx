@@ -76,9 +76,6 @@ test('Partial database evidence displays exact attributed work, mentions and unv
   fireEvent.click(button);
   expect(button).toHaveAttribute('aria-expanded', 'true');
   expect(screen.getByText('SQL Server · Partial')).toBeVisible();
-  expect(
-    screen.getByText('Required qualifications needing more evidence'),
-  ).toBeVisible();
   expect(screen.getByText('Verified professional experience')).toBeVisible();
   expect(
     screen.getByLabelText('Professional experience: SQL Server').textContent,

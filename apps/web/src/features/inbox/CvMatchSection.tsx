@@ -35,13 +35,12 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Collapse,
   LinearProgress,
   Paper,
   Stack,
   SvgIcon,
   Typography,
-  ToggleButton,
-  ToggleButtonGroup,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 
@@ -347,16 +346,25 @@ function MatchContent({
   result: MatchResult;
   inspection: Ref<MatchInspection>;
 }) {
-  const [filter, setFilter] = useState('all');
+  const [openGroups, setOpenGroups] = useState<Set<RequirementGroup>>(
+    () => new Set(['clarify', 'review']),
+  );
   const [expanded, setExpanded] = useState<Set<number>>(() => new Set());
   const [target, setTarget] = useState<number | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
-  const inspect = useCallback((index: number) => {
-    setSelected(index);
-    setFilter('all');
-    setExpanded((previous) => new Set(previous).add(index));
-    setTarget(index);
-  }, []);
+  const inspect = useCallback(
+    (index: number) => {
+      const status = result.requirements[index]?.status;
+      setSelected(index);
+      if (status)
+        setOpenGroups((previous) =>
+          new Set(previous).add(requirementGroup(status)),
+        );
+      setExpanded((previous) => new Set(previous).add(index));
+      setTarget(index);
+    },
+    [result.requirements],
+  );
   useImperativeHandle(
     inspection,
     () => ({
@@ -373,7 +381,7 @@ function MatchContent({
   );
   return (
     <Stack spacing={3} sx={{ minWidth: 0 }}>
-      <MatchOverview result={result} onInspect={inspect} />
+      <MatchOverview result={result} />
       <Box>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           {tr(
@@ -382,8 +390,14 @@ function MatchContent({
         </Typography>
         <RequirementsList
           requirements={result.requirements}
-          filter={filter}
-          onFilter={setFilter}
+          openGroups={openGroups}
+          onToggleGroup={(group) =>
+            setOpenGroups((previous) => {
+              const next = new Set(previous);
+              if (!next.delete(group)) next.add(group);
+              return next;
+            })
+          }
           expanded={expanded}
           onExpand={(index, open) =>
             setExpanded((previous) => {
@@ -403,10 +417,6 @@ function MatchContent({
   );
 }
 
-type PreviewRequirement = {
-  item: MatchResult['requirements'][number];
-  index: number;
-};
 const COVERAGE_STATUSES = [
   'EVIDENCED',
   'PARTIAL',
@@ -444,11 +454,6 @@ function RequirementCoverage({
     <Box component="section" aria-label={tr('Requirement coverage')}>
       <Typography variant="subtitle1" component="h3" sx={{ fontWeight: 600 }}>
         {tr('Requirement coverage')}
-      </Typography>
-      <Typography variant="body2" color="text.secondary">
-        {tr(
-          'Counts of JD requirements by status. This is separate from the heuristic score in Technical details.',
-        )}
       </Typography>
       <Box
         role="img"
@@ -516,42 +521,16 @@ function RequirementCoverage({
           })}
         </Typography>
       )}
-      {requirements.some((item) => item.status === 'NOT_EVIDENCED') && (
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          {tr(
-            'Not clearly shown in CV means no evidence was found in the reviewed CV, not that you lack the skill.',
-          )}
-        </Typography>
-      )}
     </Box>
   );
 }
 
-function MatchOverview({
-  result,
-  onInspect,
-}: {
-  result: MatchResult;
-  onInspect: (index: number) => void;
-}) {
-  const rows = result.requirements.map((item, index) => ({ item, index }));
-  const matched = rows.filter(({ item }) => item.status === 'EVIDENCED');
-  // Rows the system could not analyze are not the applicant's gaps.
-  const gaps = rows.filter(
-    ({ item }) => item.status !== 'EVIDENCED' && item.status !== 'UNDECOMPOSED',
-  );
-  const unevaluated = rows.filter(
-    ({ item }) => item.status === 'UNDECOMPOSED',
-  ).length;
-  const requiredGaps = gaps.filter(({ item }) => item.priority === 'required');
-  const preferredGaps = gaps.filter(
-    ({ item }) => item.priority === 'preferred',
-  );
-  const strengths = [...matched].sort(
-    (a, b) =>
-      Number(b.item.priority === 'required') -
-      Number(a.item.priority === 'required'),
-  );
+function MatchOverview({ result }: { result: MatchResult }) {
+  const count = (group: RequirementGroup) =>
+    result.requirements.filter(
+      (item) => requirementGroup(item.status) === group,
+    ).length;
+  const unevaluated = count('review');
   return (
     <Stack spacing={3}>
       <Box sx={{ bgcolor: 'action.selected', borderRadius: 1, p: 2 }}>
@@ -568,16 +547,50 @@ function MatchOverview({
             </Typography>
           </Box>
         )}
+        <Stack
+          direction="row"
+          spacing={1}
+          useFlexGap
+          aria-label={tr('At a glance')}
+          sx={{ flexWrap: 'wrap', mt: 1.5 }}
+        >
+          <Chip
+            size="small"
+            color="success"
+            variant="outlined"
+            label={tr('Strengths: {v0}', { v0: String(count('matched')) })}
+          />
+          <Chip
+            size="small"
+            variant="outlined"
+            label={tr('To clarify: {v0}', { v0: String(count('clarify')) })}
+          />
+        </Stack>
+        {result.guidance && (
+          <Box sx={{ mt: 2 }}>
+            <GuidanceActions guidance={result.guidance} />
+          </Box>
+        )}
         {result.score !== null ? (
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            {tr('Heuristic Match score: {v0}/100 · details below', {
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            component="p"
+            sx={{ mt: 1.5 }}
+          >
+            {tr('Reference score: {v0}/100 · see Technical details', {
               v0: String(result.score),
             })}
           </Typography>
         ) : (
           result.guidance &&
           result.evaluability?.low && (
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              component="p"
+              sx={{ mt: 1.5 }}
+            >
               {tr(
                 'Insufficient information to assess reliably, so no score is shown.',
               )}
@@ -585,7 +598,7 @@ function MatchOverview({
           )
         )}
         {unevaluated > 0 && (
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+          <Typography variant="caption" color="text.secondary" component="p">
             {tr(
               'The system could not analyze {v0} requirement(s); they are not counted in the score.',
               { v0: String(unevaluated) },
@@ -594,42 +607,6 @@ function MatchOverview({
         )}
       </Box>
       <RequirementCoverage requirements={result.requirements} />
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: {
-            xs: 'minmax(0, 1fr)',
-            md: 'repeat(2, minmax(0, 1fr))',
-          },
-          gap: 3,
-        }}
-      >
-        <RequirementPreview
-          title={tr('Key strengths')}
-          items={strengths}
-          empty={tr('No verified matches yet.')}
-          hint={tr('Verified in your CV')}
-          onInspect={onInspect}
-        />
-        <RequirementPreview
-          title={
-            requiredGaps.length ? tr('Required gaps') : tr('Preferred gaps')
-          }
-          items={requiredGaps.length ? requiredGaps : preferredGaps}
-          empty={tr('No unknown requirements reported.')}
-          hint={
-            requiredGaps.length
-              ? requiredGaps.some(({ item }) => item.status === 'PARTIAL')
-                ? tr('Required qualifications needing more evidence')
-                : tr('Required qualifications not evidenced in your CV')
-              : tr(
-                  'No required gaps reported. Preferred qualifications to review.',
-                )
-          }
-          onInspect={onInspect}
-        />
-      </Box>
-      {result.guidance && <GuidanceActions guidance={result.guidance} />}
     </Stack>
   );
 }
@@ -769,84 +746,25 @@ function TechnicalDetails({ result }: { result: MatchResult }) {
   );
 }
 
-function RequirementPreview({
-  title,
-  hint,
-  items,
-  empty,
-  onInspect,
-}: {
-  title: string;
-  hint: string;
-  items: PreviewRequirement[];
-  empty: string;
-  onInspect: (index: number) => void;
-}) {
-  return (
-    <Box component="section" aria-label={title} sx={{ minWidth: 0 }}>
-      <Typography component="h3" variant="subtitle1" sx={{ fontWeight: 600 }}>
-        {title}
-      </Typography>
-      <Typography variant="body2" color="text.secondary">
-        {hint}
-      </Typography>
-      {items.length ? (
-        <Box component="ul" sx={{ listStyle: 'none', p: 0, mb: 0, mt: 1 }}>
-          {items.slice(0, 3).map(({ item, index }) => (
-            <Box component="li" key={index}>
-              <Button
-                fullWidth
-                onClick={() => onInspect(index)}
-                aria-label={tr('View evidence: {requirement}', {
-                  requirement: item.requirement,
-                })}
-                sx={{
-                  textTransform: 'none',
-                  justifyContent: 'flex-start',
-                  textAlign: 'left',
-                  color: 'text.primary',
-                  px: 0.5,
-                  py: 1,
-                  gap: 1,
-                  alignItems: 'flex-start',
-                }}
-              >
-                <MatchIcon
-                  kind={item.status === 'EVIDENCED' ? 'matched' : 'gap'}
-                />
-                <Typography
-                  component="span"
-                  variant="body2"
-                  sx={{ overflowWrap: 'anywhere', minWidth: 0 }}
-                >
-                  {item.requirement}
-                </Typography>
-              </Button>
-            </Box>
-          ))}
-        </Box>
-      ) : (
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-          {empty}
-        </Typography>
-      )}
-      {items.length > 3 && (
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ display: 'block', mt: 1 }}
-        >
-          {tr('First 3 of')} {items.length} {tr('· Full evidence below')}
-        </Typography>
-      )}
-    </Box>
-  );
-}
+type RequirementGroup = 'clarify' | 'review' | 'matched';
+const requirementGroup = (
+  status: MatchResult['requirements'][number]['status'],
+): RequirementGroup =>
+  status === 'EVIDENCED'
+    ? 'matched'
+    : status === 'UNDECOMPOSED'
+      ? 'review'
+      : 'clarify';
+const GROUP_TITLES = {
+  clarify: () => tr('To clarify'),
+  review: () => tr('System could not analyze'),
+  matched: () => tr('Already matched'),
+} as const;
 
 function RequirementsList({
   requirements,
-  filter,
-  onFilter,
+  openGroups,
+  onToggleGroup,
   expanded,
   onExpand,
   selected,
@@ -854,37 +772,21 @@ function RequirementsList({
   onNavigated,
 }: {
   requirements: MatchResult['requirements'];
-  filter: string;
-  onFilter: (filter: string) => void;
+  openGroups: Set<RequirementGroup>;
+  onToggleGroup: (group: RequirementGroup) => void;
   expanded: Set<number>;
   onExpand: (index: number, open: boolean) => void;
   selected: number | null;
   target: number | null;
   onNavigated: () => void;
 }) {
-  const items = requirements
+  const id = useId();
+  const rows = requirements
     .map((item, index) => ({ item, index }))
-    .filter(
-      ({ item }) =>
-        filter === 'all' ||
-        item.status ===
-          (
-            {
-              matched: 'EVIDENCED',
-              partial: 'PARTIAL',
-              unknown: 'NOT_EVIDENCED',
-              conflict: 'CONFLICT',
-              review: 'UNDECOMPOSED',
-            } as Record<string, string>
-          )[filter],
-    )
     .sort(
       (a, b) =>
         Number(b.item.priority === 'required') -
-          Number(a.item.priority === 'required') ||
-        Number(b.item.status !== 'EVIDENCED') -
-          Number(a.item.status !== 'EVIDENCED') ||
-        a.index - b.index,
+          Number(a.item.priority === 'required') || a.index - b.index,
     );
   return (
     <Box
@@ -895,92 +797,71 @@ function RequirementsList({
       <Typography
         component="h3"
         variant="subtitle1"
-        sx={{ fontWeight: 700, mb: 1 }}
+        sx={{ fontWeight: 600, mb: 1 }}
       >
         {tr('Requirements')}
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-        {tr(
-          'Review every match and gap. Open a requirement to compare the original CV and JD evidence.',
-        )}
-      </Typography>
-      <ToggleButtonGroup
-        size="small"
-        exclusive
-        value={filter}
-        aria-label={tr('Filter requirements')}
-        onChange={(_event, value: string | null) => {
-          if (value) onFilter(value);
-        }}
-        sx={{
-          mb: 1.5,
-          flexWrap: 'wrap',
-          gap: 0.5,
-          '& .MuiToggleButton-root': {
-            textTransform: 'none',
-            minHeight: 44,
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: '6px',
-          },
-          '& .MuiToggleButton-root.Mui-selected': {
-            bgcolor: 'action.selected',
-            color: 'primary.main',
-            fontWeight: 600,
-          },
-          '& .Mui-focusVisible': {
-            outline: '2px solid',
-            outlineColor: 'primary.main',
-            outlineOffset: -3,
-          },
-        }}
-      >
-        <ToggleButton value="all" aria-label={tr('All')}>
-          {tr('All (')}
-          {requirements.length})
-        </ToggleButton>
-        <ToggleButton value="matched" aria-label={tr('Matched')}>
-          {tr('Matched (')}
-          {requirements.filter((item) => item.status === 'EVIDENCED').length})
-        </ToggleButton>
-        {(
-          [
-            ['partial', 'PARTIAL'],
-            ['unknown', 'NOT_EVIDENCED'],
-            ['conflict', 'CONFLICT'],
-            ...(requirements.some((item) => item.status === 'UNDECOMPOSED')
-              ? ([['review', 'UNDECOMPOSED']] as const)
-              : []),
-          ] as const
-        ).map(([value, status]) => (
-          <ToggleButton
-            key={value}
-            value={value}
-            aria-label={statusLabel(status)}
-          >
-            {statusLabel(status)} (
-            {requirements.filter((item) => item.status === status).length})
-          </ToggleButton>
-        ))}
-      </ToggleButtonGroup>
-      {items.length === 0 && (
-        <Typography variant="body2" color="text.secondary">
-          {tr('No')} {filter} {tr('requirements reported.')}
-        </Typography>
-      )}
-      <Box sx={{ borderTop: 1, borderColor: 'divider' }}>
-        {items.map(({ item, index }) => (
-          <RequirementCard
-            key={index}
-            item={item}
-            expanded={expanded.has(index)}
-            onExpand={(open) => onExpand(index, open)}
-            selected={selected === index}
-            targeted={target === index}
-            onNavigated={onNavigated}
-          />
-        ))}
-      </Box>
+      {(['clarify', 'review', 'matched'] as const).map((group) => {
+        const items = rows.filter(
+          ({ item }) => requirementGroup(item.status) === group,
+        );
+        if (!items.length) return null;
+        const open = openGroups.has(group);
+        return (
+          <Box key={group} component="section" sx={{ mb: 1.5 }}>
+            <Button
+              fullWidth
+              aria-expanded={open}
+              aria-controls={`${id}-${group}`}
+              onClick={() => onToggleGroup(group)}
+              endIcon={
+                <Box
+                  component="span"
+                  sx={{
+                    display: 'flex',
+                    transition: 'transform 150ms ease-out',
+                    transform: open ? 'rotate(180deg)' : 'none',
+                  }}
+                >
+                  <MatchIcon kind="expand" />
+                </Box>
+              }
+              sx={{
+                justifyContent: 'space-between',
+                textTransform: 'none',
+                color: 'text.primary',
+                minHeight: 44,
+                px: 1.5,
+              }}
+            >
+              <Typography component="h4" variant="subtitle2">
+                {GROUP_TITLES[group]()} ({items.length})
+              </Typography>
+            </Button>
+            {/* Mounted while closed so inspect() can open a row inside it;
+                instant when navigating so the scroll target is final. */}
+            <Collapse
+              in={open}
+              id={`${id}-${group}`}
+              timeout={target !== null ? 0 : 'auto'}
+            >
+              <Box sx={{ borderTop: 1, borderColor: 'divider' }}>
+                {items.map(({ item, index }) => (
+                  <RequirementCard
+                    key={index}
+                    item={item}
+                    expanded={expanded.has(index)}
+                    onExpand={(isOpen) => onExpand(index, isOpen)}
+                    selected={selected === index}
+                    targeted={open && target === index}
+                    onNavigated={onNavigated}
+                  />
+                ))}
+              </Box>
+            </Collapse>
+          </Box>
+        );
+      })}
     </Box>
   );
 }

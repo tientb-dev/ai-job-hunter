@@ -79,11 +79,12 @@ test('low evaluability is qualified and uninterpreted requirements are distinct 
     screen.getByText(/Evaluated: 1 of 4 JD requirements · Low confidence/u),
   ).toBeVisible();
   const region = screen.getByRole('region', { name: 'Requirements' });
-  fireEvent.click(
+  // Its group is open by default when nonempty.
+  expect(
     within(region).getByRole('button', {
-      name: 'System could not analyze',
+      name: 'System could not analyze (3)',
     }),
-  );
+  ).toHaveAttribute('aria-expanded', 'true');
   expect(
     within(region).getAllByRole('button', {
       name: /^System could not analyze: /u,

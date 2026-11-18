@@ -209,7 +209,7 @@ test('explicit suggestions show four compact cards, a header count and preserve 
   // Workspace Match shows the assessment with its gaps-and-advice below.
   expect(screen.getByRole('region', { name: 'Improve your CV' })).toBeVisible();
   expect(
-    screen.getByText('Heuristic Match score: 50/100 · details below'),
+    screen.getByText('Reference score: 50/100 · see Technical details'),
   ).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Open Improve CV' }));
   expect(within(section()).getAllByRole('article')).toHaveLength(4);
@@ -260,7 +260,7 @@ test('suggesting excludes duplicate and source-changing actions while retaining 
   ).toBeDisabled();
   expect(screen.getByLabelText('Save CV for matching')).toBeDisabled();
   expect(
-    screen.getByText('Heuristic Match score: 50/100 · details below'),
+    screen.getByText('Reference score: 50/100 · see Technical details'),
   ).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Open Improve CV' }));
   await act(async () => pending.resolve(Response.json(syntheticSuggestions)));
@@ -428,13 +428,22 @@ test('keyboard copy writes only exact server wording and announces failure safel
   await screen.findByText(/Could not copy/);
 });
 
-test('Review evidence crosses tabs, resets filter and focuses the exact expanded row', async () => {
+test('Review evidence crosses tabs, reopens a collapsed group and focuses the exact expanded row', async () => {
   const user = userEvent.setup();
   const state = setup();
   await state.analyze();
   await state.suggest();
   fireEvent.click(screen.getByRole('button', { name: 'Open CV Match' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Matched' }));
+  const group = screen.getByRole('button', { name: /^To clarify \(/ });
+  fireEvent.click(group);
+  expect(group).toHaveAttribute('aria-expanded', 'false');
+  // The row stays mounted inside the collapsed group, so inspect can target it.
+  const row = screen.getByRole('button', {
+    name: 'Partial: Experience designing APIs and integrations',
+    hidden: true,
+  });
+  const scroll = vi.fn();
+  row.scrollIntoView = scroll;
   fireEvent.click(screen.getByRole('button', { name: 'Open Improve CV' }));
   const button = within(screen.getAllByRole('article')[0]!).getByRole(
     'button',
@@ -447,10 +456,13 @@ test('Review evidence crosses tabs, resets filter and focuses the exact expanded
   });
   await waitFor(() => expect(target).toHaveFocus());
   expect(target).toHaveAttribute('aria-expanded', 'true');
-  expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  expect(group).toHaveAttribute('aria-expanded', 'true');
+  expect(scroll).toHaveBeenCalledTimes(1);
+  expect(scroll).toHaveBeenLastCalledWith({
+    block: 'start',
+    inline: 'nearest',
+    behavior: 'instant',
+  });
 });
 
 test('malformed or unreadable responses clear actionable cards', async () => {

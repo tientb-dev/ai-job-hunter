@@ -2404,4 +2404,11 @@ export const VI_TEXT: Record<string, string> = {
     'CV chưa thể hiện rõ nghĩa là chưa tìm thấy bằng chứng trong CV đã rà soát, không có nghĩa là bạn thiếu kỹ năng đó.',
   'Heuristic Match score: {v0}/100 · details below':
     'Điểm đối chiếu ước lượng: {v0}/100 · xem chi tiết bên dưới',
+  'At a glance': 'Tóm tắt nhanh',
+  'Strengths: {v0}': 'Điểm mạnh: {v0}',
+  'To clarify: {v0}': 'Cần làm rõ: {v0}',
+  'To clarify': 'Cần làm rõ',
+  'Already matched': 'Đã khớp',
+  'Reference score: {v0}/100 · see Technical details':
+    'Điểm tham khảo: {v0}/100 · xem Chi tiết kỹ thuật',
 };
