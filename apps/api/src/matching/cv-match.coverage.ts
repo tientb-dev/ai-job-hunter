@@ -1882,11 +1882,39 @@ function skillExperienceStatus(
     : 'EVIDENCED';
 }
 
-const monthYear = String.raw`(?:(\d{1,2})[/.-])?((?:19|20)\d{2})`;
+const monthNames = [
+  'jan(?:uary)?',
+  'feb(?:ruary)?',
+  'mar(?:ch)?',
+  'apr(?:il)?',
+  'may',
+  'june?',
+  'july?',
+  'aug(?:ust)?',
+  'sep(?:t(?:ember)?)?',
+  'oct(?:ober)?',
+  'nov(?:ember)?',
+  'dec(?:ember)?',
+];
+// "03/2020", "Mar 2020", "March 2020", "tháng 3/2020", "tháng 3 năm 2020", "2020".
+const monthYear = String.raw`(?:(\d{1,2})[/.-]|tháng\s*(\d{1,2})\s*(?:[/.-]|,?\s*(?:năm\s+)?)|\b(${monthNames.join('|')})\.?,?\s+)?((?:19|20)\d{2})`;
 const dateRange = new RegExp(
   String.raw`${monthYear}\s*(?:[-–—]|to|đến)\s*(?:${monthYear}|(present|now|current|hiện tại|nay))`,
   'iu',
 );
+// Month 1–12 from one side's captures; undefined if absent, NaN if invalid.
+function monthOf(numeric?: string, vietnamese?: string, name?: string) {
+  if (name)
+    return (
+      monthNames.findIndex((pattern) =>
+        new RegExp(`^${pattern}$`, 'iu').test(name),
+      ) + 1
+    );
+  const value = numeric ?? vietnamese;
+  if (value === undefined) return undefined;
+  const month = Number(value);
+  return month >= 1 && month <= 12 ? month : NaN;
+}
 // Months of the record a work passage belongs to: a date range in the passage
 // or in the header lines directly above its bullet run (at most 3, never past a
 // heading or an earlier record's bullets). Year-only ranges take the shortest
@@ -1915,11 +1943,15 @@ export function recordMonths(
     if (!range && line !== lines[0] && /\b(?:project|dự án)\b/iu.test(line))
       return null;
     if (range) {
-      const [, m1, y1, m2, y2, now] = range;
-      const from = Number(y1) * 12 + (m1 ? Number(m1) - 1 : 11);
+      const [, n1, v1, name1, y1, n2, v2, name2, y2, now] = range;
+      const m1 = monthOf(n1, v1, name1);
+      const m2 = monthOf(n2, v2, name2);
+      // A malformed month ("13/2020") gives no documented period.
+      if (Number.isNaN(m1) || Number.isNaN(m2)) return null;
+      const from = Number(y1) * 12 + (m1 ? m1 - 1 : 11);
       const to = now
         ? today.getFullYear() * 12 + today.getMonth()
-        : Number(y2) * 12 + (m2 ? Number(m2) - 1 : 0);
+        : Number(y2) * 12 + (m2 ? m2 - 1 : 0);
       return to >= from ? to - from + 1 : null;
     }
     if (line !== lines[0] && headingLine.test(line) && line.trim()) return null;
