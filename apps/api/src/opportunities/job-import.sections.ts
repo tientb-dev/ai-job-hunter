@@ -77,7 +77,7 @@ export function requirementLines(text: string): {
         return [{ line, kind: null, structured, excluded: true }];
       }
       if (
-        /^(?:must[- ]have|(?:job |candidate )?requirements?|required skills?|qualifications?|your skills and experience|what we(?:'|’)re looking for|yêu cầu(?: ứng viên| công việc)?)\s*[:：]?$/iu.test(
+        /^(?:must[- ]have|(?:job |candidate )?requirements?|required skills?|qualifications?|your skills and experience|what we(?:'|’)re looking for|yêu cầu(?: ứng viên| công việc| bắt buộc)?)\s*[:：]?$/iu.test(
           clean,
         )
       ) {
