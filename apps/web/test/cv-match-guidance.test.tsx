@@ -40,12 +40,24 @@ test('guidance is the primary takeaway; score stays secondary and labeled as CV 
       /Your CV documents 2 of 3 core requirements\. Relevant experience appears in your work history\./u,
     ),
   ).toBeVisible();
-  const actions = within(guidance).getAllByRole('listitem');
+  const actions = within(
+    within(guidance).getByRole('list', { name: 'Before you apply' }),
+  ).getAllByRole('listitem');
+  // Action sentences never embed raw JD wording; it is shown separately.
   expect(actions.map((item) => item.textContent)).toEqual([
     'If you applied OOP principles in a project, describe a concrete example.',
     'If you maintained, debugged or enhanced existing applications, add a concrete example.',
-    'If you have experience with “Git”, add a concrete example to the relevant role.',
+    'If you have done this, add one concrete example to the role or project where you did it.JD: “Git”',
   ]);
+  // Score and counts are secondary: collapsed under Assessment details.
+  expect(
+    screen.queryByText('Documented CV evidence coverage'),
+  ).not.toBeVisible();
+  fireEvent.click(
+    screen.getByRole('button', {
+      name: 'Assessment details · Evidence coverage 50/100',
+    }),
+  );
   expect(screen.getByText('Documented CV evidence coverage')).toBeVisible();
   expect(screen.getByLabelText('Fit score: 50/100 (heuristic)')).toBeVisible();
   expect(screen.getByText('Evaluated: 4 of 4 JD requirements')).toBeVisible();
@@ -60,6 +72,7 @@ test('low evaluability is qualified and uninterpreted requirements are distinct 
   expect(within(guidance).getByText('Consider carefully')).toBeVisible();
   expect(within(guidance).getByText('Low confidence')).toBeVisible();
   expect(within(guidance).queryByText('Worth applying')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: /^Assessment details/u }));
   expect(
     screen.getByText(/Evaluated: 1 of 4 JD requirements · Low confidence/u),
   ).toBeVisible();

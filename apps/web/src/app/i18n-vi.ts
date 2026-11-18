@@ -2294,12 +2294,17 @@ export const VI_TEXT: Record<string, string> = {
     'Nếu bạn có kinh nghiệm Java Core, hãy nêu rõ ở vị trí mà bạn đã sử dụng.',
   'If you maintained, debugged or enhanced existing applications, add a concrete example.':
     'Nếu bạn đã bảo trì, sửa lỗi hoặc nâng cấp ứng dụng có sẵn, hãy thêm một ví dụ cụ thể.',
-  'If you have {v1}+ years with “{v0}”, state the duration or dates in your CV.':
-    'Nếu bạn có từ {v1} năm kinh nghiệm với “{v0}”, hãy ghi rõ thời gian hoặc mốc thời gian trong CV.',
-  '“{v0}” appears only in a list. If you used it in a role, describe how.':
-    '“{v0}” chỉ xuất hiện trong danh sách. Nếu bạn đã dùng nó trong công việc, hãy mô tả cách dùng.',
-  'Check “{v0}” yourself — it could not be interpreted reliably.':
-    'Hãy tự kiểm tra “{v0}” — hệ thống chưa hiểu được yêu cầu này một cách đáng tin cậy.',
-  'If you have experience with “{v0}”, add a concrete example to the relevant role.':
-    'Nếu bạn có kinh nghiệm với “{v0}”, hãy thêm một ví dụ cụ thể vào vị trí liên quan.',
+  'If you have at least {v0} years of this experience, show the dates of the roles or projects where you did it.':
+    'Nếu bạn có từ {v0} năm kinh nghiệm này trở lên, hãy ghi rõ mốc thời gian của các vị trí hoặc dự án mà bạn đã làm.',
+  'Listed only as a skill. If you used it at work, describe how in that role.':
+    'Mới chỉ có trong danh sách kỹ năng. Nếu bạn đã dùng trong công việc, hãy mô tả cách dùng ở vị trí đó.',
+  'This could not be interpreted reliably. Check it against your experience yourself.':
+    'Hệ thống chưa hiểu được yêu cầu này một cách đáng tin cậy. Hãy tự đối chiếu với kinh nghiệm của bạn.',
+  'If you have done this, add one concrete example to the role or project where you did it.':
+    'Nếu bạn đã làm việc này, hãy thêm một ví dụ cụ thể vào vị trí hoặc dự án tương ứng.',
+  'Documented in your CV': 'Đã có bằng chứng trong CV',
+  'Not yet shown in your CV': 'Chưa thể hiện trong CV',
+  'JD: “{v0}”': 'JD: “{v0}”',
+  'Assessment details': 'Chi tiết đánh giá',
+  'Evidence coverage {v0}/100': 'Mức bằng chứng {v0}/100',
 };

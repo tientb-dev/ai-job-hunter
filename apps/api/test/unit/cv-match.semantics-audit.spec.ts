@@ -324,7 +324,29 @@ test('separate component source passages support an AND without composing CV quo
   ).toEqual(cv.split('\n'));
 });
 
-test.each(['parent', 'component', 'duplicate', 'JD quote', 'CV quote'])(
+test('a fabricated component JD span earns nothing and leaves only its row unevaluable', () => {
+  const job = jobFor('Experience designing APIs and integrations');
+  const canonical = canonicalRequirements(job);
+  const jd = matchJobText(job);
+  const cv = 'Designed APIs.';
+  const verified = validateMatchAssessment(
+    [
+      {
+        ...canonical[0]!,
+        cvQuote: '',
+        components: [{ componentId: 'c1', jdQuote: 'fabricated', cvQuote: cv }],
+      },
+    ],
+    cv,
+    jd,
+    canonical,
+  );
+  expect(
+    scoreCvMatch(verified, cv, jd, canonical).requirements[0],
+  ).toMatchObject({ status: 'UNDECOMPOSED', credit: 0, cvQuote: '' });
+});
+
+test.each(['parent', 'component', 'duplicate', 'CV quote'])(
   'fabricated %s metadata/evidence fails explicitly',
   (field) => {
     const job = jobFor('Experience designing APIs and integrations');
@@ -339,7 +361,6 @@ test.each(['parent', 'component', 'duplicate', 'JD quote', 'CV quote'])(
     if (field === 'component') proposal.components[0]!.componentId = 'c99';
     if (field === 'duplicate')
       proposal.components.push(proposal.components[0]!);
-    if (field === 'JD quote') proposal.components[0]!.jdQuote = 'fabricated';
     if (field === 'CV quote')
       proposal.components[0]!.cvQuote = 'Invented API design.';
     expect(() =>
@@ -779,7 +800,6 @@ test('typed component validation rejects fabricated quotations and legacy identi
       cvQuote: 'Invented completed coding boot camp.',
     },
     { componentId: 'c4', jdQuote: 'coding boot camp', cvQuote: cv },
-    { componentId: 'c2', jdQuote: 'Engineering', cvQuote: cv },
   ])
     expect(() =>
       validateMatchAssessment(
@@ -789,4 +809,22 @@ test('typed component validation rejects fabricated quotations and legacy identi
         canonical,
       ),
     ).toThrow(CvMatchError);
+  // A legacy component identity (stale span) is isolated, never credited.
+  const verified = validateMatchAssessment(
+    [
+      {
+        ...canonical[0]!,
+        cvQuote: '',
+        components: [
+          { componentId: 'c2', jdQuote: 'Engineering', cvQuote: cv },
+        ],
+      },
+    ],
+    cv,
+    jd,
+    canonical,
+  );
+  expect(
+    scoreCvMatch(verified, cv, jd, canonical).requirements[0],
+  ).toMatchObject({ status: 'UNDECOMPOSED', credit: 0 });
 });

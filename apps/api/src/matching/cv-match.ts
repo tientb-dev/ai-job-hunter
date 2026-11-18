@@ -13,6 +13,7 @@ import {
   emitMatchEvidenceRejection,
   emitMatchQuoteRejections,
   emitMatchIncomplete,
+  emitMatchSpanIsolated,
   type MatchEvidenceReason,
 } from './cv-match.diagnostics.js';
 import { jdRequirementLines } from '../extraction/jd-requirements.js';
@@ -52,6 +53,8 @@ export interface MatchRequirement {
   cvEvidenceUnverified?: true;
   // Internal only: an ambiguous component quote was dropped; blocks recovery.
   componentEvidenceUnverified?: true;
+  // Internal only: a component JD span did not match its seed; unevaluable.
+  componentSpanMismatch?: true;
   // Canonical only: a validated AI decomposition of an otherwise UNKNOWN row.
   decomposition?: RequirementGroup;
 }
@@ -634,6 +637,11 @@ export function validateMatchAssessment(
       { canonical: canonical.length, returned: proposals.length, unlinked },
     );
   }
+  // A linked quote that differs from the canonical verbatim quote only by list
+  // marker, case, whitespace or Unicode composition is restored to it.
+  const quoteKey = (text: string) =>
+    normalize(text.replace(/^\s*[-*•–]\s+/u, '')).replace(/[.;]+$/u, '');
+  const spanMismatch = new Set<number>();
   for (const [index, proposal] of proposals.entries()) {
     const parent = canonical.find((seed) =>
       linksCanonicalRequirement(proposal, seed),
@@ -662,13 +670,14 @@ export function validateMatchAssessment(
           'COMPONENT_DUPLICATE',
           at,
         );
-      if (seed.jdQuote !== component.jdQuote)
-        throw new CvMatchError(
-          'CV_MATCH_INVALID_OUTPUT',
-          'COMPONENT_JD_SPAN_MISMATCH',
-          at,
-        );
       ids.add(component.componentId);
+      // A genuinely different span: this requirement alone becomes unevaluable
+      // (all its components dropped, no credit); other requirements stand.
+      if (quoteKey(seed.jdQuote) !== quoteKey(component.jdQuote)) {
+        spanMismatch.add(index);
+        emitMatchSpanIsolated(index);
+        break;
+      }
       // The span is pinned to the server's component seed above; a derived
       // label ("Experience with backend development") is verified through
       // its parent's verbatim JD quote instead.
@@ -699,17 +708,28 @@ export function validateMatchAssessment(
   // Use source-backed canonical context (or the verified JD quote), not the
   // model's shorthand label, to distinguish tooling from production AI.
   let reason: MatchEvidenceReason = 'JD_QUOTE_NOT_VERBATIM';
-  // A linked parent's quote that differs from the canonical verbatim quote only
-  // by list marker, case or whitespace is restored to the canonical text.
-  const quoteKey = (text: string) =>
-    normalize(text.replace(/^\s*[-*•–]\s+/u, '')).replace(/[.;]+$/u, '');
-  proposals = proposals.map((item) => {
+  proposals = proposals.map((item, index) => {
+    const parent = canonical.find((row) =>
+      linksCanonicalRequirement(item, row),
+    );
+    if (spanMismatch.has(index))
+      item = { ...item, components: [], componentSpanMismatch: true };
+    else if (parent && item.components)
+      item = {
+        ...item,
+        // Pin each component to its server seed span (identity checked above).
+        components: item.components.map((component) => ({
+          ...component,
+          jdQuote: groupOf(parent).components.find(
+            (seed) => seed.id === component.componentId,
+          )!.jdQuote,
+        })),
+      };
     if (jd.includes(item.jdQuote)) return item;
-    const seed = canonical.find((row) => linksCanonicalRequirement(item, row));
-    return seed &&
-      jd.includes(seed.jdQuote) &&
-      quoteKey(seed.jdQuote) === quoteKey(item.jdQuote)
-      ? { ...item, jdQuote: seed.jdQuote }
+    return parent &&
+      jd.includes(parent.jdQuote) &&
+      quoteKey(parent.jdQuote) === quoteKey(item.jdQuote)
+      ? { ...item, jdQuote: parent.jdQuote }
       : item;
   });
   const rejectedIndex = proposals.findIndex((item) => {
@@ -878,6 +898,9 @@ export function scoreCvMatch(
       ...(linked.some((candidate) => candidate.componentEvidenceUnverified)
         ? { componentEvidenceUnverified: true as const }
         : {}),
+      ...(linked.some((candidate) => candidate.componentSpanMismatch)
+        ? { componentSpanMismatch: true as const }
+        : {}),
       ...(proposal?.cvEvidenceUnverified
         ? { cvEvidenceUnverified: true as const }
         : {}),
@@ -899,7 +922,17 @@ export function scoreCvMatch(
       return true;
     })
     .map((item) => {
-      const group = groupOf(item);
+      // A malformed component span leaves the row unevaluable: the existing
+      // UNDECOMPOSED path (no credit, full weight in the denominator, review).
+      const group: RequirementGroup = item.componentSpanMismatch
+        ? {
+            mode: 'UNKNOWN',
+            context: groupOf(item).context,
+            components: groupOf(item).components.map(
+              ({ id, label, jdQuote }) => ({ id, label, jdQuote }),
+            ),
+          }
+        : groupOf(item);
       groups.push(group);
       const selected = [
         ...item.selectedQuotes,
@@ -921,9 +954,11 @@ export function scoreCvMatch(
           ? null
           : evaluateCoverage(
               group,
-              selected,
+              item.componentSpanMismatch ? [] : selected,
               cv,
-              !item.cvEvidenceUnverified && !item.componentEvidenceUnverified,
+              !item.cvEvidenceUnverified &&
+                !item.componentEvidenceUnverified &&
+                !item.componentSpanMismatch,
             );
       const status =
         coverage?.status ??
@@ -939,6 +974,7 @@ export function scoreCvMatch(
       // Never credited or shown as a quote, so the score is unchanged.
       // A rejected component quote (Gemini) earns nothing and always needs review.
       const review =
+        !!item.componentSpanMismatch ||
         (!!item.componentEvidenceUnverified && status !== 'EVIDENCED') ||
         (item.modelQuote !== 'ACCEPTED' &&
           status !== 'EVIDENCED' &&

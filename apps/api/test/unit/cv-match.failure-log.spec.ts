@@ -636,14 +636,6 @@ describe('remaining reason codes through analyze()', () => {
       validation('COMPONENT_DUPLICATE', 1),
     ],
     [
-      'COMPONENT_JD_SPAN_MISMATCH',
-      () =>
-        setup([
-          () => reply(withComponents([{ ...c1, jdQuote: 'PRIVATE_SPAN' }, c2])),
-        ]),
-      validation('COMPONENT_JD_SPAN_MISMATCH', 1),
-    ],
-    [
       'COMPLETION_DUPLICATE_ID',
       () =>
         setup(
@@ -682,6 +674,43 @@ describe('remaining reason codes through analyze()', () => {
     ],
   ])('%s', async (_, service, expected) => {
     expect(await failure(service())).toEqual(expected);
+  });
+
+  test('one mismatched component span isolates only its requirement; the match is saved', async () => {
+    const service = setup([
+      () => reply(withComponents([{ ...c1, jdQuote: 'PRIVATE_SPAN' }, c2])),
+    ]);
+    const result = await service.analyze(LOCAL_OWNER_ID, 'synthetic');
+    const row = (label: string) =>
+      result.requirements.find((item) => item.requirement === label)!;
+    expect(row('Kafka')).toMatchObject({ status: 'EVIDENCED', credit: 1 });
+    // Its valid Docker quote is not credited: the whole row is unevaluable.
+    expect(row(pairs)).toMatchObject({
+      status: 'UNDECOMPOSED',
+      credit: 0,
+      cvQuote: '',
+      evidence: { review: true },
+    });
+    // Full weight stays in the denominator: 3 of 6, never 3 of 3.
+    expect(result.score).toBe(50);
+    expect(result.evaluability).toMatchObject({ total: 2, evaluated: 1 });
+    expect(result.evidenceUncertain).toBe(true);
+    const saved = await service.currentMatch(LOCAL_OWNER_ID, 'synthetic');
+    expect(saved.status).toBe('VALID');
+    expect('result' in saved && saved.result?.matchId).toBe(result.matchId);
+  });
+
+  test('an isolated span mismatch logs index and attempt only, never text', async () => {
+    const logged = await events(
+      setup([
+        () => reply(withComponents([{ ...c1, jdQuote: 'PRIVATE_SPAN' }, c2])),
+      ]),
+    );
+    expect(logged).toContainEqual({
+      event: 'CV_MATCH_REQUIREMENT_ISOLATED',
+      reasonCode: 'COMPONENT_JD_SPAN_MISMATCH',
+      requirementIndex: 1,
+    });
   });
 
   test('an invented completion id is stopped earlier by the completion schema', async () => {

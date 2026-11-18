@@ -323,3 +323,14 @@ export function emitMatchQuoteRejections(
     // Diagnostics must never alter matching.
   }
 }
+// A component JD span mismatch isolated to one unevaluable requirement. Index
+// and attempt only; never text.
+export function emitMatchSpanIsolated(requirementIndex: number): void {
+  try {
+    process.stderr.write(
+      `${JSON.stringify({ event: 'CV_MATCH_REQUIREMENT_ISOLATED', ...attempt(), reasonCode: 'COMPONENT_JD_SPAN_MISMATCH', requirementIndex })}\n`,
+    );
+  } catch {
+    // Diagnostics must never alter matching.
+  }
+}

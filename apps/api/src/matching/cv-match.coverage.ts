@@ -1823,10 +1823,16 @@ function skillExperience(
     /^(?:(?:strong|solid|proven)\s+)?(?:production|professional|commercial|hands-on(?:,?\s+professional)?)\s+experience\s+(?:with|in|using)\s+(.+)$/iu.exec(
       text,
     );
-  const label = years ? (years[2] ?? years[3]) : quality?.[1];
+  // "Có từ 02 năm kinh nghiệm phát triển phần mềm với Java"
+  const vi =
+    /^(?:có\s+)?(?:(?:từ|ít nhất|tối thiểu)\s+)?(\d+)\+?\s*năm\s+kinh nghiệm\s+(?:(?:làm việc|phát triển(?:\s+phần mềm)?|lập trình)\s+)?(?:với|về|bằng)\s+(.+)$/iu.exec(
+      text,
+    );
+  const label = years ? (years[2] ?? years[3]) : (vi?.[2] ?? quality?.[1]);
   const named = label && namedTechnology(label.trim(), 'skill');
   if (!named || named.label !== label!.trim()) return null;
-  return years ? { label: named.label, years: Number(years[1]) } : named;
+  const minimum = years?.[1] ?? vi?.[1];
+  return minimum ? { label: named.label, years: Number(minimum) } : named;
 }
 // The nearest heading above a passage (e.g. "EDUCATION" in reviewed CV text).
 function sectionHeadingOf(passage: string, cv: string): string {
@@ -1863,7 +1869,10 @@ function skillExperienceStatus(
   const supported = work.some((passage) => {
     if (years === undefined) return true;
     const stated = statedYears.exec(passage);
-    return !!stated && Number(stated[1]) >= years;
+    if (stated) return Number(stated[1]) >= years;
+    // Otherwise the dated record this work belongs to; never summed across
+    // records, so overlapping projects are not counted twice.
+    return (recordMonths(passage, cv) ?? 0) >= years * 12;
   });
   if (!supported) return 'NOT_EVIDENCED';
   return passages(cv).some(
@@ -1871,6 +1880,51 @@ function skillExperienceStatus(
   )
     ? 'CONFLICT'
     : 'EVIDENCED';
+}
+
+const monthYear = String.raw`(?:(\d{1,2})[/.-])?((?:19|20)\d{2})`;
+const dateRange = new RegExp(
+  String.raw`${monthYear}\s*(?:[-–—]|to|đến)\s*(?:${monthYear}|(present|now|current|hiện tại|nay))`,
+  'iu',
+);
+// Months of the record a work passage belongs to: a date range in the passage
+// or in the header lines directly above its bullet run (at most 3, never past a
+// heading or an earlier record's bullets). Year-only ranges take the shortest
+// span they could mean.
+export function recordMonths(
+  passage: string,
+  cv: string,
+  today = new Date(),
+): number | null {
+  const start = cv.indexOf(passage);
+  if (start < 0) return null;
+  const lines = cv
+    .slice(0, start + passage.length)
+    .split(/\r?\n/u)
+    .reverse();
+  let header = 0;
+  for (const line of lines) {
+    if (line !== lines[0] && bulletStart.test(line)) {
+      if (header) return null;
+      continue;
+    }
+    if (line !== lines[0] && line.trim() && ++header > 3) return null;
+    const range = dateRange.exec(line);
+    // Work under an undated project has no documented participation period;
+    // the enclosing role's dates are employment, not time with this work.
+    if (!range && line !== lines[0] && /\b(?:project|dự án)\b/iu.test(line))
+      return null;
+    if (range) {
+      const [, m1, y1, m2, y2, now] = range;
+      const from = Number(y1) * 12 + (m1 ? Number(m1) - 1 : 11);
+      const to = now
+        ? today.getFullYear() * 12 + today.getMonth()
+        : Number(y2) * 12 + (m2 ? Number(m2) - 1 : 0);
+      return to >= from ? to - from + 1 : null;
+    }
+    if (line !== lines[0] && headingLine.test(line) && line.trim()) return null;
+  }
+  return null;
 }
 
 // A SINGLE row that no specific rule interprets and is too long to be one

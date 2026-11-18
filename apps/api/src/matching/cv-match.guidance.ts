@@ -88,6 +88,14 @@ function action(row: GuidanceRow, component?: Component): GuidanceAction {
   const seen = component?.observations ?? [];
   if (row.group.minimumYears !== undefined && seen.length)
     return { code: 'STATE_DURATION', label, years: row.group.minimumYears };
+  // A whole-row duration ("Có từ 02 năm kinh nghiệm … với Java") unmet: the
+  // CV needs dated work for it, not a generic example.
+  const years =
+    row.group.mode === 'SINGLE' &&
+    /(?<![\p{L}\p{N}])(\d+)\+?\s*(?:years?|năm)(?!\p{L})/iu.exec(
+      row.requirement,
+    )?.[1];
+  if (years) return { code: 'STATE_DURATION', label, years: Number(years) };
   if (seen.some((item) => item.kind === 'mention'))
     return { code: 'SHOW_IN_WORK', label };
   return { code: 'ADD_EXAMPLE', label };
