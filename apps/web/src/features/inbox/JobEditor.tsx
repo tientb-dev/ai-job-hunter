@@ -141,16 +141,13 @@ function workspaceTabs({
   return [
     { label: 'Overview', value: 'overview', badge: null },
     {
-      label: 'Match',
+      label: tr('CV Match'),
       value: 'match',
-      badge:
-        summary?.matchStatus === 'VALID' && summary.score !== null
-          ? badge(`${summary.score}%`)
-          : ['STALE_CV', 'STALE_JOB', 'EXPIRED'].includes(
-                summary?.matchStatus ?? '',
-              )
-            ? badge('Outdated', true)
-            : null,
+      badge: ['STALE_CV', 'STALE_JOB', 'EXPIRED'].includes(
+        summary?.matchStatus ?? '',
+      )
+        ? badge('Outdated', true)
+        : null,
     },
     {
       label: tr('Tailored CV'),
@@ -180,6 +177,7 @@ function workspaceTabs({
     },
     // Last, so existing tab and panel indices stay stable.
     { label: 'Interview', value: 'interview', badge: null },
+    { label: 'Review & Improve CV', value: 'improve', badge: null },
   ] as const;
 }
 const latestContactDate = (dates: string[]) =>
@@ -192,12 +190,13 @@ const workspaceViews = [
   'application',
   'interview',
   'edit',
+  'improve',
 ] as const;
 type WorkspaceView = (typeof workspaceViews)[number];
-// Pre-workspace links used ?tab=; Improve CV advice now lives under Match.
+// Pre-workspace links used ?tab=.
 const legacyTabs: Record<string, WorkspaceView> = {
   match: 'match',
-  improve: 'match',
+  improve: 'improve',
   application: 'application',
 };
 
@@ -1922,9 +1921,15 @@ export function JobEditor() {
               jobUpdatedAt={savedJobUpdatedAt}
               jobDirty={dirty}
               onReviewDirtyChange={setSourceCvDirty}
-              view={view === 'match' ? 'match' : 'hidden'}
+              view={view === 'match' || view === 'improve' ? view : 'hidden'}
               onSummary={setSummary}
               summaryRefresh={overviewVisits}
+              onGoToImprove={() => {
+                setView('improve');
+                document
+                  .getElementById('job-tab-5')
+                  ?.focus({ preventScroll: true });
+              }}
               onGoToMatch={() => {
                 setView('match');
                 document

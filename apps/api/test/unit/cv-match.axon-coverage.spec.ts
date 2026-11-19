@@ -41,8 +41,7 @@ test('single managed-language qualification retains exact resolved multiline evi
   expect(
     assess(java, cv, 'Backend — Java, Spring Boot, Node.js.'),
   ).toMatchObject({
-    score: 100,
-    recommendation: 'Apply',
+    coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
     requirements: [{ status: 'EVIDENCED', cvQuote: cv }],
   });
 });
@@ -55,7 +54,7 @@ test.each([
   'single-language qualification rejects unsupported selected evidence: %s',
   (cv) => {
     expect(assess(java, cv, cv)).toMatchObject({
-      score: 0,
+      coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
       requirements: [{ status: 'NOT_EVIDENCED', cvQuote: '' }],
     });
   },
@@ -63,7 +62,7 @@ test.each([
 test('single-language qualification exposes source-backed contradictions', () => {
   const quote = 'Backend — Java.';
   expect(assess(java, `${quote}\nI can't use Java.`, quote)).toMatchObject({
-    score: 0,
+    coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
     requirements: [
       {
         status: 'CONFLICT',
@@ -84,8 +83,7 @@ test.each([
     const result = assess(sql, quote, quote);
     // A skills declaration alone is coverage, not demonstrated work.
     expect(result).toMatchObject({
-      score: 100,
-      recommendation: 'Consider',
+      coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
       requirements: [{ status: 'EVIDENCED', cvQuote: quote }],
     });
     expect(
@@ -101,14 +99,14 @@ test.each([
   'Tools — Python.',
 ])('database alternative rejects unsupported declaration: %s', (quote) => {
   expect(assess(sql, quote, quote)).toMatchObject({
-    score: 0,
+    coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
     requirements: [{ status: 'NOT_EVIDENCED' }],
   });
 });
 test('database alternatives retain canonical weight and conflict checks', () => {
   const quote = 'Databases — PostgreSQL.';
   expect(assess(sql, `${quote}\nI can't use SQL.`, quote)).toMatchObject({
-    score: 0,
+    coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
     requirements: [
       {
         status: 'CONFLICT',
@@ -126,7 +124,7 @@ test('including multiple languages stays ambiguous rather than satisfying every 
 test('generic Experience assessment retains explicit work duration without requiring the literal word', () => {
   const quote = '6+ years building enterprise software.';
   expect(assess('Experience', quote, quote)).toMatchObject({
-    score: 100,
+    coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
     requirements: [{ status: 'EVIDENCED', cvQuote: quote }],
   });
 });
@@ -139,8 +137,7 @@ test('independently verified production integration covers both AND components',
     quote,
   );
   expect(result).toMatchObject({
-    score: 100,
-    recommendation: 'Apply',
+    coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
     requirements: [{ status: 'EVIDENCED', cvQuote: quote }],
   });
   expect(
@@ -152,8 +149,7 @@ test('API usage alone cannot satisfy an explicit integration action', () => {
   expect(
     assess('Production AI/ML and LLM API integration', quote, quote),
   ).toMatchObject({
-    score: 50,
-    recommendation: 'Apply',
+    coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
     requirements: [{ status: 'PARTIAL', credit: 0.5 }],
   });
 });

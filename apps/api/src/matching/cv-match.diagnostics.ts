@@ -1,3 +1,6 @@
+import { GEMINI_MODEL, OPENAI_MODEL, type AiConfig } from '../ai/ai.config.js';
+import type { ProviderTiming } from '../ai/ai-provider.js';
+import type { DecompositionRejection } from './cv-match.decomposition.js';
 import type { MatchRequirement } from './cv-match.js';
 import { cvQuoteOccurrences, resolveCvQuote } from './cv-match.evidence.js';
 import { normalize } from './matching.policy.js';
@@ -157,11 +160,23 @@ export function emitMatchCompletion(
   }
 }
 
+export interface MatchDecompositionTarget {
+  index: number;
+  reason:
+    | DecompositionRejection
+    | 'ACCEPTED'
+    | 'OMITTED'
+    | 'DUPLICATE_PARENT'
+    | 'BATCH_ERROR'
+    | 'CACHED'
+    | 'DEFERRED_LIMIT';
+}
+
 export function emitMatchDecomposition(
   outcome: string,
-  targets: number,
   requested: number,
   accepted: number,
+  targets: readonly MatchDecompositionTarget[],
 ): void {
   try {
     process.stderr.write(
@@ -169,8 +184,21 @@ export function emitMatchDecomposition(
         event: 'CV_MATCH_DECOMPOSITION',
         ...attempt(),
         outcome: /^[A-Z_]{1,40}$/u.test(outcome) ? outcome : 'OTHER',
-        counts: { targets, requested, accepted },
+        counts: { targets: targets.length, requested, accepted },
+        targets: targets.map(({ index, reason }) => ({ index, reason })),
       })}\n`,
+    );
+  } catch {
+    // Diagnostics never change matching.
+  }
+}
+
+export function emitMatchPersistence(
+  outcome: 'PERSISTED_FRESH' | 'RETAINED_PREVIOUS',
+): void {
+  try {
+    process.stderr.write(
+      `${JSON.stringify({ event: 'CV_MATCH_PERSISTENCE', ...attempt(), outcome })}\n`,
     );
   } catch {
     // Diagnostics never change matching.
@@ -189,6 +217,7 @@ export type MatchFailureStage =
 // Mutable per-request progress; holds fixed tokens and integers only.
 export interface MatchFailureTrace {
   stage: MatchFailureStage;
+  decompositionTargets?: true;
   reason?: string;
   aiCode?: string;
   upstreamHttpStatus?: number;
@@ -242,7 +271,11 @@ export function emitMatchFailure(
         errorCode: token(matchError?.errorCode, 'NONE'),
         reasonCode,
         provider:
-          provider === 'gemini' || provider === 'ollama' ? provider : 'unknown',
+          provider === 'gemini' ||
+          provider === 'ollama' ||
+          provider === 'openai'
+            ? provider
+            : 'unknown',
         ...(Number.isInteger(upstream) && upstream! >= 100 && upstream! <= 599
           ? { upstreamHttpStatus: upstream }
           : {}),
@@ -256,6 +289,36 @@ export function emitMatchFailure(
     );
   } catch {
     // Logging must never replace or alter the original failure.
+  }
+}
+
+export function emitMatchProviderTiming(
+  config: AiConfig | undefined,
+  stage: 'DECOMPOSITION' | 'INITIAL' | 'COMPLETION' | 'ANALYSIS',
+  timing: Partial<ProviderTiming> & Pick<ProviderTiming, 'elapsedMs'>,
+): void {
+  if (
+    (config?.provider !== 'gemini' || config.model !== GEMINI_MODEL) &&
+    (config?.provider !== 'openai' || config.model !== OPENAI_MODEL)
+  )
+    return;
+  try {
+    process.stderr.write(
+      `${JSON.stringify({
+        event: 'CV_MATCH_PROVIDER_TIMING',
+        ...attempt(),
+        provider: config.provider,
+        model: config.model,
+        stage,
+        elapsedMs: timing.elapsedMs,
+        attempts: timing.attempts,
+        retries: timing.retries,
+        timeout: timing.timeout,
+        usage: timing.usage,
+      })}\n`,
+    );
+  } catch {
+    // Diagnostics must not change request behavior.
   }
 }
 

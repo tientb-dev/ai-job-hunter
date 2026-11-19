@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { CvMatchPanel } from '../src/features/inbox/CvMatchPanel';
+import { isMatchResult } from '../src/features/inbox/useCvMatch';
 import { setLocale } from '../src/app/i18n';
 // Generated from the real API scoring output (cv-match.acceptance-corpus.spec).
 import fixture from './fixtures/cv-match-guidance.json';
@@ -27,126 +28,130 @@ async function mount(result: unknown, jobId: string, vi_VN = false) {
       name: vi_VN ? 'Phân tích Đối chiếu CV' : 'Analyze CV Match',
     }),
   );
-  return screen.findByRole('region', {
-    name: vi_VN ? 'Chuẩn bị hồ sơ ứng tuyển' : 'Application guidance',
+  await screen.findByRole('button', {
+    name: vi_VN ? /Phân tích lại/u : 'Reanalyze CV Match',
   });
 }
 
-test('guidance is the primary takeaway; score stays secondary and labeled as CV evidence coverage', async () => {
-  const guidance = await mount(fixture.worth, 'job-worth');
-  expect(
-    within(guidance).getByText('Your CV shows strong relevant evidence'),
-  ).toBeVisible();
-  expect(
-    within(guidance).getByText(
-      /Your CV documents 2 of 3 core requirements\. Relevant experience appears in your work history\./u,
-    ),
-  ).toBeVisible();
-  const actions = within(
-    screen.getByRole('list', { name: 'Next steps to strengthen your CV' }),
-  ).getAllByRole('listitem');
-  // Action sentences never embed raw JD wording; it is shown separately.
-  expect(actions.map((item) => item.textContent)).toEqual([
-    'If you applied OOP principles in a project, describe a concrete example.',
-    'If you maintained, debugged or enhanced existing applications, add a concrete example.',
-    'If you have done this, add one concrete example to the role or project where you did it.JD: “Git”',
-  ]);
-  // The heuristic score is secondary: collapsed under Technical details.
-  expect(
-    screen.queryByText('Documented CV evidence coverage'),
-  ).not.toBeVisible();
-  fireEvent.click(screen.getByRole('button', { name: 'Technical details' }));
-  expect(screen.getByText('Documented CV evidence coverage')).toBeVisible();
-  expect(screen.getByLabelText('Fit score: 50/100 (heuristic)')).toBeVisible();
-  expect(screen.getByText('Evaluated: 4 of 4 JD requirements')).toBeVisible();
-  // Detailed requirement review is unchanged.
-  expect(
-    await screen.findByRole('region', { name: 'Requirements' }),
-  ).toBeVisible();
+test('optional Coverage withholding remains validated on the legacy response contract', () => {
+  const { coverageHidden, ...legacy } = fixture.worth;
+  expect(coverageHidden).toBeNull();
+  expect(isMatchResult(legacy)).toBe(true);
+  const withheld = {
+    ...fixture.worth,
+    score: null,
+    coverageHidden: 'EVIDENCE_VERIFICATION_FAILED',
+  };
+  expect(isMatchResult(withheld)).toBe(true);
+  expect(isMatchResult({ ...withheld, coverageHidden: 'INVALID' })).toBe(false);
+  expect(isMatchResult({ ...withheld, score: 50 })).toBe(false);
 });
 
-test('low evaluability is qualified and uninterpreted requirements are distinct from missing evidence', async () => {
-  const guidance = await mount(fixture.low, 'job-low');
-  expect(
-    within(guidance).getByText('Clarify key evidence in your CV'),
-  ).toBeVisible();
-  expect(within(guidance).getByText('Low confidence')).toBeVisible();
-  expect(
-    within(guidance).queryByText('Your CV shows strong relevant evidence'),
-  ).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: 'Technical details' }));
-  expect(
-    screen.getByText(/Evaluated: 1 of 4 JD requirements · Low confidence/u),
-  ).toBeVisible();
-  const region = screen.getByRole('region', { name: 'Requirements' });
-  // Its group is open by default when nonempty.
-  expect(
-    within(region).getByRole('button', {
-      name: 'System could not analyze (3)',
-    }),
-  ).toHaveAttribute('aria-expanded', 'true');
-  expect(
-    within(region).getAllByRole('button', {
-      name: /^System could not analyze: /u,
-    }),
-  ).toHaveLength(3);
-  // Score withheld; an unanalyzed row is not reported as missing CV evidence.
-  expect(
-    screen.getByText(
-      'Insufficient information to assess reliably, so no score is shown.',
-    ),
-  ).toBeVisible();
-  fireEvent.click(
-    within(region).getAllByRole('button', {
-      name: /^System could not analyze: /u,
-    })[0]!,
-  );
-  expect(
-    within(region).getAllByText('Not analyzed by the system')[0],
-  ).toBeVisible();
-  expect(within(region).queryByText('Not evidenced in CV')).toBeNull();
-});
-
-test('a mismatched candidate gets no positive label; vi-VN wording renders', async () => {
-  const guidance = await mount(fixture.stretch, 'job-stretch', true);
-  expect(
-    within(guidance).getByText('Bổ sung bằng chứng còn thiếu vào CV'),
-  ).toBeVisible();
-  expect(
-    within(guidance).queryByText(/Cân nhắc kỹ|Cơ hội thử thách/u),
-  ).toBeNull();
-  expect(
-    within(guidance).queryByText('CV đã thể hiện rõ nhiều yêu cầu liên quan'),
-  ).toBeNull();
-  expect(
-    screen.getByText(
-      'Nếu bạn đã áp dụng nguyên lý OOP trong dự án, hãy mô tả một ví dụ cụ thể.',
-    ),
-  ).toBeVisible();
-});
-
-test('identical action instructions are grouped with every JD reference', async () => {
+test('Conditions show the backend states, original JD text, and attributable CV quotes in Vietnamese', async () => {
+  const languageQuote = 'Languages: English C1';
+  const durationQuote = '3 years of Java\nInternal tooling';
   await mount(
     {
       ...fixture.worth,
-      guidance: {
-        ...fixture.worth.guidance,
-        actions: [
-          { code: 'ADD_EXAMPLE', label: 'Git' },
-          { code: 'ADD_EXAMPLE', label: 'Docker' },
-          { code: 'SHOW_IN_WORK', label: 'SQL' },
-        ],
-      },
+      conditions: [
+        {
+          kind: 'LANGUAGE',
+          mode: 'SINGLE',
+          jdQuote: 'English B2',
+          status: 'MET',
+          evidence: [
+            {
+              cvQuote: languageQuote,
+              start: 0,
+              end: languageQuote.length,
+              cvOrigin: 'source',
+            },
+          ],
+        },
+        {
+          kind: 'CERTIFICATION',
+          mode: 'SINGLE',
+          jdQuote: 'PMP certification',
+          status: 'UNKNOWN',
+          evidence: [],
+        },
+        {
+          kind: 'EXPERIENCE',
+          mode: 'SINGLE',
+          jdQuote: '5+ years of Java',
+          status: 'NOT_MET',
+          evidence: [
+            {
+              cvQuote: durationQuote,
+              start: 50,
+              end: 50 + durationQuote.length,
+              cvOrigin: 'user_entered',
+            },
+          ],
+        },
+      ],
     },
-    'job-grouped',
+    'job-conditions',
+    true,
   );
-  const items = within(
-    await screen.findByRole('list', {
-      name: 'Next steps to strengthen your CV',
-    }),
-  ).getAllByRole('listitem');
-  expect(items.map((item) => item.textContent)).toEqual([
-    'If you have done this, add one concrete example to the role or project where you did it.JD: “Git”JD: “Docker”',
-    'Listed only as a skill. If you used it at work, describe how in that role.JD: “SQL”',
-  ]);
+  const section = within(screen.getByRole('region', { name: 'Điều kiện' }));
+  const [met, unknown, notMet] = section
+    .getAllByRole('listitem')
+    .map((item) => within(item));
+  expect(met!.getByRole('heading', { name: 'English B2' })).toBeVisible();
+  expect(met!.getByText('Có bằng chứng đáp ứng')).toBeVisible();
+  expect(met!.getByLabelText('Bằng chứng trong CV').textContent).toBe(
+    languageQuote,
+  );
+  expect(
+    unknown!.getByRole('heading', { name: 'PMP certification' }),
+  ).toBeVisible();
+  expect(unknown!.getByText('Chưa có bằng chứng')).toBeVisible();
+  expect(unknown!.queryByLabelText('Bằng chứng trong CV')).toBeNull();
+  expect(
+    notMet!.getByRole('heading', { name: '5+ years of Java' }),
+  ).toBeVisible();
+  expect(notMet!.getByText('Có bằng chứng chưa đáp ứng')).toBeVisible();
+  expect(notMet!.getByLabelText('Bằng chứng trong CV').textContent).toBe(
+    durationQuote,
+  );
+  expect(notMet!.getByText(/Bạn đã bổ sung khi rà soát CV/u)).toBeVisible();
+});
+
+test('legacy saved matches still load, with Coverage and guidance withheld', async () => {
+  expect(isMatchResult(fixture.worth)).toBe(true);
+  await mount(fixture.worth, 'job-legacy');
+  expect(screen.queryByRole('region', { name: 'Conditions' })).toBeNull();
+  expect(
+    screen.queryByText(
+      /Technical Evidence Coverage|Your CV shows strong relevant evidence/,
+    ),
+  ).toBeNull();
+  expect(
+    screen.getByText(
+      /JD–CV Skill Match is unavailable for this saved assessment/,
+    ),
+  ).toBeVisible();
+});
+
+test('invalid condition states and evidence are rejected at the response boundary', () => {
+  const condition = {
+    kind: 'LANGUAGE',
+    mode: 'SINGLE',
+    jdQuote: 'English B2',
+    status: 'MET',
+    evidence: [{ cvQuote: 'English C1', start: 0, end: 10 }],
+  };
+  expect(isMatchResult({ ...fixture.worth, conditions: [condition] })).toBe(
+    true,
+  );
+  for (const invalid of [
+    { ...condition, status: 'PARTIAL' },
+    { ...condition, evidence: [] },
+    { ...condition, evidence: [{ cvQuote: 'English C1', start: 0, end: 0 }] },
+  ]) {
+    expect(isMatchResult({ ...fixture.worth, conditions: [invalid] })).toBe(
+      false,
+    );
+  }
 });

@@ -115,7 +115,7 @@ test('a complete ITviec requirement set scores normally (a real Low Fit stays Lo
   expect(result.recommendation).toBe('Low Fit');
 });
 
-test('a legitimate one-requirement JD stays a verified, scored result', () => {
+test('a legitimate one-requirement JD stays verified with Coverage withheld for size', () => {
   const saved = job({
     description: 'Requirements:\n- 2+ years of experience with Node.js',
     domain: '',
@@ -131,8 +131,11 @@ test('a legitimate one-requirement JD stays a verified, scored result', () => {
     matchJobText(saved),
     canonical,
   );
-  expect(result.score).toBe(0);
-  expect(result.recommendation).toBe('Low Fit');
+  expect(result).toMatchObject({
+    score: null,
+    coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
+    requirements: [{ credit: 0, status: 'NOT_EVIDENCED' }],
+  });
 });
 
 test('no recognizable section, no skills, more requirement lines than scored: review state, no score', () => {
@@ -204,4 +207,12 @@ test('deduplication: a repeated line is one row (required wins); similar lines s
     ['required', 'Experience with Java'],
     ['required', 'Experience with JavaScript'],
   ]);
+});
+
+test('Required Qualifications switches from preferred to required before unrelated sections', () => {
+  const jdText =
+    'Preferred Qualifications\n- Docker\nRequired Qualifications\n- Java\nResponsibilities\n- Kotlin';
+  const rows = canonicalRequirements(job({ jdText, description: '' }));
+  expect(quotes(rows, 'required')).toEqual(['- Java']);
+  expect(quotes(rows, 'preferred')).toEqual(['- Docker']);
 });

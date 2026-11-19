@@ -1,11 +1,22 @@
 import { tr } from '../../app/i18n';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { draftRequest } from './tailored-cv.contract';
-import { Box, Paper } from '@mui/material';
-import { CvSuggestionsSection } from './CvSuggestionsSection';
-import { CvMatchSection, type MatchInspection } from './CvMatchSection';
+import {
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Paper,
+  Stack,
+  Typography,
+} from '@mui/material';
+import { CvMatchSection } from './CvMatchSection';
 import { TailoredCvWorkflow } from './TailoredCvWorkflow';
-import { useCvMatch } from './useCvMatch';
+import { Link, useInRouterContext } from 'react-router-dom';
+import { CvSuggestionsSection } from './CvSuggestionsSection';
+import { reviewHref, useCvMatch } from './useCvMatch';
 
 interface CvMatchPanelProps {
   wizard?: boolean;
@@ -15,6 +26,7 @@ interface CvMatchPanelProps {
   view?: 'match' | 'improve' | 'hidden';
   jobDirty?: boolean;
   onGoToMatch?: () => void;
+  onGoToImprove?: () => void;
   onReviewDirtyChange?: (dirty: boolean) => void;
   onSummary?: (summary: MatchPanelSummary) => void;
   /** Changing it re-reads the summary's draft and source state. */
@@ -22,7 +34,6 @@ interface CvMatchPanelProps {
 }
 export interface MatchPanelSummary {
   matchStatus: string;
-  score: number | null;
   /** undefined while loading; null when the job has no draft. */
   draft: LatestDraft | null | undefined;
   /** null while loading. */
@@ -55,10 +66,6 @@ export function CvMatchPanel({ wizard = false, ...props }: CvMatchPanelProps) {
   );
 }
 
-/**
- * Job workspace Match tab: assessment plus P7 gaps-and-advice suggestions.
- * `improve` shows the suggestions alone (embedded/legacy use).
- */
 function JobMatchPanel({
   jobId,
   revision,
@@ -66,13 +73,24 @@ function JobMatchPanel({
   view = 'match',
   jobDirty = false,
   onGoToMatch,
+  onGoToImprove,
   onSummary,
   summaryRefresh = 0,
 }: Omit<CvMatchPanelProps, 'wizard'>) {
   const match = useCvMatch(jobId, revision, jobUpdatedAt);
-  const { busy, result, cv, attempt, contextRejected, rejectContext } = match;
-  const inspection = useRef<MatchInspection>(null);
+  const { cv, busy, result, attempt, contextRejected, rejectContext } = match;
   const [suggesting, setSuggesting] = useState(false);
+  const [inspected, setInspected] = useState<{
+    parentId: string;
+    matchId?: string;
+  }>();
+  const routing = useInRouterContext();
+  const requirement =
+    inspected && result?.matchId === inspected.matchId
+      ? result?.requirements.find(
+          ({ parentId }) => parentId === inspected.parentId,
+        )
+      : undefined;
   // Loaded once per job for the workspace tab badge; no review state is implied.
   const latestDraft = useLatestDraft(jobId, Boolean(onSummary), summaryRefresh);
   const sourceReason = useSourceReason(
@@ -82,62 +100,102 @@ function JobMatchPanel({
     Boolean(onSummary) && latestDraft === null,
     summaryRefresh,
   );
-  const score = result?.score ?? null;
   const cvSaved = match.cvLoaded ? Boolean(cv) : null;
   useEffect(() => {
     onSummary?.({
       matchStatus: match.matchStatus,
-      score,
       draft: latestDraft,
       cvSaved,
       sourceReason,
     });
-  }, [onSummary, match.matchStatus, score, latestDraft, cvSaved, sourceReason]);
-  const [source, setSource] = useState({ jobId, revision });
-  if (source.jobId !== jobId || source.revision !== revision) {
-    setSource({ jobId, revision });
-    setSuggesting(false);
-  }
+  }, [onSummary, match.matchStatus, latestDraft, cvSaved, sourceReason]);
   return (
     <>
       <CvMatchSection
         match={match}
         labelledBy="job-tab-1"
         hidden={view !== 'match'}
-        inspection={inspection}
         analyzeBlocked={suggesting}
         uploadBlocked={suggesting}
+        onGoToImprove={onGoToImprove}
       />
       <Box
-        component="section"
-        aria-label={tr('Gaps and advice')}
-        hidden={view === 'hidden'}
-        sx={{ mt: 3 }}
+        role="tabpanel"
+        id="job-panel-5"
+        aria-labelledby="job-tab-5"
+        hidden={view !== 'improve'}
       >
         <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, minWidth: 0 }}>
-          <CvSuggestionsSection
-            key={`${result?.matchId ?? 'none'}:${attempt}:${contextRejected}`}
-            result={result}
-            jobId={jobId}
-            disabled={busy}
-            cvSaved={!!cv}
-            jobDirty={jobDirty}
-            // The hook rejects context for every non-valid status; a match that
-            // never existed (or has no CV) is "not analyzed", not outdated.
-            rejected={
-              contextRejected &&
-              !['MISSING', 'CV_UNAVAILABLE', 'CV_REVIEW_REQUIRED'].includes(
-                match.matchStatus,
-              )
-            }
-            reviewRequired={match.matchStatus === 'CV_REVIEW_REQUIRED'}
-            onBusyChange={setSuggesting}
-            onGoToMatch={() => onGoToMatch?.()}
-            onInvalidContext={rejectContext}
-            onInspect={(parentId) => {
-              if (inspection.current?.inspect(parentId)) onGoToMatch?.();
-            }}
-          />
+          <Stack spacing={2}>
+            <Typography component="h2" variant="h6">
+              {tr('Review & Improve CV')}
+            </Typography>
+            {routing && cv && (
+              <Button
+                component={Link}
+                to={reviewHref(cv.id, jobId)}
+                variant="outlined"
+                sx={{ alignSelf: 'flex-start' }}
+              >
+                {tr('Review CV')}
+              </Button>
+            )}
+            <CvSuggestionsSection
+              key={`${result?.matchId ?? 'none'}:${attempt}:${contextRejected}`}
+              result={result}
+              jobId={jobId}
+              disabled={busy}
+              cvSaved={!!cv}
+              jobDirty={jobDirty}
+              rejected={
+                contextRejected &&
+                !['MISSING', 'CV_UNAVAILABLE', 'CV_REVIEW_REQUIRED'].includes(
+                  match.matchStatus,
+                )
+              }
+              reviewRequired={match.matchStatus === 'CV_REVIEW_REQUIRED'}
+              onBusyChange={setSuggesting}
+              onGoToMatch={() => onGoToMatch?.()}
+              onInvalidContext={rejectContext}
+              onInspect={(parentId) =>
+                setInspected({ parentId, matchId: result?.matchId })
+              }
+            />
+            <Dialog
+              open={
+                view === 'improve' && Boolean(requirement) && !contextRejected
+              }
+              onClose={() => setInspected(undefined)}
+              aria-labelledby="cv-suggestion-evidence-title"
+            >
+              <DialogTitle id="cv-suggestion-evidence-title">
+                {tr('Requirement evidence')}
+              </DialogTitle>
+              {requirement && (
+                <DialogContent sx={{ overflowWrap: 'anywhere' }}>
+                  <Typography variant="subtitle2">
+                    {tr('Job description')}
+                  </Typography>
+                  <Typography variant="body2">{requirement.jdQuote}</Typography>
+                  {requirement.cvQuote && (
+                    <>
+                      <Typography variant="subtitle2" sx={{ mt: 1 }}>
+                        {tr('CV evidence')}
+                      </Typography>
+                      <Typography variant="body2">
+                        {requirement.cvQuote}
+                      </Typography>
+                    </>
+                  )}
+                </DialogContent>
+              )}
+              <DialogActions>
+                <Button autoFocus onClick={() => setInspected(undefined)}>
+                  {tr('Close')}
+                </Button>
+              </DialogActions>
+            </Dialog>
+          </Stack>
         </Paper>
       </Box>
     </>

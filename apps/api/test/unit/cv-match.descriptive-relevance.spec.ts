@@ -174,8 +174,9 @@ describe('positive: explicit professional work is Matched', () => {
 describe('preserved behaviour', () => {
   test('soft-skill and legacy "<phrase> experience" rows keep their path', () => {
     const team = '- Led cross-team design reviews for the order platform.';
+    // Subjective quality: kept as guidance, never scored (CV Match CP2).
     expect(status('Strong communication skills', work(team), team)).toBe(
-      'EVIDENCED/1',
+      'UNDECOMPOSED/0',
     );
     const summary = 'Summary: 6+ years of professional software engineering.';
     expect(status('Software engineering experience', summary, summary)).toBe(

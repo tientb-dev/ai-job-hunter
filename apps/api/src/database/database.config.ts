@@ -1,3 +1,4 @@
+import { JdSkillInventory1795200000000 } from './migrations/1795200000000-JdSkillInventory.js';
 import {
   CvSourceRevision,
   CvProfileRevision,
@@ -128,6 +129,7 @@ export function databaseOptions(
       CvOriginalFile1794900000000,
       InterviewQuestionSetFamily1795000000000,
       MatchProfileRevision1795100000000,
+      JdSkillInventory1795200000000,
     ],
     synchronize: false,
     migrationsRun: false,

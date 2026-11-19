@@ -1,3 +1,4 @@
+import { setLocale, useI18n } from '../src/app/i18n';
 import { downloadDraft } from '../src/features/inbox/tailored-cv.contract';
 import { useRef, useState } from 'react';
 import { ThemeProvider } from '@mui/material';
@@ -5,6 +6,7 @@ import { createMemoryRouter, Link, RouterProvider } from 'react-router-dom';
 import { expect, test, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import {
+  act,
   closeSuccess,
   fireEvent,
   render,
@@ -98,6 +100,7 @@ function setup(initial = tailoredDraftFixture()) {
   });
   vi.stubGlobal('fetch', fetch);
   function Harness() {
+    useI18n();
     const [dirty, setDirty] = useState(false);
     const nav = useRef(false);
     return (
@@ -316,6 +319,7 @@ test('generation pins reviewed profile and saved job timestamp, separately from 
   )![1];
   expect(JSON.parse(init.body as string)).toMatchObject({
     contractVersion: '1',
+    locale: 'en',
     expectedJobUpdatedAt: fixture.document.pins.jobUpdatedAt,
     expectedProfileRevision: 2,
     profileRevisionId: fixture.document.pins.profileRevisionId,
@@ -764,4 +768,117 @@ test('saved user-authored wording survives reopen with its status and provenance
   );
   expect(screen.getAllByText(/used by 12 staff/)[0]).toBeInTheDocument();
   expect(screen.getByText(/Original AI suggestion/)).toBeInTheDocument();
+});
+
+test.each([
+  [true, false],
+  [false, true],
+  [true, true],
+  [false, false],
+])(
+  'review keeps rewrites (%s) and questions (%s) independent',
+  async (rewrite, question) => {
+    const initial = tailoredDraftFixture();
+    const fact = initial.document.sections
+      .flatMap((s) => s.entries.flatMap((e) => e.facts))
+      .find((f) => f.proposedWording)!;
+    if (!rewrite) {
+      fact.proposedWording = null;
+      initial.document.review.factReviews[fact.id]!.proposal = 'none';
+    }
+    if (question)
+      fact.clarification = {
+        kind: 'impact',
+        requirementIds: [],
+        status: 'open',
+      };
+    setup(initial);
+    await open();
+    expect(
+      Boolean(screen.queryByText('No rewrite suggestions for this draft.')),
+    ).toBe(!rewrite);
+    expect(
+      Boolean(
+        screen.queryByRole('progressbar', { name: 'Suggestions decided' }),
+      ),
+    ).toBe(rewrite);
+    expect(
+      Boolean(screen.queryByRole('button', { name: 'Provide details' })),
+    ).toBe(question);
+  },
+);
+
+test('shows an AI question and job context while blocking verbatim acceptance of flagged wording', async () => {
+  const draft = tailoredDraftFixture();
+  draft.document.requirements = [
+    { id: 'p1', text: 'Database query performance' },
+  ];
+  const fact = draft.document.sections.find(
+    (section) => section.kind === 'experience',
+  )!.entries[0]!.facts[0]!;
+  fact.proposedWording = {
+    text: 'Improved prototype query response time by 50%.',
+    status: 'pending',
+    requirementIds: ['p1'],
+    explanation: 'Shows the impact of the prototype work.',
+    requiresConfirmation: true,
+    confirmationAssertion: 'Query response time improved by 50%.',
+  };
+  fact.clarification = {
+    kind: 'impact',
+    status: 'open',
+    requirementIds: ['p1'],
+    question: 'What changed after the query optimization, if observed?',
+    explanation:
+      'An observed result would strengthen the performance evidence.',
+  };
+  setup(draft);
+  await open();
+  expect(
+    screen.getByRole('button', { name: /^Accept suggestion for/ }),
+  ).toBeDisabled();
+  expect(
+    screen.getByRole('button', { name: /^Keep original for/ }),
+  ).toBeEnabled();
+  expect(screen.getByText(fact.clarification.question!)).toBeInTheDocument();
+  expect(
+    screen.getByText(/Query response time improved by 50%/),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(/shows the impact of the prototype work/i),
+  ).toBeInTheDocument();
+  expect(screen.getAllByText(/database query performance/i)).toHaveLength(2);
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: 'Provide details' }));
+  expect(
+    screen.getByRole('textbox', { name: 'Your factual detail' }),
+  ).toBeInTheDocument();
+});
+
+test('locale switching keeps historical flags and saved AI content while translating fixed labels', async () => {
+  const draft = tailoredDraftFixture();
+  const fact = draft.document.sections.find(
+    (section) => section.kind === 'experience',
+  )!.entries[0]!.facts[0]!;
+  fact.proposedWording!.requiresConfirmation = true;
+  fact.proposedWording!.explanation = 'Saved rationale in English.';
+  fact.clarification = {
+    kind: 'impact',
+    status: 'open',
+    requirementIds: [],
+    question: 'Saved question in English?',
+  };
+  const state = setup(draft);
+  await open();
+  const accept = screen.getByRole('button', { name: /^Accept suggestion for/ });
+  expect(accept).toBeDisabled();
+  const requests = state.fetch.mock.calls.length;
+  act(() => setLocale('vi-VN'));
+  expect(accept).toBeDisabled();
+  expect(accept).not.toHaveTextContent('Accept suggestion');
+  expect(screen.getByText(fact.proposedWording!.text)).toBeInTheDocument();
+  expect(screen.getByText('Saved rationale in English.')).toBeInTheDocument();
+  expect(screen.getByText('Saved question in English?')).toBeInTheDocument();
+  expect(state.fetch).toHaveBeenCalledTimes(requests);
+  act(() => setLocale('en-US'));
 });

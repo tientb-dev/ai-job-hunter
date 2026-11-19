@@ -57,7 +57,7 @@ test.each([
       cvQuote: quote,
     });
     expect(resolveCvQuote(`${stack}\n${quote}`, row.cvQuote)).toBe(quote);
-    expect(result.score).toBe(50);
+    expect(result.coverageHidden).toBe('TOO_FEW_ASSESSABLE_SKILLS');
   },
 );
 test.each([

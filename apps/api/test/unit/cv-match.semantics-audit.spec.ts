@@ -168,25 +168,13 @@ const probes = [
   ['education absent', clauses.education, '', 0, 'NOT_EVIDENCED'],
 ] as const;
 
-test.each(probes)('%s', (name, requirement, cvText, score, status) => {
+test.each(probes)('%s', (_name, requirement, cvText, oldPercent, status) => {
   const cv = cvText || 'Synthetic CV: unrelated work.';
   const result = assess(jobFor(requirement), cv, cvText);
-  expect(result.score).toBe(score);
+  expect(result.coverageHidden).toBe('TOO_FEW_ASSESSABLE_SKILLS');
   expect(result.requirements).toHaveLength(1);
   expect(result.requirements[0]!.status).toBe(status);
-  // "Label: …" evidence reads as a declaration, not described work.
-  expect(result.recommendation).toBe(
-    name === 'education practical alternative'
-      ? 'Consider'
-      : // Partial AND with described work: guidance, not a score cutoff.
-        name === 'some AND components'
-        ? 'Apply'
-        : score === 100
-          ? 'Apply'
-          : score >= 40
-            ? 'Consider'
-            : 'Low Fit',
-  );
+  expect(Math.round(result.requirements[0]!.credit * 100)).toBe(oldPercent);
   for (const component of result.requirements[0]!.coverage!.components) {
     expect(requirement).toContain(component.jdQuote);
     if (component.cvQuote) expect(cv).toContain(component.cvQuote);
@@ -202,21 +190,25 @@ test('intact AND partial evidence earns proportional credit', () => {
       'Designed APIs.',
       'Designed APIs.',
     ),
-  ).toMatchObject({ score: 50, recommendation: 'Apply' });
+  ).toMatchObject({ requirements: [{ status: 'PARTIAL', credit: 0.5 }] });
 });
 
 test('parent weight stays 3 regardless of component count', () => {
   const cv = 'Designed cloud-based architectures.';
-  expect(assess(jobFor(clauses.and, 'Rust'), cv, cv).score).toBe(15);
-  // Four of five required components plus a full preferred row = 85, still Consider.
-  const text =
-    'Designed cloud-based architectures, APIs, integrations and data flows. Skills: Rust.';
-  expect(assess(jobFor(clauses.and, 'Rust'), text, text)).toMatchObject({
-    score: 85,
-    recommendation: 'Apply',
+  const preferred = 'Rust\nJava';
+  expect(assess(jobFor(clauses.and, preferred), cv, cv)).toMatchObject({
+    score: Math.round(((75 / 5) * 3) / 5),
+    coverageHidden: null,
+    requirements: [{ credit: 0.2 }, { credit: 0 }, { credit: 0 }],
   });
-  const preferred = assess(jobFor('Rust', clauses.and), text, text);
-  expect(preferred).toMatchObject({ score: 95, recommendation: 'Apply' });
+  const text =
+    'Designed cloud-based architectures, APIs, integrations and data flows.\nSkills: Rust.';
+  expect(assess(jobFor(clauses.and, preferred), text, text).score).toBe(
+    Math.round((((75 * 4) / 5) * 3 + 40) / 5),
+  );
+  expect(assess(jobFor('Rust', `${clauses.and}\nJava`), text, text).score).toBe(
+    Math.round((40 * 3 + (75 * 4) / 5) / 5),
+  );
 });
 
 test('reordered and equivalent labels need exact canonical label or quote linkage', () => {
@@ -251,13 +243,13 @@ test('reordered and equivalent labels need exact canonical label or quote linkag
     'Model Context Protocol or document intelligence',
   ]) {
     expect(canonicalRequirements(jobFor(wording))).toHaveLength(1);
-    expect(assess(jobFor(wording), cv, cv).score).toBe(100);
-    expect(assess(jobFor(wording), cv, '').score).toBe(100);
+    expect(assess(jobFor(wording), cv, cv).requirements[0]?.credit).toBe(1);
+    expect(assess(jobFor(wording), cv, '').requirements[0]?.credit).toBe(1);
   }
 });
 
 test('model-added requirements, duplicate parents and relabeling cannot inflate denominator or downgrade priority', () => {
-  const job = jobFor('Python', 'Java');
+  const job = jobFor('Python', 'Java\nKotlin');
   const canonical = canonicalRequirements(job);
   const jd = `${matchJobText(job)}\nRust`;
   const cv = 'Built Python services.';
@@ -279,11 +271,11 @@ test('model-added requirements, duplicate parents and relabeling cannot inflate 
     canonical,
   );
   expect(scoreCvMatch(verified, cv, jd, canonical)).toMatchObject({
-    score: 75,
-    recommendation: 'Apply',
+    score: Math.round((75 * 3) / 5),
+    coverageHidden: null,
   });
   expect(scoreCvMatch(verified, cv, jd, canonical).requirements).toHaveLength(
-    2,
+    3,
   );
   expect(
     scoreCvMatch(
@@ -292,7 +284,7 @@ test('model-added requirements, duplicate parents and relabeling cannot inflate 
       jd,
       canonical,
     ).score,
-  ).toBe(75);
+  ).toBe(Math.round((75 * 3) / 5));
 });
 
 test('separate component source passages support an AND without composing CV quotes', () => {
@@ -318,7 +310,7 @@ test('separate component source passages support an AND without composing CV quo
     jd,
     canonical,
   );
-  expect(result.score).toBe(100);
+  expect(result.requirements[0]?.credit).toBe(1);
   expect(
     result.requirements[0]!.coverage!.components.map((row) => row.cvQuote),
   ).toEqual(cv.split('\n'));
@@ -402,8 +394,9 @@ test('contradiction outside selected quote vetoes full credit; unrelated negativ
   ).toEqual(['I have never used MCP.']);
   const nonConflict = 'Built MCP servers.\nI have never used knowledge graphs.';
   expect(
-    assess(jobFor(clauses.or), nonConflict, 'Built MCP servers.').score,
-  ).toBe(100);
+    assess(jobFor(clauses.or), nonConflict, 'Built MCP servers.')
+      .requirements[0]?.credit,
+  ).toBe(1);
 });
 
 test('generic duration safeguards reject insufficient/negated selected evidence without changing duration weighting', () => {
@@ -412,22 +405,22 @@ test('generic duration safeguards reject insufficient/negated selected evidence 
     '2 years of experience building software.',
     'No 6 years of experience building software.',
   ])
-    expect(assess(job, quote, quote).score).toBe(0);
+    expect(assess(job, quote, quote).requirements[0]?.credit).toBe(0);
   const quote = '6 years of experience building software.';
-  expect(assess(job, quote, quote).score).toBe(100);
+  expect(assess(job, quote, quote).requirements[0]?.credit).toBe(1);
 });
 
 test('compound shared minimum duration is not satisfied by a short or unstated duration', () => {
   const job = jobFor('At least 3 years of experience with Java or Rust');
   for (const cv of ['Skills: Rust.', '2 years of experience with Rust.'])
-    expect(assess(job, cv, cv).score).toBe(0);
+    expect(assess(job, cv, cv).requirements[0]?.credit).toBe(0);
   expect(
     assess(
       job,
       '4 years of experience with Rust.',
       '4 years of experience with Rust.',
-    ).score,
-  ).toBe(100);
+    ).requirements[0]?.credit,
+  ).toBe(1);
 });
 
 test('production delivery contradicted by prototype-only evidence needs review', () => {
@@ -481,8 +474,8 @@ test('new component evidence survives the actual structured-output schema and re
       cv,
       jd,
       canonical,
-    ).score,
-  ).toBe(100);
+    ).requirements[0]?.credit,
+  ).toBe(1);
   const prompt = JSON.parse(matchPrompt(cv, jd, canonical).split('\n').at(-1)!);
   expect(prompt.canonicalRequirements[0]).toMatchObject({
     parentId: 'p1',
@@ -522,7 +515,7 @@ test('reordered conjunctions and explicit equivalent delivery/education wording 
     'Experience designing APIs and integrations',
     'Experience designing integrations and APIs',
   ])
-    expect(assess(jobFor(requirement), cv, cv).score).toBe(100);
+    expect(assess(jobFor(requirement), cv, cv).requirements[0]?.credit).toBe(1);
   const delivery =
     'Personally developed and deployed one retrieval-augmented generation application to production.';
   expect(
@@ -532,8 +525,8 @@ test('reordered conjunctions and explicit equivalent delivery/education wording 
       ),
       delivery,
       delivery,
-    ).score,
-  ).toBe(100);
+    ).requirements[0]?.credit,
+  ).toBe(1);
   const education = "Bachelor's degree in Computer Science.";
   expect(
     assess(
@@ -542,30 +535,30 @@ test('reordered conjunctions and explicit equivalent delivery/education wording 
       ),
       education,
       education,
-    ).score,
-  ).toBe(100);
+    ).requirements[0]?.credit,
+  ).toBe(1);
 });
 
 test('a negative AND component blocks full coverage without crediting a negated quote', () => {
   const cv = 'Designed APIs.\nI have never designed integrations.';
   expect(
     assess(jobFor('Experience designing APIs and integrations'), cv, cv),
-  ).toMatchObject({ score: 50, recommendation: 'Apply' });
+  ).toMatchObject({ requirements: [{ status: 'PARTIAL', credit: 0.5 }] });
 });
 
 test('one-of alternative syntax is accepted but unsupported larger quantity is never inferred', () => {
   const cv = 'Skills: Rust.';
   expect(
     assess(jobFor('Experience with at least one of Java or Rust'), cv, cv)
-      .score,
-  ).toBe(100);
+      .requirements[0]?.credit,
+  ).toBe(1);
   expect(
     assess(
       jobFor('Experience with at least 20 Java or Rust applications'),
       cv,
       cv,
-    ).score,
-  ).toBeNull(); // unevaluable alone: never inferred, no score
+    ).requirements[0],
+  ).toMatchObject({ status: 'UNDECOMPOSED', credit: 0 });
 });
 
 test('a degree in another field cannot satisfy an explicit education alternative', () => {
@@ -575,7 +568,7 @@ test('a degree in another field cannot satisfy an explicit education alternative
       jobFor("Bachelor's degree in Physics or equivalent practical experience"),
       cv,
       cv,
-    ).score,
+    ).requirements[0]?.credit,
   ).toBe(0);
 });
 
@@ -595,10 +588,10 @@ test('a simple component-only quote is usable, but a negated skill plus unrelate
       cv,
       jd,
       canonical,
-    ).score,
-  ).toBe(100);
+    ).requirements[0]?.credit,
+  ).toBe(1);
   const negative = 'No Python experience. Built Java services.';
-  expect(assess(job, negative, negative).score).toBe(0);
+  expect(assess(job, negative, negative).requirements[0]?.credit).toBe(0);
 });
 
 const mixedQualification =

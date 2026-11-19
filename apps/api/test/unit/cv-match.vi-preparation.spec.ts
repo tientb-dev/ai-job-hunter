@@ -97,7 +97,7 @@ describe('Vietnamese requirements against CV evidence', () => {
         status: 'EVIDENCED',
         credit: 1,
       });
-    expect(result.score).toBe(100);
+    expect(result.coverageHidden).toBe('TOO_FEW_ASSESSABLE_SKILLS');
   });
   test('fullstack role without a confirmable duration is PARTIAL', () => {
     const undated = 'Full-stack Developer at Synthetic Co';
@@ -191,16 +191,21 @@ describe('Vietnamese CV work evidence', () => {
 
 describe('scoring excludes rows the system could not evaluate', () => {
   test('UNDECOMPOSED is listed but not in earned or possible weight', () => {
-    const result = assess([LANGUAGES, DATABASES, FULLSTACK, UNREADABLE], {
-      [LANGUAGES]: JAVA_WORK,
-      [DATABASES]: DB_WORK,
-      [FULLSTACK]: DATED_ROLE,
-    });
+    const result = assess(
+      [LANGUAGES, DATABASES, FULLSTACK, UNREADABLE, 'Docker'],
+      {
+        [LANGUAGES]: JAVA_WORK,
+        [DATABASES]: DB_WORK,
+        [FULLSTACK]: DATED_ROLE,
+      },
+    );
     expect(row(result, UNREADABLE).status).toBe('UNDECOMPOSED');
-    expect(result.score).toBe(100);
-    expect(result.evaluability).toMatchObject({ total: 4, evaluated: 3 });
-    // One of four required rows unread is a quarter of the core: LOW.
-    expect(result.guidance?.confidence).toBe('LOW');
+    expect(row(result, 'Docker')).toMatchObject({ status: 'NOT_EVIDENCED' });
+    // Java applied, MongoDB migration applied plus, and no Docker.
+    expect(result.score).toBe(Math.round((75 + 85) / 3));
+    expect(result.coverageHidden).toBeNull();
+    expect(result.evaluability).toMatchObject({ total: 5, evaluated: 4 });
+    expect(result.guidance?.confidence).toBe('NORMAL');
   });
   test('only unreadable rows: no score, LOW guidance kept', () => {
     const result = assess([UNREADABLE], {});

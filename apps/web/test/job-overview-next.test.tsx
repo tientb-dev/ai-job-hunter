@@ -107,7 +107,7 @@ test('an approved draft for a saved job points to export', async () => {
   ).toBeVisible();
 });
 
-test('on phones all four job tabs are visible in a grid with keyboard selection', async () => {
+test('on phones all six job tabs are visible in a grid with keyboard selection', async () => {
   vi.stubGlobal(
     'matchMedia',
     vi.fn((query: string) => ({
@@ -136,10 +136,11 @@ test('on phones all four job tabs are visible in a grid with keyboard selection'
   const tabs = within(list).getAllByRole('tab');
   expect(tabs.map((t) => t.textContent)).toEqual([
     'Overview',
-    'Match',
+    'CV Match',
     'Tailored CV',
     'Application',
     'Interview',
+    'Review & Improve CV',
   ]);
   expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
   const user = userEvent.setup();

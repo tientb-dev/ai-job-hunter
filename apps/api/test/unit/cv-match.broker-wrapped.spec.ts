@@ -138,12 +138,12 @@ describe('boundaries fail closed', () => {
     },
   );
 
-  test('Skills and project technology lists alone stay uncredited', () => {
+  test('Skills and project technology lists alone are recognised, never as use', () => {
     expect(
       assess(cvOf('- Led backend reviews for the Example team.')).row,
     ).toMatchObject({
-      status: 'NOT_EVIDENCED',
-      credit: 0,
+      status: 'PARTIAL',
+      credit: 0.5,
     });
   });
 

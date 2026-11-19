@@ -85,7 +85,9 @@ test('Partial database evidence displays exact attributed work, mentions and unv
     screen.getAllByText('Proficiency is not fully verified.'),
   ).toHaveLength(3);
   expect(screen.queryByText('Not evidenced in CV')).toBeNull();
-  expect(screen.getByText(/Partial evidence available/)).toBeVisible();
+  expect(
+    screen.getByText(/proficiency at the requested level remains unverified/),
+  ).toBeVisible();
 });
 test('bare database mentions remain Unknown with exact original mention quotes', async () => {
   await mount(fixture(false));

@@ -211,14 +211,20 @@ describe('broker alternatives', () => {
     ]); // "or equivalent" is never a creditable component
   });
 
-  test.each([
-    'Skills: Kafka, RabbitMQ',
-    'Backend: Kafka, RabbitMQ',
-    'Interested in learning Kafka.',
-    'Never used RabbitMQ or Kafka.',
-  ])('no credit for skills lists, aspiration or negation: %s', (cv) => {
-    expect(row(cv)).toMatchObject({ credit: 0 });
-  });
+  // A skills list is recognised with limited credit (use not shown).
+  test.each(['Skills: Kafka, RabbitMQ', 'Backend: Kafka, RabbitMQ'])(
+    'skills-list only is recognised as partial: %s',
+    (cv) => {
+      expect(row(cv)).toMatchObject({ status: 'PARTIAL', credit: 0.5 });
+    },
+  );
+
+  test.each(['Interested in learning Kafka.', 'Never used RabbitMQ or Kafka.'])(
+    'no credit for aspiration or negation: %s',
+    (cv) => {
+      expect(row(cv)).toMatchObject({ credit: 0 });
+    },
+  );
 
   test('a denial of one alternative does not cancel demonstrated use of another', () => {
     expect(
@@ -242,8 +248,11 @@ describe('Docker evidence relevance', () => {
     expect(row(work)).toMatchObject({ status: 'EVIDENCED', cvQuote: work });
   });
 
-  test('a tools-list mention is not recovered', () => {
-    expect(row('Tools: Git, Docker').status).toBe('NOT_EVIDENCED');
+  test('a tools-list mention is recovered as a recognised skill', () => {
+    expect(row('Tools: Git, Docker')).toMatchObject({
+      status: 'PARTIAL',
+      cvQuote: 'Tools: Git, Docker',
+    });
   });
 
   test('negation blocks recovery and contradicts a selected mention', () => {
@@ -255,9 +264,8 @@ describe('Docker evidence relevance', () => {
         'Tools: Git, Docker\nNever used Docker in production.',
         'Tools: Git, Docker',
       ).status,
-      // An experience row needs related professional use; a skills line is no
-      // positive evidence, so there is nothing to conflict with (credit 0).
-    ).toBe('NOT_EVIDENCED');
+      // A listed skill contradicted by an explicit denial needs review.
+    ).toBe('CONFLICT');
   });
 });
 

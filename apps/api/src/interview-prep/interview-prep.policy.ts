@@ -424,7 +424,7 @@ export function newNumbers(text: string, source: string): number[] {
 }
 
 // ------------------------------------------------------------- tech terms
-const TECH: [string, RegExp][] = [
+export const TECH: readonly [string, RegExp][] = [
   ['Java', /\bjava\b(?!\s*script)/iu],
   ['Spring', /\bspring\b/iu],
   ['Node.js', /\bnode(?:\.?js)?\b/iu],

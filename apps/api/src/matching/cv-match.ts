@@ -6,7 +6,10 @@ import {
   roleExperience,
   simpleContradictions,
   recoverSimpleQuote,
+  notAssessable,
+  type ComponentCoverage,
   type ComponentEvidence,
+  type CoverageStatus,
   type RequirementGroup,
 } from './cv-match.coverage.js';
 import {
@@ -36,6 +39,12 @@ import {
 import { normalize } from './matching.policy.js';
 import { applicationGuidance } from './cv-match.guidance.js';
 import {
+  evidenceStrength,
+  EVIDENCE_STRENGTH,
+  strengthLabel,
+  technicalStrengthTarget,
+} from './cv-match.evidence-strength.js';
+import {
   requirementHeading,
   requirementLines,
 } from '../opportunities/job-import.sections.js';
@@ -53,6 +62,7 @@ export interface MatchRequirement {
   cvEvidenceUnverified?: true;
   // Internal only: an ambiguous component quote was dropped; blocks recovery.
   componentEvidenceUnverified?: true;
+  rejectedComponentIds?: string[];
   // Internal only: a component JD span did not match its seed; unevaluable.
   componentSpanMismatch?: true;
   // Canonical only: a validated AI decomposition of an otherwise UNKNOWN row.
@@ -750,6 +760,10 @@ export function validateMatchAssessment(
       returned: proposals.length,
     });
   }
+  // Only a completed deployment clause directly matching this requirement can
+  // survive a separate tooling clause in the same verified passage.
+  const deployedProductionModels =
+    /^\s*(?:[-*•]\s+)?(?:I\s+)?deployed production (?:ML|machine learning) models(?: serving real users)?\s*(?:,?\s+and\s+|[.;]\s+)(?:I\s+)?used (?:Copilot|Cursor|Claude Code|Codeium|Tabnine|ChatGPT) (?:to (?:write|draft|generate) tests|for (?:coding|writing tests))\.?\s*$/iu;
   const toolingRejected = (item: MatchRequirement) => {
     const sourceRequirement =
       canonical.find((seed) => linksCanonicalRequirement(item, seed))
@@ -758,29 +772,35 @@ export function validateMatchAssessment(
       /\bai\b|\bml\b|machine learning|\bllm/iu.test(sourceRequirement) &&
       (!tooling.test(sourceRequirement) ||
         production.test(sourceRequirement)) &&
-      tooling.test(item.cvQuote)
+      tooling.test(item.cvQuote) &&
+      !(
+        /^deploy production (?:ML|machine learning) models\.?$/iu.test(
+          sourceRequirement.trim(),
+        ) && deployedProductionModels.test(item.cvQuote)
+      )
     );
   };
   const toolingIndex = proposals.findIndex(toolingRejected);
   const verified = proposals.map((item) => {
     const quote = toolingRejected(item) ? null : resolveQuote(item.cvQuote);
+    const rejectedComponentIds: string[] = [];
+    const components = item.components?.map((component) => {
+      const cvQuote = toolingRejected({ ...item, cvQuote: component.cvQuote })
+        ? null
+        : resolveQuote(component.cvQuote);
+      if (component.cvQuote.trim() && cvQuote === null)
+        rejectedComponentIds.push(component.componentId);
+      return { ...component, cvQuote: cvQuote ?? '' };
+    });
     return {
       ...item,
       cvQuote: quote ?? '',
-      components: item.components?.map((component) => ({
-        ...component,
-        cvQuote: toolingRejected({ ...item, cvQuote: component.cvQuote })
-          ? ''
-          : (resolveQuote(component.cvQuote) ?? ''),
-      })),
+      components,
       ...(item.cvQuote.trim() && quote === null
         ? { cvEvidenceUnverified: true as const }
         : {}),
-      ...(item.components?.some(
-        (component) =>
-          component.cvQuote.trim() && resolveQuote(component.cvQuote) === null,
-      )
-        ? { componentEvidenceUnverified: true as const }
+      ...(rejectedComponentIds.length
+        ? { componentEvidenceUnverified: true as const, rejectedComponentIds }
         : {}),
     };
   });
@@ -877,8 +897,9 @@ export function scoreCvMatch(
       !!quote.trim() &&
       cv.includes(quote) &&
       (groupOf(item).mode !== 'SINGLE' ||
-        simpleEvidenceStatus(item.requirement, quote, cv, item.category) !==
-          'NOT_EVIDENCED');
+        ['EVIDENCED', 'PARTIAL', 'CONFLICT'].includes(
+          simpleEvidenceStatus(item.requirement, quote, cv, item.category),
+        ));
     // Why the model's own quote did or did not count (diagnostic only).
     const modelQuote = proposal?.cvEvidenceUnverified
       ? ('REJECTED' as const)
@@ -890,6 +911,9 @@ export function scoreCvMatch(
     return {
       ...item,
       modelQuote,
+      rejectedComponentIds: linked.flatMap(
+        (candidate) => candidate.rejectedComponentIds ?? [],
+      ),
       components: linked.flatMap((candidate) => candidate.components ?? []),
       selectedQuotes: linked
         .filter((candidate) => !candidate.cvEvidenceUnverified)
@@ -913,6 +937,13 @@ export function scoreCvMatch(
     };
   });
   const groups: RequirementGroup[] = [];
+  const coverageSources: {
+    group: RequirementGroup;
+    targets: readonly (string | null)[];
+    rejected: boolean;
+    spanMismatch: boolean;
+    rejectedComponentIds: readonly string[];
+  }[] = [];
   const requirements = merged
     .filter((item) => {
       const key = item.requirement.trim().toLocaleLowerCase();
@@ -922,17 +953,75 @@ export function scoreCvMatch(
       return true;
     })
     .map((item) => {
+      const canonicalGroup = groupOf(item);
+      coverageSources.push({
+        group: canonicalGroup,
+        targets: canonicalGroup.components.map(({ label }) =>
+          canonicalGroup.mode === 'UNKNOWN'
+            ? null
+            : technicalStrengthTarget(label, canonicalGroup),
+        ),
+        spanMismatch: !!item.componentSpanMismatch,
+        rejected: !!(
+          item.cvEvidenceUnverified ||
+          (item.componentEvidenceUnverified &&
+            !item.rejectedComponentIds.length)
+        ),
+        rejectedComponentIds: item.rejectedComponentIds,
+      });
       // A malformed component span leaves the row unevaluable: the existing
       // UNDECOMPOSED path (no credit, full weight in the denominator, review).
       const group: RequirementGroup = item.componentSpanMismatch
         ? {
             mode: 'UNKNOWN',
-            context: groupOf(item).context,
-            components: groupOf(item).components.map(
+            context: canonicalGroup.context,
+            components: canonicalGroup.components.map(
               ({ id, label, jdQuote }) => ({ id, label, jdQuote }),
             ),
           }
-        : groupOf(item);
+        : canonicalGroup;
+      // Headings and purely subjective rows: kept, shown, never scored.
+      const notAssessed = notAssessable(item.requirement);
+      if (notAssessed) {
+        groups.push({
+          mode: 'SINGLE',
+          context: group.context,
+          components: [
+            { id: 'c1', label: item.requirement, jdQuote: item.jdQuote },
+          ],
+        });
+        return {
+          parentId: item.parentId,
+          requirement: item.requirement,
+          priority: item.priority,
+          category: item.category,
+          jdQuote: item.jdQuote,
+          cvQuote: '',
+          status: 'UNDECOMPOSED' as CoverageStatus,
+          credit: 0,
+          notAssessed,
+          evidence: { modelQuote: item.modelQuote, review: false },
+          coverage: {
+            mode: 'SINGLE' as const,
+            credit: 0,
+            status: 'UNDECOMPOSED' as CoverageStatus,
+            reason:
+              notAssessed === 'HEADING'
+                ? 'Section heading, not a requirement.'
+                : 'Personal quality the CV cannot verify; not scored.',
+            components: [
+              {
+                id: 'c1',
+                label: item.requirement,
+                jdQuote: item.jdQuote,
+                status: 'UNDECOMPOSED' as CoverageStatus,
+                cvQuote: '',
+                conflictingQuotes: [],
+              } as ComponentCoverage,
+            ],
+          },
+        };
+      }
       groups.push(group);
       const selected = [
         ...item.selectedQuotes,
@@ -1005,7 +1094,7 @@ export function scoreCvMatch(
         cvQuote: coverage
           ? (coverage.components.find((component) => component.cvQuote)
               ?.cvQuote ?? '')
-          : status === 'EVIDENCED' || status === 'CONFLICT'
+          : status !== 'NOT_EVIDENCED' && status !== 'UNDECOMPOSED'
             ? simpleQuote
             : '',
         status,
@@ -1024,7 +1113,7 @@ export function scoreCvMatch(
               ...group.components[0]!,
               status,
               cvQuote:
-                status === 'EVIDENCED' || status === 'CONFLICT'
+                status !== 'NOT_EVIDENCED' && status !== 'UNDECOMPOSED'
                   ? simpleQuote
                   : '',
               conflictingQuotes:
@@ -1035,17 +1124,38 @@ export function scoreCvMatch(
           ],
         },
       };
-    });
+    })
+    // CV Match CP3: the CV's own evidence level/strength per named component.
+    // Exposed for later checkpoints; it does not change status or score.
+    .map((row, index) =>
+      'notAssessed' in row && row.notAssessed
+        ? row
+        : {
+            ...row,
+            coverage: {
+              ...row.coverage,
+              components: row.coverage.components.map(
+                (component, componentIndex) => {
+                  const term = coverageSources[index]!.targets[componentIndex];
+                  const strength =
+                    term &&
+                    !coverageSources[index]!.spanMismatch &&
+                    !spokenLanguage(component.label) &&
+                    !spokenLanguage(term) &&
+                    evidenceStrength(term, cv, coverageSources[index]!.group);
+                  return strength ? { ...component, strength } : component;
+                },
+              ),
+            },
+          },
+    );
   const weight = (item: MatchRequirement) =>
     item.priority === 'required' ? 3 : 1;
   // UNDECOMPOSED means the system could not evaluate the row, not that the
   // applicant failed it: it is left out of both earned and possible weight.
+  // NOT_ASSESSED rows carry status UNDECOMPOSED, so they are excluded here too.
   const scored = requirements.filter((item) => item.status !== 'UNDECOMPOSED');
   const total = scored.reduce((sum, item) => sum + weight(item), 0);
-  const earned = scored.reduce(
-    (sum, item) => sum + item.credit * weight(item),
-    0,
-  );
   const requiredGap = scored.some(
     (item) => item.priority === 'required' && item.status !== 'EVIDENCED',
   );
@@ -1053,19 +1163,27 @@ export function scoreCvMatch(
   const evidenceUncertain = requirements.some(
     (item) => item.priority === 'required' && item.evidence.review,
   );
+  // Not-assessed rows (headings, subjective qualities) are neither read nor
+  // unread JD content: they never lower evaluability, confidence or actions.
   const { evaluability, ...guidance } = applicationGuidance(
-    requirements.map((item, index) => ({
-      ...item,
-      group: groups[index]!,
-      components: item.coverage.components,
-    })),
+    requirements
+      .map((item, index) => ({
+        ...item,
+        group: groups[index]!,
+        components: item.coverage.components,
+      }))
+      .filter((item) => !('notAssessed' in item && item.notAssessed)),
   );
   // Evaluability policy (cv-match.guidance.ts `evaluability`): no score when
   // nothing could be evaluated or too little of the weighted JD was readable.
-  const score =
-    total && !unverified && !evaluability.low
-      ? Math.round((100 * earned) / total)
-      : null;
+  const coverage = evidenceCoverage(
+    requirements.map((row, index) => ({
+      ...row,
+      source: coverageSources[index]!,
+    })),
+    cv,
+  );
+  const score = !unverified && !coverage.hidden ? coverage.score : null;
   // Legacy label for older consumers, derived from guidance (no score cutoffs).
   const recommendation =
     unverified || score === null || guidance.confidence === 'LOW'
@@ -1077,23 +1195,198 @@ export function scoreCvMatch(
         }[guidance.recommendation];
   return {
     score,
+    /** CP4: why Evidence Coverage is withheld (null when shown). */
+    coverageHidden: unverified ? ('UNVERIFIED_JD' as const) : coverage.hidden,
     recommendation,
-    evidenceUncertain,
+    evidenceUncertain:
+      evidenceUncertain || coverage.hidden === 'EVIDENCE_VERIFICATION_FAILED',
     evaluability,
     // An unverified JD withholds guidance; insufficient evaluability keeps the
     // strengths/actions (LOW confidence) so the applicant can still prepare.
-    guidance: unverified || !requirements.length ? null : guidance,
+    guidance:
+      unverified || !requirements.length
+        ? null
+        : score === null
+          ? { ...guidance, confidence: 'LOW' as const }
+          : guidance,
     requirements,
     explanation:
-      'Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Conflict earns zero; requirements the system could not interpret are excluded from the score and listed separately. AI links and requirement completeness need human review; this is not a hiring probability.',
+      'Evidence Coverage is the weighted mean of CV evidence strength for technical requirements. Required requirements have weight 3 and preferred requirements have weight 1. An AND requirement uses the mean of its components. An OR requirement uses its strongest alternative. Missing evidence and conflicts contribute zero.',
     advice: unverified
       ? 'The saved JD has no recognizable requirements section, so these requirements may be incomplete and no fit score is given. Review the job requirements, then analyze again.'
-      : !total
-        ? 'No grounded requirements could be evaluated. Review the saved JD and retry.'
-        : score === null
-          ? 'Too few requirements could be evaluated reliably to give a score. Use the strengths and next steps below, and check the requirements the system could not analyze yourself.'
-          : requiredGap
-            ? 'Some required items are not clearly shown in your CV yet. If you have that experience, add accurate examples.'
-            : 'Review the quoted evidence and tailor your application using only qualifications you can substantiate.',
+      : coverage.hidden === 'EVIDENCE_VERIFICATION_FAILED'
+        ? 'Some technical evidence could not be verified against the CV. Review the affected requirements and retry.'
+        : !total
+          ? 'No grounded requirements could be evaluated. Review the saved JD and retry.'
+          : score === null
+            ? 'Too few requirements could be evaluated reliably to give a score. Use the strengths and next steps below, and check the requirements the system could not analyze yourself.'
+            : requiredGap
+              ? 'Some required items are not clearly shown in your CV yet. If you have that experience, add accurate examples.'
+              : 'Review the quoted evidence and tailor your application using only qualifications you can substantiate.',
+  };
+}
+
+// ── Evidence Coverage (CV Match CP4) ───────────────────────────────────────
+// How strongly the CV documents the JD's assessable technical requirements:
+// sum(strength × weight) / sum(weight), required 3 / preferred 1. Not a
+// proficiency rating, hiring probability or eligibility verdict.
+/** Provisional confidence thresholds; calibrate deliberately. */
+export const COVERAGE_POLICY = {
+  MIN_ASSESSABLE_SKILLS: 3,
+  MAX_UNASSESSABLE_SHARE: 0.4,
+} as const;
+export type CoverageHiddenReason =
+  | 'TOO_FEW_ASSESSABLE_SKILLS'
+  | 'TOO_MUCH_UNASSESSABLE'
+  | 'EVIDENCE_VERIFICATION_FAILED'
+  | 'UNVERIFIED_JD';
+// Non-skill conditions (Checkpoint 5): years, degrees, languages, certificates.
+const condition =
+  /(?<![\p{L}\p{N}])\d+\+?\s*(?:years?|yrs?|năm)(?!\p{L})|\b(?:bachelor|master|degree|diploma|certif\w*|toeic|ielts|jlpt|toefl)\b|(?<!\p{L})(?:cử nhân|bằng cấp|tốt nghiệp|chứng chỉ)(?!\p{L})|(?<![\p{L}\p{N}])N[1-5](?![\p{L}\p{N}])/iu;
+// Use localized names for two-letter language codes, matched against one
+// canonical JD label at a time. Keep proficiency wording outside the name.
+const spokenLanguageNames = new Set<string>();
+for (const locale of ['en', 'vi']) {
+  const names = new Intl.DisplayNames(locale, {
+    type: 'language',
+    fallback: 'none',
+  });
+  const letters = 'abcdefghijklmnopqrstuvwxyz';
+  for (const first of letters) {
+    for (const second of letters) {
+      const name = names.of(first + second);
+      if (name) spokenLanguageNames.add(normalize(name));
+    }
+  }
+}
+export function spokenLanguage(label: string): boolean {
+  const name = normalize(label)
+    .replace(/[.;:]+$/u, '')
+    .replace(/:\s*/gu, ' ')
+    .replace(
+      /^(?:fluent in|fluency in|native(?: speaker of)?|conversational|business[- ]level|good|strong|excellent)\s+/u,
+      '',
+    )
+    .replace(
+      /\s+(?:fluency|proficiency|fluent|conversational|(?:cefr )?[abc][12]|communication(?: skills)?|language(?: skills)?)$/u,
+      '',
+    );
+  return spokenLanguageNames.has(name);
+}
+
+const conditionTarget =
+  /^(?:relevant|professional|work|practical|industry|experience)$/iu;
+interface CoverageRow {
+  readonly requirement: string;
+  readonly category: MatchRequirement['category'];
+  readonly priority: 'required' | 'preferred';
+  readonly source: {
+    readonly group: RequirementGroup;
+    readonly targets: readonly (string | null)[];
+    readonly rejected: boolean;
+    readonly spanMismatch: boolean;
+    readonly rejectedComponentIds: readonly string[];
+  };
+  readonly coverage: {
+    readonly components: readonly {
+      readonly status: string;
+      readonly label: string;
+      readonly strength?: { readonly strength: number };
+    }[];
+  };
+}
+function evidenceCoverage(
+  rows: readonly CoverageRow[],
+  cv: string,
+): {
+  score: number | null;
+  hidden: CoverageHiddenReason | null;
+} {
+  const weight = (row: CoverageRow) => (row.priority === 'required' ? 3 : 1);
+  const skills: { row: CoverageRow; strength: number }[] = [];
+  let unassessable = 0;
+  let verificationFailed = false;
+  for (const row of rows) {
+    // Headings and subjective rows are neither skills nor unreadable content.
+    if ('notAssessed' in row && row.notAssessed) continue;
+    if (row.category === 'domain' || row.source.group.context === 'education')
+      continue;
+    if (conditionTarget.test(row.requirement.trim())) continue;
+    const { group, rejected, rejectedComponentIds } = row.source;
+    const components = row.coverage.components.map((component, index) => ({
+      component,
+      label: group.components[index]!.label,
+      id: group.components[index]!.id,
+      target: row.source.targets[index],
+    }));
+    const technical = components.filter(({ label }) => {
+      const target = strengthLabel(label);
+      return (
+        !spokenLanguage(label) &&
+        (target
+          ? !spokenLanguage(target) &&
+            !conditionTarget.test(target) &&
+            !condition.test(target)
+          : !condition.test(label))
+      );
+    });
+    // A condition embedded in an otherwise technical parent adds no strength
+    // or verification requirement of its own.
+    if (
+      !technical.length ||
+      (condition.test(row.requirement) &&
+        !technical.some(({ label }) => strengthLabel(label)))
+    )
+      continue;
+    const parts = technical.map(({ component, id, target }) => {
+      const conflict =
+        component.status === 'CONFLICT' ||
+        ((rejected || rejectedComponentIds.includes(id)) &&
+          target &&
+          simpleContradictions(target, cv).length > 0);
+      return conflict ? 0 : (component.strength?.strength ?? 0);
+    });
+    const maximum = Math.max(0, ...parts);
+    const unresolved = technical.some(
+      ({ component, id }) =>
+        (rejected || rejectedComponentIds.includes(id)) &&
+        !component.strength &&
+        component.status !== 'CONFLICT',
+    );
+    if (
+      row.source.spanMismatch ||
+      (unresolved &&
+        !(group.mode === 'OR' && maximum === EVIDENCE_STRENGTH.MAX))
+    )
+      verificationFailed = true;
+    if (technical.some(({ target }) => !target)) {
+      unassessable += weight(row);
+      continue;
+    }
+    const strength =
+      group.mode === 'AND'
+        ? parts.reduce((sum, value) => sum + value, 0) / (parts.length || 1)
+        : Math.max(0, ...parts); // SINGLE / OR: strongest alternative, once
+    skills.push({ row, strength });
+  }
+  // Reference: skill rows plus unreadable rows only, so headings, soft skills
+  // and conditions can never dilute an assessability problem.
+  const total =
+    skills.reduce((sum, item) => sum + weight(item.row), 0) + unassessable;
+  const hidden: CoverageHiddenReason | null = verificationFailed
+    ? 'EVIDENCE_VERIFICATION_FAILED'
+    : skills.length < COVERAGE_POLICY.MIN_ASSESSABLE_SKILLS
+      ? 'TOO_FEW_ASSESSABLE_SKILLS'
+      : total && unassessable / total > COVERAGE_POLICY.MAX_UNASSESSABLE_SHARE
+        ? 'TOO_MUCH_UNASSESSABLE'
+        : null;
+  const denominator = skills.reduce((sum, item) => sum + weight(item.row), 0);
+  const earned = skills.reduce(
+    (sum, item) => sum + item.strength * weight(item.row),
+    0,
+  );
+  return {
+    score: hidden || !denominator ? null : Math.round(earned / denominator),
+    hidden,
   };
 }

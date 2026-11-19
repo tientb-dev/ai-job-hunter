@@ -8,20 +8,17 @@ import {
 import { assembleDraft } from '../../src/tailored-cv/tailored-draft.policy.js';
 import { draftInput } from '../support/tailored-draft-fixtures.js';
 function fixture() {
-  // An order-only skills list change: the one substantive proposal D2.1 admits.
+  // Historical draft with an order-only suggestion from the former policy.
   const input = draftInput('Java', false, 'Python, Java\n', 'skill');
-  const doc = assembleDraft(input, [
-    {
-      selectedFactIds: ['java'],
-      proposals: [
-        {
-          factId: 'java',
-          text: 'Java, Python',
-          requirementIds: [],
-        },
-      ],
-    },
-  ]);
+  const doc = assembleDraft(input, []);
+  const fact = doc.sections
+    .flatMap((s) => s.entries.flatMap((e) => e.facts))
+    .find((f) => f.id === 'java')!;
+  fact.proposedWording = {
+    text: 'Java, Python',
+    requirementIds: [],
+    status: 'pending',
+  };
   const originals = new Map(input.plan.facts.map((f) => [f.id, f.value]));
   return { doc, originals };
 }
@@ -277,4 +274,189 @@ test('approval rejects new [placeholders] in accepted or edited wording in any s
   expect(
     approveReview(kept, ['java'], 5, '2026-01-01').review!.approval!.revision,
   ).toBe(5);
+});
+
+test('marketing clarification is independent of rewrites and prioritizes the documented contribution', () => {
+  const input = draftInput(
+    'campaign',
+    false,
+    'Automated campaign reporting for the weekly handoff.',
+  );
+  const doc = assembleDraft(input, [
+    {
+      selectedFactIds: ['java'],
+      proposals: [],
+      questions: [
+        {
+          factId: 'java',
+          requirementIds: ['p1'],
+          question: 'What changed in the weekly handoff?',
+          explanation: 'The role needs reliable campaign reporting.',
+        },
+      ],
+    },
+  ]);
+  const get = (draft: typeof doc) =>
+    draft.sections
+      .flatMap((s) => s.entries.flatMap((e) => e.facts))
+      .find((f) => f.id === 'java')!;
+  const originals = new Map(input.plan.facts.map((f) => [f.id, f.value]));
+  const original = get(doc).acceptedText;
+  expect(get(doc).proposedWording).toBeNull();
+  expect(get(doc).clarification?.kind).toBe('impact');
+  expect(() => approveReview(doc, [], 2, '2026-11-20')).not.toThrow();
+  for (const action of ['no_metrics', 'skip_question'] as const) {
+    const dismissed = applyReview(doc, [{ action, factId: 'java' }], originals);
+    expect(get(dismissed).acceptedText).toBe(original);
+    expect(() => approveReview(dismissed, [], 2, '2026-11-20')).not.toThrow();
+  }
+  const confirm = (draft: typeof doc, text: string) =>
+    applyReview(
+      draft,
+      [
+        {
+          action: 'confirm_answer',
+          factId: 'java',
+          text,
+        },
+      ],
+      originals,
+    );
+  const firstAnswer = confirm(doc, 'I prepared the weekly summary.');
+  const included = applyReview(
+    firstAnswer,
+    [{ action: 'use_answer', factId: 'java' }],
+    originals,
+  );
+  expect(get(included).acceptedText).toBe(
+    original + '\nI prepared the weekly summary.',
+  );
+  const editedAnswer = confirm(
+    included,
+    'I checked the weekly summary before handoff.',
+  );
+  expect(get(editedAnswer).acceptedText).toBe(original);
+  expect(get(editedAnswer).clarification?.status).toBe('confirmed');
+  const rejected = applyReview(
+    editedAnswer,
+    [{ action: 'skip_question', factId: 'java' }],
+    originals,
+  );
+  expect(get(rejected).clarification).toMatchObject({ status: 'skipped' });
+  expect(get(rejected).clarification?.answer).toBeUndefined();
+  expect(() =>
+    reviewRequest({
+      contractVersion: '1',
+      expectedRevision: 1,
+      operations: [
+        { action: 'confirm_answer', factId: 'java', text: 'Improved by [X%].' },
+      ],
+    }),
+  ).toThrow();
+});
+
+test('already quantified or unrelated descriptions can yield zero questions', () => {
+  const input = draftInput(
+    'campaign',
+    false,
+    'Built campaign reports for 12 markets.',
+  );
+  const facts = assembleDraft(input, []).sections.flatMap((s) =>
+    s.entries.flatMap((e) => e.facts),
+  );
+  expect(facts.every((f) => !f.clarification && !f.proposedWording)).toBe(true);
+});
+
+test('confirmed detail and rewrite coexist until an explicit replacement', () => {
+  const input = draftInput(
+    'campaign',
+    false,
+    'Automated campaign reporting to simplify weekly handoffs.',
+  );
+  const doc = assembleDraft(input, [
+    {
+      selectedFactIds: ['java'],
+      questions: [
+        {
+          factId: 'java',
+          requirementIds: ['p1'],
+          question: 'What changed in the weekly handoff?',
+          explanation: 'The role needs reliable campaign reporting.',
+        },
+      ],
+      proposals: [
+        {
+          factId: 'java',
+          text: 'To simplify weekly handoffs, automated campaign reporting.',
+          requirementIds: [],
+        },
+      ],
+    },
+  ]);
+  const get = (draft: typeof doc) =>
+    draft.sections
+      .flatMap((s) => s.entries.flatMap((e) => e.facts))
+      .find((f) => f.id === 'java')!;
+  const originals = new Map(input.plan.facts.map((f) => [f.id, f.value]));
+  const use = { action: 'use_answer', factId: 'java' } as const;
+  expect(get(doc).proposedWording).toBeTruthy();
+  expect(get(doc).clarification?.kind).toBe('impact');
+  expect(() =>
+    applyReview(
+      doc,
+      [{ action: 'confirm_answer', factId: 'java', text: '20%' }],
+      originals,
+    ),
+  ).toThrow('Say what changed');
+  const vietnamese = applyReview(
+    doc,
+    [
+      {
+        action: 'confirm_answer',
+        factId: 'java',
+        text: 'Giảm hai bước báo cáo thủ công',
+      },
+    ],
+    originals,
+  );
+  expect(get(vietnamese).clarification?.addition).toBe(
+    'Giảm hai bước báo cáo thủ công.',
+  );
+  const confirmed = applyReview(
+    doc,
+    [
+      {
+        action: 'confirm_answer',
+        factId: 'java',
+        text: 'removed two manual reporting steps',
+      },
+    ],
+    originals,
+  );
+  expect(get(confirmed).clarification).toMatchObject({
+    status: 'confirmed',
+    answer: 'removed two manual reporting steps',
+    addition: 'Removed two manual reporting steps.',
+  });
+  expect(get(confirmed).acceptedText).toBe(get(doc).acceptedText);
+  expect(() => applyReview(confirmed, [use], originals)).toThrow();
+  const accepted = applyReview(
+    confirmed,
+    [{ action: 'accept', factId: 'java' }],
+    originals,
+  );
+  expect(get(accepted).acceptedText).toBe(get(doc).proposedWording?.text);
+  expect(() => applyReview(accepted, [use], originals)).toThrow();
+  const replaced = applyReview(
+    accepted,
+    [{ ...use, action: 'replace_with_answer' }],
+    originals,
+  );
+  expect(get(replaced).acceptedText).toBe(
+    get(doc).acceptedText + '\nRemoved two manual reporting steps.',
+  );
+  expect(get(replaced).proposedWording).toEqual(get(doc).proposedWording);
+  expect(() =>
+    approveReview(replaced, ['java'], 5, '2026-11-20'),
+  ).not.toThrow();
 });

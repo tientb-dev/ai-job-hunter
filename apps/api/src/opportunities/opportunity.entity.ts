@@ -1,3 +1,4 @@
+import type { JdSkillInventory } from '../matching/cv-skill-match.js';
 import type { DiscoveredJob } from '../discovery/discovery.js';
 import type { ImportField } from './job-import.contract.js';
 import {
@@ -59,6 +60,8 @@ export class Opportunity {
   @Column({ type: 'text', default: '' }) jdText!: string;
   @Column({ type: 'jsonb', default: () => "'[]'::jsonb" })
   importReview!: ImportField[];
+  @Column({ type: 'jsonb', nullable: true })
+  jdSkillInventory!: JdSkillInventory | null;
   @Column({ type: 'text', nullable: true }) documentName!: string | null;
   @Column({ type: 'text', nullable: true }) documentType!: string | null;
   @Column({ type: 'bytea', nullable: true, select: false })

@@ -3,6 +3,7 @@ import { resolveCvQuote } from '../matching/cv-match.evidence.js';
 
 /** One rendered line of a confirmed fact, with offsets into the reviewed text. */
 export interface ReviewedLine {
+  readonly field?: EligibleFact['field'];
   readonly factId: string;
   readonly sectionKind: EligibleFact['sectionKind'];
   readonly entryId: string;
@@ -78,6 +79,7 @@ export function reviewedCvText(facts: readonly EligibleFact[]): ReviewedCvText {
           ? `${label}: ${value}`
           : value;
       lines.push({
+        field: fact.field,
         factId: fact.id,
         sectionKind: fact.sectionKind,
         entryId: fact.entryId,

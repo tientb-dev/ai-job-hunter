@@ -15,7 +15,6 @@ const scenarios = [
     assertion: 'claim experience implementing CI/CD pipelines',
     positive: 'Implemented CI/CD pipelines.',
     component: 4,
-    score: 20,
     status: 'PARTIAL',
   },
   {
@@ -24,7 +23,6 @@ const scenarios = [
     assertion: 'claim experience with MCP',
     positive: 'Built MCP servers.',
     component: 0,
-    score: 100,
     status: 'EVIDENCED',
   },
   {
@@ -34,7 +32,6 @@ const scenarios = [
     assertion: "claim a Bachelor's Degree in Information Technology",
     positive: "Bachelor's Degree in Information Technology",
     component: 0,
-    score: 100,
     status: 'EVIDENCED',
   },
 ] as const;
@@ -96,8 +93,7 @@ for (const scenario of scenarios) {
         for (const selection of ['', cv]) {
           const result = assess(scenario.requirement, cv, selection);
           expect(result).toMatchObject({
-            score: 0,
-            recommendation: 'Low Fit',
+            coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
             requirements: [{ status: 'NOT_EVIDENCED', credit: 0 }],
           });
           expect(
@@ -111,8 +107,7 @@ for (const scenario of scenarios) {
     const cv = `I can't speak Finnish.\n${scenario.positive}`;
     const result = assess(scenario.requirement, cv);
     expect(result).toMatchObject({
-      score: scenario.score,
-      recommendation: scenario.score === 100 ? 'Apply' : 'Low Fit',
+      coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
       requirements: [{ status: scenario.status }],
     });
     expect(
@@ -123,8 +118,7 @@ for (const scenario of scenarios) {
     const cv = `${scenario.positive}\nI can’t ${scenario.assertion}.`;
     const result = assess(scenario.requirement, cv);
     expect(result).toMatchObject({
-      score: 0,
-      recommendation: 'Low Fit',
+      coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
       requirements: [{ status: 'CONFLICT', credit: 0 }],
     });
     expect(
@@ -140,8 +134,7 @@ for (const scenario of scenarios) {
       `I can't ${scenario.assertion}.\nBuilt Python services.`,
     );
     expect(result).toMatchObject({
-      score: 0,
-      recommendation: 'Low Fit',
+      coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
       requirements: [{ status: 'NOT_EVIDENCED', credit: 0 }],
     });
   });
@@ -161,8 +154,7 @@ test.each([
       ? scenarios[1]
       : scenarios[2];
   expect(assess(scenario.requirement, cv)).toMatchObject({
-    score: 0,
-    recommendation: 'Low Fit',
+    coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
     requirements: [{ status: 'NOT_EVIDENCED', credit: 0 }],
   });
 });

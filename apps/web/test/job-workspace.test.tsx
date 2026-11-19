@@ -40,7 +40,7 @@ function mount(entry: string) {
 
 test.each([
   [`/jobs/${id}/application`, `/jobs/${id}/application`, /^Application/],
-  [`/jobs/${id}?tab=improve`, `/jobs/${id}/match`, /^Match/],
+  [`/jobs/${id}?tab=improve`, `/jobs/${id}/improve`, /^Review & Improve CV/],
   [`/jobs/${id}?tab=application`, `/jobs/${id}/application`, /^Application/],
 ])('deep link %s opens %s', async (entry, path, tab) => {
   const router = mount(entry);

@@ -217,6 +217,40 @@ export class OpportunitiesController {
     localWrite(req);
     return this.matches.suggest(owner, id, body);
   }
+  @Get(':id/jd-skill-inventory')
+  @Header('Cache-Control', 'no-store')
+  inspectJdSkillInventory(
+    @CurrentOwner() owner: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.opportunities.inspectJdSkillInventory(owner, id);
+  }
+
+  @Post(':id/jd-skill-inventory/refresh')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  refreshJdSkillInventory(
+    @CurrentOwner() owner: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Req() req: IncomingMessage,
+  ) {
+    localWrite(req);
+    return this.opportunities.refreshJdSkillInventory(owner, id);
+  }
+
+  @Post(':id/jd-skill-inventory/confirm')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  confirmJdSkillInventory(
+    @CurrentOwner() owner: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Req() req: IncomingMessage,
+    @Body() input: unknown,
+  ) {
+    localWrite(req);
+    return this.opportunities.confirmJdSkillInventory(owner, id, input);
+  }
+
   @Get(':id') @Header('Cache-Control', 'no-store') get(
     @CurrentOwner() owner: string,
     @Param('id', new ParseUUIDPipe()) id: string,

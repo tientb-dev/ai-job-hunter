@@ -114,11 +114,6 @@ describe('negative: unrelated or weak evidence is not Matched', () => {
       'Interested in Kubernetes.',
     ],
     [
-      'Experience with Terraform',
-      cvOf('SKILLS', 'Tools: Git, Docker, Terraform'),
-      'Tools: Git, Docker, Terraform',
-    ],
-    [
       'Experience with Kubernetes',
       cvOf(
         '- Deployed the billing service.',
@@ -150,6 +145,16 @@ test('an unreliably bounded wrap fails closed (PR67 boundaries)', () => {
   ).toBe('NOT_EVIDENCED/0');
 });
 
+test('a skills-list line is recognised for an experience row, never as full use', () => {
+  expect(
+    status(
+      'Experience with Terraform',
+      cvOf('SKILLS', 'Tools: Git, Docker, Terraform'),
+      'Tools: Git, Docker, Terraform',
+    ),
+  ).toBe('PARTIAL/0.5');
+});
+
 describe('policy preservation', () => {
   test('skills declarations support familiarity and bare rows (PR57)', () => {
     const cv = cvOf('SKILLS', 'Tools: Git, Docker, Terraform');
@@ -163,8 +168,9 @@ describe('policy preservation', () => {
 
   test('descriptive soft-skill labels keep the existing path', () => {
     const team = '- Led cross-team design reviews for the order platform.';
+    // Subjective quality: kept as guidance, never scored (CV Match CP2).
     expect(status('Strong communication skills', cvOf(team), team)).toBe(
-      'EVIDENCED/1',
+      'UNDECOMPOSED/0',
     );
   });
 

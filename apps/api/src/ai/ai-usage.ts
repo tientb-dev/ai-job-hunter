@@ -89,10 +89,10 @@ const S = 'ai_job_hunter';
 export const GLOBAL_USAGE_ID = '00000000-0000-0000-0000-000000000000';
 
 /**
- * Hosted (Gemini) limits: a per-process concurrency cap and daily request
+ * Hosted AI limits: a per-process concurrency cap and daily request
  * counts per account and for the whole beta, in PostgreSQL. A request counts
  * when it is sent to the provider, whatever the outcome; the provider's own
- * retries of 429/503 inside one request count once.
+ * transient retries inside one request count once.
  */
 export class AiUsageService {
   private active = 0;

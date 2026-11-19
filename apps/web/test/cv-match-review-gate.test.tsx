@@ -1,7 +1,14 @@
+import { useState } from 'react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { expect, test, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { CvMatchPanel } from '../src/features/inbox/CvMatchPanel';
 
 const job = '00000000-0000-4000-8000-0000000000e1';
@@ -20,34 +27,43 @@ const added = {
   isDefault: false,
 };
 
+function JobMatch() {
+  const [view, setView] = useState<'match' | 'improve'>('match');
+  return (
+    <CvMatchPanel
+      view={view}
+      onGoToImprove={() => setView('improve')}
+      jobId={job}
+      revision="1"
+      jobUpdatedAt="2026-11-02T00:00:00.000Z"
+    />
+  );
+}
 function Review() {
   const location = useLocation();
   return <p>Review page {location.pathname + location.search}</p>;
 }
 function mount(match: unknown, analyzed?: unknown) {
+  let saved = match;
   const fetch = vi.fn(async (url: string, init?: RequestInit) => {
     if (url.endsWith(`/${job}/cv/current`))
       return Response.json(init?.method === 'PUT' ? added : cv);
     if (url.endsWith('/opportunities/cv'))
-      return Response.json(init?.method === 'POST' ? added : [cv]);
-    if (url.endsWith(`/${job}/match`))
-      return Response.json(init?.method === 'POST' ? analyzed : match);
+      return Response.json(init?.method === 'POST' ? added : [cv, added]);
+    if (url.endsWith(`/${job}/match`)) {
+      if (init?.method === 'POST') {
+        saved = { status: 'VALID', result: analyzed, matchValidForMs: 900000 };
+        return Response.json(analyzed);
+      }
+      return Response.json(saved);
+    }
     throw Error(`Unexpected request: ${url}`);
   });
   vi.stubGlobal('fetch', fetch);
   render(
     <MemoryRouter initialEntries={[`/jobs/${job}/match`]}>
       <Routes>
-        <Route
-          path="/jobs/:id/match"
-          element={
-            <CvMatchPanel
-              jobId={job}
-              revision="1"
-              jobUpdatedAt="2026-11-02T00:00:00.000Z"
-            />
-          }
-        />
+        <Route path="/jobs/:id/match" element={<JobMatch />} />
         <Route path="/cv/:cvId/review" element={<Review />} />
       </Routes>
     </MemoryRouter>,
@@ -72,6 +88,7 @@ test('an unreviewed CV blocks Match with a Review CV action back to this job', a
   expect(
     screen.getByRole('button', { name: 'Analyze CV Match' }),
   ).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Review & Improve CV' }));
   // Improve your CV names the real prerequisite, not a generic "Outdated".
   expect(
     screen.getByText(/Review this CV first. Suggestions need a completed/),
@@ -89,6 +106,7 @@ test('an unreviewed CV blocks Match with a Review CV action back to this job', a
 
 test('uploading a CV in Job Detail saves it for this job, then opens its review', async () => {
   const fetch = mount({ status: 'MISSING' });
+  fireEvent.click(await screen.findByText('About this analysis'));
   expect(
     await screen.findByText(/A new CV opens Source CV Review first/),
   ).toBeVisible();
@@ -117,14 +135,54 @@ test('uploading a CV in Job Detail saves it for this job, then opens its review'
 });
 
 test('user-entered evidence is labelled as added in review, not from the file', async () => {
-  mount(
+  const fetch = mount(
     { status: 'MISSING' },
     {
       matchId: '00000000-0000-4000-8000-0000000000e4',
       cvUpdatedAt: cv.updatedAt,
       jobUpdatedAt: '2026-11-02T00:00:00.000Z',
-      analyzedAt: '2026-11-03T00:00:00.000Z',
-      score: 100,
+      analyzedAt: new Date().toISOString(),
+      score: null,
+      coverageHidden: 'EVIDENCE_VERIFICATION_FAILED',
+      skillMatch: {
+        version: 1,
+        score: 100,
+        limitation: null,
+        matchedCount: 1,
+        totalCount: 1,
+        rows: [
+          {
+            source: {
+              field: 'jdText',
+              start: 0,
+              end: 12,
+              quote: 'AWS required',
+            },
+            priority: 'required',
+            skills: [
+              {
+                name: 'AWS',
+                evidence: {
+                  quote: 'Certification: AWS Certified Developer',
+                  origin: 'user_entered',
+                },
+              },
+            ],
+          },
+        ],
+        findings: [
+          {
+            kind: 'skill',
+            label: 'AWS',
+            sources: [{ field: 'jdText', start: 0, end: 3, quote: 'AWS' }],
+            evidence: {
+              quote: 'Certification: AWS Certified Developer',
+              origin: 'user_entered',
+              sectionKind: 'skills',
+            },
+          },
+        ],
+      },
       recommendation: 'Apply',
       explanation: 'Synthetic heuristic',
       advice: 'Verify accurate experience.',
@@ -147,12 +205,51 @@ test('user-entered evidence is labelled as added in review, not from the file', 
   await waitFor(() => expect(analyze).toBeEnabled());
   fireEvent.click(analyze);
   fireEvent.click(
-    await screen.findByRole('button', { name: /^Already matched \(/u }),
+    await screen.findByRole('button', {
+      name: 'View details for AWS required',
+    }),
   );
-  fireEvent.click(await screen.findByRole('button', { name: 'Matched: AWS' }));
+  fireEvent.click(screen.getByText('Original CV evidence'));
   expect(
-    await screen.findByText(
-      'Your CV · added by you in review, not from the uploaded file',
-    ),
+    screen.getAllByText('Certification: AWS Certified Developer')[0],
   ).toBeVisible();
+  expect(screen.getAllByText(/Added by you in CV review/)[0]).toBeVisible();
+  expect(screen.getByText('1 JD requirements')).toBeVisible();
+
+  const saved = await (await fetch('/opportunities/' + job + '/match')).json();
+  cleanup();
+  const reload = mount(saved);
+  expect(await screen.findByText('1 JD requirements')).toBeVisible();
+  expect(
+    screen.getByRole('button', { name: 'View details for AWS required' }),
+  ).toBeVisible();
+  expect(reload.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(
+    false,
+  );
+});
+
+test('choosing another job CV keeps the previous assessment stale until reanalysis', async () => {
+  const fetch = mount({ status: 'STALE_CV' });
+  const user = userEvent.setup();
+  const selector = await screen.findByRole('combobox', {
+    name: 'CV for this job',
+  });
+  await user.click(selector);
+  await user.click(await screen.findByRole('option', { name: added.name }));
+  await waitFor(() => expect(selector).toHaveTextContent(added.name));
+  expect(
+    await screen.findByText(/different CV than the saved match/),
+  ).toBeVisible();
+  expect(
+    fetch.mock.calls.some(
+      ([url, init]) =>
+        url.endsWith('/cv/current') &&
+        init?.body === JSON.stringify({ cvId: added.id }),
+    ),
+  ).toBe(true);
+  expect(
+    fetch.mock.calls.some(
+      ([url, init]) => url.endsWith('/match') && init?.method === 'POST',
+    ),
+  ).toBe(false);
 });

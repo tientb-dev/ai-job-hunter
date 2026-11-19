@@ -20,6 +20,9 @@ import { CvMatchPanel } from '../src/features/inbox/CvMatchPanel';
 import { syntheticMatch } from './fixtures/cv-suggestions';
 import { tailoredDraftFixture, draftJobId } from './fixtures/tailored-cv';
 
+const replacementTime = '2026-01-12T04:15:00.000Z';
+const replacementLabel = new Date(replacementTime).toLocaleString('en-US');
+
 function setup(
   options: {
     status?: string;
@@ -109,7 +112,7 @@ function setup(
         current = {
           ...current,
           matchId: '00000000-0000-4000-8000-000000000092',
-          score: 42,
+          analyzedAt: replacementTime,
         };
       }
       const ready =
@@ -241,7 +244,7 @@ function setup(
       current = {
         ...current,
         matchId: '00000000-0000-4000-8000-000000000092',
-        score: 42,
+        analyzedAt: replacementTime,
       };
     },
   };
@@ -412,7 +415,9 @@ test('a replacement from another view is adopted on focus without analysis', asy
   fireEvent.click(screen.getByRole('tab', { name: /Tailor & Review/ }));
   state.replace();
   fireEvent.focus(window);
-  await screen.findByLabelText(/Fit score: 42\/100/);
+  await screen.findByText(
+    (text) => text.startsWith('Saved match') && text.includes(replacementLabel),
+  );
   expect(state.analyses()).toBe(0);
 });
 
@@ -446,7 +451,9 @@ test('replacement between current-match read and readiness is reread without ana
   const state = setup({ replaceDuringReadiness: true });
   await screen.findByRole('heading', { name: 'Step 2 of 3 · Tailor & Review' });
   fireEvent.click(screen.getByRole('tab', { name: /Tailor & Review/ }));
-  await screen.findByLabelText(/Fit score: 42\/100/);
+  await screen.findByText(
+    (text) => text.startsWith('Saved match') && text.includes(replacementLabel),
+  );
   expect(state.analyses()).toBe(0);
 });
 
@@ -890,8 +897,9 @@ test('Step 2 leads with the open draft: compact match row, then draft, then the 
   const summary = await screen.findByRole('region', {
     name: 'CV Match summary',
   });
-  // Score, freshness and both actions survive in one row.
-  expect(within(summary).getByLabelText(/Fit score: \d+\/100/)).toBeVisible();
+  expect(
+    within(summary).queryByLabelText(/Technical Evidence Coverage/),
+  ).toBeNull();
   expect(
     within(summary).getByText(/Saved match.*No new analysis is needed/),
   ).toBeVisible();

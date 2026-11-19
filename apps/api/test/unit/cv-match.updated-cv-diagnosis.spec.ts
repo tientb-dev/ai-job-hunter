@@ -201,7 +201,7 @@ test('the fresh parsed degree is recovered when the controlled model omits its s
   });
 });
 
-test('fresh full public JD with omitted selections recovers education: 21 / 2 Matched / 0 Partial / 10 Unknown / 3 Needs review', async () => {
+test('fresh full public JD with omitted selections recovers education alongside genuinely zero technical Coverage', async () => {
   const run = setup();
   const fields = Object.fromEntries(
     live.normalizedFields.map((row) => [row.field, row.value]),
@@ -224,8 +224,7 @@ test('fresh full public JD with omitted selections recovers education: 21 / 2 Ma
   expect(run.prompts.at(-1)).toMatch(
     /Bachelor['’]s Degree in Information Technology/u,
   );
-  // Unevaluable rows no longer count against the CV (was 17).
-  expect(result.score).toBe(21);
+  expect(result).toMatchObject({ score: 0, coverageHidden: null });
   expect(
     result.requirements.filter((row) => row.status === 'EVIDENCED'),
   ).toHaveLength(2);
@@ -274,7 +273,7 @@ test.each([
       'Designed integrations using RabbitMQ.',
       'Designed GitLab CI/CD pipelines.',
     ],
-    60,
+    0.6,
     ['APIs', 'integrations', 'CI/CD practices'],
   ],
   [
@@ -283,18 +282,19 @@ test.each([
       'Integrated services using RabbitMQ.',
       'Implemented GitLab CI/CD pipelines.',
     ],
-    40,
+    0.4,
     ['APIs', 'CI/CD practices'],
   ],
 ] as const)(
   'architecture source quotations grant only supported components: %j',
-  async (lines, score, supported) => {
+  async (lines, credit, supported) => {
     const quote = lines.join('\n');
     const run = setup(architectureRequirement, () => quote);
     await run.service.saveCv(LOCAL_OWNER_ID, syntheticPdf([...lines]));
     const result = await run.service.analyze(LOCAL_OWNER_ID, run.job.id);
     const row = result.requirements[0]!;
-    expect(result.score).toBe(score);
+    expect(result.coverageHidden).toBe('TOO_FEW_ASSESSABLE_SKILLS');
+    expect(row.credit).toBe(credit);
     expect(row.status).toBe('PARTIAL');
     expect(
       row.coverage.components

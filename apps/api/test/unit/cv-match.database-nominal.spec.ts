@@ -73,7 +73,7 @@ test.each([
       target(result).coverage.components.filter((c) => c.status === 'PARTIAL'),
     ).toHaveLength(1);
     expect(resolveCvQuote(cv, target(result).cvQuote)).toBe(quote);
-    expect(result.score).toBe(38);
+    expect(result.coverageHidden).toBe('TOO_FEW_ASSESSABLE_SKILLS');
   },
 );
 test.each([
@@ -159,7 +159,7 @@ test.each([
   expect(target(result).coverage.components[2]?.conflictingQuotes).toContain(
     denial,
   );
-  expect(result.score).toBe(0);
+  expect(result.coverageHidden).toBe('TOO_FEW_ASSESSABLE_SKILLS');
 });
 test('unverified proficiency or denied administration does not contradict ordinary development use', () => {
   for (const qualifier of [

@@ -39,7 +39,10 @@ const employmentContent =
   /^(?:(?:mức\s+)?lương|thu nhập|salary|compensation|working hours|work schedule|office (?:address|location)|location\s*:|thời gian làm việc|giờ làm việc|địa điểm(?: làm việc)?|địa chỉ|(?:đóng\s+)?(?:BHXH|BHYT|BHTN|bảo hiểm xã hội|bảo hiểm y tế)|nghỉ phép|nghỉ lễ|paid leave|annual leave|vacation|team building|team activities|du lịch|ngân sách đào tạo|annual learning budget|được đào tạo|hỗ trợ chi phí)/iu;
 const explicitQualification =
   /bắt buộc|yêu cầu|thành thạo|(?:có|cần)\s+(?:kinh nghiệm|kiến thức)|(?:experience|knowledge|proficiency|understanding)\s+(?:in|with|of)/iu;
-export function requirementLines(text: string): {
+export function requirementLines(
+  text: string,
+  preserveExampleClauses = false,
+): {
   line: string;
   kind: 'skills' | 'preferredSkills' | null;
   structured: boolean;
@@ -77,7 +80,7 @@ export function requirementLines(text: string): {
         return [{ line, kind: null, structured, excluded: true }];
       }
       if (
-        /^(?:must[- ]have|(?:job |candidate )?requirements?|required skills?|qualifications?|your skills and experience|what we(?:'|’)re looking for|yêu cầu(?: ứng viên| công việc| bắt buộc)?)\s*[:：]?$/iu.test(
+        /^(?:must[- ]have|(?:job |candidate )?requirements?|required skills?|(?:required )?qualifications?|your skills and experience|what we(?:'|’)re looking for|yêu cầu(?: ứng viên| công việc| bắt buộc)?)\s*[:：]?$/iu.test(
           clean,
         )
       ) {
@@ -109,12 +112,6 @@ export function requirementLines(text: string): {
         excludedSection = true;
         return [{ line, kind: null, structured, excluded: true }];
       }
-      if (
-        requirementHeading(clean) ||
-        labelHeading.test(clean) ||
-        demographicValue.test(line.replace(/^[-•*\s]+/u, ''))
-      )
-        return [{ line, kind: null, structured, excluded: true }];
       if (nonSkillHeading.test(clean)) {
         section = null;
         structured = false;
@@ -134,6 +131,12 @@ export function requirementLines(text: string): {
         section = null;
         structured = false;
       }
+      if (
+        requirementHeading(clean) ||
+        labelHeading.test(clean) ||
+        demographicValue.test(line.replace(/^[-•*\s]+/u, ''))
+      )
+        return [{ line, kind: null, structured, excluded: true }];
       if (
         /^(?:job title|vị trí|company|location|source industry|domain|salary|original url|experience|experience metadata|work mode metadata|supplemental skill tags \(not requirements\)|ignored salary placeholders \(not compensation\))\s*[:：]/iu.test(
           clean,
@@ -158,7 +161,11 @@ export function requirementLines(text: string): {
             .split('\n')
             .flatMap((part) =>
               part
-                .split(/(?<=\.)\s+(?=\p{Lu})/u)
+                .split(
+                  preserveExampleClauses
+                    ? /(?<=\.)(?<!\b[eE]\.[gG]\.)\s+(?=\p{Lu})/u
+                    : /(?<=\.)\s+(?=\p{Lu})/u,
+                )
                 .flatMap((part) =>
                   /is a plus|là (?:một )?lợi thế|điểm cộng|not required|^(?:Backend|Mobile):/iu.test(
                     part,

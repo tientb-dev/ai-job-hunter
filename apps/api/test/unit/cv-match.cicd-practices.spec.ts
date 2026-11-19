@@ -61,8 +61,7 @@ test.each(positive)(
     for (const selection of ['', cv]) {
       const result = assess(cv, selection);
       expect(result).toMatchObject({
-        score: 20,
-        recommendation: 'Low Fit',
+        coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
         requirements: [{ status: 'PARTIAL', credit: 0.2, cvQuote: cv }],
       });
       expect(
@@ -105,7 +104,7 @@ test.each([
 ])('unsupported/non-positive/unrelated wording stays Unknown: %s', (cv) => {
   for (const selection of ['', cv]) {
     expect(assess(cv, selection)).toMatchObject({
-      score: 0,
+      coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
       requirements: [{ status: 'NOT_EVIDENCED', credit: 0 }],
     });
   }
@@ -116,7 +115,7 @@ test('CI/CD implementation does not relax other component design requirements', 
     'Implemented REST APIs using microservices and RabbitMQ.\nOptimized GitLab CI/CD pipelines for AWS deployments.';
   const result = assess(cv);
   expect(result).toMatchObject({
-    score: 20,
+    coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
     requirements: [{ status: 'PARTIAL', credit: 0.2 }],
   });
   expect(
@@ -129,8 +128,7 @@ test('CI/CD implementation does not relax other component design requirements', 
 test('only pipeline evidence changes when design wording is replaced by optimization wording', () => {
   const cv = 'Designed REST APIs.\nOptimized GitLab CI/CD pipelines.';
   expect(assess(cv)).toMatchObject({
-    score: 40,
-    recommendation: 'Apply',
+    coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
     requirements: [{ status: 'PARTIAL', credit: 0.4 }],
   });
 });
@@ -140,7 +138,7 @@ test('source-backed contradictory CI/CD statements cause Conflict / zero parent 
     negative = 'Never implemented or optimized CI/CD pipelines.';
   const result = assess(`${positive}\n${negative}`);
   expect(result).toMatchObject({
-    score: 0,
+    coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
     requirements: [{ status: 'CONFLICT', credit: 0 }],
   });
   expect(result.requirements[0]!.coverage.components[4]).toMatchObject({
@@ -159,18 +157,23 @@ test('equivalent automation context participates in the same conflict check', ()
 test('component-specific equivalence does not change design-context OR semantics', () => {
   const cv = 'Optimized GitLab CI/CD pipelines.';
   const saved = job('Experience designing CI/CD practices or APIs');
-  expect(assess(cv, '', saved).score).toBe(0);
-  expect(assess(cv, cv, saved).score).toBe(0);
+  for (const selection of ['', cv]) {
+    expect(assess(cv, selection, saved).requirements[0]).toMatchObject({
+      status: 'NOT_EVIDENCED',
+      credit: 0,
+      cvQuote: '',
+    });
+  }
 });
 
 test('canonical parent weights and partial required recommendation guard remain', () => {
   const cv = 'Optimized GitLab CI/CD pipelines.\nSkills: Rust.';
-  const saved = job(requirement, 'Rust'),
+  const saved = job(requirement, 'Rust\nKotlin'),
     canonical = canonicalRequirements(saved),
     jd = matchJobText(saved);
   const proposals = canonical.map((parent, index) => ({
     ...parent,
-    cvQuote: index ? 'Skills: Rust.' : '',
+    cvQuote: index === 1 ? 'Skills: Rust.' : '',
   }));
   expect(
     scoreCvMatch(
@@ -180,9 +183,9 @@ test('canonical parent weights and partial required recommendation guard remain'
       canonical,
     ),
   ).toMatchObject({
-    score: 40,
-    recommendation: 'Low Fit',
-    requirements: [{ credit: 0.2 }, { credit: 1 }],
+    score: Math.round(((75 / 5) * 3 + 40) / 5),
+    coverageHidden: null,
+    requirements: [{ credit: 0.2 }, { credit: 1 }, { credit: 0 }],
   });
 });
 
@@ -238,7 +241,7 @@ test('an API design statement that uses a pipeline does not claim pipeline desig
   const cv = 'Designed REST APIs using CI/CD pipelines.';
   for (const selection of ['', cv]) {
     const result = assess(cv, selection);
-    expect(result.score).toBe(20);
+    expect(result.coverageHidden).toBe('TOO_FEW_ASSESSABLE_SKILLS');
     expect(
       result.requirements[0]!.coverage.components.filter(
         (row) => row.status === 'EVIDENCED',

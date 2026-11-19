@@ -58,10 +58,11 @@ const golden: Scenario[] = [
     requirement: 'Experience with REST APIs',
     cv: ['SKILLS', 'Backend: Java, REST APIs'],
     quote: 'Backend: Java, REST APIs',
-    status: 'NOT_EVIDENCED',
-    credit: 0,
+    status: 'PARTIAL',
+    credit: 0.5,
     policy: 'CURRENT',
-    rationale: 'A skills declaration is not professional experience (PR #68).',
+    rationale:
+      'A skills declaration is a recognised skill; professional use is not shown (CV Match CP1).',
   },
   {
     id: 'S02',
@@ -147,11 +148,11 @@ const golden: Scenario[] = [
     requirement: 'Experience with REST APIs',
     cv: work('- Developed RESTful APIs for order services.'),
     quote: '- Developed RESTful APIs for order services.',
-    status: 'NOT_EVIDENCED',
-    credit: 0,
-    policy: 'PROPOSED',
+    status: 'EVIDENCED',
+    credit: 1,
+    policy: 'CURRENT',
     rationale:
-      'Accepted limitation: only REST API/REST APIs are equivalent; no RESTful alias.',
+      'REST API, REST APIs and RESTful APIs are equivalent (CV Match CP1).',
   },
   {
     id: 'S09',
@@ -488,8 +489,8 @@ describe('Golden Dataset S01–S30', () => {
         (_, i) => `S${String(i + 1).padStart(2, '0')}`,
       ),
     );
-    expect(golden.filter((s) => s.policy === 'CURRENT')).toHaveLength(26);
-    expect(golden.filter((s) => s.policy === 'PROPOSED')).toHaveLength(4);
+    expect(golden.filter((s) => s.policy === 'CURRENT')).toHaveLength(27);
+    expect(golden.filter((s) => s.policy === 'PROPOSED')).toHaveLength(3);
   });
 
   describe.each(PATHS)('%s validation path', (path) => {
@@ -559,17 +560,18 @@ describe('Accepted beta limitations (characterization)', () => {
     return `${g!.status}/${g!.credit}`;
   };
 
-  test('L1 model-dependent selection: familiarity is not recovered without a quote', () => {
+  // Resolved in CV Match CP1: deterministic recovery no longer depends on the model quote.
+  test('L1 resolved: familiarity is recovered from a skills list without a quote', () => {
     expect(
       both(
         'Familiarity with Terraform',
         ['SKILLS', 'Tools: Git, Terraform'],
         '',
       ),
-    ).toBe('NOT_EVIDENCED/0');
+    ).toBe('EVIDENCED/1');
   });
 
-  test('L2 AND components are not recovered when the model omits their quotes', () => {
+  test('L2 resolved: AND components are recovered when the model omits their quotes', () => {
     expect(
       both(
         'Experience with Docker and Kubernetes',
@@ -579,7 +581,7 @@ describe('Accepted beta limitations (characterization)', () => {
         ),
         {},
       ),
-    ).toBe('NOT_EVIDENCED/0');
+    ).toBe('EVIDENCED/1');
   });
 
   test('L3 conservative descriptive matching: different wording is not matched', () => {

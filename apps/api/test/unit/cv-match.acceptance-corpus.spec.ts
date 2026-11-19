@@ -417,24 +417,24 @@ describe('14: AI decomposition — validation, cache, and provider failures', ()
         mode: 'OR',
         components: ['Amazon Web Services', 'GCP', 'Azure'],
       }),
-    ).toBeNull();
+    ).toBe('INVALID_SPAN');
     // AND contradicts the JD's "or".
     expect(
       validateDecomposition(row14, {
         mode: 'AND',
         components: ['AWS', 'GCP', 'Azure'],
       }),
-    ).toBeNull();
+    ).toBe('CLOUD_PREFIX_REQUIRES_OR');
     // Out of order / overlapping.
     expect(
       validateDecomposition(row14, {
         mode: 'OR',
         components: ['GCP', 'AWS', 'Azure'],
       }),
-    ).toBeNull();
+    ).toBe('INVALID_SPAN');
     expect(
       validateDecomposition(row14, { mode: 'UNSAFE', components: [] }),
-    ).toBeNull();
+    ).toBe('UNSAFE');
     // Quantities keep their deliberate UNKNOWN; no AI call.
     expect(
       needsDecomposition({
@@ -443,6 +443,221 @@ describe('14: AI decomposition — validation, cache, and provider failures', ()
         category: 'skill',
       }),
     ).toBe(false);
+  });
+
+  test.each([
+    [
+      'Vue/Svelte as well as testing tools',
+      ['Vue', 'Svelte', 'testing tools'],
+      'INVALID_CONNECTOR',
+    ],
+    [
+      'Vue/Svelte as well as testing tools',
+      ['Vue/Svelte', 'testing tools'],
+      'INVALID_CONNECTOR',
+    ],
+    [
+      'Vue as well as Svelte or React',
+      ['Vue', 'Svelte or React'],
+      'INVALID_CONNECTOR',
+    ],
+    [
+      'event brokers as well as cloud platforms in production',
+      ['event brokers', 'cloud platforms'],
+      'UNSUPPORTED_TAIL',
+    ],
+    [
+      'event brokers as well as cloud platforms only',
+      ['event brokers', 'cloud platforms'],
+      'UNSUPPORTED_TAIL',
+    ],
+    [
+      'event brokers as well as cloud platforms outside staging',
+      ['event brokers', 'cloud platforms'],
+      'UNSUPPORTED_TAIL',
+    ],
+    [
+      'event brokers as well as cloud platforms without supervision',
+      ['event brokers', 'cloud platforms'],
+      'UNSUPPORTED_TAIL',
+    ],
+    [
+      'event brokers as well as cloud platforms for 2 years',
+      ['event brokers', 'cloud platforms'],
+      'UNSUPPORTED_TAIL',
+    ],
+    [
+      'event brokers as well as cloud platforms for at least 2 years',
+      ['event brokers', 'cloud platforms'],
+      'UNSUPPORTED_STRUCTURE',
+    ],
+    [
+      'no event brokers as well as cloud platforms',
+      ['event brokers', 'cloud platforms'],
+      'UNSUPPORTED_NEGATION',
+    ],
+    [
+      '2 event brokers as well as cloud platforms',
+      ['event brokers', 'cloud platforms'],
+      'UNSUPPORTED_PREFIX',
+    ],
+    ['React as well as Python', ['R', 'Python'], 'INVALID_SPAN'],
+    ['X as well as Python', ['X', 'Python'], 'SHORT_COMPONENT_LABEL'],
+    ['cloud platforms', ['cloud', 'platforms'], 'INVALID_CONNECTOR'],
+    [
+      'event brokers as well as cloud platforms in production',
+      ['event brokers', 'cloud platforms', 'in production'],
+      'INVALID_CONNECTOR',
+    ],
+    ['R as well as R', ['R', 'R'], 'DUPLICATE_COMPONENT_LABEL'],
+    ['R as well as Python', ['R', 'python'], 'INVALID_SPAN'],
+  ])('rejects an unsafe split of %s', (text, components, reason) => {
+    expect(
+      validateDecomposition(
+        {
+          ...row14,
+          requirement: `Experience designing and developing ${text}`,
+        },
+        { mode: 'AND', components },
+      ),
+    ).toBe(reason);
+  });
+
+  test.each([
+    [
+      'Experience designing and developing R as well as Python',
+      ['R', 'Python'],
+    ],
+    ['Experience with CI/CD and testing tools', ['CI/CD', 'testing tools']],
+    ['Experience with Git and Docker skills', ['Git', 'Docker']],
+    ['Experience with Git, Docker, and Kafka', ['Git', 'Docker', 'Kafka']],
+  ])('preserves literal AND components in %s', (requirement, components) => {
+    expect(
+      validateDecomposition(
+        { ...row14, requirement },
+        { mode: 'AND', components },
+      ),
+    ).toMatchObject({
+      mode: 'AND',
+      components: components.map((jdQuote) => ({ jdQuote })),
+    });
+  });
+
+  test.each([
+    ['Có kiến thức về Git cũng như Docker', 'knowledge'],
+    ['Có kinh nghiệm với Git cũng như Docker', 'experience'],
+  ])('preserves shared context for %s', (requirement, context) => {
+    expect(
+      validateDecomposition(
+        { ...row14, requirement },
+        {
+          mode: 'AND',
+          components: ['Git', 'Docker'],
+        },
+      ),
+    ).toMatchObject({
+      mode: 'AND',
+      context,
+      components: [{ jdQuote: 'Git' }, { jdQuote: 'Docker' }],
+    });
+  });
+
+  test.each(['C', 'C++', 'C#'])(
+    'accepts the exact technology %s',
+    (technology) => {
+      expect(
+        validateDecomposition(
+          {
+            ...row14,
+            requirement: `Experience with Go as well as ${technology}`,
+          },
+          {
+            mode: 'AND',
+            components: ['Go', technology],
+          },
+        ),
+      ).toMatchObject({
+        components: [{ jdQuote: 'Go' }, { jdQuote: technology }],
+      });
+    },
+  );
+
+  test.each([
+    [
+      'No experience with Git as well as Docker',
+      ['No experience with Git', 'Docker'],
+      'AND',
+      'UNSUPPORTED_NEGATION',
+    ],
+    [
+      'No experience with Git as well as Docker',
+      ['Git', 'Docker'],
+      'AND',
+      'UNSUPPORTED_NEGATION',
+    ],
+    [
+      'Proficiency in Git as well as Docker',
+      ['Git', 'Docker'],
+      'AND',
+      'UNSUPPORTED_PROFICIENCY',
+    ],
+    [
+      'Sử dụng thành thạo Git và Docker',
+      ['Sử dụng thành thạo Git', 'Docker'],
+      'AND',
+      'UNSUPPORTED_PROFICIENCY',
+    ],
+    ['Experience with Go as well as COBOL', ['Go', 'C'], 'AND', 'INVALID_SPAN'],
+    ['Experience with Go as well as C++', ['Go', 'C'], 'AND', 'INVALID_SPAN'],
+    ['Experience with Go as well as C#', ['Go', 'C'], 'AND', 'INVALID_SPAN'],
+    ['Experience with Go as well as C', [], 'AND', 'INVALID_COMPONENT_COUNT'],
+    [
+      'Experience with Go as well as C',
+      ['Go as well as C'],
+      'AND',
+      'INVALID_COMPONENT_COUNT',
+    ],
+    [
+      'Có kiến thức về Git hoặc Mercurial cũng như Docker',
+      ['Git', 'Mercurial cũng như Docker'],
+      'OR',
+      'INVALID_CONNECTOR',
+    ],
+    [
+      'Có kiến thức về Git hoặc Mercurial cũng như Docker',
+      ['Git', 'Mercurial', 'Docker'],
+      'AND',
+      'INVALID_CONNECTOR',
+    ],
+  ] as const)(
+    'rejects unsafe decomposition of %s with %j',
+    (requirement, components, mode, reason) => {
+      expect(
+        validateDecomposition(
+          { ...row14, requirement },
+          { mode, components: [...components] },
+        ),
+      ).toBe(reason);
+    },
+  );
+
+  test('allows explicit OR without splitting an atomic slash technology', () => {
+    const row = {
+      ...row14,
+      requirement: 'Experience with CI/CD or testing tools',
+    };
+    expect(
+      validateDecomposition(row, {
+        mode: 'OR',
+        components: ['CI/CD', 'testing tools'],
+      }),
+    ).toMatchObject({ mode: 'OR' });
+    expect(
+      validateDecomposition(row, {
+        mode: 'OR',
+        components: ['CI', 'CD', 'testing tools'],
+      }),
+    ).toBe('INVALID_SPAN');
   });
 
   const cvText = '- Deployed Java services on AWS.';
@@ -520,6 +735,111 @@ describe('14: AI decomposition — validation, cache, and provider failures', ()
       expect(result.guidance?.confidence).toBe('LOW');
     },
   );
+
+  test('reports one fixed reason per target and correlates fresh persistence', async () => {
+    clearDecompositionCache();
+    const rows = [
+      'Experience with Git',
+      REQ.cloudIncluding,
+      'Experience designing and developing R as well as Python',
+      'Experience designing and developing event brokers as well as cloud platforms in production',
+      'Experience designing and developing Vue/Svelte as well as testing tools',
+      'Experience designing and developing queues as well as caches',
+      'Experience designing and developing proxies as well as servers',
+      'Experience designing and developing pipelines as well as data warehouses',
+    ];
+    const items = [
+      { parentId: 'p2', mode: 'OR', components: ['AWS', 'GCP', 'Azure'] },
+      { parentId: 'p2', mode: 'OR', components: ['AWS', 'GCP', 'Azure'] },
+      { parentId: 'p3', mode: 'AND', components: ['R', 'Python'] },
+      {
+        parentId: 'p4',
+        mode: 'AND',
+        components: ['event brokers', 'cloud platforms'],
+      },
+      {
+        parentId: 'p5',
+        mode: 'AND',
+        components: ['Vue', 'Svelte', 'testing tools'],
+      },
+      { parentId: 'p6', mode: 'UNSAFE', components: [] },
+      {
+        parentId: 'p7',
+        mode: 'AND',
+        components: ['PRIVATE_PROVIDER_CANARY', 'servers'],
+      },
+    ];
+    const { service } = harness(
+      async () => JSON.stringify({ items }),
+      job(rows),
+    );
+    const write = jest.spyOn(process.stderr, 'write').mockReturnValue(true);
+    const result = await service.analyze(LOCAL_OWNER_ID, 'synthetic-job');
+    const lines = write.mock.calls.map(([line]) => String(line));
+    const events = lines.map(
+      (line) => JSON.parse(line) as { event: string; attempt: string },
+    );
+    const decomposition = events.find(
+      ({ event }) => event === 'CV_MATCH_DECOMPOSITION',
+    );
+    expect(decomposition).toEqual({
+      event: 'CV_MATCH_DECOMPOSITION',
+      attempt: expect.any(String),
+      outcome: 'PARTIAL',
+      counts: { targets: 7, requested: 7, accepted: 1 },
+      targets: [
+        { index: 1, reason: 'DUPLICATE_PARENT' },
+        { index: 2, reason: 'ACCEPTED' },
+        { index: 3, reason: 'UNSUPPORTED_TAIL' },
+        { index: 4, reason: 'INVALID_CONNECTOR' },
+        { index: 5, reason: 'UNSAFE' },
+        { index: 6, reason: 'INVALID_SPAN' },
+        { index: 7, reason: 'OMITTED' },
+      ],
+    });
+    expect(
+      events.find(({ event }) => event === 'CV_MATCH_PERSISTENCE'),
+    ).toEqual({
+      event: 'CV_MATCH_PERSISTENCE',
+      attempt: decomposition?.attempt,
+      outcome: 'PERSISTED_FRESH',
+    });
+    expect(
+      result.requirements.find(({ parentId }) => parentId === 'p2')?.status,
+    ).toBe('UNDECOMPOSED');
+    for (const privateValue of [
+      ...rows,
+      cvText,
+      'PRIVATE_PROVIDER_CANARY',
+      result.matchId,
+      'synthetic-job',
+    ])
+      expect(lines.join('')).not.toContain(privateValue);
+  });
+
+  test('duplicate valid proposals cannot complete a batch with a missing parent', async () => {
+    clearDecompositionCache();
+    const proposal = {
+      parentId: 'p1',
+      mode: 'OR',
+      components: ['AWS', 'GCP', 'Azure'],
+    };
+    const { service } = harness(
+      async () => JSON.stringify({ items: [proposal, proposal] }),
+      job([
+        REQ.cloudIncluding,
+        'Experience designing and developing R as well as Python',
+      ]),
+    );
+    const write = jest.spyOn(process.stderr, 'write').mockReturnValue(true);
+    await service.analyze(LOCAL_OWNER_ID, 'synthetic-job');
+    const lines = write.mock.calls.map(([line]) => String(line));
+    expect(
+      lines.find((line) => line.includes('CV_MATCH_DECOMPOSITION')),
+    ).toContain(
+      '"outcome":"PARTIAL","counts":{"targets":2,"requested":2,"accepted":0}',
+    );
+  });
 
   test('accepted decomposition is scored and cached by JD content', async () => {
     clearDecompositionCache();

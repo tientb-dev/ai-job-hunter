@@ -7,7 +7,7 @@ export const CATEGORIES = [
   ['engineeringPractices', 10],
   ['domainKnowledge', 10],
 ] as const;
-const TERMS: readonly [string, Category, readonly string[]][] = [
+export const TERMS: readonly [string, Category, readonly string[]][] = [
   ['typescript', 'technicalSkills', []],
   ['javascript', 'technicalSkills', []],
   ['node.js', 'technicalSkills', ['nodejs']],

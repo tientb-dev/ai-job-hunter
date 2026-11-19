@@ -1,4 +1,4 @@
-import { Button, MenuItem, Stack, TextField } from '@mui/material';
+import { Box, Button, MenuItem, Stack, TextField } from '@mui/material';
 import { tr } from '../../app/i18n';
 import { UploadIcon } from '../../components/icons';
 import type { CvMatchState } from './useCvMatch';
@@ -10,9 +10,11 @@ export function JobCvPicker({
   emptyLabel = tr('Save CV'),
   inputLabel = tr('Save CV for matching'),
   onUploaded,
+  analysisAction,
 }: {
   match: Pick<CvMatchState, 'cv' | 'cvs' | 'select' | 'upload'>;
   disabled: boolean;
+  analysisAction?: React.ReactNode;
   /** Job Detail: opens the new CV's Source CV Review. */
   onUploaded?: (cvId: string) => void;
   /** Button text before any CV exists. */
@@ -30,7 +32,7 @@ export function JobCvPicker({
       direction={{ xs: 'column', sm: 'row' }}
       spacing={1}
       useFlexGap
-      sx={{ alignItems: { sm: 'center' }, minWidth: 0 }}
+      sx={{ alignItems: { sm: 'center' }, minWidth: 0, flexWrap: 'wrap' }}
     >
       {cvs.length > 0 && (
         <TextField
@@ -40,7 +42,11 @@ export function JobCvPicker({
           value={cv?.id ?? ''}
           disabled={disabled}
           onChange={(event) => void select(event.target.value)}
-          sx={{ minWidth: 0, width: { xs: '100%', sm: 320 } }}
+          sx={{
+            minWidth: 0,
+            width: { xs: '100%', sm: 320 },
+            maxWidth: '100%',
+          }}
         >
           {cvs.map((row) => (
             <MenuItem key={row.id} value={row.id} sx={{ whiteSpace: 'normal' }}>
@@ -52,6 +58,7 @@ export function JobCvPicker({
         </TextField>
       )}
       <Button
+        variant={analysisAction ? 'outlined' : 'text'}
         startIcon={<UploadIcon />}
         component="label"
         size="small"
@@ -72,6 +79,17 @@ export function JobCvPicker({
           }}
         />
       </Button>
+      {analysisAction && (
+        <Box
+          sx={{
+            marginInlineStart: { sm: 'auto' },
+            mt: { xs: 0.5, sm: 0 },
+            '& > button': { width: { xs: '100%', sm: 'auto' }, minHeight: 44 },
+          }}
+        >
+          {analysisAction}
+        </Box>
+      )}
     </Stack>
   );
 }

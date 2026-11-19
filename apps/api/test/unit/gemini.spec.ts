@@ -369,9 +369,22 @@ test.each([429, 503])(
     const fetch = mockFetch()
       .mockResolvedValueOnce(failure(status, '0'))
       .mockResolvedValueOnce(envelope(stop('{"name":"Ada"}')));
-    await expect(new GeminiProvider(config).generate(input)).resolves.toBe(
-      '{"name":"Ada"}',
-    );
+    const onProviderTiming = jest.fn();
+    await expect(
+      new GeminiProvider(config).generate({
+        ...input,
+        partial: {
+          signal: new AbortController().signal,
+          deadline: performance.now() + 5000,
+          onProviderTiming,
+        },
+      }),
+    ).resolves.toBe('{"name":"Ada"}');
+    expect(onProviderTiming).toHaveBeenCalledWith({
+      attempts: 2,
+      retries: 1,
+      elapsedMs: expect.any(Number),
+    });
     expect(fetch).toHaveBeenCalledTimes(2);
     // The identical request is resent.
     expect(fetch.mock.calls[1]![1]!.body).toBe(fetch.mock.calls[0]![1]!.body);
@@ -429,6 +442,36 @@ test('an abort during the retry wait ends the request as a timeout', async () =>
   ).rejects.toMatchObject({ code: 'TIMEOUT' });
   expect(fetch).toHaveBeenCalledTimes(1);
 });
+
+test.each(['provider', 'overall'] as const)(
+  'reports the %s deadline during a stalled response',
+  async (timeout) => {
+    const fetch = mockFetch().mockImplementation(() => new Promise(() => {}));
+    const onProviderTiming = jest.fn();
+    const short = {
+      ...config,
+      apiKey: KEY,
+      timeoutMs: timeout === 'provider' ? 15 : 5000,
+    };
+    await expect(
+      new GeminiProvider(short).generate({
+        ...input,
+        partial: {
+          signal: new AbortController().signal,
+          deadline: performance.now() + (timeout === 'provider' ? 5000 : 15),
+          onProviderTiming,
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'TIMEOUT' });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(onProviderTiming).toHaveBeenCalledWith({
+      attempts: 1,
+      retries: 0,
+      elapsedMs: expect.any(Number),
+      timeout,
+    });
+  },
+);
 
 test('retry delay honours Retry-After, backs off, and refuses long waits', () => {
   const now = Date.parse('2026-01-01T00:00:00Z');

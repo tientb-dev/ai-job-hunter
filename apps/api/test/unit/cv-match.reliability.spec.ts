@@ -53,8 +53,11 @@ const good: Record<string, string> = {
   Canva: 'Google Analytics, Facebook Ads, Canva',
 };
 // Replayed model responses: same CV/JD, one good, one with every quote empty.
-const response = (quotes: Record<string, string>) =>
-  canonical.map((row) => ({ ...row, cvQuote: quotes[row.requirement] ?? '' }));
+const response = (quotes: Record<string, string>, requirements = canonical) =>
+  requirements.map((row) => ({
+    ...row,
+    cvQuote: quotes[row.requirement] ?? '',
+  }));
 const score = (quotes: Record<string, string>) =>
   scoreCvMatch(
     validateMatchAssessment(response(quotes), cvText, jd, canonical),
@@ -64,6 +67,7 @@ const score = (quotes: Record<string, string>) =>
   );
 const flags = (result: ReturnType<typeof score>) =>
   result.requirements.map((r) => [r.requirement, r.status, r.evidence]);
+const listedCoverage = Math.round((3 * 40 + 40) / (3 + 3 + 1));
 
 describe('replayed good vs mostly-empty model response', () => {
   test('good response: evidenced, no review flags', () => {
@@ -81,30 +85,27 @@ describe('replayed good vs mostly-empty model response', () => {
       ],
       ['Canva', 'EVIDENCED', { modelQuote: 'ACCEPTED', review: false }],
     ]);
-    expect(result.score).toBe(57);
+    expect(result.score).toBe(listedCoverage);
     expect(result.evidenceUncertain).toBe(false);
   });
-  test('empty response: same low score, missed evidence flagged, SEO not', () => {
+  // Deterministic recovery: an empty model response reaches the same result.
+  test('empty response: same evidence recovered from the CV, SEO still missing', () => {
     const result = score({});
-    expect(flags(result)).toEqual([
+    expect(
+      result.requirements.map((r) => [r.requirement, r.status, r.cvQuote]),
+    ).toEqual([
       [
         'Proficient in Google Analytics',
-        'NOT_EVIDENCED',
-        { modelQuote: 'EMPTY', review: true },
+        'EVIDENCED',
+        'Google Analytics, Facebook Ads, Canva',
       ],
-      [
-        'Knowledge of SEO',
-        'NOT_EVIDENCED',
-        { modelQuote: 'EMPTY', review: false },
-      ],
-      ['Canva', 'NOT_EVIDENCED', { modelQuote: 'EMPTY', review: true }],
+      ['Knowledge of SEO', 'NOT_EVIDENCED', ''],
+      ['Canva', 'EVIDENCED', 'Google Analytics, Facebook Ads, Canva'],
     ]);
-    // Flags never earn credit or produce a quote.
-    expect(result.score).toBe(0);
-    expect(result.requirements.every((r) => r.cvQuote === '')).toBe(true);
-    expect(result.evidenceUncertain).toBe(true);
-    // A low score on doubtful evidence is not presented as a trustworthy Low Fit.
-    expect(result.recommendation).toBe('Review requirements');
+    expect(result.score).toBe(listedCoverage);
+    for (const r of result.requirements)
+      if (r.cvQuote) expect(cvText).toContain(r.cvQuote);
+    expect(result.evidenceUncertain).toBe(false);
   });
   test('genuinely missing evidence raises no warning', () => {
     const result = score({ ...good });
@@ -116,7 +117,11 @@ describe('replayed good vs mostly-empty model response', () => {
   });
 });
 
-function setup(replies: Record<string, string>[]) {
+function setup(
+  replies: Record<string, string>[],
+  provider: AiConfig['provider'] = 'ollama',
+  savedJob = job,
+) {
   const cv = {
     id: 'cv-1',
     text: cvText,
@@ -127,8 +132,13 @@ function setup(replies: Record<string, string>[]) {
     findOne: jest.fn(async () => cv),
     findOneBy: jest.fn(async () => cv),
   };
-  const generate = jest.fn<AiProvider['generate']>(async () =>
-    JSON.stringify({ requirements: response(replies.shift()!) }),
+  const requirements = canonicalRequirements(savedJob);
+  const generate = jest.fn<AiProvider['generate']>(async ({ prompt }) =>
+    prompt.startsWith('Split each job requirement')
+      ? JSON.stringify({ items: [] })
+      : JSON.stringify({
+          requirements: response(replies.shift()!, requirements),
+        }),
   );
   const rows = memoryMatchRows();
   const service = new JobMatchService(
@@ -136,10 +146,10 @@ function setup(replies: Record<string, string>[]) {
     {} as ExtractionService,
     new AiService({ generate }),
     new MatchingService(),
-    { get: jest.fn(async () => job) } as unknown as OpportunitiesService,
+    { get: jest.fn(async () => savedJob) } as unknown as OpportunitiesService,
     rows,
     reviewedAsIs(),
-    { provider: 'ollama' } as AiConfig,
+    { provider } as AiConfig,
   );
   const saved = () => (rows as unknown as { rows: CvMatchRecord[] }).rows;
   return { service, generate, saved };
@@ -147,17 +157,48 @@ function setup(replies: Record<string, string>[]) {
 
 describe('saving a low-confidence re-analysis', () => {
   test('sends the fixed seed and keeps the reliable saved match', async () => {
-    const { service, generate, saved } = setup([good, {}]);
+    // A rejected (invented) quote blocks recovery, so the re-analysis is low-confidence.
+    const invented = {
+      ...good,
+      'Proficient in Google Analytics': 'Ran PRIVATE_FAKE analytics audits',
+    };
+    const { service, generate, saved } = setup([good, invented], 'gemini', {
+      ...job,
+      preferredSkills: `${job.preferredSkills}\nExperience designing and developing queues as well as caches`,
+    });
+    const write = jest.spyOn(process.stderr, 'write').mockReturnValue(true);
     const first = await service.analyze(LOCAL_OWNER_ID, job.id);
-    expect(generate.mock.calls[0]![0]).toMatchObject({ seed: CV_MATCH_SEED });
+    expect(generate.mock.calls[1]![0]).toMatchObject({ seed: CV_MATCH_SEED });
     const second = await service.analyze(LOCAL_OWNER_ID, job.id);
     expect(second).toMatchObject({
       keptPrevious: true,
       matchId: first.matchId,
-      score: 57,
+      score: listedCoverage,
     });
     expect(saved()).toHaveLength(1);
     expect(saved()[0]!.matchId).toBe(first.matchId);
+    const outcomes = write.mock.calls
+      .map(([line]) => String(line))
+      .filter((line) => line.includes('"CV_MATCH_PERSISTENCE"'))
+      .map((line) => JSON.parse(line) as { attempt: string; outcome: string });
+    expect(outcomes).toEqual([
+      {
+        event: 'CV_MATCH_PERSISTENCE',
+        attempt: expect.any(String),
+        outcome: 'PERSISTED_FRESH',
+      },
+      {
+        event: 'CV_MATCH_PERSISTENCE',
+        attempt: expect.any(String),
+        outcome: 'RETAINED_PREVIOUS',
+      },
+    ]);
+    const attempts = write.mock.calls
+      .map(([line]) => String(line))
+      .filter((line) => line.includes('"CV_MATCH_DECOMPOSITION"'))
+      .map((line) => (JSON.parse(line) as { attempt: string }).attempt);
+    expect(outcomes.map(({ attempt }) => attempt)).toEqual(attempts);
+    expect(outcomes[0]?.attempt).not.toBe(outcomes[1]?.attempt);
   });
   test('replaces a saved match that was itself uncertain', async () => {
     const { service, saved } = setup([{}, good]);

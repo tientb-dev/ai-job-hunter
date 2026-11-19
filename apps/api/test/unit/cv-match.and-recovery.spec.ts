@@ -52,8 +52,7 @@ test.each(evidence)(
   (label, quote) => {
     const result = assess(quote);
     expect(result).toMatchObject({
-      score: 20,
-      recommendation: 'Low Fit',
+      coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
       requirements: [{ status: 'PARTIAL', credit: 0.2 }],
     });
     expect(
@@ -75,12 +74,11 @@ test.each([
   });
 });
 
-test('three supported design components preserve exact source quotes and score 60 / Consider', () => {
+test('three supported design components preserve exact source quotes and preserve partial credit', () => {
   const quotes = [evidence[1][1], evidence[2][1], evidence[4][1]];
   const result = assess(quotes.join('\r\n'));
   expect(result).toMatchObject({
-    score: 60,
-    recommendation: 'Apply',
+    coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
     requirements: [{ status: 'PARTIAL', credit: 0.6 }],
   });
   expect(
@@ -90,11 +88,10 @@ test('three supported design components preserve exact source quotes and score 6
   ).toEqual(quotes);
 });
 
-test('five independently verified components are required for Matched / Apply', () => {
+test('five independently verified components are required for Matched', () => {
   const result = assess(evidence.map(([, quote]) => quote).join('\n'));
   expect(result).toMatchObject({
-    score: 100,
-    recommendation: 'Apply',
+    coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
     requirements: [{ status: 'EVIDENCED', credit: 1 }],
   });
   expect(
@@ -110,8 +107,7 @@ test('five independently verified components are required for Matched / Apply', 
         .join('\n'),
     );
     expect(partial).toMatchObject({
-      score: 80,
-      recommendation: 'Apply',
+      coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
       requirements: [{ status: 'PARTIAL', credit: 0.8 }],
     });
     expect(
@@ -144,7 +140,7 @@ test.each([
   'keywords, implementation-only, unsupported and non-positive evidence stay Unknown: %s',
   (cv) => {
     expect(assess(cv)).toMatchObject({
-      score: 0,
+      coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
       requirements: [{ status: 'NOT_EVIDENCED', credit: 0 }],
     });
   },
@@ -155,8 +151,7 @@ test('AWS/RabbitMQ in otherwise valid API and CI/CD work cannot fill the remaini
     'Designed REST APIs using AWS and RabbitMQ.\nDesigned GitLab CI/CD pipelines.';
   const result = assess(cv);
   expect(result).toMatchObject({
-    score: 40,
-    recommendation: 'Apply',
+    coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
     requirements: [{ status: 'PARTIAL', credit: 0.4 }],
   });
   expect(
@@ -173,7 +168,7 @@ test('contradictory positive/negative design assertions cause Conflict with zero
     `${positive}\n${negative}\nDesigned GitLab CI/CD pipelines.`,
   );
   expect(result).toMatchObject({
-    score: 0,
+    coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
     requirements: [{ status: 'CONFLICT', credit: 0 }],
   });
   expect(result.requirements[0]!.coverage.components[1]).toMatchObject({
@@ -186,17 +181,28 @@ test('contradictory positive/negative design assertions cause Conflict with zero
 test('unrecognized, ambiguous and non-design AND groups gain no new recovery', () => {
   for (const text of [
     'Experience designing temporal routing and flux circuits',
-    'Experience with APIs and integrations',
-    'Working knowledge of RAG and vector search',
     'Experience designing APIs and integrations or data flows',
   ]) {
     expect(
       assess(
         'Designed temporal routing, flux circuits, APIs, integrations and data flows. Skills: RAG, vector search.',
         job(text),
-      ).score ?? 0, // never credited (null when the row is unevaluable)
+      ).requirements[0]?.credit,
     ).toBe(0);
   }
+});
+
+test('plain AND components are recovered from exact work or skills-list passages', () => {
+  const cv =
+    'Designed temporal routing, flux circuits, APIs, integrations and data flows. Skills: RAG, vector search.';
+  for (const text of [
+    'Experience with APIs and integrations',
+    'Working knowledge of RAG and vector search',
+  ])
+    expect(assess(cv, job(text)).requirements[0]).toMatchObject({
+      status: 'EVIDENCED',
+      credit: 1,
+    });
 });
 
 test('rejected parent and fabricated component/JD evidence cannot be rescued by valid design text', () => {
@@ -253,8 +259,11 @@ test('rejected parent and fabricated component/JD evidence cannot be rescued by 
 test('required/preferred parent weights and denominator remain unchanged', () => {
   const cv = 'Designed REST APIs.\nBuilt MCP servers.';
   expect(
-    assess(cv, job(requirement, 'MCP or knowledge graphs.')),
-  ).toMatchObject({ score: 40, recommendation: 'Low Fit' });
+    assess(cv, job(requirement, 'MCP or knowledge graphs.\nKotlin')),
+  ).toMatchObject({
+    score: Math.round(((75 / 5) * 3 + 75) / 5),
+    coverageHidden: null,
+  });
 });
 
 test('full public JD with omitted selections gains only the three explicit architecture design components', () => {
@@ -277,8 +286,8 @@ test('full public JD with omitted selections gains only the three explicit archi
   const cv =
     "EDUCATION\nSynthetic University\nBachelor's Degree in Information Technology\nGraduated: 2019\nProfessional Summary: 6 years of experience building software systems.\nDesigned REST APIs.\nDesigned service integrations using RabbitMQ.\nDesigned GitLab CI/CD pipelines.";
   const result = assess(cv, saved);
-  // Unevaluable rows no longer count against the CV (was 22).
-  expect(result.score).toBe(28);
+  // Three applied strengths on a five-part required parent, across technical weight 21.
+  expect(result.score).toBe(Math.round((((3 * 75) / 5) * 3) / 21));
   expect(
     result.requirements.filter((row) => row.status === 'EVIDENCED'),
   ).toHaveLength(2);
@@ -327,8 +336,7 @@ test('retained synthetic P6.7 raw live response validates and replays without mo
       canonical,
     ),
   ).toMatchObject({
-    score: 70,
-    recommendation: 'Apply',
+    coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
     requirements: [
       { status: 'PARTIAL', credit: 0.6 },
       { status: 'EVIDENCED', credit: 1 },

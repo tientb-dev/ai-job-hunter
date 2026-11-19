@@ -7,6 +7,12 @@ import {
 } from './tailored-draft.contract.js';
 
 export type ReviewOperation =
+  | { action: 'confirm_answer'; factId: string; text: string }
+  | {
+      action:
+        'use_answer' | 'replace_with_answer' | 'skip_question' | 'no_metrics';
+      factId: string;
+    }
   | { action: 'edit'; factId: string; text: string }
   | { action: 'accept' | 'reject' | 'restore'; factId: string }
   | { action: 'acknowledge'; issueIndex: number }
@@ -105,7 +111,7 @@ export function reviewRequest(body: unknown, approve = false) {
         }
         const op = record(
           input,
-          input.action === 'edit'
+          input.action === 'edit' || input.action === 'confirm_answer'
             ? ['action', 'factId', 'text']
             : input.action === 'include'
               ? ['action', 'factId', 'included']
@@ -120,6 +126,16 @@ export function reviewRequest(body: unknown, approve = false) {
             factId: op.factId,
             included: op.included,
           };
+        }
+        if (op.action === 'confirm_answer') {
+          if (
+            typeof op.text !== 'string' ||
+            !op.text.trim() ||
+            op.text.trim().length > 600 ||
+            /[[\]\p{Cc}\p{Cf}]/u.test(op.text.trim())
+          )
+            throw new Error();
+          return { action: op.action, factId: op.factId, text: op.text.trim() };
         }
         if (op.action === 'edit') {
           if (
@@ -137,7 +153,11 @@ export function reviewRequest(body: unknown, approve = false) {
         if (
           op.action !== 'accept' &&
           op.action !== 'reject' &&
-          op.action !== 'restore'
+          op.action !== 'restore' &&
+          op.action !== 'use_answer' &&
+          op.action !== 'replace_with_answer' &&
+          op.action !== 'skip_question' &&
+          op.action !== 'no_metrics'
         )
           throw new Error();
         return { action: op.action, factId: op.factId };
@@ -148,6 +168,33 @@ export function reviewRequest(body: unknown, approve = false) {
     throw new TailoredDraftError('CV_DRAFT_INVALID_REQUEST');
   }
 }
+function detailAddition(answer: string) {
+  // shortcut: accept explicit action/result phrases. Ask for the missing context in fragments.
+  const explicitAction =
+    /\b(?:\p{L}{3,}ed|was|were|had|has|did|used|ran|built|cut|grew|fell|rose|went|wrote|made|met|led|got|saved|took|gave|kept|set|won|saw|found|brought|became)\b/iu.test(
+      answer,
+    ) ||
+    /(?<!\p{L})(?:giảm|tăng|loại bỏ|dùng|sử dụng|triển khai|tạo|viết|rút ngắn|tiết kiệm|phụ trách|xử lý)\s+\p{L}/iu.test(
+      answer,
+    );
+  if (
+    !explicitAction ||
+    /\?\s*$/u.test(answer) ||
+    /^(?:(?:it|this|that)\s+)?(?:helped|worked|improved|changed|reduced)\s*[.!]?$/iu.test(
+      answer,
+    )
+  )
+    throw new TailoredDraftError('CV_DRAFT_DETAIL_UNCLEAR');
+  const wording = answer.replace(/^(\p{Ll})(?=\p{Ll}{2})/u, (first) =>
+    first.toUpperCase(),
+  );
+  return /[.!。]$/u.test(wording) ? wording : wording + '.';
+}
+
+export function enrichedWording(original: string, answer: string) {
+  return `${original.trimEnd()}\n${answer}`;
+}
+
 export function applyReview(
   document: TailoredDraftDocument,
   operations: ReviewOperation[],
@@ -178,6 +225,58 @@ export function applyReview(
       state.exportIncluded = op.included;
       continue;
     }
+    const clarification = fact.clarification;
+    const original = originals.get(fact.provenance.profileFactId);
+    if (
+      op.action === 'confirm_answer' ||
+      op.action === 'use_answer' ||
+      op.action === 'replace_with_answer' ||
+      op.action === 'skip_question' ||
+      op.action === 'no_metrics'
+    ) {
+      if (!clarification || original === undefined)
+        throw new TailoredDraftError('CV_DRAFT_INVALID_REQUEST');
+      if (op.action === 'use_answer' || op.action === 'replace_with_answer') {
+        const addition = clarification.addition ?? clarification.answer;
+        if (
+          clarification.status !== 'confirmed' ||
+          !addition ||
+          state.proposal === 'pending' ||
+          (state.wording !== 'reviewed_profile') !==
+            (op.action === 'replace_with_answer') ||
+          original.trimEnd().length + addition.length + 1 > 4000
+        )
+          throw new TailoredDraftError('CV_DRAFT_INVALID_REQUEST');
+        fact.acceptedText = enrichedWording(original, addition);
+        clarification.status = 'included';
+        state.wording = 'user_edited';
+        if (state.proposal === 'accepted') state.proposal = 'rejected';
+        continue;
+      }
+      if (clarification.status === 'included') {
+        fact.acceptedText = original;
+        state.wording = 'reviewed_profile';
+      }
+      if (op.action === 'confirm_answer') {
+        const addition = detailAddition(op.text);
+        if (original.trimEnd().length + addition.length + 1 > 4000)
+          throw new TailoredDraftError('CV_DRAFT_INVALID_REQUEST');
+        clarification.status = 'confirmed';
+        clarification.answer = op.text;
+        clarification.addition = addition;
+      } else {
+        clarification.status =
+          op.action === 'no_metrics' ? 'no_metrics' : 'skipped';
+        delete clarification.answer;
+        delete clarification.addition;
+      }
+      continue;
+    }
+    if (clarification?.status === 'included') {
+      if (op.action === 'edit' && op.text !== fact.acceptedText)
+        throw new TailoredDraftError('CV_DRAFT_INVALID_REQUEST');
+      if (op.action !== 'edit') clarification.status = 'confirmed';
+    }
     if (op.action === 'edit') {
       fact.acceptedText = op.text;
       state.wording = 'user_edited';
@@ -190,7 +289,10 @@ export function applyReview(
       state.wording = 'reviewed_profile';
       if (fact.proposedWording) state.proposal = 'rejected';
     } else {
-      if (!fact.proposedWording)
+      if (
+        !fact.proposedWording ||
+        (op.action === 'accept' && fact.proposedWording.requiresConfirmation)
+      )
         throw new TailoredDraftError('CV_DRAFT_INVALID_REQUEST');
       state.proposal = op.action === 'accept' ? 'accepted' : 'rejected';
       if (op.action === 'accept') {
@@ -237,6 +339,13 @@ export function approveReview(
     for (const entry of section.entries)
       for (const fact of entry.facts)
         if (
+          (fact.clarification?.status === 'included' &&
+            (!fact.clarification.answer ||
+              fact.acceptedText !==
+                enrichedWording(
+                  review.factReviews[fact.id]!.reviewedText,
+                  fact.clarification.addition ?? fact.clarification.answer,
+                ))) ||
           fact.verification?.details.some(
             (d) => d.startsWith('[') && fact.acceptedText.includes(d),
           ) ||

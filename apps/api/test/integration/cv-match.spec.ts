@@ -102,13 +102,20 @@ test('match review-revision migration reverts, reapplies and repeat-runs', async
       )
     ).length;
   expect(await column()).toBe(1);
-  const reverted = await revertThrough(
-    database,
-    'MatchProfileRevision1795100000000',
-  );
-  expect(reverted).toEqual(['MatchProfileRevision1795100000000']);
-  expect(await column()).toBe(0);
-  expect((await database.runMigrations()).map((m) => m.name)).toEqual(reverted);
+  const names = (
+    (await database.query(
+      'SELECT name FROM public.typeorm_migrations WHERE timestamp >= $1 ORDER BY timestamp',
+      [1795100000000],
+    )) as { name: string }[]
+  ).map(({ name }) => name);
+  try {
+    expect(
+      await revertThrough(database, 'MatchProfileRevision1795100000000'),
+    ).toEqual(names);
+    expect(await column()).toBe(0);
+  } finally {
+    expect((await database.runMigrations()).map((m) => m.name)).toEqual(names);
+  }
   expect(await column()).toBe(1);
   expect(await database.runMigrations()).toEqual([]);
 });
@@ -199,18 +206,37 @@ test('synthetic CV upload persists and matching reuses latest CV/job without mod
     .send(input)
     .expect(201);
   id = created.body.id;
+  const inventoryUrl = `/api/v1/opportunities/${id}/jd-skill-inventory`;
+  const initial = await request(app.getHttpServer())
+    .get(inventoryUrl)
+    .expect(200);
+  expect(initial.body).toMatchObject({
+    state: 'COMPLETE',
+    inventory: {
+      jobId: id,
+      status: 'COMPLETE',
+      groups: [{ options: ['Python'] }],
+    },
+  });
+  const refreshed = await request(app.getHttpServer())
+    .post(`${inventoryUrl}/refresh`)
+    .set(origin)
+    .expect(200);
+  expect(refreshed.body).toEqual(initial.body);
   await completeReview(database, LOCAL_OWNER_ID, saved.body.id);
   const first = await request(app.getHttpServer())
     .post(`/api/v1/opportunities/${id}/match`)
     .set(origin)
     .expect(200);
   expect(first.body).toMatchObject({
-    score: 100,
-    recommendation: 'Apply',
+    score: null,
+    coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
+    recommendation: 'Review requirements',
+    skillMatch: { score: 100, matchedCount: 1, totalCount: 1 },
     evaluability: { total: 1, evaluated: 1, low: false },
     guidance: {
       recommendation: 'WORTH_APPLYING',
-      confidence: 'NORMAL',
+      confidence: 'LOW',
       actions: [],
     },
   });
@@ -238,7 +264,17 @@ test('synthetic CV upload persists and matching reuses latest CV/job without mod
     .post(`/api/v1/opportunities/${id}/match`)
     .set(origin)
     .expect(200);
-  expect(second.body.score).toBe(50);
+  expect(second.body).toMatchObject({
+    score: null,
+    coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
+    skillMatch: {
+      score: null,
+      partialScore: 100,
+      fieldConflict: true,
+      matchedCount: 1,
+      totalCount: 1,
+    },
+  });
   expect(second.body.requirements).toContainEqual(
     expect.objectContaining({ requirement: 'Java', status: 'NOT_EVIDENCED' }),
   );
@@ -276,7 +312,17 @@ test('synthetic CV upload persists and matching reuses latest CV/job without mod
     .post(`/api/v1/opportunities/${id}/match`)
     .set(origin)
     .expect(200);
-  expect(third.body.score).toBe(50);
+  expect(third.body).toMatchObject({
+    score: null,
+    coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
+    skillMatch: {
+      score: null,
+      partialScore: 0,
+      fieldConflict: true,
+      matchedCount: 0,
+      totalCount: 1,
+    },
+  });
   expect(third.body.requirements).toContainEqual(
     expect.objectContaining({
       requirement: 'Java',
@@ -494,7 +540,11 @@ test('saved matches persist across restart and go stale only when this job chang
     expect(refused.body.errorCode).toBe('CV_MATCH_REVIEW_REQUIRED');
     expect(generations).toBe(unreviewed);
     const review = await completeReview(database, LOCAL_OWNER_ID, python.id);
-    expect(await status()).toEqual({ status: 'MISSING' });
+    expect(await status()).toMatchObject({
+      status: 'MISSING',
+      skillMatch: { version: 1 },
+      evidenceReview: { rows: expect.any(Array) },
+    });
     const before = generations;
     const analyzed = (
       await request(app.getHttpServer())
@@ -522,7 +572,11 @@ test('saved matches persist across restart and go stale only when this job chang
       .set(origin)
       .send({ ...input, skills: 'Python, Java' })
       .expect(200);
-    expect(await status()).toEqual({ status: 'STALE_JOB' });
+    expect(await status()).toMatchObject({
+      status: 'STALE_JOB',
+      skillMatch: { version: 1 },
+      evidenceReview: { rows: expect.any(Array) },
+    });
     await request(app.getHttpServer())
       .post(`/api/v1/opportunities/${job}/match`)
       .set(origin)
@@ -532,7 +586,11 @@ test('saved matches persist across restart and go stale only when this job chang
     expect(await status()).toMatchObject({ status: 'CV_REVIEW_REQUIRED' });
     // A match saved for another (reviewed) CV is stale.
     await completeReview(database, LOCAL_OWNER_ID, java.id);
-    expect(await status()).toEqual({ status: 'STALE_CV' });
+    expect(await status()).toMatchObject({
+      status: 'STALE_CV',
+      skillMatch: { version: 1 },
+      evidenceReview: { rows: expect.any(Array) },
+    });
     await selectCv(job, python.id);
     expect((await status()).status).toBe('VALID');
     // Legacy raw-text matches (no review revision) read as stale.
@@ -540,7 +598,11 @@ test('saved matches persist across restart and go stale only when this job chang
       'UPDATE ai_job_hunter.cv_matches SET "profileRevisionId"=NULL WHERE "jobId"=$1',
       [job],
     );
-    expect(await status()).toEqual({ status: 'STALE_CV' });
+    expect(await status()).toMatchObject({
+      status: 'STALE_CV',
+      skillMatch: { version: 1 },
+      evidenceReview: { rows: expect.any(Array) },
+    });
     await database.query(
       'UPDATE ai_job_hunter.cv_matches SET "profileRevisionId"=$1 WHERE "jobId"=$2',
       [review.profileRevisionId, job],
@@ -548,7 +610,11 @@ test('saved matches persist across restart and go stale only when this job chang
     expect((await status()).status).toBe('VALID');
     // A new completed review revision makes the prior match stale.
     const revised = await reviseReview(database, LOCAL_OWNER_ID, review);
-    expect(await status()).toEqual({ status: 'STALE_CV' });
+    expect(await status()).toMatchObject({
+      status: 'STALE_CV',
+      skillMatch: { version: 1 },
+      evidenceReview: { rows: expect.any(Array) },
+    });
     await request(app.getHttpServer())
       .post(`/api/v1/opportunities/${job}/match`)
       .set(origin)
@@ -563,7 +629,11 @@ test('saved matches persist across restart and go stale only when this job chang
       'UPDATE ai_job_hunter.cv_matches SET "policyVersion"=$1 WHERE "jobId"=$2',
       ['older-policy', job],
     );
-    expect(await status()).toEqual({ status: 'EXPIRED' });
+    expect(await status()).toMatchObject({
+      status: 'EXPIRED',
+      skillMatch: { version: 1 },
+      evidenceReview: { rows: expect.any(Array) },
+    });
     expect(generations).toBe(before + 3);
     // A fresh application instance (API restart) restores the saved result.
     await database.query(

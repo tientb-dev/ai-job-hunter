@@ -1,6 +1,11 @@
 import { tr } from '../../app/i18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { type MatchResult } from './cv-match.types';
+import {
+  COVERAGE_HIDDEN_REASONS,
+  type EvidenceReview,
+  type MatchResult,
+  type SkillMatch,
+} from './cv-match.types';
 import { validSourceDate } from './cv-suggestions.contract';
 import { importUpload, opportunityRequest } from './opportunities-api';
 
@@ -42,6 +47,7 @@ export function useCvMatch(
   const [busy, setBusy] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState('');
+  const [sourceSkillMatch, setSourceSkillMatch] = useState<SkillMatch>();
   const [result, setResult] = useState<MatchResult | null>(null);
   /** CV whose Source CV Review must be completed before matching. */
   const [reviewCvId, setReviewCvId] = useState('');
@@ -49,6 +55,7 @@ export function useCvMatch(
   if (source.jobId !== jobId || source.revision !== revision) {
     setSource({ jobId, revision });
     setResult(null);
+    setSourceSkillMatch(undefined);
     setBusy(false);
     setContextRejected(false);
   }
@@ -118,6 +125,7 @@ export function useCvMatch(
           )
             throw Error();
           setResult(value.result);
+          setSourceSkillMatch(undefined);
           if (matchIdentity.current !== value.result.matchId)
             setContextRejected(false);
           matchIdentity.current = value.result.matchId;
@@ -139,12 +147,22 @@ export function useCvMatch(
               throw Error();
             setReviewCvId(value.cvId);
           }
+          if ('skillMatch' in value) {
+            if (
+              !('cvUpdatedAt' in value) ||
+              value.cvUpdatedAt !== cv?.updatedAt ||
+              !validSkillMatch(value.skillMatch)
+            )
+              throw Error();
+            setSourceSkillMatch(value.skillMatch);
+          } else setSourceSkillMatch(undefined);
           setMatchStatus(value.status);
           setContextRejected(true);
         } else throw Error();
       } catch {
         if (!cancelled && request === generation.current) {
           setMatchStatus('ERROR');
+          setSourceSkillMatch(undefined);
           setMatchReadError(
             tr(
               'Could not load the current CV Match. Retry loading it; analysis is never started automatically.',
@@ -186,6 +204,7 @@ export function useCvMatch(
         setCvs((list) => [...list, added]);
         setCv(saved);
         setResult(null);
+        setSourceSkillMatch(undefined);
         // A new CV always starts with its Source CV Review.
         setReviewCvId(added.id);
         setMatchStatus('CV_REVIEW_REQUIRED');
@@ -215,6 +234,7 @@ export function useCvMatch(
       if (request === generation.current) {
         setCv(saved);
         setResult(null);
+        setSourceSkillMatch(undefined);
         setMatchStatus('CHECKING');
       }
     } catch (error) {
@@ -240,14 +260,14 @@ export function useCvMatch(
       }).catch(() => {
         throw new Error(
           tr(
-            'Could not reach the local matching API. Check the local API and retry; no new fit score was produced.',
+            'Could not reach the local matching API. Check the local API and retry. No new assessment was saved.',
           ),
         );
       });
       const value: unknown = await response.json().catch(() => {
         throw new Error(
           tr(
-            'The local API returned unreadable matching output. Retry; no new fit score was produced.',
+            'The local API returned unreadable matching output. Retry. No new assessment was saved.',
           ),
         );
       });
@@ -267,11 +287,12 @@ export function useCvMatch(
       if (!isMatchResult(value))
         throw new Error(
           tr(
-            'The API returned an invalid matching result. Retry; no new fit score was produced.',
+            'The API returned an invalid matching result. Retry. No new assessment was saved.',
           ),
         );
       if (request === generation.current) {
         setResult(value);
+        setSourceSkillMatch(undefined);
         matchIdentity.current = value.matchId;
         setMatchStatus('VALID');
         setContextRejected(false);
@@ -295,6 +316,7 @@ export function useCvMatch(
     busy,
     error,
     result,
+    skillMatch: matchStatus === 'VALID' ? result?.skillMatch : sourceSkillMatch,
     matchStatus,
     reviewCvId,
     matchReadError,
@@ -356,22 +378,22 @@ const analyzeErrors: Record<string, string> = {
   },
   get CV_MATCH_TIMEOUT() {
     return tr(
-      'Matching timed out. Check the AI service and retry; no new fit score was produced.',
+      'Matching timed out. Check the AI service and retry. No new assessment was saved.',
     );
   },
   get CV_MATCH_INVALID_OUTPUT() {
     return tr(
-      'The AI model returned invalid matching output. Retry; no new fit score was produced.',
+      'The AI model returned invalid matching output. Retry. No new assessment was saved.',
     );
   },
   get CV_MATCH_INCOMPLETE() {
     return tr(
-      'The AI model returned an incomplete assessment. Retry; no new fit score was produced.',
+      'The AI model returned an incomplete assessment. Retry. No new assessment was saved.',
     );
   },
   get CV_MATCH_EVIDENCE_REJECTED() {
     return tr(
-      'The AI cited CV text that could not be verified, so no new fit score was produced. Your saved match is unchanged. Retry; results can differ between attempts.',
+      'The AI cited CV text that could not be verified, so your saved assessment is unchanged. Retry; results can differ between attempts.',
     );
   },
   get CV_MATCH_OUTPUT_LIMIT() {
@@ -456,6 +478,198 @@ function validGuidance(value: unknown): boolean {
   );
 }
 
+function validConditions(value: unknown): boolean {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (condition: NonNullable<MatchResult['conditions']>[number]) =>
+        condition &&
+        (condition.parentId === undefined ||
+          typeof condition.parentId === 'string') &&
+        (condition.componentId === undefined ||
+          typeof condition.componentId === 'string') &&
+        ['SINGLE', 'AND', 'OR', 'UNKNOWN'].includes(condition.mode) &&
+        [
+          'LANGUAGE',
+          'LANGUAGE_CERTIFICATE',
+          'EXPERIENCE',
+          'EDUCATION',
+          'CERTIFICATION',
+        ].includes(condition.kind) &&
+        ['MET', 'UNKNOWN', 'NOT_MET'].includes(condition.status) &&
+        typeof condition.jdQuote === 'string' &&
+        !!condition.jdQuote.trim() &&
+        Array.isArray(condition.evidence) &&
+        (condition.status === 'UNKNOWN' || condition.evidence.length > 0) &&
+        condition.evidence.every(
+          (item) =>
+            item &&
+            typeof item.cvQuote === 'string' &&
+            !!item.cvQuote.trim() &&
+            Number.isSafeInteger(item.start) &&
+            Number.isSafeInteger(item.end) &&
+            item.start >= 0 &&
+            item.end - item.start === item.cvQuote.length &&
+            (item.cvOrigin === undefined ||
+              item.cvOrigin === 'source' ||
+              item.cvOrigin === 'user_entered'),
+        ),
+    )
+  );
+}
+
+function validSkillMatch(value: unknown): value is SkillMatch {
+  if (!value || typeof value !== 'object') return false;
+  const match = value as SkillMatch;
+  return (
+    match.version === 1 &&
+    (match.findings === undefined ||
+      (Array.isArray(match.findings) &&
+        match.findings.every(
+          (f) =>
+            f &&
+            ['skill', 'related', 'clause', 'requirement'].includes(f.kind) &&
+            typeof f.label === 'string' &&
+            Array.isArray(f.sources) &&
+            f.sources.length > 0 &&
+            f.sources.every(
+              (s) =>
+                s &&
+                typeof s.quote === 'string' &&
+                Number.isSafeInteger(s.start) &&
+                s.end - s.start === s.quote.length,
+            ) &&
+            (['skill', 'related'].includes(f.kind)
+              ? typeof f.evidence?.quote === 'string' &&
+                ['source', 'user_entered'].includes(f.evidence.origin)
+              : f.evidence === null),
+        ))) &&
+    (match.fieldConflict === undefined ||
+      typeof match.fieldConflict === 'boolean') &&
+    (match.partialScore == null ||
+      (match.limitation === 'INCOMPLETE_INVENTORY' &&
+        match.totalCount > 0 &&
+        Array.isArray(match.unresolved) &&
+        Number.isFinite(match.partialScore) &&
+        match.partialScore >= 0 &&
+        match.partialScore <= 100)) &&
+    Number.isSafeInteger(match.totalCount) &&
+    Number.isSafeInteger(match.matchedCount) &&
+    match.matchedCount >= 0 &&
+    match.matchedCount <= match.totalCount &&
+    (match.unresolved === undefined ||
+      (Array.isArray(match.unresolved) &&
+        match.unresolved.every((item) => typeof item === 'string'))) &&
+    (match.limitation === null
+      ? Number.isFinite(match.score) && match.score! >= 0 && match.score! <= 100
+      : match.score === null &&
+        ['INCOMPLETE_INVENTORY', 'NO_SKILLS'].includes(match.limitation)) &&
+    Array.isArray(match.rows) &&
+    match.rows.length === match.totalCount &&
+    match.rows.every(
+      (row) =>
+        row &&
+        ['required', 'preferred'].includes(row.priority) &&
+        typeof row.source?.quote === 'string' &&
+        Array.isArray(row.skills) &&
+        row.skills.length > 0 &&
+        row.skills.every(
+          (skill: SkillMatch['rows'][number]['skills'][number]) =>
+            skill &&
+            typeof skill.name === 'string' &&
+            (skill.evidence === null ||
+              (typeof skill.evidence?.quote === 'string' &&
+                ['source', 'user_entered'].includes(skill.evidence.origin))),
+        ),
+    )
+  );
+}
+
+function validEvidenceReview(
+  value: EvidenceReview,
+  jobUpdatedAt?: string,
+): boolean {
+  const rawFields = ['jdText', 'description', 'postText'];
+  const savedFields = ['skills', 'preferredSkills', 'experience', 'domain'];
+  const validSpan = ({
+    quote,
+    start,
+    end,
+  }: {
+    quote: string;
+    start: number;
+    end: number;
+  }) =>
+    typeof quote === 'string' &&
+    !!quote.trim() &&
+    Number.isSafeInteger(start) &&
+    start >= 0 &&
+    Number.isSafeInteger(end) &&
+    end - start === quote.length;
+  return Boolean(
+    value &&
+    value.version === 1 &&
+    validSourceDate(value.jobRevision) &&
+    (!jobUpdatedAt ||
+      Date.parse(value.jobRevision) === Date.parse(jobUpdatedAt)) &&
+    typeof value.profileRevisionId === 'string' &&
+    value.profileRevisionId &&
+    Array.isArray(value.sources) &&
+    value.sources.every(
+      (source) =>
+        source &&
+        rawFields.includes(source.field) &&
+        typeof source.text === 'string',
+    ) &&
+    Array.isArray(value.rows) &&
+    value.rows.every(
+      (row) =>
+        row &&
+        validSpan(row) &&
+        (savedFields.includes(row.field)
+          ? row.status === 'NEEDS_REVIEW' && row.reason === 'SAVED_FIELD'
+          : value.sources.some(
+              ({ field, text }) =>
+                field === row.field &&
+                text.slice(row.start, row.end) === row.quote,
+            )) &&
+        [
+          'VERIFIED_EVIDENCE',
+          'PARTIAL_EVIDENCE',
+          'NO_DOCUMENTED_EVIDENCE',
+          'NEEDS_REVIEW',
+        ].includes(row.status) &&
+        [
+          'DECLARED',
+          'MISSING',
+          'LIMITED',
+          'SCOPE',
+          'WORK_CONTEXT',
+          'TEAM_DEPLOYMENT',
+          'PRODUCTION_SCOPE',
+          'PROFICIENCY',
+          'SOURCE',
+          'SAVED_FIELD',
+          'VERIFY',
+        ].includes(row.reason) &&
+        Array.isArray(row.missing) &&
+        row.missing.every((item) => typeof item === 'string') &&
+        Array.isArray(row.evidence) &&
+        row.evidence.every(
+          (ref) =>
+            ref &&
+            validSpan(ref) &&
+            typeof ref.entryId === 'string' &&
+            !!ref.entryId &&
+            ['source', 'user_entered'].includes(ref.origin) &&
+            ['declaration', 'review', 'context'].includes(ref.kind),
+        ) &&
+        (row.status !== 'VERIFIED_EVIDENCE' ||
+          row.evidence.some(({ kind }) => kind === 'declaration')),
+    ),
+  );
+}
+
 export function isMatchResult(value: unknown): value is MatchResult {
   if (!value || typeof value !== 'object') return false;
   const row = value as Partial<MatchResult>;
@@ -470,12 +684,21 @@ export function isMatchResult(value: unknown): value is MatchResult {
         Number.isInteger(row.score) &&
         row.score >= 0 &&
         row.score <= 100)) &&
+    (row.coverageHidden === undefined ||
+      (row.coverageHidden === null
+        ? row.score !== null
+        : row.score === null &&
+          COVERAGE_HIDDEN_REASONS.includes(row.coverageHidden))) &&
     ['Apply', 'Consider', 'Low Fit', 'Review requirements'].includes(
       row.recommendation ?? '',
     ) &&
     typeof row.explanation === 'string' &&
     typeof row.advice === 'string' &&
     (row.guidance == null || validGuidance(row.guidance)) &&
+    (row.conditions === undefined || validConditions(row.conditions)) &&
+    (row.evidenceReview === undefined ||
+      validEvidenceReview(row.evidenceReview, row.jobUpdatedAt)) &&
+    (row.skillMatch === undefined || validSkillMatch(row.skillMatch)) &&
     Array.isArray(row.requirements) &&
     row.requirements.length > 0 &&
     row.requirements.every(

@@ -87,7 +87,7 @@ describe('ambiguous component quotes fail closed without failing the analysis', 
     });
     expect(component(and, 'Docker').status).not.toBe('EVIDENCED');
     expect(component(and, 'Kubernetes').status).not.toBe('EVIDENCED');
-    expect(result.score).toBe(0);
+    expect(result.coverageHidden).toBe('TOO_FEW_ASSESSABLE_SKILLS');
   });
 
   test('repeated positive and negated mentions: neither occurrence is chosen', () => {
@@ -159,19 +159,22 @@ describe('ambiguous component quotes fail closed without failing the analysis', 
     expect(row(broker).credit).toBe(0);
   });
 
-  test('no score inflation: the score equals the verified-evidence-only score', () => {
-    const job = jobOf(and, or);
-    const withAmbiguous = assess(job, cvRepeated, {
+  test('no score inflation: independent evidence decides both compound parents', () => {
+    const job = jobOf(and, or, 'Java');
+    const recovered = assess(job, cvRepeated, {
       Docker: 'Docker',
       Kubernetes: kube,
       Kafka: kafka,
       RabbitMQ: 'RabbitMQ',
-    }).result.score;
-    const verifiedOnly = assess(job, cvRepeated, {
+    }).result;
+    const verified = assess(job, cvRepeated, {
       Kubernetes: kube,
       Kafka: kafka,
-    }).result.score;
-    expect(withAmbiguous).toBeLessThanOrEqual(verifiedOnly!);
+    }).result;
+    const appliedAndListed = 75 + 5;
+    const expected = Math.round((appliedAndListed + appliedAndListed) / 3);
+    expect(verified).toMatchObject({ score: expected, coverageHidden: null });
+    expect(recovered).toMatchObject({ score: expected, coverageHidden: null });
   });
 });
 
@@ -196,5 +199,59 @@ describe('other component evidence is unchanged', () => {
     expect(row.status).not.toBe('EVIDENCED');
     expect(row.evidence.review).toBe(true);
     expect(result.evidenceUncertain).toBe(true);
+  });
+});
+
+describe('Coverage verification of individual components', () => {
+  test('a verified AND component cannot recover a different skill', () => {
+    const cv = [docker, 'Skills: Java, Spring Boot'].join('\n');
+    const { result, component } = assess(
+      jobOf(and, 'Java', 'Spring Boot'),
+      cv,
+      {
+        Docker: docker,
+        Kubernetes: 'Invented Kubernetes evidence',
+      },
+    );
+    expect(result).toMatchObject({
+      score: null,
+      coverageHidden: 'EVIDENCE_VERIFICATION_FAILED',
+    });
+    expect(component(and, 'Kubernetes')).toMatchObject({ cvQuote: '' });
+    expect(component(and, 'Kubernetes')).not.toHaveProperty('strength');
+  });
+
+  test('an unresolved OR alternative can still change a submaximal score', () => {
+    const cv = [kafka, 'Skills: Java, Spring Boot'].join('\n');
+    const { result } = assess(jobOf(or, 'Java', 'Spring Boot'), cv, {
+      Kafka: kafka,
+      RabbitMQ: 'Invented RabbitMQ evidence',
+    });
+    expect(result).toMatchObject({
+      score: null,
+      coverageHidden: 'EVIDENCE_VERIFICATION_FAILED',
+    });
+  });
+
+  test('an unresolved OR alternative cannot change a capped strength', () => {
+    const cv = [
+      'Project: Orders',
+      'Delivered Kafka consumers for order events.',
+      'Project: Billing',
+      'Implemented a Kafka workflow for overdue invoices.',
+      'Project: Reporting',
+      'Built Kafka pipelines for shipment data.',
+      'Skills: Kafka, Java, Spring Boot',
+    ].join('\n');
+    const { result, component } = assess(jobOf(or, 'Java', 'Spring Boot'), cv, {
+      Kafka: 'Delivered Kafka consumers for order events.',
+      RabbitMQ: 'Invented RabbitMQ evidence',
+    });
+    expect(result).toMatchObject({
+      score: Math.round((100 + 40 + 40) / 3),
+      coverageHidden: null,
+    });
+    expect(component(or, 'RabbitMQ')).toMatchObject({ cvQuote: '' });
+    expect(component(or, 'RabbitMQ')).not.toHaveProperty('strength');
   });
 });

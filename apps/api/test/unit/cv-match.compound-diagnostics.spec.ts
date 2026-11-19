@@ -161,8 +161,10 @@ describe('per-component AND/OR diagnostics', () => {
       },
     ]);
     expect(summary.requirements[2]!.components).toEqual([
-      { position: 0, ...NOT, quote: 'ALLOWED' }, // CI/CD line for Docker
-      { position: 1, ...NOT, quote: 'ALLOWED' }, // negated line
+      // The irrelevant CI/CD quote is ignored; Docker is recovered from the
+      // skills line. Listed Kubernetes plus "Never used Kubernetes" conflicts.
+      { position: 0, status: 'EVIDENCED', accepted: true, quote: 'ALLOWED' },
+      { position: 1, status: 'CONFLICT', accepted: false, quote: 'ALLOWED' },
     ]);
   });
 
@@ -170,9 +172,11 @@ describe('per-component AND/OR diagnostics', () => {
     const summary = summaryOf(
       (await run({ [pair]: { Kubernetes: uncertain } }, true)).events,
     )!;
+    // The uncertain quote is not accepted; the listed skill and the denial conflict.
     expect(summary.requirements[2]!.components).toContainEqual({
       position: 1,
-      ...NOT,
+      status: 'CONFLICT',
+      accepted: false,
       quote: 'ALLOWED',
     });
   });

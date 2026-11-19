@@ -1,13 +1,21 @@
+import type { DraftFact } from '../../src/tailored-cv/tailored-draft.contract.js';
 import { ReviewedCvService } from '../../src/reviewed-cv/reviewed-cv.service.js';
 import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js';
 import { asLocalOwner } from '../support/as-local-owner.js';
 import { SavedCvSourceService } from '../../src/matching/saved-cv-source.service.js';
 import { OpportunitiesService } from '../../src/opportunities/opportunities.service.js';
 import { TailoredDraftGenerator } from '../../src/tailored-cv/tailored-draft.generator.js';
-import { AI_CONFIG } from '../../src/ai/ai.config.js';
+import {
+  AI_CONFIG,
+  OPENAI_MODEL,
+  aiConfig,
+  tailoredCvAiConfig,
+} from '../../src/ai/ai.config.js';
+import { AiService } from '../../src/ai/ai.service.js';
+import { OpenAiProvider } from '../../src/ai/openai.provider.js';
 import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
-import { afterAll, beforeAll, expect, test } from '@jest/globals';
+import { afterAll, beforeAll, expect, jest, test } from '@jest/globals';
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import { DataSource } from 'typeorm';
@@ -49,6 +57,7 @@ const filename = `synthetic-p83-${randomUUID()}.txt`;
 let ownsCv = false;
 let mode:
   | 'valid'
+  | 'enrichment'
   | 'unsafe'
   | 'invalid'
   | 'reference'
@@ -58,6 +67,7 @@ let mode:
   | 'stale-cv'
   | 'stale-match'
   | 'wait' = 'valid';
+let draftCalls = 0;
 let started: (() => void) | undefined;
 let release: (() => void) | undefined;
 let current: {
@@ -77,7 +87,12 @@ async function generate(req: GenerationRequest): Promise<string> {
       category: string;
       jdQuote: string;
     }[];
-    facts?: { id: string; text: string }[];
+    sections?: {
+      entries: {
+        entryId: string;
+        facts: { factId: string; original: string }[];
+      }[];
+    }[];
     requirements?: { requirementId: string }[];
   };
   if (data.passages)
@@ -112,10 +127,24 @@ async function generate(req: GenerationRequest): Promise<string> {
       })),
     });
   }
+  draftCalls++;
   if (mode === 'timeout') throw new AiError('TIMEOUT');
   if (mode === 'invalid') return '{invalid private output';
   if (mode === 'reference')
-    return JSON.stringify({ selectedFactIds: ['foreign-fact'], proposals: [] });
+    return JSON.stringify({
+      outcome: 'opportunities',
+      questions: [],
+      proposals: [
+        {
+          factId: 'foreign-fact',
+          entryId: 'foreign-entry',
+          text: 'Example rewrite',
+          requirementIds: [],
+          explanation: 'Example reason',
+          confirmationAssertion: null,
+        },
+      ],
+    });
   if (mode === 'wait') {
     started?.();
     await new Promise<void>((resolve) => {
@@ -146,17 +175,42 @@ async function generate(req: GenerationRequest): Promise<string> {
     );
   if (mode === 'stale-match')
     await matches.analyze(LOCAL_OWNER_ID, current.job.id);
-  const facts = data.facts!;
+  const facts = data.sections!.flatMap((section) =>
+    section.entries.flatMap((entry) =>
+      entry.facts.map((fact) => ({ ...fact, entryId: entry.entryId })),
+    ),
+  );
   return JSON.stringify({
-    selectedFactIds: facts.map((f) => f.id).reverse(),
-    proposals: facts.slice(0, 1).map((f) => ({
-      factId: f.id,
-      text:
-        mode === 'unsafe'
-          ? 'Led 500 production Kubernetes systems.'
-          : f.text.replace('for internal', 'for the internal'),
-      requirementIds: [data.requirements![0]!.requirementId],
-    })),
+    outcome: 'opportunities',
+    questions:
+      mode === 'enrichment'
+        ? facts
+            .filter((fact) => fact.factId === 'java')
+            .map((fact) => ({
+              factId: fact.factId,
+              entryId: fact.entryId,
+              requirementIds: [data.requirements![0]!.requirementId],
+              question: 'Who used these tools, and at what scale?',
+              explanation: 'The scope would help explain the experience.',
+            }))
+        : [],
+    proposals: facts
+      .filter((f) => f.factId === 'java' || f.factId === 'stack')
+      .slice(0, 2)
+      .map((f) => ({
+        factId: f.factId,
+        entryId: f.entryId,
+        explanation: 'Surfaces skills relevant to this job.',
+        confirmationAssertion:
+          mode === 'unsafe' ? 'Led 500 production Kubernetes systems.' : null,
+        text:
+          mode === 'unsafe'
+            ? 'Led 500 production Kubernetes systems.'
+            : f.factId === 'stack'
+              ? '• Python\n• Java\n• SQL'
+              : 'Developed Java interfaces for internal tooling.',
+        requirementIds: [data.requirements![0]!.requirementId],
+      })),
   });
 }
 beforeAll(async () => {
@@ -201,10 +255,29 @@ afterAll(async () => {
     await db.destroy();
   }
 });
-async function ready() {
+async function ready(multipleBatches = false) {
   mode = 'valid';
-  // A pure skills list gives the deterministic D2.3 order-only proposal.
-  const fixture = draftFixture(false, undefined, undefined, 'Python, Java\n');
+  // The mock can format this documented list without changing its items.
+  const fixture = draftFixture(
+    false,
+    undefined,
+    undefined,
+    'Python, Java, SQL\n',
+  );
+  if (multipleBatches) {
+    const entry = fixture.document.sections.find(
+      (s) => s.kind === 'experience',
+    )!.entries[0]!;
+    for (let index = 0; index < 4; index++)
+      entry.facts.push({
+        id: `extra-${index}`,
+        field: 'description',
+        value: `Synthetic reviewed note ${index}`,
+        origin: 'user_entered',
+        review: 'confirmed',
+        evidence: [],
+      });
+  }
   // A fresh CV version per scenario, as a re-upload used to give.
   const fresh = { text: fixture.text, updatedAt: new Date() };
   if (
@@ -287,11 +360,18 @@ const post = () =>
     .send(current.body);
 test('durably generates a complete source-default draft, lists metadata and retrieves pinned content after restart', async () => {
   const state = await ready();
+  current.body.locale = 'en';
+  await request(app.getHttpServer())
+    .post(`${base}/jobs/${current.job.id}/drafts`)
+    .set(origin)
+    .send({ ...current.body, locale: 'fr' })
+    .expect(400);
   const originalJob = await db
     .getRepository(Opportunity)
     .findOneByOrFail({ id: state.job.id });
   const result = await post().expect(201);
   expect(result.headers['cache-control']).toBe('no-store');
+  expect(result.body.generationMetadata.locale).toBe('en');
   expect(result.body.document.pins.profileRevisionId).toBe(state.profile.id);
   expect(result.body.document.sections).toHaveLength(10);
   const facts = result.body.document.sections.flatMap(
@@ -412,12 +492,14 @@ test('local policy, strict envelopes, owner isolation and incomplete profile che
 test.each(['invalid', 'reference', 'timeout'] as const)(
   '%s failure never inserts or overwrites an existing draft',
   async (failure) => {
-    await ready();
+    await ready(failure === 'timeout');
     const saved = await post().expect(201);
     const before = structuredClone(saved.body.document);
+    const beforeFailure = draftCalls;
     mode = failure;
     const failed = await post();
     expect(failed.status).toBe(failure === 'timeout' ? 504 : 502);
+    if (failure === 'timeout') expect(draftCalls - beforeFailure).toBe(1);
     expect(failed.body.errorCode).toBe(
       failure === 'timeout'
         ? 'CV_DRAFT_TIMEOUT'
@@ -434,18 +516,116 @@ test.each(['invalid', 'reference', 'timeout'] as const)(
     expect((await drafts.get(owner, saved.body.id)).document).toEqual(before);
   },
 );
-test('unsafe wording is flagged and discarded while the complete original CV remains accepted', async () => {
+test('mocked OpenAI abstention goes straight to approval and refusal preserves the approved draft', async () => {
+  await ready();
+  const config = tailoredCvAiConfig(aiConfig({}), {
+    TAILORED_CV_AI_PROVIDER: 'openai',
+    OPENAI_API_KEY: 'synthetic-openai-project-key',
+  });
+  const openAiDrafts = new TailoredDraftService(
+    db,
+    app.get(SavedCvSourceService),
+    app.get(OpportunitiesService),
+    matches,
+    new TailoredDraftGenerator(new AiService(new OpenAiProvider(config))),
+    config,
+    app.get(ReviewedCvService),
+  );
+  const fetch = jest.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+    Response.json({
+      status: 'completed',
+      output: [
+        {
+          type: 'message',
+          role: 'assistant',
+          status: 'completed',
+          content: [
+            {
+              type: 'output_text',
+              text: '{"outcome":"no_change","proposals":[],"questions":[]}',
+            },
+          ],
+        },
+      ],
+    }),
+  );
+  try {
+    const saved = await openAiDrafts.generate(
+      owner,
+      current.job.id,
+      current.body,
+    );
+    expect(saved.generationMetadata).toMatchObject({
+      provider: 'openai',
+      model: OPENAI_MODEL,
+      modelDigest: null,
+    });
+    expect(
+      Object.values(saved.document.review!.factReviews).every(
+        (fact) =>
+          fact.proposal === 'none' && fact.wording === 'reviewed_profile',
+      ),
+    ).toBe(true);
+    const approved = await request(app.getHttpServer())
+      .post(`${base}/drafts/${saved.id}/approve`)
+      .set(origin)
+      .send({ ...v, expectedRevision: saved.revision, reviewedFactIds: [] })
+      .expect(201);
+    expect(approved.body.document.review.approval.revision).toBe(
+      saved.revision + 1,
+    );
+    fetch.mockResolvedValueOnce(
+      Response.json({
+        status: 'completed',
+        output: [
+          {
+            type: 'message',
+            role: 'assistant',
+            status: 'completed',
+            content: [
+              { type: 'refusal', refusal: 'synthetic private refusal' },
+            ],
+          },
+        ],
+      }),
+    );
+    await expect(
+      openAiDrafts.generate(owner, current.job.id, current.body),
+    ).rejects.toMatchObject({ errorCode: 'CV_DRAFT_INVALID_OUTPUT' });
+    expect(
+      await db.getRepository(TailoredCvDraft).countBy({
+        ownerId: owner,
+        jobId: current.job.id,
+      }),
+    ).toBe(1);
+    expect((await drafts.get(owner, saved.id)).document).toEqual(
+      approved.body.document,
+    );
+  } finally {
+    fetch.mockRestore();
+  }
+});
+
+test('flagged AI wording stays visible and cannot be accepted without a user-authored decision', async () => {
   await ready();
   mode = 'unsafe';
   const response = await post().expect(201);
-  // Match the rejected wording itself: random ids, hashes and timestamps in
-  // the document can contain "500" by chance.
-  expect(JSON.stringify(response.body.document)).not.toContain(
+  const facts = response.body.document.sections.flatMap(
+    (section: { entries: { facts: DraftFact[] }[] }) =>
+      section.entries.flatMap((entry) => entry.facts),
+  ) as DraftFact[];
+  const flagged = facts.find(
+    (fact) => fact.proposedWording?.requiresConfirmation,
+  )!;
+  expect(flagged.proposedWording?.text).toContain(
     'Led 500 production Kubernetes',
   );
-  expect(response.body.document.reviewIssues).toContainEqual(
-    expect.objectContaining({ code: 'CV_DRAFT_UNSAFE_REWRITE' }),
+  expect(flagged.acceptedText).not.toContain('Led 500 production Kubernetes');
+  expect(flagged.proposedWording?.confirmationAssertion).toBe(
+    'Led 500 production Kubernetes systems.',
   );
+  expect(flagged.clarification).toBeUndefined();
+  expect(response.body.generationMetadata.locale).toBe('vi');
 });
 test.each(['stale-job', 'stale-profile', 'stale-cv', 'stale-match'] as const)(
   '%s during inference rolls back without a draft',
@@ -1123,6 +1303,8 @@ test('reviewedFacts for a job uses the CV selected for that job, not the default
 
 test('a draft made before a matching-policy change stays viewable, reviewable and exportable; a new draft needs a current match', async () => {
   await ready();
+  const currentMatch = await matches.currentMatch(owner, current.job.id);
+  expect(currentMatch.status).toBe('VALID');
   const generated = await post().expect(201);
   const id = generated.body.id as string;
   const doc = generated.body
@@ -1130,7 +1312,10 @@ test('a draft made before a matching-policy change stays viewable, reviewable an
   // Simulate a saved match from the previous policy version.
   await db.query(
     'UPDATE ai_job_hunter.cv_matches SET "policyVersion"=$1 WHERE "jobId"=$2',
-    ['qualification-d1/v5', current.job.id],
+    ['guidance-p1/v13', current.job.id],
+  );
+  expect((await matches.currentMatch(owner, current.job.id)).status).toBe(
+    'EXPIRED',
   );
   expect((await drafts.get(owner, id)).document).toEqual(doc);
   const reviewed = await drafts.review(owner, id, {
@@ -1161,4 +1346,127 @@ test('a draft made before a matching-policy change stays viewable, reviewable an
     .expect(200);
   const blocked = await post().expect(409);
   expect(blocked.body.errorCode).toBe('CV_DRAFT_STALE_MATCH');
+});
+
+test('draft confirmations and selected source diffs preserve revision and export boundaries without inference', async () => {
+  const prepared = await ready(true);
+  mode = 'enrichment';
+  const beforeGeneration = draftCalls;
+  const generated = await post().expect(201);
+  expect(draftCalls - beforeGeneration).toBe(1);
+  const callsAfterGeneration = draftCalls;
+  const id = generated.body.id as string;
+  const originalDraft = await drafts.get(owner, id);
+  const factOf = (snapshot: typeof originalDraft) =>
+    snapshot.document.sections
+      .flatMap((s) => s.entries.flatMap((e) => e.facts))
+      .find((f) => f.id === 'java')!;
+  const original = factOf(originalDraft);
+  expect(original.clarification?.question).toBe(
+    'Who used these tools, and at what scale?',
+  );
+  const answer = 'The tools supported 120 internal users';
+  const addition = answer + '.';
+  const review = (expectedRevision: number, operations: unknown[]) =>
+    drafts.review(owner, id, { ...v, expectedRevision, operations });
+  const approve = (expectedRevision: number, reviewedFactIds: string[]) =>
+    drafts.review(owner, id, { ...v, expectedRevision, reviewedFactIds }, true);
+  await expect(
+    review(1, [{ action: 'use_answer', factId: original.id }]),
+  ).rejects.toThrow();
+  const confirmed = await review(1, [
+    ...originalDraft.document.sections
+      .flatMap((s) => s.entries.flatMap((e) => e.facts))
+      .filter((f) => f.proposedWording)
+      .map((f) => ({ action: 'reject', factId: f.id })),
+    { action: 'confirm_answer', factId: original.id, text: answer },
+  ]);
+  expect(factOf(confirmed).acceptedText).toBe(original.acceptedText);
+  expect(factOf(confirmed).clarification).toMatchObject({
+    status: 'confirmed',
+    answer,
+  });
+  const confirmedOnly = await approve(2, []);
+  const { canonicalExport } =
+    await import('../../src/tailored-cv/tailored-cv-export.js');
+  expect(
+    JSON.stringify(canonicalExport(confirmedOnly.document, 3)),
+  ).not.toContain(answer);
+  const included = await review(3, [
+    { action: 'use_answer', factId: original.id },
+  ]);
+  expect(included.document.review?.approval).toBeNull();
+  expect(factOf(included).provenance).toEqual(original.provenance);
+  const approved = await approve(4, [original.id]);
+  const exportText = JSON.stringify(canonicalExport(approved.document, 5));
+  expect(exportText).toContain(answer);
+
+  const path = `${base}/drafts/${id}/source-update`;
+  const preview = () =>
+    request(app.getHttpServer())
+      .post(`${path}/preview`)
+      .set(origin)
+      .send({ ...v, expectedDraftRevision: 5 })
+      .expect(200);
+  const apply = (expectedProfileRevision: number) =>
+    request(app.getHttpServer())
+      .post(path)
+      .set(origin)
+      .send({
+        ...v,
+        expectedDraftRevision: 5,
+        expectedProfileRevision,
+        factIds: [original.id],
+      });
+  const firstDiff = await preview();
+  expect(firstDiff.body).toEqual({
+    profileRevision: 2,
+    changes: [
+      {
+        factId: original.id,
+        before: original.acceptedText,
+        after: factOf(approved).acceptedText,
+      },
+    ],
+  });
+  expect(
+    (await profiles.latestForSource(owner, prepared.profile.sourceRevisionId))
+      ?.revision,
+  ).toBe(2);
+  await profiles.appendProfile(owner, prepared.profile.profileId, {
+    ...v,
+    expectedRevision: 2,
+    document: prepared.document,
+  });
+  await apply(2).expect(409);
+  const secondDiff = await preview();
+  expect(secondDiff.body.profileRevision).toBe(3);
+  await apply(3).expect(200);
+  const updated = await profiles.latestForSource(
+    owner,
+    prepared.profile.sourceRevisionId,
+  );
+  expect(updated?.revision).toBe(4);
+  const sections = structuredClone(updated!.document.sections);
+  const entry = sections.find((s) => s.kind === 'experience')!.entries[0]!;
+  expect(entry.facts.pop()).toMatchObject({
+    value: addition,
+    field: 'description',
+    origin: 'user_entered',
+    review: 'confirmed',
+    evidence: [],
+  });
+  expect(sections).toEqual(prepared.document.sections);
+  expect(await drafts.get(owner, id)).toEqual(approved);
+  expect((await matches.currentMatch(owner, prepared.job.id)).status).toBe(
+    'STALE_CV',
+  );
+  for (const format of ['pdf', 'docx']) {
+    await request(app.getHttpServer())
+      .post(`${base}/drafts/${id}/export`)
+      .set(origin)
+      .send({ ...v, expectedRevision: 5, format })
+      .expect(200);
+  }
+  expect(draftCalls).toBe(callsAfterGeneration);
 });

@@ -38,9 +38,13 @@ test.each([
   (tool) => {
     const toolQuote = `Used ${tool} to assist coding.`;
     const cv = `${javaQuote}\n${toolQuote}`;
-    const canonical = [row(java), row(production)];
-    const proposals = [row(java, javaQuote), row(production, toolQuote)];
-    const jd = `${java}\n${production}`;
+    const canonical = [row(java), row(production), row('Kotlin')];
+    const proposals = [
+      row(java, javaQuote),
+      row(production, toolQuote),
+      row('Kotlin'),
+    ];
+    const jd = `${java}\n${production}\nKotlin`;
     const write = jest.spyOn(process.stderr, 'write').mockReturnValue(true);
     const verified = validateMatchAssessment(proposals, cv, jd, canonical);
     expect(verified[1]).toMatchObject({
@@ -48,7 +52,10 @@ test.each([
       cvEvidenceUnverified: true,
     });
     const result = scoreCvMatch(verified, cv, jd, canonical);
-    expect(result.score).toBe(50);
+    expect(result).toMatchObject({
+      score: null,
+      coverageHidden: 'EVIDENCE_VERIFICATION_FAILED',
+    });
     expect(result.requirements[0]?.status).toBe('EVIDENCED');
     expect(result.requirements[1]).toMatchObject({
       status: 'NOT_EVIDENCED',
@@ -80,7 +87,7 @@ test('independent verbatim production evidence is retained, even after an invali
     canonical,
   );
   const result = scoreCvMatch(verified, cv, production, canonical);
-  expect(result.score).toBe(100);
+  expect(result.coverageHidden).toBe('TOO_FEW_ASSESSABLE_SKILLS');
   expect(result.requirements).toHaveLength(1);
   expect(result.requirements[0]).toMatchObject({
     status: 'EVIDENCED',
@@ -102,3 +109,48 @@ test('tool-only rejected assessment still fails closed and emits one rejection',
     reason: 'AI_TOOLING_FOR_PRODUCTION_REQUIREMENT',
   });
 });
+
+test.each([
+  ['Deployed production ML models serving real users.', true, true],
+  [
+    'Deployed production ML models serving real users and used Copilot to write tests.',
+    true,
+    true,
+  ],
+  ['Used Copilot to write tests.', true, false],
+  [
+    'Never deployed production ML models and used Copilot to write tests.',
+    true,
+    false,
+  ],
+  [
+    'Would have deployed production ML models and used Copilot to write tests.',
+    true,
+    false,
+  ],
+  ['Used Copilot to write tests for production ML models.', true, false],
+  [
+    'Deployed production ML models and used Copilot to write tests.',
+    false,
+    false,
+  ],
+] as const)(
+  'verifies production deployment evidence independently of tooling (%s)',
+  (quote, verbatim, qualifies) => {
+    const requirement = 'Deploy production ML models';
+    const cv = verbatim ? `${javaQuote}\n${quote}` : javaQuote;
+    const jd = `${requirement}\n${java}`;
+    const canonical = [row(requirement), row(java)];
+    jest.spyOn(process.stderr, 'write').mockReturnValue(true);
+    const verified = validateMatchAssessment(
+      [row(requirement, quote), row(java, javaQuote)],
+      cv,
+      jd,
+      canonical,
+    );
+    expect(verified[0]?.cvQuote).toBe(qualifies ? quote : '');
+    expect(
+      scoreCvMatch(verified, cv, jd, canonical).requirements[0]?.status,
+    ).toBe(qualifies ? 'EVIDENCED' : 'NOT_EVIDENCED');
+  },
+);

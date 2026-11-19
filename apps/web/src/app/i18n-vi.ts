@@ -1,6 +1,276 @@
 // Vietnamese for feature-screen text, keyed by the English source text (see tr()).
 // An empty value drops an English-only fragment such as a plural suffix.
 export const VI_TEXT: Record<string, string> = {
+  'Did this change the time or manual steps involved? Share what you observed, if anything.':
+    'Công việc này có thay đổi thời gian hoặc các bước thủ công không? Nếu có, hãy nêu điều bạn quan sát được.',
+  'What changed in the reporting process, if anything you observed?':
+    'Bạn có quan sát thấy thay đổi nào trong quy trình báo cáo không?',
+
+  'Proposed wording': 'Nội dung đề xuất',
+  'What was the scale of this work, such as users, customers, or records, if known?':
+    'Nếu biết, hãy cho biết quy mô công việc, chẳng hạn số người dùng, khách hàng hoặc hồ sơ.',
+
+  'No rewrite suggestions for this draft.':
+    'Bản nháp này không có đề xuất viết lại.',
+  'Replace current wording and use this detail':
+    'Thay nội dung hiện tại bằng cách viết có thông tin này',
+  'Say what changed, what was counted, or what you did.':
+    'Hãy nêu điều gì đã thay đổi, số liệu đo điều gì hoặc bạn đã làm gì.',
+  'A short factual answer is enough. Say what changed, what was counted, or what you did.':
+    'Chỉ cần trả lời ngắn gọn theo thực tế. Nêu điều gì đã thay đổi, số liệu đo điều gì hoặc bạn đã làm gì.',
+  'Decide the rewrite suggestion before using this detail.':
+    'Hãy quyết định về đề xuất viết lại trước khi dùng thông tin này.',
+  'Current edited wording': 'Nội dung đã chỉnh sửa',
+  'Current accepted rewrite': 'Cách viết lại đã chấp nhận',
+  'Documented wording': 'Nội dung đã ghi nhận',
+  'Brings the documented purpose forward.': 'Đưa mục đích đã ghi nhận lên đầu.',
+  'Brings a documented action forward.':
+    'Đưa một hành động đã ghi nhận lên đầu.',
+  'Splits a dense bullet into clearer sentences.':
+    'Tách một ý dài thành các câu dễ đọc hơn.',
+  'Makes the relevant documented experience easier to find.':
+    'Giúp người đọc dễ nhận ra kinh nghiệm liên quan đã được ghi nhận.',
+  'Related job requirement: {requirement}':
+    'Yêu cầu công việc liên quan: {requirement}',
+
+  'Clarity-only improvement. No specific job requirement could be linked.':
+    'Cải thiện độ rõ ràng. Chưa có yêu cầu công việc cụ thể để liên kết.',
+  'clearer wording or stronger emphasis on documented experience':
+    'Cách viết rõ hơn hoặc làm nổi bật kinh nghiệm đã được ghi nhận',
+
+  'Edit the confirmed detail in Opportunities to strengthen your CV.':
+    'Sửa thông tin đã xác nhận trong mục Cơ hội làm nổi bật CV của bạn.',
+  'Save your wording edits before changing a confirmed detail.':
+    'Hãy lưu nội dung đã chỉnh sửa trước khi thay đổi thông tin đã xác nhận.',
+  'Opportunities to strengthen your CV': 'Cơ hội làm nổi bật CV của bạn',
+  'Could not update the draft detail.':
+    'Không thể cập nhật thông tin trong bản nháp.',
+  'Draft updated.': 'Đã cập nhật bản nháp.',
+  'Confirm source CV update': 'Xác nhận cập nhật CV nguồn',
+  After: 'Sau',
+  Before: 'Trước',
+  'Apply this improvement': 'Áp dụng cải thiện này',
+  'No eligible changes for the current source CV review.':
+    'Không có thay đổi phù hợp với bản rà soát CV nguồn hiện tại.',
+  'Refresh source comparison': 'Làm mới phần so sánh CV nguồn',
+  'Checking source CV…': 'Đang kiểm tra CV nguồn…',
+  'Also update my source CV': 'Đồng thời cập nhật CV nguồn',
+  'Could not update the source CV review.':
+    'Không thể cập nhật bản rà soát CV nguồn.',
+  'Refresh and review the source comparison before trying again.':
+    'Hãy làm mới và rà soát phần so sánh CV nguồn trước khi thử lại.',
+  'Selected improvements saved to your source CV review.':
+    'Đã lưu các cải thiện đã chọn vào bản rà soát CV nguồn.',
+  'Could not load source CV changes. Refresh the comparison to check the current source review.':
+    'Không thể tải thay đổi cho CV nguồn. Hãy làm mới phần so sánh để kiểm tra bản rà soát hiện tại.',
+  'Could not load source CV changes.': 'Không thể tải thay đổi cho CV nguồn.',
+  'Keep original wording': 'Giữ nguyên nội dung gốc',
+  Skip: 'Bỏ qua',
+  'Provide details': 'Bổ sung thông tin',
+  'Edit confirmed detail': 'Sửa thông tin đã xác nhận',
+  'Use this wording': 'Dùng cách viết này',
+  'Confirm this fact': 'Xác nhận thông tin',
+  'Write a sentence you would be comfortable including in your CV.':
+    'Hãy viết một câu bạn sẵn sàng đưa vào CV.',
+  'Remove brackets and enter only details you can confirm.':
+    'Hãy bỏ dấu ngoặc vuông và chỉ nhập thông tin bạn có thể xác nhận.',
+  'Your factual detail': 'Thông tin thực tế của bạn',
+  'Includes a detail you confirmed for this draft':
+    'Có thông tin bạn đã xác nhận riêng cho bản nháp này',
+  'Included in draft wording': 'Đã đưa vào nội dung bản nháp',
+  'Confirmed by you for this draft': 'Bạn đã xác nhận cho bản nháp này',
+  'Discard detail': 'Bỏ thông tin bổ sung',
+  'No metrics available': 'Không có số liệu',
+  'A detail from your experience can help the employer understand this work. Qualitative results are welcome.':
+    'Chi tiết từ kinh nghiệm của bạn giúp nhà tuyển dụng hiểu rõ hơn về công việc này. Bạn có thể nêu kết quả định tính.',
+  'What part of this work did you personally handle?':
+    'Bạn trực tiếp đảm nhiệm phần nào trong công việc này?',
+  'How much work did this cover, if you know the scale?':
+    'Nếu biết, bạn có thể mô tả quy mô công việc này như thế nào?',
+  'What changed after this work, if anything you can substantiate?':
+    'Sau công việc này, bạn có thể xác nhận thay đổi nào, nếu có?',
+  'View details': 'Xem chi tiết',
+  'View details for {requirement}': 'Xem chi tiết yêu cầu {requirement}',
+  'Not evidenced in reviewed CV': 'Chưa thấy bằng chứng trong CV đã rà soát',
+  'Unable to assess': 'Không thể đánh giá',
+  'Requirement evidence coverage': 'Bằng chứng cho các yêu cầu JD',
+  '{count} JD requirements': '{count} yêu cầu JD',
+  'Missing CV evidence leaves real-world ability unverified.':
+    'Thiếu bằng chứng trong CV chưa đủ để kết luận về năng lực thực tế.',
+  'Your reviewed CV documents relevant skills for this job.':
+    'CV đã rà soát có bằng chứng về các kỹ năng liên quan đến công việc này.',
+  'Requirement coverage is unavailable. The assessment does not provide trustworthy requirement counts.':
+    'Chưa có số liệu bao phủ. Kết quả đánh giá chưa cung cấp số lượng yêu cầu đáng tin cậy.',
+  'Check which parts the employer requires before updating your CV.':
+    'Làm rõ phần nào là bắt buộc trước khi cập nhật CV.',
+  'The reviewed CV does not establish this requirement.':
+    'CV đã rà soát chưa có đủ bằng chứng cho yêu cầu này.',
+  'Source references': 'Thông tin nguồn',
+  'Needs clarification': 'Cần làm rõ',
+  'The score covers only the requirements assessed here.':
+    'Điểm chỉ tính các yêu cầu đã được đối chiếu tại đây.',
+  'Check the required scope against the experience documented in your CV.':
+    'Đối chiếu phạm vi yêu cầu với kinh nghiệm đã ghi nhận trong CV.',
+  'JD requirements with evidence': 'Yêu cầu JD có bằng chứng',
+  'Compare individual JD requirements': 'Đối chiếu từng yêu cầu tuyển dụng',
+  'Requirement supported': 'Yêu cầu có bằng chứng',
+  'Experience duration needs verification':
+    'Cần xác minh thời lượng kinh nghiệm',
+  'Evidence supports part of this requirement':
+    'CV có bằng chứng cho một phần yêu cầu',
+  'Your CV documents this skill': 'CV đã ghi nhận kỹ năng này',
+  'More CV evidence is needed': 'Chưa đủ bằng chứng trong CV',
+  'Other relevant CV experience': 'Kinh nghiệm liên quan khác trong CV',
+  'Review of the condition': 'Điều kiện cần đối chiếu',
+  'Shown separately because its JD source could not be linked uniquely.':
+    'Điều kiện được trình bày riêng vì chưa xác định được một yêu cầu JD tương ứng duy nhất.',
+  'Named skill supported': 'Kỹ năng có bằng chứng',
+  'Named parts supported': 'Có bằng chứng một phần',
+  'Evidence to clarify': 'Cần làm rõ bằng chứng',
+  'Individual skills are documented. The full requirement remains unverified.':
+    'CV có bằng chứng cho từng kỹ năng nêu trên. Chưa đủ cơ sở kết luận toàn bộ yêu cầu.',
+  'This finding applies to the named JD excerpt.':
+    'Kết luận này chỉ áp dụng cho kỹ năng trong trích đoạn JD.',
+  'Original CV evidence': 'Xem bằng chứng gốc trong CV',
+  'Compare CV with JD': 'Đối chiếu CV với JD',
+  'About this analysis': 'Cách sử dụng CV khi phân tích',
+  'Confirmed skill evidence: {skills}': 'Có bằng chứng về {skills}',
+  'CV evidence summary': 'Nhận định từ bằng chứng CV',
+  'Your review documents {n} skills named in the JD.':
+    'CV đã rà soát có bằng chứng cho {n} kỹ năng JD đề cập.',
+  'Select a skill to see its evidence.': 'Chọn một kỹ năng để xem bằng chứng.',
+  'The duration is unverified. Check dates for the relevant role or project.':
+    'Chưa xác nhận được thời lượng. Hãy đối chiếu thời gian ở vị trí hoặc dự án liên quan.',
+  'Requirement details and conditions': 'Chi tiết yêu cầu và điều kiện',
+  'Findings from your CV and the JD': 'Phát hiện từ CV và JD',
+  'Evidence-backed strengths': 'Điểm mạnh có bằng chứng',
+  'Points to review': 'Ưu tiên kiểm tra',
+  'Evidence to clarify: {skill}': 'Làm rõ kinh nghiệm về {skill}',
+  'If accurate, describe the task you performed in the relevant role or project.':
+    'Nếu đúng với thực tế, hãy mô tả công việc bạn đã làm ở vị trí hoặc dự án liên quan.',
+  'Verify experience dates': 'Kiểm tra thời gian kinh nghiệm',
+  'Check role dates and project periods against each quoted requirement before editing your CV.':
+    'Đối chiếu thời gian đảm nhiệm vai trò và tham gia dự án với từng yêu cầu dưới đây trước khi cập nhật CV.',
+  'Other points to review': 'Các điểm khác cần xem lại',
+  'No confirmed strengths identified in this review.':
+    'Chưa tìm thấy điểm mạnh có minh chứng trong lần rà soát này.',
+  'No attention items identified in this review.':
+    'Chưa ghi nhận điểm cần chú ý trong lần rà soát này.',
+  ' and {n} more': ' và {n} kỹ năng khác',
+  'Confirmed here: {skills}':
+    'Kỹ năng có minh chứng trong yêu cầu này: {skills}',
+  'Insufficient information for an overall assessment':
+    'Chưa đủ thông tin để kết luận tổng quan',
+  'Assessed score and JD structure':
+    'Điểm trong phạm vi đã đánh giá và cấu trúc JD',
+  'Named skill': 'Kỹ năng được nêu trong JD',
+  'Full requirement': 'Toàn bộ yêu cầu',
+  'Full requirement needs clarification': 'Cần làm rõ toàn bộ yêu cầu',
+  'Confirmed CV evidence supports this named skill.':
+    'CV đã rà soát có minh chứng cho kỹ năng này.',
+  'The reviewed CV shows related experience. The specific requirement still needs clarification.':
+    'CV đã rà soát cho thấy kinh nghiệm liên quan. Cần làm rõ mức độ đáp ứng yêu cầu cụ thể.',
+  'The JD groups several skills together. Individual matches leave the full requirement open.':
+    'JD nêu nhiều kỹ năng cùng nhau. Minh chứng cho từng kỹ năng chưa đủ để kết luận về toàn bộ yêu cầu.',
+  'The reviewed CV does not establish this requirement. Add a concrete example if it reflects your work.':
+    'CV đã rà soát chưa có đủ minh chứng cho yêu cầu này. Hãy bổ sung ví dụ cụ thể nếu đúng với công việc bạn đã làm.',
+  'No findings available for this review.':
+    'Chưa có kết quả đối chiếu cho bản rà soát này.',
+  'Review & Improve CV': 'Rà soát và cải thiện CV',
+  'Compare job skills with your reviewed CV.':
+    'Đối chiếu kỹ năng trong mô tả công việc với CV đã rà soát.',
+  'JD–CV Skill Match': 'Mức độ khớp kỹ năng JD–CV',
+  'JD–CV Skill Match is unavailable for this saved assessment.':
+    'Đánh giá đã lưu này chưa có điểm khớp kỹ năng JD–CV.',
+  '{matched} of {total} JD skill requirements represented':
+    'CV có đề cập {matched}/{total} yêu cầu kỹ năng trong JD',
+  'Required skills count three times as much as preferred skills. An alternative group counts once. The score measures mentions in your reviewed CV.':
+    'Kỹ năng bắt buộc có trọng số gấp ba kỹ năng ưu tiên. Mỗi nhóm kỹ năng thay thế chỉ tính một lần. Điểm dựa trên các kỹ năng được đề cập trong CV đã rà soát.',
+  'Score unavailable. Some JD skills could not be identified or reconciled with the saved fields. Check the original JD and the skill fields in Edit JD.':
+    'Chưa có điểm. Một số kỹ năng trong JD chưa được xác định hoặc chưa khớp với các trường đã lưu. Hãy kiểm tra JD gốc và các trường kỹ năng trong Chỉnh sửa JD.',
+  'Score unavailable. No JD skills were identified.':
+    'Chưa có điểm vì chưa xác định được kỹ năng trong JD.',
+  'Score unavailable. No reliable JD skill groups could be assessed.':
+    'Chưa có điểm vì chưa xác định được nhóm kỹ năng JD đủ tin cậy để đánh giá.',
+  'Recognized skill match score': 'Điểm khớp kỹ năng đã nhận diện',
+  '{matched} of {total} recognized skill groups matched':
+    'Khớp {matched} trong {total} nhóm kỹ năng đã nhận diện',
+  'Partial score. Unresolved requirements are excluded. This percentage covers only the recognized part of the JD.':
+    'Điểm một phần. Các yêu cầu chưa xác định được loại khỏi phép tính. Tỷ lệ này chỉ phản ánh phần JD đã nhận diện.',
+  'Original JD and saved skills differ. Assessed groups use the original JD priorities.':
+    'JD gốc và các trường kỹ năng đã lưu khác nhau. Các nhóm được đánh giá dùng mức ưu tiên trong JD gốc.',
+  'Review ambiguous JD structure': 'Rà soát cấu trúc yêu cầu JD',
+  'Reload JD structure': 'Tải lại cấu trúc yêu cầu JD',
+  'Refresh JD inventory': 'Làm mới danh sách yêu cầu JD',
+  'JD inventory refreshed.': 'Đã làm mới danh sách yêu cầu JD.',
+  'Could not refresh the JD inventory.':
+    'Không thể làm mới danh sách yêu cầu JD.',
+  'Could not load the JD inventory. Try again.':
+    'Không thể tải danh sách yêu cầu JD. Hãy thử lại.',
+  'JD structure confirmed.': 'Đã xác nhận cấu trúc yêu cầu JD.',
+  'Could not confirm JD structure': 'Không thể xác nhận cấu trúc yêu cầu JD',
+  'Check the selected branches or reload the JD inventory and try again.':
+    'Kiểm tra các lựa chọn hoặc tải lại danh sách yêu cầu JD rồi thử lại.',
+  'No ambiguous groups available to confirm.':
+    'Không có nhóm yêu cầu chưa rõ để xác nhận.',
+  'Confirmed JD structure': 'Cấu trúc yêu cầu JD đã xác nhận',
+  'Ambiguous requirement': 'Yêu cầu chưa rõ cấu trúc',
+  'Check the source and assign every listed skill. Mark a skill as context only if it is outside the requirement.':
+    'Đọc nguồn và xếp từng kỹ năng vào nhóm phù hợp. Chỉ chọn Ngữ cảnh khi kỹ năng không thuộc yêu cầu.',
+  Unassigned: 'Chưa xếp nhóm',
+  'Each selected skill is required': 'Cần từng kỹ năng đã chọn',
+  'Any one option is sufficient': 'Chỉ cần một trong các lựa chọn',
+  'Mandatory branch priority': 'Mức ưu tiên của nhóm cần đủ',
+  'Alternative branch priority': 'Mức ưu tiên của nhóm lựa chọn',
+  'The source fallback stays open for review when no named option matches.':
+    'Khi không khớp lựa chọn được nêu tên, phương án thay thế trong JD vẫn cần rà soát.',
+  'Proposed additional assessed groups: {n}':
+    'Số nhóm dự kiến được đánh giá thêm: {n}',
+  'Confirm interpretation': 'Xác nhận cách diễn giải',
+  'Leave unresolved': 'Để lại chưa xác nhận',
+  'Permitted fallback needs review': 'Phương án thay thế cần rà soát',
+  '{matched}/{total} assessed skill groups matched':
+    'Đã khớp {matched}/{total} nhóm kỹ năng được đánh giá',
+  '{score}% weighted match across assessed requirements':
+    'Khớp {score}% theo trọng số của các yêu cầu đã đánh giá',
+  'No skill score available.': 'Chưa có điểm đối chiếu kỹ năng.',
+  'JD inventory incomplete. Unresolved requirements are outside the assessed score.':
+    'Danh sách yêu cầu JD chưa hoàn chỉnh. Điểm chỉ tính các yêu cầu đã đánh giá.',
+  'No evidence found in CV Review': 'Chưa tìm thấy bằng chứng trong CV Review',
+  'Unresolved JD requirements': 'Yêu cầu JD chưa được đánh giá',
+  'Unclassified JD items': 'Mục JD chưa phân loại',
+  'View unassessed requirements': 'Xem các yêu cầu chưa được đánh giá',
+  'This requirement could not be assessed reliably.':
+    'Chưa đủ cơ sở để đánh giá yêu cầu này.',
+  'No CV Review evidence found for {skill}.':
+    'Chưa tìm thấy bằng chứng cho {skill} trong CV Review.',
+  'Directional evidence from {skill}': 'Bằng chứng một chiều từ {skill}',
+  'Direct or alias evidence': 'Bằng chứng trực tiếp hoặc tên tương đương',
+  'Work Experience': 'Kinh nghiệm làm việc',
+  'From reviewed source': 'Từ tài liệu đã rà soát',
+  'Loading JD inventory…': 'Đang tải danh sách yêu cầu JD…',
+  'Unresolved technical requirements': 'Yêu cầu kỹ thuật chưa xác định',
+  'The required skills and alternatives could not be separated reliably.':
+    'Chưa xác định rõ kỹ năng bắt buộc và các lựa chọn thay thế.',
+  'No relevant evidence was found in the reviewed CV.':
+    'Chưa tìm thấy bằng chứng liên quan trong CV.',
+  'Relevant experience appears in the reviewed CV, but its duration is unclear.':
+    'Có kinh nghiệm liên quan, nhưng chưa xác định được thời gian.',
+  'The reviewed CV shows relevant experience, but does not establish the required {n} years.':
+    'Đã ghi nhận kinh nghiệm liên quan, nhưng chưa xác nhận đủ {n} năm theo yêu cầu.',
+  'The reviewed CV shows related experience, but does not establish {n} years in Java full-stack development.':
+    'Đã ghi nhận kinh nghiệm liên quan, nhưng chưa xác nhận đủ {n} năm phát triển Java full stack theo yêu cầu.',
+  'Matched skills': 'Kỹ năng khớp',
+  'Skills not found in the CV': 'Kỹ năng chưa thấy trong CV',
+  'No matches found.': 'Chưa tìm thấy kỹ năng khớp.',
+  'None among the identified requirements.':
+    'Không có trong số các yêu cầu đã xác định.',
+  'View skill sources': 'Xem nguồn kỹ năng',
+  '{skill} was not found in the CV.': 'Chưa thấy {skill} trong CV.',
+  'Run an assessment to unlock CV suggestions and tailoring.':
+    'Chạy đánh giá để mở gợi ý cải thiện và tùy chỉnh CV.',
+  'Another alternative matched': 'Đã khớp một kỹ năng thay thế khác',
+  or: 'hoặc',
   'Generating draft…': 'Đang tạo bản nháp…',
   'Generating a tailored draft with the AI…':
     'AI đang tạo bản nháp CV phù hợp…',
@@ -279,6 +549,14 @@ export const VI_TEXT: Record<string, string> = {
     'Kiểm tra CV đã được sắp xếp đúng và đánh dấu từng phần là đã kiểm tra. Lưu nháp giữ phần chưa xong; Hoàn tất rà soát sẽ lưu và chuyển sang CV tùy chỉnh.',
   'Check the JD’s scope, then add only verifiable details about the relevant qualification or work.':
     'Kiểm tra phạm vi của JD, rồi chỉ thêm chi tiết có thể xác minh về bằng cấp hoặc công việc liên quan.',
+  'Keep the original or edit the wording yourself.':
+    'Giữ nội dung gốc hoặc tự chỉnh sửa nội dung.',
+  'This suggestion needs a confirmed detail.':
+    'Đề xuất này cần một chi tiết được xác nhận.',
+  'Keep the original and use Evidence Enrichment to confirm and include the detail, or edit the wording yourself.':
+    'Giữ nội dung gốc và dùng mục bổ sung minh chứng để xác nhận và đưa chi tiết vào CV, hoặc tự chỉnh sửa nội dung.',
+  'Compare the suggestion with the original and check that every claim is accurate before accepting.':
+    'So sánh đề xuất với nội dung gốc và kiểm tra tính chính xác của từng thông tin trước khi chấp nhận.',
   'Check this before accepting.': 'Kiểm tra điều này trước khi chấp nhận.',
   'Check this detail and its attribution against the source, then confirm it.':
     'Đối chiếu chi tiết này và nguồn gán của nó với tài liệu gốc, rồi xác nhận.',
@@ -375,8 +653,8 @@ export const VI_TEXT: Record<string, string> = {
     'Không thể kết nối API cục bộ. Kiểm tra API đang chạy, rồi thử lại.',
   'Could not reach the local analysis API. Check the local services and retry manually.':
     'Không thể kết nối API phân tích cục bộ. Kiểm tra các dịch vụ cục bộ và thử lại thủ công.',
-  'Could not reach the local matching API. Check the local API and retry; no new fit score was produced.':
-    'Không thể kết nối API đối chiếu cục bộ. Kiểm tra API cục bộ và thử lại; chưa có điểm phù hợp mới nào được tạo.',
+  'Could not reach the local matching API. Check the local API and retry. No new assessment was saved.':
+    'Không thể kết nối API đối chiếu cục bộ. Kiểm tra API cục bộ và thử lại. Chưa lưu đánh giá mới.',
   'Could not read suggestions. Check the local API and retry.':
     'Không thể đọc gợi ý. Kiểm tra API cục bộ và thử lại.',
   'Could not request suggestions. Check the local API and the AI service, then retry.':
@@ -530,8 +808,8 @@ export const VI_TEXT: Record<string, string> = {
     'Mỗi gợi ý cần một quyết định, nhưng bạn không bắt buộc phải chấp nhận gợi ý nào. “Giữ bản gốc” là một quyết định đầy đủ, giữ nguyên cách viết trong CV.',
   'Evidence (': 'Bằng chứng (',
   'Evidence and wording for': 'Bằng chứng và cách diễn đạt cho',
-  'The AI cited CV text that could not be verified, so no new fit score was produced. Your saved match is unchanged. Retry; results can differ between attempts.':
-    'AI đã trích dẫn nội dung CV không thể xác minh, nên chưa có điểm phù hợp mới. Kết quả đã lưu của bạn không thay đổi. Hãy thử lại; kết quả có thể khác nhau giữa các lần.',
+  'The AI cited CV text that could not be verified, so your saved assessment is unchanged. Retry; results can differ between attempts.':
+    'AI đã trích dẫn nội dung CV không thể xác minh. Đánh giá đã lưu được giữ nguyên. Kết quả có thể khác khi thử lại.',
   "AI couldn't complete this match within the response limit. Your previous result is unchanged. Please try again.":
     'AI chưa thể hoàn tất đánh giá trong giới hạn phản hồi. Kết quả trước đó không thay đổi. Vui lòng thử lại.',
   'The AI service is temporarily busy. Your saved match is unchanged. Try again in a few minutes.':
@@ -869,8 +1147,8 @@ export const VI_TEXT: Record<string, string> = {
     'Để trống để tìm mọi việc làm IT. Khớp với bất kỳ từ khóa nào đã chọn trong nội dung việc làm, kể cả mô tả và kỹ năng ưu tiên; không nhất thiết là kỹ năng bắt buộc.',
   'Matching is disabled. Review the retained source above, check local services, then choose Analyze to retry manually. Parse without AI lets you view source without running the model.':
     'Đối chiếu đang tắt. Hãy xem nguồn được giữ ở trên, kiểm tra các dịch vụ cục bộ, rồi chọn Phân tích để thử lại thủ công. Phân tích không dùng AI cho phép xem nguồn mà không chạy mô hình.',
-  'Matching timed out. Check the AI service and retry; no new fit score was produced.':
-    'Đối chiếu hết thời gian chờ. Kiểm tra dịch vụ AI và thử lại; chưa có điểm phù hợp mới nào được tạo.',
+  'Matching timed out. Check the AI service and retry. No new assessment was saved.':
+    'Đối chiếu hết thời gian chờ. Kiểm tra dịch vụ AI và thử lại. Chưa lưu đánh giá mới.',
   'Missing / unknown — no supported value found.':
     'Thiếu / chưa rõ — không tìm thấy giá trị có căn cứ.',
   'Missing CV evidence': 'Thiếu bằng chứng trong CV',
@@ -1197,7 +1475,7 @@ export const VI_TEXT: Record<string, string> = {
     'Sẵn sàng tạo từ hồ sơ đã rà soát và Đối chiếu CV mới.',
   'Ready to review': 'Sẵn sàng rà soát',
   'Real job postings': 'Tin tuyển dụng thật',
-  'Reanalyze CV Match': 'Phân tích lại Đối chiếu CV',
+  'Reanalyze CV Match': 'Phân tích lại',
   'Reanalyze CV Match for the current source CV before generation.':
     'Phân tích lại Đối chiếu CV cho CV gốc hiện tại trước khi tạo.',
   'Reason for excluding this content': 'Lý do loại trừ nội dung này',
@@ -1538,10 +1816,10 @@ export const VI_TEXT: Record<string, string> = {
     'Gợi ý học kỹ thuật (AI, chưa xác minh)',
   "Technical questions based on this job description. They ask about the role's requirements and never assume you have used a technology.":
     'Câu hỏi kỹ thuật dựa trên mô tả công việc này. Chúng hỏi về yêu cầu của vị trí và không bao giờ giả định bạn đã dùng một công nghệ.',
-  'The AI model returned an incomplete assessment. Retry; no new fit score was produced.':
-    'Mô hình AI trả về đánh giá chưa đầy đủ. Hãy thử lại; chưa có điểm phù hợp mới nào được tạo.',
-  'The AI model returned invalid matching output. Retry; no new fit score was produced.':
-    'Mô hình AI trả về kết quả đối chiếu không hợp lệ. Hãy thử lại; chưa có điểm phù hợp mới nào được tạo.',
+  'The AI model returned an incomplete assessment. Retry. No new assessment was saved.':
+    'Mô hình AI trả về đánh giá chưa đầy đủ. Hãy thử lại. Chưa lưu đánh giá mới.',
+  'The AI model returned invalid matching output. Retry. No new assessment was saved.':
+    'Mô hình AI trả về kết quả đối chiếu không hợp lệ. Hãy thử lại. Chưa lưu đánh giá mới.',
   'The AI referenced unsupported content. Your existing drafts are unchanged. Retry generation.':
     'AI đã tham chiếu nội dung không được hỗ trợ. Các bản nháp hiện có không thay đổi. Hãy thử tạo lại.',
   'The AI returned an invalid proposal. Your existing drafts are unchanged. Retry generation.':
@@ -1554,8 +1832,8 @@ export const VI_TEXT: Record<string, string> = {
     'AI hết thời gian chờ. Các bản nháp hiện có không thay đổi.',
   'The API did not return a valid CV file. Retry the download.':
     'API không trả về tệp CV hợp lệ. Hãy thử tải lại.',
-  'The API returned an invalid matching result. Retry; no new fit score was produced.':
-    'API trả về kết quả đối chiếu không hợp lệ. Hãy thử lại; chưa có điểm phù hợp mới nào được tạo.',
+  'The API returned an invalid matching result. Retry. No new assessment was saved.':
+    'API trả về kết quả đối chiếu không hợp lệ. Hãy thử lại. Chưa lưu đánh giá mới.',
   'The API returned an invalid or incompatible analysis response. No result can be displayed.':
     'API trả về phản hồi phân tích không hợp lệ hoặc không tương thích. Không thể hiển thị kết quả.',
   'The API returned an invalid source CV. Retry loading the review.':
@@ -1587,8 +1865,8 @@ export const VI_TEXT: Record<string, string> = {
     'Mô tả công việc đã thay đổi sau khi tạo các câu hỏi này.',
   'The latest questions could not be loaded. Showing the last loaded list.':
     'Không thể tải câu hỏi mới nhất. Đang hiển thị danh sách đã tải gần nhất.',
-  'The local API returned unreadable matching output. Retry; no new fit score was produced.':
-    'API cục bộ trả về kết quả đối chiếu không đọc được. Hãy thử lại; chưa có điểm phù hợp mới nào được tạo.',
+  'The local API returned unreadable matching output. Retry. No new assessment was saved.':
+    'API cục bộ trả về kết quả đối chiếu không đọc được. Hãy thử lại. Chưa lưu đánh giá mới.',
   'The model could not organize this CV safely. Your saved review is unchanged. Choose Organize my CV to retry.':
     'Mô hình không thể sắp xếp CV này một cách an toàn. Bản rà soát đã lưu không thay đổi. Chọn Sắp xếp CV của tôi để thử lại.',
   'The new set becomes the current one. Your current questions and saved answers stay available under Previous question sets — nothing is deleted.':
@@ -1759,6 +2037,9 @@ export const VI_TEXT: Record<string, string> = {
     'Bằng chứng CV đã xác minh hỗ trợ yêu cầu này.',
   'Verified CV wording': 'Cách diễn đạt CV đã xác minh',
   'Verified in your CV': 'Đã xác minh trong CV của bạn',
+  'Context only': 'Chỉ dùng làm ngữ cảnh',
+  'Professional experience: {label}': 'Kinh nghiệm chuyên môn: {label}',
+  'Technology mention: {label}': 'Công nghệ được nhắc đến: {label}',
   'Verified professional experience': 'Kinh nghiệm chuyên môn đã xác minh',
   'Verified technology mention': 'Công nghệ được nhắc đến đã xác minh',
   'Vietnam scope, including unspecified and global remote locations.':
@@ -2334,7 +2615,37 @@ export const VI_TEXT: Record<string, string> = {
   'Proficiency in one listed language is not evidenced; a skills list or name alone does not establish it.':
     'CV chưa thể hiện mức thành thạo một ngôn ngữ trong danh sách; chỉ liệt kê kỹ năng chưa đủ.',
   'Before you apply': 'Trước khi ứng tuyển',
+  'Technical Evidence Coverage': 'Mức bao phủ bằng chứng kỹ thuật',
+  'Technical Evidence Coverage: {v0}': 'Mức bao phủ bằng chứng kỹ thuật: {v0}',
+  'Technical Evidence Coverage: {v0}/100 · see Technical details':
+    'Mức bao phủ bằng chứng kỹ thuật: {v0}/100 · xem Chi tiết kỹ thuật',
+  'This measures CV evidence for the job’s technical skills. Hiring outcomes are outside its scope.':
+    'Điểm đo mức độ CV thể hiện các kỹ năng kỹ thuật trong mô tả công việc. Kết quả tuyển dụng nằm ngoài phạm vi đánh giá này.',
+  Conditions: 'Điều kiện',
+  'Evidence meets the condition': 'Có bằng chứng đáp ứng',
+  'Reviewed work dates and programming roles do not establish the required duration.':
+    'Thời gian làm việc và vai trò lập trình trong CV đã duyệt chưa xác nhận đủ số năm yêu cầu.',
+  'Reviewed education does not establish the required IT degree.':
+    'Học vấn trong CV đã duyệt chưa xác nhận bằng đại học ngành công nghệ thông tin theo yêu cầu.',
+  'Evidence not established': 'Chưa có bằng chứng',
+  'Evidence falls short of the condition': 'Có bằng chứng chưa đáp ứng',
+  'Your saved CV may leave some conditions unclear. If you meet one, add specific evidence to your CV.':
+    'CV đã lưu có thể chưa thể hiện rõ một số điều kiện. Nếu bạn đáp ứng điều kiện nào, hãy bổ sung bằng chứng cụ thể vào CV.',
+  'Alternative in the job description':
+    'Phương án thay thế trong mô tả công việc',
+  'CV evidence': 'Bằng chứng trong CV',
   'Documented CV evidence coverage': 'Mức bằng chứng được ghi trong CV',
+  'Too few assessable technical requirements':
+    'Quá ít yêu cầu kỹ thuật có thể đánh giá',
+  'Too many technical requirements need review':
+    'Quá nhiều yêu cầu kỹ thuật cần xem lại',
+  'CV evidence could not be verified': 'Không thể xác minh bằng chứng trong CV',
+  'Job requirements may be incomplete': 'Yêu cầu công việc có thể chưa đầy đủ',
+  'requirements may be incomplete': 'yêu cầu công việc có thể chưa đầy đủ',
+  'Evidence Coverage is the weighted mean of CV evidence strength for technical requirements. Required requirements have weight 3 and preferred requirements have weight 1. An AND requirement uses the mean of its components. An OR requirement uses its strongest alternative. Missing evidence and conflicts contribute zero.':
+    'Mức bao phủ bằng chứng là trung bình có trọng số của độ mạnh bằng chứng trong CV cho các yêu cầu kỹ thuật. Yêu cầu bắt buộc có trọng số 3, yêu cầu ưu tiên có trọng số 1. Nhóm cần đủ các thành phần dùng điểm trung bình. Nhóm chỉ cần một lựa chọn dùng điểm cao nhất. Thiếu bằng chứng hoặc có mâu thuẫn được tính 0 điểm.',
+  'Some technical evidence could not be verified against the CV. Review the affected requirements and retry.':
+    'Không thể xác minh một số bằng chứng kỹ thuật trong CV. Hãy xem lại các yêu cầu liên quan rồi thử lại.',
   'Evaluated: {v0} of {v1} JD requirements':
     'Đã đánh giá: {v0}/{v1} yêu cầu trong JD',
   'Low confidence: interpret this score with care.':
@@ -2411,4 +2722,59 @@ export const VI_TEXT: Record<string, string> = {
   'Already matched': 'Đã khớp',
   'Reference score: {v0}/100 · see Technical details':
     'Điểm tham khảo: {v0}/100 · xem Chi tiết kỹ thuật',
+  'Evidence Review': 'Rà soát bằng chứng',
+  'See what your CV documents for each job requirement.':
+    'Xem CV của bạn thể hiện điều gì cho từng yêu cầu tuyển dụng.',
+  'Verified evidence': 'Bằng chứng đã xác minh',
+  'Partial evidence': 'Bằng chứng một phần',
+  'No documented evidence': 'CV chưa có bằng chứng',
+  'Needs review': 'Cần rà soát',
+  'The reviewed CV explicitly lists the requested technology.':
+    'CV đã rà soát nêu rõ công nghệ được yêu cầu.',
+  'The reviewed CV does not document these technologies: {terms}.':
+    'CV đã rà soát chưa thể hiện các công nghệ sau: {terms}.',
+  'This passage names the requested technology. The full requirement remains unverified.':
+    'Đoạn này nêu công nghệ được yêu cầu. Toàn bộ yêu cầu vẫn chưa được xác minh.',
+  'The meaning, attribution or scope needs manual review.':
+    'Cần rà soát cách hiểu, vai trò cá nhân hoặc phạm vi công việc.',
+  'Review the original text to identify its requirements.':
+    'Hãy xem văn bản gốc để xác định các yêu cầu.',
+  'This saved field differs from the identified original requirements. Review both sources.':
+    'Trường đã lưu khác với các yêu cầu gốc đã xác định. Hãy xem cả hai nguồn.',
+  'The saved CV passage could not be verified against the reviewed source.':
+    'Không thể xác minh đoạn CV đã lưu với nguồn đã rà soát.',
+  'Original JD': 'JD gốc',
+  'Saved required skills': 'Kỹ năng bắt buộc đã lưu',
+  'Saved preferred skills': 'Kỹ năng ưu tiên đã lưu',
+  'Saved experience field': 'Trường kinh nghiệm đã lưu',
+  'Saved domain field': 'Trường lĩnh vực đã lưu',
+  'This saved assessment predates Evidence Review. Reload or run the review to verify its sources.':
+    'Đánh giá này có trước tính năng Rà soát bằng chứng. Hãy tải lại hoặc chạy rà soát để xác minh nguồn.',
+  'Requirement evidence': 'Bằng chứng theo yêu cầu',
+  'Verified CV declaration': 'Nội dung khai báo đã xác minh trong CV',
+  'CV passage for review': 'Đoạn CV cần rà soát',
+  'If you performed this work, describe your specific role and outcome.':
+    'Nếu bạn đã thực hiện công việc này, hãy mô tả vai trò cụ thể và kết quả của bạn.',
+  'Original job sources': 'Nguồn tuyển dụng gốc',
+  'Some requirements may need manual identification in the original text.':
+    'Một số yêu cầu cần được xác định thủ công từ văn bản gốc.',
+  'Added by you in CV review': 'Bạn đã bổ sung khi rà soát CV',
+  'Open Evidence Review for requirement-specific CV guidance.':
+    'Mở Rà soát bằng chứng để xem gợi ý cho từng yêu cầu.',
+  'View Evidence Review': 'Xem Rà soát bằng chứng',
+  'The saved assessment may have missed some CV passages.':
+    'Đánh giá đã lưu có thể bỏ sót một số đoạn CV.',
+  'Evidence Review is available. Tailored CV uses a current saved assessment.':
+    'Bạn có thể rà soát bằng chứng. CV điều chỉnh sử dụng đánh giá đã lưu còn hiệu lực.',
+  'Relevant documented context': 'Nội dung liên quan được ghi trong CV',
+  'The CV describes related work. The full requirement still needs review.':
+    'CV mô tả công việc liên quan. Cần rà soát toàn bộ yêu cầu.',
+  'The CV documents a team deployment. Your personal deployment responsibility remains unverified.':
+    'CV ghi nhận việc triển khai của nhóm. Trách nhiệm triển khai của riêng bạn vẫn chưa được xác minh.',
+  'The CV documents a deployment outside production. Production deployment for this work remains unverified.':
+    'CV ghi nhận việc triển khai ngoài môi trường vận hành thực tế. Việc triển khai công việc này lên môi trường vận hành thực tế vẫn chưa được xác minh.',
+  'The CV documents use of the technology. The requested proficiency level remains unverified.':
+    'CV ghi nhận việc sử dụng công nghệ. Mức độ thành thạo theo yêu cầu vẫn chưa được xác minh.',
+  'Conditions are available with a current saved assessment.':
+    'Các điều kiện sẽ hiển thị khi có đánh giá đã lưu còn hiệu lực.',
 };

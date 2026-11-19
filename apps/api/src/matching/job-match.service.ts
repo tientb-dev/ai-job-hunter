@@ -1,3 +1,6 @@
+import { unknownExperience } from './cv-match.conditions.js';
+import { buildCvSkillMatch } from './cv-skill-match.js';
+import { buildEvidenceReview } from './evidence-review.js';
 import { CvSuggestionsError } from './cv-suggestions.error.js';
 import {
   CvSuggestionsService,
@@ -10,6 +13,7 @@ import {
   type MatchSnapshot,
   type SavedCvAssessment,
 } from './match-context.js';
+import type { ConditionAssessment } from './cv-match.conditions.js';
 import { CvMatchRecord } from './cv-match.entity.js';
 import { evidenceSummary } from './cv-match.summary.js';
 import { createHash, randomUUID } from 'node:crypto';
@@ -60,12 +64,16 @@ import {
 import {
   emitMatchCompletion,
   emitMatchDecomposition,
+  emitMatchPersistence,
+  emitMatchProviderTiming,
+  type MatchDecompositionTarget,
   emitMatchFailure,
   matchAttempt,
   emitMatchEvidenceSummary,
   type MatchFailureTrace,
 } from './cv-match.diagnostics.js';
-import { AI_CONFIG, type AiConfig } from '../ai/ai.config.js';
+import { CV_MATCH_AI } from '../ai/ai.module.js';
+import { CV_MATCH_AI_CONFIG, type AiConfig } from '../ai/ai.config.js';
 import {
   ReviewedCvService,
   type ReviewedCv,
@@ -122,6 +130,7 @@ export const cvTextHash = (text: string) =>
  */
 export function withCvOrigins<
   T extends {
+    conditions?: readonly ConditionAssessment[];
     requirements: readonly {
       cvQuote: string;
       coverage?: { components: readonly { cvQuote: string }[] };
@@ -132,6 +141,24 @@ export function withCvOrigins<
     quote.trim() ? (quoteOrigin(reviewed, quote) ?? undefined) : undefined;
   return {
     ...result,
+    ...(result.conditions && {
+      conditions: result.conditions.map((condition) => ({
+        ...condition,
+        evidence: condition.evidence.map((evidence) => {
+          const touched = reviewed.lines.filter(
+            (line) => line.start < evidence.end && line.end > evidence.start,
+          );
+          const cvOrigin = touched.some(
+            (line) => line.origin === 'user_entered',
+          )
+            ? 'user_entered'
+            : touched.length
+              ? 'source'
+              : undefined;
+          return { ...evidence, cvOrigin };
+        }),
+      })),
+    }),
     requirements: result.requirements.map((item) => ({
       ...item,
       cvOrigin: origin(item.cvQuote),
@@ -286,7 +313,10 @@ export class JobMatchService {
     @InjectRepository(CvMatchRecord)
     private readonly matchRows: Repository<CvMatchRecord>,
     private readonly reviewedCvs: ReviewedCvService,
-    @Optional() @Inject(AI_CONFIG) private readonly aiConfig?: AiConfig,
+    @Optional()
+    @Inject(CV_MATCH_AI_CONFIG)
+    private readonly aiConfig?: AiConfig,
+    @Optional() @Inject(CV_MATCH_AI) private readonly matchAi?: AiService,
   ) {}
   private static dto(cv: SavedCv) {
     return {
@@ -412,19 +442,49 @@ export class JobMatchService {
       ownerId,
       jobId: id,
     });
-    if (!row) return { status: 'MISSING' as const };
+    const freshReview = () => ({
+      cvUpdatedAt: cv.updatedAt,
+      skillMatch: buildCvSkillMatch(job, reviewed.reviewed),
+      evidenceReview: buildEvidenceReview(
+        job,
+        reviewed.reviewed,
+        reviewed.profileRevisionId,
+        [],
+      ),
+    });
+    if (!row) return { status: 'MISSING' as const, ...freshReview() };
     const current = await this.resolve(
       row,
       { ...cv, profileRevisionId: reviewed.profileRevisionId },
       job.updatedAt,
     );
-    if (current.status !== 'VALID') return { status: current.status };
+    if (current.status !== 'VALID')
+      return { status: current.status, ...freshReview() };
     const { snapshot } = current;
     return {
       status: 'VALID' as const,
       matchValidForMs: JobMatchService.RECHECK_MS,
       result: {
         ...snapshot.assessment,
+        ...(snapshot.assessment.conditions && {
+          conditions: snapshot.assessment.conditions.map((condition) => ({
+            ...condition,
+            ...(condition.status === 'UNKNOWN' &&
+              condition.kind === 'EXPERIENCE' && {
+                unknownExperience: unknownExperience(
+                  condition.jdQuote,
+                  reviewed.reviewed,
+                ),
+              }),
+          })),
+        }),
+        skillMatch: buildCvSkillMatch(job, reviewed.reviewed),
+        evidenceReview: buildEvidenceReview(
+          job,
+          reviewed.reviewed,
+          reviewed.profileRevisionId,
+          snapshot.assessment.requirements,
+        ),
         matchId: snapshot.matchId,
         cvUpdatedAt: snapshot.cvUpdatedAt,
         jobUpdatedAt: snapshot.jobUpdatedAt,
@@ -551,7 +611,11 @@ export class JobMatchService {
     const trace: MatchFailureTrace = { stage: 'SETUP' };
     return matchAttempt.run(randomUUID(), async () => {
       try {
-        return await this.runAnalysis(ownerId, id, trace);
+        const result = await this.runAnalysis(ownerId, id, trace);
+        emitMatchProviderTiming(this.aiConfig, 'ANALYSIS', {
+          elapsedMs: Math.round(performance.now() - started),
+        });
+        return result;
       } catch (error) {
         emitMatchFailure(
           error,
@@ -573,48 +637,73 @@ export class JobMatchService {
     canonical: MatchRequirement[],
     trace: MatchFailureTrace,
   ): Promise<MatchRequirement[]> {
-    const targets = canonical.filter(needsDecomposition);
-    const withCache = (item: MatchRequirement) => {
-      const cached = cachedDecomposition(item);
-      return cached ? { ...item, decomposition: cached } : item;
-    };
-    const pending = targets
-      .filter((item) => !cachedDecomposition(item))
-      .slice(0, MAX_AI_DECOMPOSITIONS);
-    let outcome = pending.length ? 'ERROR' : 'CACHED';
-    let accepted = 0;
+    const diagnostics: MatchDecompositionTarget[] = [];
+    const pending: {
+      row: MatchRequirement;
+      target: MatchDecompositionTarget;
+    }[] = [];
+    for (const [index, row] of canonical.entries()) {
+      if (!needsDecomposition(row)) continue;
+      const target: MatchDecompositionTarget = {
+        index,
+        reason: cachedDecomposition(row)
+          ? 'CACHED'
+          : pending.length >= MAX_AI_DECOMPOSITIONS
+            ? 'DEFERRED_LIMIT'
+            : 'BATCH_ERROR',
+      };
+      diagnostics.push(target);
+      if (target.reason === 'BATCH_ERROR') pending.push({ row, target });
+    }
+    let outcome = 'CACHED';
     if (pending.length) {
       trace.stage = 'DECOMPOSITION';
       try {
-        const reply = (await this.ai.generateStructured({
-          prompt: decompositionPrompt(pending),
-          schema: decompositionSchema(pending),
+        const rows = pending.map(({ row }) => row);
+        const reply = (await (this.matchAi ?? this.ai).generateStructured({
+          prompt: decompositionPrompt(rows),
+          schema: decompositionSchema(rows),
+          onProviderTiming: (timing) =>
+            emitMatchProviderTiming(this.aiConfig, 'DECOMPOSITION', timing),
         })) as { items: DecompositionProposal[] };
-        for (const proposal of reply.items) {
-          const row = pending.find(
-            (item) => item.parentId === proposal.parentId,
+        for (const { row, target } of pending) {
+          const [proposal, duplicate] = reply.items.filter(
+            (item) => item.parentId === row.parentId,
           );
-          const group = row && validateDecomposition(row, proposal);
-          if (!group) continue;
-          rememberDecomposition(row, group);
-          accepted++;
+          if (duplicate) target.reason = 'DUPLICATE_PARENT';
+          else if (!proposal) target.reason = 'OMITTED';
+          else {
+            const group = validateDecomposition(row, proposal);
+            if (typeof group === 'string') target.reason = group;
+            else {
+              rememberDecomposition(row, group);
+              target.reason = 'ACCEPTED';
+            }
+          }
         }
-        outcome = accepted === pending.length ? 'COMPLETED' : 'PARTIAL';
+        outcome = pending.every(({ target }) => target.reason === 'ACCEPTED')
+          ? 'COMPLETED'
+          : 'PARTIAL';
       } catch (error) {
         outcome =
           error instanceof AiError && /^[A-Z_]{1,40}$/u.test(error.code)
             ? error.code
             : 'ERROR';
-      } finally {
-        emitMatchDecomposition(
-          outcome,
-          targets.length,
-          pending.length,
-          accepted,
-        );
       }
     }
-    return canonical.map(withCache);
+    if (diagnostics.length) {
+      trace.decompositionTargets = true;
+      emitMatchDecomposition(
+        outcome,
+        pending.length,
+        diagnostics.filter(({ reason }) => reason === 'ACCEPTED').length,
+        diagnostics,
+      );
+    }
+    return canonical.map((item) => {
+      const cached = cachedDecomposition(item);
+      return cached ? { ...item, decomposition: cached } : item;
+    });
   }
   private async runAnalysis(
     ownerId: string,
@@ -661,10 +750,13 @@ export class JobMatchService {
           'CV_MATCH_INCOMPLETE',
           'NO_CANONICAL_REQUIREMENTS',
         );
-      const gemini = this.aiConfig?.provider === 'gemini';
-      // Gemini schemas carry no passage enum (#63); the server still verifies quotes.
+      const hosted =
+        this.aiConfig?.provider === 'gemini' ||
+        this.aiConfig?.provider === 'openai';
+      // Hosted providers use the same prompt and bounded wire schema. The
+      // server still enforces the complete passage set after generation.
       const quoteRule = (text: string) =>
-        gemini
+        hosted
           ? `For every cvQuote, copy one complete CV line, or up to three consecutive lines, exactly; never a fragment. Keep surrounding negations and qualifiers.\n${text}`
           : text;
       const prompt = quoteRule(matchPrompt(cv.text, jd, canonical));
@@ -681,9 +773,11 @@ export class JobMatchService {
         trace.stage = stage;
         try {
           return (
-            (await this.ai.generateStructured({
+            (await (this.matchAi ?? this.ai).generateStructured({
               ...request,
               maxOutputTokens: MATCH_MAX_OUTPUT_TOKENS,
+              onProviderTiming: (timing) =>
+                emitMatchProviderTiming(this.aiConfig, stage, timing),
             })) as {
               requirements: MatchRequirement[];
             }
@@ -726,11 +820,11 @@ export class JobMatchService {
       let proposals = await generate('INITIAL', {
         prompt,
         seed: CV_MATCH_SEED,
-        schema: gemini ? withoutQuoteEnums(schema) : schema,
+        schema: hosted ? withoutQuoteEnums(schema) : schema,
       });
-      // Gemini only: one bounded completion call for omitted requirements. Never
+      // Hosted providers: one bounded completion call for omitted requirements. Never
       // retried; its items still pass the full validation below.
-      const missing = gemini ? missingRequirements(proposals, canonical) : [];
+      const missing = hosted ? missingRequirements(proposals, canonical) : [];
       if (missing.length) {
         let outcome = 'ERROR';
         let returned = 0;
@@ -761,8 +855,8 @@ export class JobMatchService {
         }
       }
       trace.stage = 'VALIDATION';
-      // Gemini schemas carry no passage enums; enforce the same passages here.
-      const allowed = gemini
+      // Hosted wire schemas omit passage enums; enforce the same passages here.
+      const allowed = hosted
         ? new Set(matchQuoteChoices(cv.text, canonical))
         : undefined;
       const verified = validateMatchAssessment(
@@ -800,6 +894,7 @@ export class JobMatchService {
           jd,
           canonical,
           canonicalRequirementsUnverified(job),
+          review.reviewed,
         ),
         review.reviewed,
       );
@@ -825,15 +920,25 @@ export class JobMatchService {
               job.updatedAt,
             )
           : null;
-      if (kept?.status === 'VALID')
+      if (kept?.status === 'VALID') {
+        if (trace.decompositionTargets)
+          emitMatchPersistence('RETAINED_PREVIOUS');
         return {
           ...kept.snapshot.assessment,
+          skillMatch: buildCvSkillMatch(job, review.reviewed),
+          evidenceReview: buildEvidenceReview(
+            job,
+            review.reviewed,
+            review.profileRevisionId,
+            kept.snapshot.assessment.requirements,
+          ),
           matchId: kept.snapshot.matchId,
           cvUpdatedAt: kept.snapshot.cvUpdatedAt,
           jobUpdatedAt: kept.snapshot.jobUpdatedAt,
           analyzedAt: kept.analyzedAt,
           keptPrevious: true as const,
         };
+      }
       await this.matchRows.manager.transaction(async (m) => {
         const rows = m.getRepository(CvMatchRecord);
         await rows.delete({ ownerId, jobId: id });
@@ -852,6 +957,7 @@ export class JobMatchService {
           analyzedAt,
         });
       });
+      if (trace.decompositionTargets) emitMatchPersistence('PERSISTED_FRESH');
       emitMatchEvidenceSummary(() =>
         evidenceSummary(
           proposals,
@@ -864,6 +970,13 @@ export class JobMatchService {
       );
       return {
         ...result,
+        skillMatch: buildCvSkillMatch(job, review.reviewed),
+        evidenceReview: buildEvidenceReview(
+          job,
+          review.reviewed,
+          review.profileRevisionId,
+          result.requirements,
+        ),
         matchId,
         cvUpdatedAt: cv.updatedAt,
         jobUpdatedAt: job.updatedAt,

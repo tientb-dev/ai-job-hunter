@@ -4,6 +4,15 @@ export interface DraftFact {
   field: string;
   acceptedText: string;
   selected: boolean;
+  clarification?: {
+    kind: 'impact' | 'scale' | 'ownership';
+    question?: string;
+    explanation?: string;
+    requirementIds: string[];
+    status: 'open' | 'no_metrics' | 'skipped' | 'confirmed' | 'included';
+    answer?: string;
+    addition?: string;
+  };
   provenance: {
     profileFactId: string;
     origin: 'source' | 'user_entered';
@@ -19,6 +28,9 @@ export interface DraftFact {
     status: 'pending';
     requirementIds: string[];
     explanation?: string;
+    requiresConfirmation?: boolean;
+    confirmationAssertion?: string;
+    benefit?: 'purpose' | 'action' | 'readability' | 'requirement';
   } | null;
   verification?: {
     text: string;
@@ -37,6 +49,7 @@ export interface DraftDocument {
     jobId: string;
     jobUpdatedAt: string;
   };
+  requirements?: { id: string; text: string }[];
   sections: {
     id: string;
     kind: string;
@@ -83,6 +96,13 @@ export interface SavedDraft {
   updatedAt: string;
   document: DraftDocument;
 }
+export type ClarificationOperation =
+  | { action: 'confirm_answer'; factId: string; text: string }
+  | {
+      action:
+        'use_answer' | 'replace_with_answer' | 'skip_question' | 'no_metrics';
+      factId: string;
+    };
 export type DraftOperation =
   | { action: 'edit'; factId: string; text: string }
   | { action: 'accept' | 'reject' | 'restore'; factId: string }
@@ -111,6 +131,14 @@ export function decodeDraft(value: unknown, jobId: string): SavedDraft {
     !object(doc.pins) ||
     doc.pins.jobId !== jobId ||
     !Array.isArray(doc.sections) ||
+    (doc.requirements !== undefined &&
+      (!Array.isArray(doc.requirements) ||
+        doc.requirements.some(
+          (row) =>
+            !object(row) ||
+            typeof row.id !== 'string' ||
+            typeof row.text !== 'string',
+        ))) ||
     !Array.isArray(doc.reviewIssues) ||
     !object(doc.review) ||
     doc.review.contractVersion !== '1' ||
@@ -174,8 +202,48 @@ export function decodeDraft(value: unknown, jobId: string): SavedDraft {
             (!object(f.proposedWording) ||
               typeof f.proposedWording.text !== 'string' ||
               !Array.isArray(f.proposedWording.requirementIds) ||
+              f.proposedWording.requirementIds.some(
+                (id) => typeof id !== 'string',
+              ) ||
+              (f.proposedWording.confirmationAssertion !== undefined &&
+                (typeof f.proposedWording.confirmationAssertion !== 'string' ||
+                  f.proposedWording.requiresConfirmation !== true)) ||
+              (f.proposedWording.requiresConfirmation !== undefined &&
+                typeof f.proposedWording.requiresConfirmation !== 'boolean') ||
+              (f.proposedWording.benefit !== undefined &&
+                !['purpose', 'action', 'readability', 'requirement'].includes(
+                  f.proposedWording.benefit as string,
+                )) ||
               (f.proposedWording.explanation !== undefined &&
                 typeof f.proposedWording.explanation !== 'string'))) ||
+          (f.clarification !== undefined &&
+            (!object(f.clarification) ||
+              (f.clarification.question !== undefined &&
+                typeof f.clarification.question !== 'string') ||
+              (f.clarification.explanation !== undefined &&
+                typeof f.clarification.explanation !== 'string') ||
+              !['impact', 'scale', 'ownership'].includes(
+                f.clarification.kind as string,
+              ) ||
+              ![
+                'open',
+                'no_metrics',
+                'skipped',
+                'confirmed',
+                'included',
+              ].includes(f.clarification.status as string) ||
+              (f.clarification.addition !== undefined &&
+                (typeof f.clarification.addition !== 'string' ||
+                  typeof f.clarification.answer !== 'string')) ||
+              !Array.isArray(f.clarification.requirementIds) ||
+              f.clarification.requirementIds.some(
+                (id) => typeof id !== 'string',
+              ) ||
+              (['confirmed', 'included'].includes(
+                f.clarification.status as string,
+              )
+                ? typeof f.clarification.answer !== 'string'
+                : f.clarification.answer !== undefined))) ||
           (state.proposal === 'pending' && f.proposedWording === null)
         )
           throw new Error(tr('Invalid draft review state.'));
@@ -230,6 +298,9 @@ export async function draftRequest(
         ? value.errorCode
         : '';
     const messages: Record<string, string> = {
+      CV_DRAFT_DETAIL_UNCLEAR: tr(
+        'Say what changed, what was counted, or what you did.',
+      ),
       CV_DRAFT_CONTEXT_LIMIT: tr(
         'This CV exceeds the local document budget. Shorten or split overly long fields in source review, then generate a separate draft. Your saved work is unchanged.',
       ),

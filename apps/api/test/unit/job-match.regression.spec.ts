@@ -12,10 +12,7 @@ import type { ExtractionService } from '../../src/extraction/extraction.service.
 import { JobMatchService } from '../../src/matching/job-match.service.js';
 import { MatchingService } from '../../src/matching/matching.service.js';
 import { SavedCv } from '../../src/matching/saved-cv.entity.js';
-import {
-  canonicalRequirements,
-  type MatchRequirement,
-} from '../../src/matching/cv-match.js';
+import { canonicalRequirements } from '../../src/matching/cv-match.js';
 import type { Opportunity } from '../../src/opportunities/opportunity.entity.js';
 import type { OpportunitiesService } from '../../src/opportunities/opportunities.service.js';
 const cvText =
@@ -72,14 +69,14 @@ function setup(
   );
   return { service, provider, cvs, jobs };
 }
-test('synthetic accepted AI Developer still returns 27 with exact Java and duration evidence', async () => {
+test('synthetic accepted AI Developer reports listed Java Coverage and preserves exact duration evidence', async () => {
   const { service, provider } = setup(async (request) => {
     expect(request.prompt).toContain(cvText.split('\n')[0]);
     expect(request.prompt).toContain('Minimum 3 years');
     return JSON.stringify({ requirements: output() });
   });
   const result = await service.analyze(LOCAL_OWNER_ID, 'synthetic');
-  expect(result.score).toBe(27);
+  expect(result.score).toBe(Math.round(40 / 11));
   expect(
     result.requirements
       .filter((item) => item.status === 'EVIDENCED')
@@ -146,7 +143,7 @@ test.each([
 test('a valid fully evaluated negative assessment is allowed to remain genuinely zero', async () => {
   const javaJob = {
     ...job,
-    skills: 'Java',
+    skills: 'Java\nDocker\nRust',
     preferredSkills: '',
     experience: '',
     domain: '',
@@ -155,21 +152,14 @@ test('a valid fully evaluated negative assessment is allowed to remain genuinely
   const { service } = setup(
     async () =>
       JSON.stringify({
-        requirements: [
-          {
-            requirement: 'Java',
-            priority: 'required',
-            category: 'skill',
-            jdQuote: 'Java',
-            cvQuote: '',
-          } satisfies MatchRequirement,
-        ],
+        requirements: canonicalRequirements(javaJob),
       }),
     'Synthetic CV: SQL reporting experience.',
     javaJob,
   );
   expect(await service.analyze(LOCAL_OWNER_ID, 'synthetic')).toMatchObject({
     score: 0,
+    coverageHidden: null,
     recommendation: 'Low Fit',
   });
 });
@@ -182,7 +172,10 @@ test('AI-assisted coding tool evidence cannot substantiate production AI/ML', as
     return JSON.stringify({ requirements });
   });
   const result = await service.analyze(LOCAL_OWNER_ID, 'synthetic');
-  expect(result.score).toBe(27);
+  expect(result).toMatchObject({
+    score: null,
+    coverageHidden: 'EVIDENCE_VERIFICATION_FAILED',
+  });
   expect(
     result.requirements.find((item) => item.requirement === 'AI/ML'),
   ).toMatchObject({ status: 'NOT_EVIDENCED', cvQuote: '' });
@@ -223,7 +216,7 @@ test('HTTP pipeline returns structured success or explicit errors without a fabr
       .post(route)
       .set(origin)
       .expect(200);
-    expect(success.body.score).toBe(27);
+    expect(success.body.score).toBe(Math.round(40 / 11));
     provider.generate.mockImplementation(async () =>
       JSON.stringify({ requirements: [] }),
     );
@@ -274,7 +267,14 @@ test('explicit AI-assisted coding-tool requirements can still use tool evidence'
     toolingJob,
   );
   expect(await service.analyze(LOCAL_OWNER_ID, 'synthetic')).toMatchObject({
-    score: 100,
+    coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
+    requirements: [
+      {
+        status: 'EVIDENCED',
+        credit: 1,
+        cvQuote: 'Tools: AI-assisted coding with Copilot.',
+      },
+    ],
   });
 });
 
@@ -319,7 +319,7 @@ test('service returns source-selected quotes and keeps unsupported qualification
     mixedJob,
   );
   const result = await service.analyze(LOCAL_OWNER_ID, 'synthetic');
-  expect(result.score).toBe(75);
+  expect(result.score).toBe(Math.round(40 / 3));
   expect(result.recommendation).toBe('Consider');
   expect(
     result.requirements.find((item) => item.requirement === 'SQL'),
@@ -374,12 +374,30 @@ test('successful match adds an opaque context without changing the assessment; r
     'synthetic',
     first.matchId,
   );
-  const { matchId, cvUpdatedAt, jobUpdatedAt, analyzedAt, ...assessment } =
-    first;
+  const {
+    matchId,
+    cvUpdatedAt,
+    jobUpdatedAt,
+    analyzedAt,
+    evidenceReview,
+    skillMatch,
+    ...assessment
+  } = first;
+  expect(evidenceReview).toMatchObject({
+    version: 1,
+    jobRevision: job.updatedAt,
+  });
+  expect(await service.currentMatch(LOCAL_OWNER_ID, 'synthetic')).toMatchObject(
+    {
+      status: 'VALID',
+      result: { matchId, evidenceReview, skillMatch },
+    },
+  );
   expect(matchId).toMatch(/^[0-9a-f-]{36}$/u);
   expect(cvUpdatedAt).toEqual(job.updatedAt);
   expect(jobUpdatedAt).toEqual(job.updatedAt);
   expect(typeof analyzedAt).toBe('string');
+  expect(skillMatch).toMatchObject({ version: 1 });
   expect(snapshot.assessment).toEqual(assessment);
   const second = await service.analyze(LOCAL_OWNER_ID, 'synthetic');
   expect(second.matchId).not.toBe(first.matchId);
@@ -442,9 +460,12 @@ test('current match read reuses the authoritative analysis without inference and
   const { service, provider, cvs, jobs } = setup(async () =>
     JSON.stringify({ requirements: output() }),
   );
-  expect(await service.currentMatch(LOCAL_OWNER_ID, 'synthetic')).toEqual({
-    status: 'MISSING',
-  });
+  expect(await service.currentMatch(LOCAL_OWNER_ID, 'synthetic')).toMatchObject(
+    {
+      status: 'MISSING',
+      evidenceReview: { version: 1 },
+    },
+  );
   const result = await service.analyze(LOCAL_OWNER_ID, 'synthetic');
   const current = await service.currentMatch(LOCAL_OWNER_ID, 'synthetic');
   expect(current).toMatchObject({
@@ -460,17 +481,23 @@ test('current match read reuses the authoritative analysis without inference and
     ...job,
     updatedAt: new Date('2026-11-01T00:00:00Z'),
   });
-  expect(await service.currentMatch(LOCAL_OWNER_ID, 'synthetic')).toEqual({
-    status: 'STALE_JOB',
-  });
+  expect(await service.currentMatch(LOCAL_OWNER_ID, 'synthetic')).toMatchObject(
+    {
+      status: 'STALE_JOB',
+      evidenceReview: { version: 1 },
+    },
+  );
   cvs.findOne.mockResolvedValueOnce({
     text: `${cvText}\nChanged line.`,
     fileName: 'synthetic.pdf',
     updatedAt: new Date('2026-11-01T00:00:00Z'),
   });
-  expect(await service.currentMatch(LOCAL_OWNER_ID, 'synthetic')).toEqual({
-    status: 'STALE_CV',
-  });
+  expect(await service.currentMatch(LOCAL_OWNER_ID, 'synthetic')).toMatchObject(
+    {
+      status: 'STALE_CV',
+      evidenceReview: { version: 1 },
+    },
+  );
   // Byte-identical text under a new timestamp stays valid and is re-bound.
   const rebound = new Date('2026-11-02T00:00:00Z');
   cvs.findOne.mockResolvedValueOnce({
@@ -532,7 +559,7 @@ test.each(['skill', 'experience'] as const)(
     );
     const result = await service.analyze(LOCAL_OWNER_ID, 'synthetic');
     expect(result).toMatchObject({
-      score: 100,
+      coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
       requirements: [
         {
           parentId: 'p1',
@@ -557,7 +584,43 @@ test.each(['skill', 'experience'] as const)(
       await service.currentMatch(LOCAL_OWNER_ID, 'synthetic'),
     ).toMatchObject({
       status: 'VALID',
-      result: { matchId: result.matchId, score: 100 },
+      result: { matchId: result.matchId, score: null },
     });
   },
 );
+
+test('condition evidence persists with the saved assessment and current-match reads do not invoke inference', async () => {
+  const conditionJob = {
+    ...job,
+    skills: 'Java\nDocker\nKotlin\nEnglish B2',
+    preferredSkills: '',
+    experience: '',
+    domain: '',
+    description: '',
+  };
+  const { service, provider } = setup(
+    async () =>
+      JSON.stringify({ requirements: canonicalRequirements(conditionJob) }),
+    'Skills: Java, Docker, Kotlin\nEnglish: A2',
+    conditionJob,
+  );
+  const result = await service.analyze(LOCAL_OWNER_ID, conditionJob.id);
+  expect(result).toMatchObject({
+    score: 40,
+    coverageHidden: null,
+    conditions: [
+      {
+        jdQuote: 'English B2',
+        status: 'NOT_MET',
+        evidence: [{ cvQuote: 'English: A2' }],
+      },
+    ],
+  });
+  expect(
+    await service.currentMatch(LOCAL_OWNER_ID, conditionJob.id),
+  ).toMatchObject({
+    status: 'VALID',
+    result: { matchId: result.matchId, conditions: result.conditions },
+  });
+  expect(provider.generate).toHaveBeenCalledTimes(1);
+});

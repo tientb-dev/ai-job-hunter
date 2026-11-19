@@ -26,13 +26,14 @@ export class GeminiProvider implements AiProvider {
     const partial = request.partial;
     if (partial && !Number.isFinite(partial.deadline))
       throw new AiError('TIMEOUT');
-    const expires = partial
-      ? Math.min(
-          partial.deadline,
-          performance.now() +
-            Math.min(config.timeoutMs, PARTIAL_GENERATION_MAX_MS),
-        )
-      : performance.now() + config.timeoutMs;
+    const began = performance.now();
+    let attempts = 0;
+    const providerDeadline =
+      began +
+      (partial
+        ? Math.min(config.timeoutMs, PARTIAL_GENERATION_MAX_MS)
+        : config.timeoutMs);
+    const expires = Math.min(partial?.deadline ?? Infinity, providerDeadline);
     const controller = new AbortController();
     let timedOut = false;
     // Bound waiting even when a broken transport ignores the AbortSignal.
@@ -49,6 +50,7 @@ export class GeminiProvider implements AiProvider {
     const timer = setTimeout(expire, Math.max(0, expires - performance.now()));
     partial?.signal.addEventListener('abort', expire, { once: true });
     if (partial?.signal.aborted || performance.now() >= expires) expire();
+    let usage: Record<string, number> | undefined;
     let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
     try {
       if (timedOut) throw new AiError('TIMEOUT');
@@ -64,6 +66,7 @@ export class GeminiProvider implements AiProvider {
       });
       let response: Response;
       for (let attempt = 1; ; attempt++) {
+        attempts++;
         response = await Promise.race([
           fetch(
             `${config.baseUrl}/v1beta/models/${config.model}:generateContent`,
@@ -114,6 +117,8 @@ export class GeminiProvider implements AiProvider {
       } catch {
         throw new AiError('MALFORMED_RESPONSE');
       }
+      if (request.onProviderTiming && record(envelope))
+        usage = tokenUsage(envelope.usageMetadata);
       return candidateText(envelope);
     } catch (error: unknown) {
       if (timedOut) throw new AiError('TIMEOUT');
@@ -124,6 +129,18 @@ export class GeminiProvider implements AiProvider {
       partial?.signal.removeEventListener('abort', expire);
       controller.abort();
       if (reader) void reader.cancel().catch(() => {});
+      (request.onProviderTiming ?? partial?.onProviderTiming)?.({
+        attempts,
+        retries: Math.max(0, attempts - 1),
+        elapsedMs: Math.round(performance.now() - began),
+        ...(usage && Object.keys(usage).length ? { usage } : {}),
+        timeout: timedOut
+          ? partial?.signal.aborted ||
+            (partial?.deadline ?? Infinity) <= providerDeadline
+            ? 'overall'
+            : 'provider'
+          : undefined,
+      });
     }
   }
 }

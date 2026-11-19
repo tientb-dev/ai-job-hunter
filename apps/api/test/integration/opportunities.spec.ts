@@ -318,3 +318,115 @@ test('application details persist, preserve omitted fields, edit and clear', asy
     followUpDate: null,
   });
 });
+
+test('confirms source-listed branches and invalidates confirmation after a JD edit', async () => {
+  const fields = {
+    ...input,
+    originalLink: '',
+    description: 'Required skills\nSEO and Google Ads or GA4',
+  };
+  const { body: created } = await request(app.getHttpServer())
+    .post('/api/v1/opportunities')
+    .set(origin)
+    .send(fields)
+    .expect(201);
+  syntheticIds.push(created.id);
+  const endpoint = `/api/v1/opportunities/${created.id}/jd-skill-inventory`;
+  const { body: initial } = await request(app.getHttpServer())
+    .get(endpoint)
+    .expect(200);
+  const payload = {
+    inventoryId: initial.inventory.id,
+    groupId: initial.inventory.requirements[0].id,
+    mandatory: ['SEO'],
+    contextual: [],
+    alternatives: ['Google Ads', 'GA4'],
+    mandatoryPriority: 'required',
+    alternativePriority: 'preferred',
+  };
+  const write = () =>
+    request(app.getHttpServer())
+      .post(endpoint + '/confirm')
+      .set(origin);
+  await write()
+    .send({ ...payload, mandatory: ['SQL'] })
+    .expect(400);
+  const { body: confirmed } = await write().send(payload).expect(200);
+  expect(confirmed).toMatchObject({
+    state: 'COMPLETE',
+    inventory: {
+      requirements: [
+        expect.objectContaining({
+          confirmation: expect.objectContaining({
+            mandatory: ['SEO'],
+            alternatives: ['Google Ads', 'GA4'],
+          }),
+        }),
+      ],
+      groups: [
+        expect.objectContaining({ priority: 'required', options: ['SEO'] }),
+        expect.objectContaining({
+          priority: 'preferred',
+          options: ['Google Ads', 'GA4'],
+        }),
+      ],
+    },
+  });
+  expect(
+    (await request(app.getHttpServer()).get(endpoint).expect(200)).body,
+  ).toEqual(confirmed);
+  expect(
+    (
+      await request(app.getHttpServer())
+        .get(`/api/v1/opportunities/${created.id}`)
+        .expect(200)
+    ).body.updatedAt,
+  ).toBe(created.updatedAt);
+  await write().send(payload).expect(409);
+  const update = (body: object) =>
+    request(app.getHttpServer())
+      .put(`/api/v1/opportunities/${created.id}`)
+      .set(origin)
+      .send(body)
+      .expect(200);
+  await update({ ...fields, notes: 'Tracking note' });
+  expect(
+    (await request(app.getHttpServer()).get(endpoint).expect(200)).body,
+  ).toEqual(confirmed);
+  await database.query(
+    `UPDATE ai_job_hunter.opportunities SET "jdSkillInventory" = jsonb_set(jsonb_set("jdSkillInventory", '{extractionPolicyVersion}', '4'), '{id}', '"older-policy-confirmed"') WHERE id=$1`,
+    [created.id],
+  );
+  await write().send(payload).expect(409);
+  const { body: refreshed } = await request(app.getHttpServer())
+    .post(endpoint + '/refresh')
+    .set(origin)
+    .expect(200);
+  expect(refreshed.inventory.extractionPolicyVersion).toBe(5);
+  expect(refreshed.inventory.requirements[0].confirmation).toEqual(
+    confirmed.inventory.requirements[0].confirmation,
+  );
+  expect(refreshed.inventory.id).toBe(confirmed.inventory.id);
+  await database.query(
+    `UPDATE ai_job_hunter.opportunities SET "jdSkillInventory" = jsonb_set(jsonb_set("jdSkillInventory", '{extractionPolicyVersion}', '4'), '{requirements,0,alternatives}', '"OPEN_ENDED"') WHERE id=$1`,
+    [created.id],
+  );
+  await request(app.getHttpServer())
+    .post(endpoint + '/refresh')
+    .set(origin)
+    .expect(409);
+  const [blocked] = await database.query(
+    'SELECT "jdSkillInventory" AS inventory FROM ai_job_hunter.opportunities WHERE id=$1',
+    [created.id],
+  );
+  expect(blocked.inventory.requirements[0].confirmation).toEqual(
+    confirmed.inventory.requirements[0].confirmation,
+  );
+  await update({ ...fields, description: fields.description + '\nCSS' });
+  const { body: edited } = await request(app.getHttpServer())
+    .get(endpoint)
+    .expect(200);
+  expect(edited.state).toBe('INCOMPLETE');
+  expect(edited.inventory.requirements[0].confirmation).toBeUndefined();
+  await write().send(payload).expect(409);
+});

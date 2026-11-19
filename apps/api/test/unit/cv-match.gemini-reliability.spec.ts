@@ -22,12 +22,14 @@ import type { OpportunitiesService } from '../../src/opportunities/opportunities
 const pair = 'Experience with Docker and Kubernetes';
 const docker = '• Deployed services with Docker – on AWS.';
 const kube = '- Deployed workloads to a Kubernetes cluster.';
-const cvText = ['EXPERIENCE', docker, kube].join('\n');
+const cvText = ['EXPERIENCE', docker, kube, 'Skills: Java, Spring Boot'].join(
+  '\n',
+);
 const job = {
   id: 'synthetic-gemini',
   title: 'Backend Engineer',
-  skills: pair,
-  preferredSkills: '',
+  skills: `${pair}\nJava\nSpring Boot`,
+  preferredSkills: 'Kotlin',
   experience: '',
   domain: '',
   seniority: '',
@@ -37,7 +39,7 @@ const job = {
   updatedAt: new Date('2026-11-01T00:00:00Z'),
 } as Opportunity;
 const canonical = canonicalRequirements(job);
-type Quotes = { Docker?: string; Kubernetes?: string };
+type Quotes = { Docker?: string; Kubernetes?: string; Kotlin?: string };
 const response = (quotes: Quotes) =>
   canonical.map((row) => ({
     ...row,
@@ -50,6 +52,7 @@ const response = (quotes: Quotes) =>
       }),
     ),
   }));
+const coverage = Math.round((75 * 3 + 40 * 3 + 40 * 3) / 10);
 const good: Quotes = { Docker: docker, Kubernetes: kube };
 const invented: Quotes = {
   Docker: 'Ran PRIVATE_FAKE Docker clusters at scale',
@@ -85,7 +88,7 @@ function setup(replies: Quotes[], provider: AiConfig['provider'] = 'gemini') {
 }
 
 describe('Gemini: an invented component quote', () => {
-  test('earns zero credit and marks the result unverified, not Low Fit', async () => {
+  test('keeps zero row credit while using independent strength for Coverage', async () => {
     jest.spyOn(process.stderr, 'write').mockReturnValue(true);
     const { service } = setup([invented]);
     const result = await service.analyze(LOCAL_OWNER_ID, job.id);
@@ -95,24 +98,27 @@ describe('Gemini: an invented component quote', () => {
     expect(row.coverage.components.every((c) => c.cvQuote === '')).toBe(true);
     expect(row.evidence.review).toBe(true);
     expect(result).toMatchObject({
-      score: 0,
+      score: coverage,
       evidenceUncertain: true,
-      recommendation: 'Review requirements',
+      recommendation: 'Consider',
     });
     expect(JSON.stringify(result)).not.toContain('PRIVATE_FAKE');
   });
 
   test('never overwrites a reliable saved result', async () => {
     jest.spyOn(process.stderr, 'write').mockReturnValue(true);
-    const { service, saved } = setup([good, invented]);
+    const { service, saved } = setup([
+      good,
+      { ...good, Kotlin: 'Invented Kotlin delivery' },
+    ]);
     const first = await service.analyze(LOCAL_OWNER_ID, job.id);
     const second = await service.analyze(LOCAL_OWNER_ID, job.id);
     jest.restoreAllMocks();
-    expect(first).toMatchObject({ score: 100, evidenceUncertain: false });
+    expect(first).toMatchObject({ score: coverage, evidenceUncertain: false });
     expect(second).toMatchObject({
       keptPrevious: true,
       matchId: first.matchId,
-      score: 100,
+      score: coverage,
     });
     expect(saved()).toHaveLength(1);
     expect(saved()[0]!.matchId).toBe(first.matchId);

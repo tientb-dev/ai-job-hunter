@@ -113,7 +113,7 @@ test('reordered model rows and renamed labels retain linkage through exact JD ev
   });
   expect(result.score).toBeGreaterThan(0);
 });
-test('a rejected SQL quote does not erase verified Java or experience matches', () => {
+test('a rejected SQL quote withholds Coverage and preserves verified Java and experience matches', () => {
   const rows = proposed();
   rows[2]!.cvQuote = 'Invented SQL expertise';
   const { verified, result } = trace(rows);
@@ -131,7 +131,10 @@ test('a rejected SQL quote does not erase verified Java or experience matches', 
     status: 'NOT_EVIDENCED',
     cvQuote: '',
   });
-  expect(result.score).toBeGreaterThan(0);
+  expect(result).toMatchObject({
+    score: null,
+    coverageHidden: 'EVIDENCE_VERIFICATION_FAILED',
+  });
 });
 test('all rejected positive quotations fail instead of masquerading as a negative-fit assessment', () => {
   const omitted = proposed().map((row) => ({ ...row, cvQuote: '' }));
@@ -139,7 +142,9 @@ test('all rejected positive quotations fail instead of masquerading as a negativ
     ...row,
     cvQuote: `Fabricated evidence ${index + 1}`,
   }));
-  expect(trace(omitted).result.score).toBe(0);
+  // The split tooling prose has no supported strength target. It cannot
+  // dilute the three assessable technical parents with an artificial zero.
+  expect(trace(omitted).result.score).toBe(Math.round((40 + 40) / 3));
   expect(() => trace(rejected)).toThrow(/evidence/i);
 });
 test('coding-tool evidence does not substantiate an actual production AI/ML requirement', () => {
@@ -213,8 +218,10 @@ test('a source-valid tool list is not evidence of evaluating and integrating too
   expect(
     result.requirements[3]!.coverage.components.map((c) => c.status),
   ).toEqual(['NOT_EVIDENCED', 'NOT_EVIDENCED']);
-  // The unparsed fifth row is excluded from the score (3 of 4, was 3 of 5).
-  expect(result).toMatchObject({ score: 75, recommendation: 'Consider' });
+  expect(result).toMatchObject({
+    score: Math.round((40 + 40) / 3),
+    recommendation: 'Consider',
+  });
 });
 
 const toolingActivity =
@@ -232,8 +239,7 @@ function toolingAssessment(cv: string, quote: string) {
 test('explicit evaluation AND workflow integration retains its exact original activity quote', () => {
   const result = toolingAssessment(toolingActivity, toolingActivity);
   expect(result).toMatchObject({
-    score: 100,
-    recommendation: 'Apply',
+    coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
     requirements: [
       { status: 'EVIDENCED', credit: 1, cvQuote: toolingActivity },
     ],
@@ -257,8 +263,7 @@ test.each([
   'negative/aspirational activity declarations remain unsupported: %s',
   (quote) => {
     expect(toolingAssessment(quote, quote)).toMatchObject({
-      score: 0,
-      recommendation: 'Low Fit',
+      coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
       requirements: [{ status: 'NOT_EVIDENCED', credit: 0, cvQuote: '' }],
     });
   },
@@ -268,8 +273,7 @@ test('evaluation activity alone cannot satisfy both tooling activities', () => {
     'Experience evaluating AI-assisted development tools including GitHub Copilot.';
   const result = toolingAssessment(quote, quote);
   expect(result).toMatchObject({
-    score: 50,
-    recommendation: 'Consider',
+    coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
     requirements: [{ status: 'PARTIAL', credit: 0.5 }],
   });
   expect(
@@ -281,8 +285,7 @@ test('contradictory tooling activity remains Conflict with zero credit', () => {
   expect(
     toolingAssessment(`${toolingActivity}\n${denial}`, toolingActivity),
   ).toMatchObject({
-    score: 0,
-    recommendation: 'Low Fit',
+    coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
     requirements: [{ status: 'CONFLICT', credit: 0 }],
   });
 });
