@@ -265,14 +265,6 @@ export function TailoredCvReview({
     readinessKey,
   ]);
   useEffect(() => {
-    onDraftChange?.(
-      !!saved,
-      !!saved &&
-        !dirty &&
-        saved.document.review.approval?.revision === saved.revision,
-    );
-  }, [saved, dirty, onDraftChange]);
-  useEffect(() => {
     if (!active) return;
     // Focus also rechecks a previously blocked/error state. Match refresh no
     // longer deactivates this panel while checking the server.
@@ -540,6 +532,11 @@ export function TailoredCvReview({
   const issuesRemaining = openBlocking > 0;
   const facts =
     document?.sections.flatMap((s) => s.entries.flatMap((e) => e.facts)) ?? [];
+  const hasCvContent = facts.some(
+    (fact) =>
+      document?.review.factReviews[fact.id]?.exportIncluded !== false &&
+      fact.acceptedText.trim(),
+  );
   // Same rule as the API: new [placeholders] in changed wording block approval;
   // brackets already in the source wording (e.g. "[Remote]") do not.
   const openPlaceholders = facts.filter((fact) => {
@@ -562,7 +559,10 @@ export function TailoredCvReview({
     : [];
   const approvedRevision =
     !!saved && document?.review.approval?.revision === saved.revision;
-  const approvedUnchanged = approvedRevision && !dirty;
+  const approvedUnchanged = approvedRevision && !dirty && hasCvContent;
+  useEffect(() => {
+    onDraftChange?.(!!saved, approvedUnchanged);
+  }, [saved, approvedUnchanged, onDraftChange]);
   // Step 3 shows the exact approved PDF, regenerated when the template changes.
   // The previous PDF stays in place while the next one loads, so the viewer
   // keeps its size and the page does not jump.
@@ -628,7 +628,7 @@ export function TailoredCvReview({
       ))}
     </TextField>
   );
-  const finalPreview = wizardStep === 3 && document && (
+  const finalPreview = wizardStep === 3 && document && hasCvContent && (
     <Stack
       component="section"
       spacing={1}
@@ -713,6 +713,7 @@ export function TailoredCvReview({
   );
   const approvalReady =
     !!saved &&
+    hasCvContent &&
     !dirty &&
     pending === 0 &&
     !issuesRemaining &&
@@ -775,6 +776,7 @@ export function TailoredCvReview({
         : 'recommended';
       return { ...card, state, group };
     });
+  const noSuggestions = proposalCards.length === 0;
   const verificationCards = cards.filter((card) => card.fact.verification);
   const decided = proposalCards.filter(
     (card) => card.state.proposal !== 'pending',
@@ -1568,6 +1570,7 @@ export function TailoredCvReview({
     });
   };
   function approveSaved(id: string, revision: number) {
+    if (!hasCvContent) return;
     void run(async (token) => {
       const value = await draftRequest(`/drafts/${id}/approve`, {
         expectedRevision: revision,
@@ -1590,7 +1593,7 @@ export function TailoredCvReview({
           control={
             <Checkbox
               checked={reviewed}
-              disabled={blocked || dirty}
+              disabled={blocked || dirty || !hasCvContent}
               onChange={(e) => setReviewed(e.target.checked)}
             />
           }
@@ -1608,6 +1611,7 @@ export function TailoredCvReview({
             disabled={
               blocked ||
               dirty ||
+              !hasCvContent ||
               !reviewed ||
               pending > 0 ||
               issuesRemaining ||
@@ -1911,6 +1915,18 @@ export function TailoredCvReview({
       )}
       {document && saved && (
         <>
+          {!hasCvContent ? (
+            <Alert severity="error">
+              {tr('This draft has no CV content to review or export.')}
+            </Alert>
+          ) : (
+            wizardStep !== 3 &&
+            noSuggestions && (
+              <Alert severity="info" role="status">
+                {tr('No changes suggested')}
+              </Alert>
+            )
+          )}
           {wizardStep !== 3 && cards.some(({ fact }) => fact.clarification) && (
             <Accordion
               defaultExpanded={!isWizard}
@@ -2232,11 +2248,7 @@ export function TailoredCvReview({
                         ? 'contained'
                         : 'outlined'
                     }
-                    disabled={
-                      blocked ||
-                      dirty ||
-                      document.review.approval?.revision !== saved.revision
-                    }
+                    disabled={blocked || dirty || !approvedUnchanged}
                     onClick={() =>
                       void run(async (token) => {
                         setExporting(format);
@@ -2727,12 +2739,20 @@ export function TailoredCvReview({
               </>
             )}
             <Box
-              component="details"
-              open={cvOpen}
-              onToggle={(event) => setCvOpen(event.currentTarget.open)}
+              component={noSuggestions && !docReview ? 'section' : 'details'}
+              aria-labelledby="full-cv-title"
+              {...(!(noSuggestions && !docReview) && {
+                open: cvOpen,
+                onToggle: (event: React.ToggleEvent<HTMLDetailsElement>) =>
+                  setCvOpen(event.currentTarget.open),
+              })}
               sx={{ mt: 2, '& > summary': { cursor: 'pointer', py: 1 } }}
             >
-              <Typography component="summary">
+              <Typography
+                id="full-cv-title"
+                component={noSuggestions && !docReview ? 'h3' : 'summary'}
+                variant={noSuggestions && !docReview ? 'h6' : 'body1'}
+              >
                 {tr('Full CV: read your tailored CV')}
                 {excluded > 0
                   ? tr(' · {excluded} item{v1} hidden from download', {

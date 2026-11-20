@@ -968,6 +968,9 @@ export const VI_TEXT: Record<string, string> = {
   'Follow-ups due': 'Cần theo dõi',
   'From the job description': 'Từ mô tả công việc',
   'From your source CV': 'Từ CV gốc của bạn',
+  'No changes suggested': 'Không có đề xuất chỉnh sửa',
+  'This draft has no CV content to review or export.':
+    'Bản nháp này không có nội dung CV để xem hoặc xuất.',
   'Full CV: read your tailored CV': 'Toàn bộ CV: đọc CV tùy chỉnh của bạn',
   'Full job description': 'Toàn bộ mô tả công việc',
   'Full name': 'Họ và tên',
