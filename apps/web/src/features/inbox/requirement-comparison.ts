@@ -2,11 +2,13 @@ import type {
   EvidenceReview,
   MatchCondition,
   MatchResult,
+  MatchStatus,
   SkillMatch,
 } from './cv-match.types';
 
 export type Finding = NonNullable<SkillMatch['findings']>[number];
 export type JdSpan = Finding['sources'][number];
+type Requirement = MatchResult['requirements'][number];
 export interface Comparison {
   key: string;
   source?: JdSpan;
@@ -16,6 +18,100 @@ export interface Comparison {
   status: string;
   supported: boolean;
   unmapped?: boolean;
+  assessment?: { requirement: Requirement; status: MatchStatus };
+}
+
+const wording = (quote: string) =>
+  quote
+    .normalize('NFC')
+    .trim()
+    .replace(/^[-•*]\s+/u, '')
+    .replace(/\s+/gu, ' ')
+    .replace(/[.;。；]$/u, '')
+    .trim();
+
+// The saved skills field uses OR for the source connector "hoặc".
+const assessmentWording = (quote: string) =>
+  wording(quote).replace(/(?<!\p{L})hoặc(?!\p{L})/giu, 'OR');
+
+export function assessedComparisons(
+  requirements: Requirement[] | undefined,
+  preliminary: Comparison[],
+  conditions: MatchCondition[],
+  review?: EvidenceReview,
+) {
+  const rows = requirements?.filter((row) => row.notAssessed !== 'HEADING');
+  const ids = rows?.flatMap((row) => (row.parentId ? [row.parentId] : []));
+  if (
+    !rows?.length ||
+    new Set(ids).size !== ids?.length ||
+    rows.some(
+      (row) =>
+        ![
+          'EVIDENCED',
+          'PARTIAL',
+          'NOT_EVIDENCED',
+          'CONFLICT',
+          'UNDECOMPOSED',
+        ].includes(row.status) ||
+        (row.coverage?.status !== undefined &&
+          row.coverage.status !== row.status),
+    )
+  )
+    return undefined;
+
+  const findings = [...new Set(preliminary.flatMap((row) => row.findings))];
+  const sources = [
+    ...(review?.rows ?? []),
+    ...preliminary.flatMap((row) => (row.source ? [row.source] : [])),
+    ...findings.flatMap((finding) => finding.sources),
+  ].filter((source) =>
+    ['jdText', 'description', 'postText'].includes(source.field),
+  );
+  return rows.map((requirement, index): Comparison => {
+    const status =
+      requirement.notAssessed ||
+      requirement.status === 'UNDECOMPOSED' ||
+      (requirement.status === 'NOT_EVIDENCED' &&
+        requirement.evidence?.modelQuote === 'REJECTED')
+        ? 'UNDECOMPOSED'
+        : requirement.evidence?.review
+          ? 'CONFLICT'
+          : requirement.status;
+    const title = requirement.jdQuote || requirement.requirement;
+    const key = assessmentWording(title);
+    const mirrors = sources.filter(
+      (source) => assessmentWording(source.quote) === key,
+    );
+    const source = ['jdText', 'description', 'postText']
+      .map((field) => mirrors.filter((span) => span.field === field))
+      .find((spans) => spans.length > 0);
+    const span = source?.every((item) => item.start === source[0]?.start)
+      ? source[0]
+      : undefined;
+    return {
+      key: 'assessment-' + index,
+      title: span?.quote ?? title,
+      source: span,
+      findings: span
+        ? findings.filter((finding) =>
+            finding.sources.some((item) => containsSpan(span, item)),
+          )
+        : [],
+      conditions: conditions.filter((condition) =>
+        condition.parentId
+          ? condition.parentId === requirement.parentId
+          : assessmentWording(condition.jdQuote) === key &&
+            rows.filter(
+              (row) =>
+                assessmentWording(row.jdQuote || row.requirement) === key,
+            ).length === 1,
+      ),
+      status,
+      supported: status === 'EVIDENCED',
+      assessment: { requirement, status },
+    };
+  });
 }
 function located(s: { quote: string } & Partial<JdSpan>): s is JdSpan {
   return (
@@ -123,18 +219,10 @@ export function compareRequirements(
     const exact =
       row.findings.every((f) => f.kind === 'skill') &&
       direct.some((f) => f.sources.some((s) => containsSpan(s, row.source!)));
-    const verified = review?.rows.some(
-      (r) =>
-        r.status === 'VERIFIED_EVIDENCE' &&
-        containsSpan(r, row.source!) &&
-        containsSpan(row.source!, r),
-    );
     row.status = row.supported
-      ? verified && row.findings.every((f) => f.kind === 'skill')
-        ? 'Requirement supported'
-        : exact
-          ? 'Your CV documents this skill'
-          : 'Evidence supports part of this requirement'
+      ? exact
+        ? 'Your CV documents this skill'
+        : 'Evidence supports part of this requirement'
       : row.findings.some((f) => f.kind === 'requirement')
         ? 'Evidence to clarify'
         : 'Needs clarification';
@@ -151,14 +239,6 @@ export function compareRequirements(
       ),
   );
 
-  const wording = (quote: string) =>
-    quote
-      .normalize('NFC')
-      .trim()
-      .replace(/^[-•*]\s+/u, '')
-      .replace(/\s+/gu, ' ')
-      .replace(/[.;。；]$/u, '')
-      .trim();
   const byQuote = (quote: string) =>
     result.filter((r) => !r.unmapped && wording(r.title) === wording(quote));
   const remaining = conditions.filter((c) => {

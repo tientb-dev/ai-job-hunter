@@ -134,6 +134,42 @@ test('uploading a CV in Job Detail saves it for this job, then opens its review'
   ).toBe(false);
 });
 
+test.each(['MISSING', 'STALE_JOB', 'STALE_CV', 'EXPIRED'] as const)(
+  '%s shows only preliminary evidence even if the response includes old rows',
+  async (status) => {
+    mount({
+      status,
+      cvUpdatedAt: cv.updatedAt,
+      result: {
+        requirements: [{ requirement: 'Old assessment', status: 'EVIDENCED' }],
+      },
+      skillMatch: {
+        version: 1,
+        score: null,
+        limitation: 'INCOMPLETE_INVENTORY',
+        matchedCount: 0,
+        totalCount: 0,
+        rows: [],
+        findings: [
+          {
+            kind: 'skill',
+            label: 'Java',
+            sources: [{ field: 'jdText', start: 0, end: 4, quote: 'Java' }],
+            evidence: { quote: 'Skills: Java', origin: 'source' },
+          },
+        ],
+      },
+    });
+    expect(
+      await screen.findByText('Preliminary skill evidence: Java'),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole('region', { name: 'Saved assessment coverage' }),
+    ).toBeNull();
+    expect(screen.queryByText('Old assessment')).toBeNull();
+  },
+);
+
 test('user-entered evidence is labelled as added in review, not from the file', async () => {
   const fetch = mount(
     { status: 'MISSING' },
@@ -204,10 +240,9 @@ test('user-entered evidence is labelled as added in review, not from the file', 
   });
   await waitFor(() => expect(analyze).toBeEnabled());
   fireEvent.click(analyze);
+  fireEvent.click(await screen.findByRole('button', { name: 'Matched (1)' }));
   fireEvent.click(
-    await screen.findByRole('button', {
-      name: 'View details for AWS required',
-    }),
+    screen.getByRole('button', { name: 'Matched: AWS required' }),
   );
   fireEvent.click(screen.getByText('Original CV evidence'));
   expect(
@@ -220,9 +255,7 @@ test('user-entered evidence is labelled as added in review, not from the file', 
   cleanup();
   const reload = mount(saved);
   expect(await screen.findByText('1 JD requirements')).toBeVisible();
-  expect(
-    screen.getByRole('button', { name: 'View details for AWS required' }),
-  ).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Matched (1)' })).toBeVisible();
   expect(reload.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(
     false,
   );

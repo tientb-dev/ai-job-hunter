@@ -93,6 +93,40 @@ export const VI_TEXT: Record<string, string> = {
   'View details for {requirement}': 'Xem chi tiết yêu cầu {requirement}',
   'Not evidenced in reviewed CV': 'Chưa thấy bằng chứng trong CV đã rà soát',
   'Unable to assess': 'Không thể đánh giá',
+  'CV Match assessment': 'Đánh giá độ phù hợp CV',
+  'Requirements by assessment result': 'Yêu cầu theo kết quả đánh giá',
+  'Preliminary skill evidence': 'Bằng chứng kỹ năng sơ bộ',
+  'Preliminary CV evidence': 'Bằng chứng sơ bộ từ CV',
+  'Preliminary and condition evidence':
+    'Bằng chứng sơ bộ và bằng chứng về điều kiện',
+  'Analyze CV Match to see saved assessment coverage.':
+    'Phân tích CV Match để xem mức độ đáp ứng trong đánh giá đã lưu.',
+  'The saved assessment found sufficient supporting evidence.':
+    'Đánh giá đã lưu tìm thấy đủ bằng chứng cho yêu cầu này.',
+  'The saved evidence supports part of the requirement.':
+    'Bằng chứng đã lưu hỗ trợ một phần yêu cầu.',
+  'The assessment did not establish sufficient evidence in the reviewed CV.':
+    'Đánh giá chưa xác định được đủ bằng chứng trong CV đã rà soát.',
+  'The saved assessment flagged an evidence issue for review.':
+    'Đánh giá đã lưu đánh dấu bằng chứng cần xem lại.',
+  'The saved assessment could not make a reliable determination.':
+    'Đánh giá đã lưu chưa thể đưa ra kết luận đáng tin cậy.',
+  'Compare the saved evidence with the original requirement and reviewed CV.':
+    'Đối chiếu bằng chứng đã lưu với yêu cầu gốc và CV đã rà soát.',
+  'Evidence selected in the assessment': 'Bằng chứng được chọn trong đánh giá',
+  'Evidence strength passage':
+    'Đoạn CV dùng để đánh giá độ mạnh của bằng chứng',
+  'Conflicting CV evidence': 'Bằng chứng mâu thuẫn trong CV',
+  'No evidence passages were saved for this requirement.':
+    'Chưa có đoạn bằng chứng nào được lưu cho yêu cầu này.',
+  'No further assessment rationale was saved.':
+    'Không có lý do đánh giá chi tiết hơn được lưu.',
+  'An assessment passage was rejected during evidence verification.':
+    'Một đoạn bằng chứng đã bị loại khi kiểm tra.',
+  'Compound meaning needs review.':
+    'Cần xem lại ý nghĩa của yêu cầu gồm nhiều phần.',
+  'CV fact: {id}': 'Mục CV: {id}',
+  'CV entry: {id}': 'Phần CV: {id}',
   'Saved assessment coverage': 'Phạm vi đáp ứng trong đánh giá đã lưu',
   '{count} JD requirements': '{count} yêu cầu JD',
   'Missing CV evidence leaves real-world ability unverified.':

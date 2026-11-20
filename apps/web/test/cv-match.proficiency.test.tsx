@@ -67,7 +67,8 @@ async function mount(result: unknown) {
 }
 test('Partial database evidence displays exact attributed work, mentions and unverified proficiency without claiming absence', async () => {
   await mount(fixture(true));
-  const region = await screen.findByRole('region', { name: 'Requirements' });
+  fireEvent.click(await screen.findByRole('button', { name: 'Partial (1)' }));
+  const region = screen.getByRole('region', { name: 'Partial (1)' });
   const button = within(region).getByRole('button', {
     name: `Partial: ${requirement}`,
   });
@@ -91,10 +92,17 @@ test('Partial database evidence displays exact attributed work, mentions and unv
 });
 test('bare database mentions remain Unknown with exact original mention quotes', async () => {
   await mount(fixture(false));
-  const region = await screen.findByRole('region', { name: 'Requirements' });
+  fireEvent.click(
+    await screen.findByRole('button', {
+      name: 'Not evidenced in reviewed CV (1)',
+    }),
+  );
+  const region = screen.getByRole('region', {
+    name: 'Not evidenced in reviewed CV (1)',
+  });
   fireEvent.click(
     within(region).getByRole('button', {
-      name: `Not clearly shown in CV: ${requirement}`,
+      name: `Not evidenced in reviewed CV: ${requirement}`,
     }),
   );
   expect(

@@ -134,6 +134,7 @@ export interface SkillMatch {
       evidence: {
         quote: string;
         origin: CvOrigin;
+        factId?: string;
         sectionKind?: 'skills' | 'experience' | 'projects';
         relationship?: {
           from: string;
@@ -195,6 +196,12 @@ export interface MatchResult {
         status: MatchStatus;
         observations?: { kind: 'mention' | 'experience'; cvQuote: string }[];
         qualificationReason?: string;
+        strength?: {
+          quotes: {
+            quote: string;
+            level: 'LISTED' | 'MENTIONED' | 'APPLIED' | 'APPLIED_PLUS';
+          }[];
+        };
         conflictingQuotes: string[];
       }[];
     };

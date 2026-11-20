@@ -91,9 +91,10 @@ test('Skill Match shows a weighted score, matched skills, missing skills and sep
     'Evidence not established',
   );
   expect(
-    screen.queryByText(
-      /50%|Needs review|Add three years of Terraform|Legacy explanation/,
-    ),
+    screen.queryByText(/50%|Add three years of Terraform|Legacy explanation/),
+  ).toBeNull();
+  expect(
+    screen.queryByRole('button', { name: /Conflict \/ Needs review \(/ }),
   ).toBeNull();
   const disclosure = screen.getByRole('button', { name: 'View skill sources' });
   disclosure.focus();
