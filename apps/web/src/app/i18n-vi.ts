@@ -10,8 +10,6 @@ export const VI_TEXT: Record<string, string> = {
   'What was the scale of this work, such as users, customers, or records, if known?':
     'Nếu biết, hãy cho biết quy mô công việc, chẳng hạn số người dùng, khách hàng hoặc hồ sơ.',
 
-  'No rewrite suggestions for this draft.':
-    'Bản nháp này không có đề xuất viết lại.',
   'Replace current wording and use this detail':
     'Thay nội dung hiện tại bằng cách viết có thông tin này',
   'Say what changed, what was counted, or what you did.':
@@ -968,7 +966,10 @@ export const VI_TEXT: Record<string, string> = {
   'Follow-ups due': 'Cần theo dõi',
   'From the job description': 'Từ mô tả công việc',
   'From your source CV': 'Từ CV gốc của bạn',
-  'No changes suggested': 'Không có đề xuất chỉnh sửa',
+  'CV document preview': 'Bản xem trước tài liệu CV',
+  'Edit full CV': 'Chỉnh sửa toàn bộ CV',
+  'No AI suggestions. You can review and edit your CV before approving.':
+    'AI không có đề xuất. Bạn có thể xem và chỉnh sửa CV trước khi duyệt.',
   'This draft has no CV content to review or export.':
     'Bản nháp này không có nội dung CV để xem hoặc xuất.',
   'Full CV: read your tailored CV': 'Toàn bộ CV: đọc CV tùy chỉnh của bạn',
