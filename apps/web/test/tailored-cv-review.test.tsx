@@ -19,6 +19,8 @@ import { TailoredCvReview } from '../src/features/inbox/TailoredCvReview';
 import { UnsavedJobGuard } from '../src/features/inbox/UnsavedJobGuard';
 import { tailoredDraftFixture, draftJobId } from './fixtures/tailored-cv';
 const noop = () => {};
+const emptySuggestions =
+  'No AI suggestions. You can review and edit your CV before approving.';
 function setup(initial = tailoredDraftFixture(), initialStep?: number) {
   let saved = initial;
   let conflict = false;
@@ -167,11 +169,42 @@ test('a saved draft with no suggestions shows the complete CV and opens the fina
   document.review.factReviews[fact!.id]!.proposal = 'none';
 
   const { fetch } = setup(draft, 2);
-  expect(await screen.findByText('No changes suggested')).toBeVisible();
-  const fullCv = screen.getByRole('region', {
-    name: 'Full CV: read your tailored CV',
+  const suggestions = await screen.findByRole('complementary', {
+    name: 'Suggestions',
   });
-  expect(within(fullCv).getByText(fact!.acceptedText)).toBeVisible();
+  expect(within(suggestions).getByText(emptySuggestions)).toBeVisible();
+  expect(screen.getAllByText(emptySuggestions)).toHaveLength(1);
+  expect(
+    screen.queryByRole('region', { name: 'Save and approve' }),
+  ).not.toBeInTheDocument();
+  expect(screen.queryByText('No changes suggested')).not.toBeInTheDocument();
+  expect(
+    screen.queryByText('No rewrite suggestions for this draft.'),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('progressbar', { name: 'Suggestions decided' }),
+  ).not.toBeInTheDocument();
+  const documentPreview = screen.getByRole('region', {
+    name: 'CV document preview',
+  });
+  expect(within(documentPreview).getByText(fact!.acceptedText)).toBeVisible();
+  expect(within(documentPreview).queryByRole('button')).not.toBeInTheDocument();
+  const editLink = within(suggestions).getByRole('link', {
+    name: 'Edit full CV',
+  });
+  fireEvent.click(editLink);
+  fireEvent.click(screen.getByRole('button', { name: 'Edit experience' }));
+  const editor = screen.getByRole('textbox', {
+    name: /description \(experience/,
+  });
+  expect(editor).toHaveValue(fact!.acceptedText);
+  fireEvent.change(editor, { target: { value: '' } });
+  expect(
+    screen.getByRole('textbox', { name: /description \(experience/ }),
+  ).toBe(editor);
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Discard local draft edits' }),
+  );
 
   fireEvent.click(
     screen.getByRole('button', { name: 'Continue to Approve & Export' }),
@@ -210,7 +243,7 @@ test.each([false, true])(
         'This draft has no CV content to review or export.',
       ),
     ).toBeVisible();
-    expect(screen.queryByText('No changes suggested')).not.toBeInTheDocument();
+    expect(screen.queryByText(emptySuggestions)).not.toBeInTheDocument();
     for (const name of ['Approve saved draft', 'Download PDF', 'Download DOCX'])
       expect(screen.getByRole('button', { name })).toBeDisabled();
     expect(
@@ -866,9 +899,7 @@ test.each([
       };
     setup(initial);
     await open();
-    expect(
-      Boolean(screen.queryByText('No rewrite suggestions for this draft.')),
-    ).toBe(!rewrite);
+    expect(Boolean(screen.queryByText(emptySuggestions))).toBe(!rewrite);
     expect(
       Boolean(
         screen.queryByRole('progressbar', { name: 'Suggestions decided' }),

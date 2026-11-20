@@ -778,6 +778,12 @@ export function TailoredCvReview({
     });
   const noSuggestions = proposalCards.length === 0;
   const verificationCards = cards.filter((card) => card.fact.verification);
+  const noReviewSuggestions = noSuggestions && verificationCards.length === 0;
+  const showEmptySuggestions =
+    wizardStep !== 3 && hasCvContent && noReviewSuggestions;
+  const emptySuggestionsMessage = tr(
+    'No AI suggestions. You can review and edit your CV before approving.',
+  );
   const decided = proposalCards.filter(
     (card) => card.state.proposal !== 'pending',
   ).length;
@@ -840,12 +846,16 @@ export function TailoredCvReview({
   );
   const decisionCount = `${decided} ${tr('of')} ${proposalCards.length} ${tr('decided')}`;
   const reviewActionStatus = dirty
-    ? decisionCount + tr(' · unsaved changes')
+    ? noSuggestions
+      ? tr('Unsaved changes — approval will be cleared')
+      : decisionCount + tr(' · unsaved changes')
     : approvedUnchanged
       ? tr('Approved')
       : approvalReady
         ? tr('Draft saved')
-        : decisionCount;
+        : noSuggestions
+          ? ''
+          : decisionCount;
   const approvalSteps = [
     ...(pending > 0
       ? [
@@ -923,7 +933,9 @@ export function TailoredCvReview({
             : 'decided',
     ]),
   ]);
-  const docReview = isWizard && wizardStep === 2 && navIds.length > 0;
+  const docReview =
+    wizardStep === 2 &&
+    (navIds.length > 0 || (noReviewSuggestions && facts.length > 0));
   // Same layout helpers as the preview: facts merged into another line (dates)
   // or excluded from download have no anchor of their own.
   const anchored = new Set(
@@ -1915,17 +1927,10 @@ export function TailoredCvReview({
       )}
       {document && saved && (
         <>
-          {!hasCvContent ? (
+          {!hasCvContent && (
             <Alert severity="error">
               {tr('This draft has no CV content to review or export.')}
             </Alert>
-          ) : (
-            wizardStep !== 3 &&
-            noSuggestions && (
-              <Alert severity="info" role="status">
-                {tr('No changes suggested')}
-              </Alert>
-            )
           )}
           {wizardStep !== 3 && cards.some(({ fact }) => fact.clarification) && (
             <Accordion
@@ -1981,7 +1986,7 @@ export function TailoredCvReview({
               </AccordionDetails>
             </Accordion>
           )}
-          {wizardStep !== 3 && (
+          {wizardStep !== 3 && !noSuggestions && (
             <Paper
               variant="outlined"
               component="section"
@@ -2002,21 +2007,15 @@ export function TailoredCvReview({
                     component="p"
                     sx={{ fontWeight: 600 }}
                   >
-                    {proposalCards.length ? (
-                      <>
-                        {decided} {tr('of')} {proposalCards.length}{' '}
-                        {tr(
-                          isWizard
-                            ? 'wording suggestions decided'
-                            : 'suggestions decided',
-                        )}
-                        {pending > 0
-                          ? tr(' · {pending} remaining', { pending })
-                          : ''}
-                      </>
-                    ) : (
-                      tr('No rewrite suggestions for this draft.')
+                    {decided} {tr('of')} {proposalCards.length}{' '}
+                    {tr(
+                      isWizard
+                        ? 'wording suggestions decided'
+                        : 'suggestions decided',
                     )}
+                    {pending > 0
+                      ? tr(' · {pending} remaining', { pending })
+                      : ''}
                   </Typography>
                   <Typography
                     role="status"
@@ -2037,14 +2036,12 @@ export function TailoredCvReview({
                         : ''}
                   </Typography>
                 </Stack>
-                {proposalCards.length > 0 && (
-                  <LinearProgress
-                    variant="determinate"
-                    aria-label={tr('Suggestions decided')}
-                    value={(decided / proposalCards.length) * 100}
-                    sx={{ height: 8, borderRadius: 4 }}
-                  />
-                )}
+                <LinearProgress
+                  variant="determinate"
+                  aria-label={tr('Suggestions decided')}
+                  value={(decided / proposalCards.length) * 100}
+                  sx={{ height: 8, borderRadius: 4 }}
+                />
                 {pending > 0 && (
                   <Typography variant="body2" color="text.secondary">
                     {isWizard
@@ -2331,18 +2328,26 @@ export function TailoredCvReview({
                     mb: 2,
                   }}
                 >
-                  <Box sx={{ minWidth: 0 }}>
+                  <Box
+                    component="section"
+                    aria-label={tr('CV document preview')}
+                    sx={{ minWidth: 0 }}
+                  >
                     <TailoredCvPreview
                       document={document}
                       template={template}
-                      anchors={{
-                        states: anchorStates,
-                        activeId,
-                        onSelect: selectSuggestion,
-                      }}
+                      anchors={
+                        noReviewSuggestions
+                          ? undefined
+                          : {
+                              states: anchorStates,
+                              activeId,
+                              onSelect: selectSuggestion,
+                            }
+                      }
                     />
                   </Box>
-                  {!mobile && (
+                  {(!mobile || noReviewSuggestions) && (
                     <Box
                       id="review-panel"
                       component="aside"
@@ -2373,45 +2378,67 @@ export function TailoredCvReview({
                         }),
                       }}
                     >
-                      {reviewNav}
-                      {unanchoredNote}
-                      <Stack spacing={3} sx={{ mb: 2, mt: 2 }}>
-                        {groups.map((group) => {
-                          const proposals = proposalCards.filter(
-                            (card) => card.group === group.key,
-                          );
-                          const checks =
-                            group.key === 'warnings' ? verificationCards : [];
-                          if (!proposals.length && !checks.length) return null;
-                          return (
-                            <Stack
-                              key={group.key}
-                              component="section"
-                              spacing={1.5}
-                              aria-labelledby={`review-group-${group.key}`}
-                            >
-                              <Typography
-                                id={`review-group-${group.key}`}
-                                variant="h6"
-                                component="h3"
-                              >
-                                {group.title} ({groupHeading(group.key)})
-                                <Typography
-                                  component="span"
-                                  variant="body2"
-                                  color="text.secondary"
+                      {noReviewSuggestions ? (
+                        <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+                          {hasCvContent && (
+                            <Typography variant="body2">
+                              {emptySuggestionsMessage}
+                            </Typography>
+                          )}
+                          <Link
+                            href="#full-cv-title"
+                            onClick={() => setCvOpen(true)}
+                            sx={{ display: 'inline-block', mt: 1 }}
+                          >
+                            {tr('Edit full CV')}
+                          </Link>
+                        </Paper>
+                      ) : (
+                        <>
+                          {reviewNav}
+                          {unanchoredNote}
+                          <Stack spacing={3} sx={{ mb: 2, mt: 2 }}>
+                            {groups.map((group) => {
+                              const proposals = proposalCards.filter(
+                                (card) => card.group === group.key,
+                              );
+                              const checks =
+                                group.key === 'warnings'
+                                  ? verificationCards
+                                  : [];
+                              if (!proposals.length && !checks.length)
+                                return null;
+                              return (
+                                <Stack
+                                  key={group.key}
+                                  component="section"
+                                  spacing={1.5}
+                                  aria-labelledby={`review-group-${group.key}`}
                                 >
-                                  {' '}
-                                  · {group.hint}
-                                </Typography>
-                              </Typography>
-                              {checks.map(renderCheck)}
-                              {proposals.map(renderProposal)}
-                            </Stack>
-                          );
-                        })}
-                      </Stack>
-                      {isWizard && wizardStep === 2 && (
+                                  <Typography
+                                    id={`review-group-${group.key}`}
+                                    variant="h6"
+                                    component="h3"
+                                  >
+                                    {group.title} ({groupHeading(group.key)})
+                                    <Typography
+                                      component="span"
+                                      variant="body2"
+                                      color="text.secondary"
+                                    >
+                                      {' '}
+                                      · {group.hint}
+                                    </Typography>
+                                  </Typography>
+                                  {checks.map(renderCheck)}
+                                  {proposals.map(renderProposal)}
+                                </Stack>
+                              );
+                            })}
+                          </Stack>
+                        </>
+                      )}
+                      {!mobile && reviewActionStatus && (
                         <Box
                           id="review-action-bar"
                           tabIndex={-1}
@@ -2510,7 +2537,7 @@ export function TailoredCvReview({
                 </Box>
                 {mobile && (
                   <>
-                    {isWizard && wizardStep === 2 && (
+                    {reviewActionStatus && (
                       <Box
                         id="review-action-bar"
                         tabIndex={-1}
@@ -2604,49 +2631,51 @@ export function TailoredCvReview({
                           )}
                       </Box>
                     )}
-                    {reviewSheet}
+                    {!noReviewSuggestions && reviewSheet}
                   </>
                 )}
               </>
             ) : (
               <>
-                <Stack spacing={3} sx={{ mb: 2 }}>
-                  {groups.map((group) => {
-                    const proposals = proposalCards.filter(
-                      (card) => card.group === group.key,
-                    );
-                    const checks =
-                      group.key === 'warnings' ? verificationCards : [];
-                    if (!proposals.length && !checks.length) return null;
-                    return (
-                      <Stack
-                        key={group.key}
-                        component="section"
-                        spacing={1.5}
-                        aria-labelledby={`review-group-${group.key}`}
-                      >
-                        <Typography
-                          id={`review-group-${group.key}`}
-                          variant="h6"
-                          component="h3"
+                {(!noSuggestions || verificationCards.length > 0) && (
+                  <Stack spacing={3} sx={{ mb: 2 }}>
+                    {groups.map((group) => {
+                      const proposals = proposalCards.filter(
+                        (card) => card.group === group.key,
+                      );
+                      const checks =
+                        group.key === 'warnings' ? verificationCards : [];
+                      if (!proposals.length && !checks.length) return null;
+                      return (
+                        <Stack
+                          key={group.key}
+                          component="section"
+                          spacing={1.5}
+                          aria-labelledby={`review-group-${group.key}`}
                         >
-                          {group.title} ({groupHeading(group.key)})
                           <Typography
-                            component="span"
-                            variant="body2"
-                            color="text.secondary"
+                            id={`review-group-${group.key}`}
+                            variant="h6"
+                            component="h3"
                           >
-                            {' '}
-                            · {group.hint}
+                            {group.title} ({groupHeading(group.key)})
+                            <Typography
+                              component="span"
+                              variant="body2"
+                              color="text.secondary"
+                            >
+                              {' '}
+                              · {group.hint}
+                            </Typography>
                           </Typography>
-                        </Typography>
-                        {checks.map(renderCheck)}
-                        {proposals.map(renderProposal)}
-                      </Stack>
-                    );
-                  })}
-                </Stack>
-                {isWizard && wizardStep === 2 && (
+                          {checks.map(renderCheck)}
+                          {proposals.map(renderProposal)}
+                        </Stack>
+                      );
+                    })}
+                  </Stack>
+                )}
+                {isWizard && wizardStep === 2 && reviewActionStatus && (
                   <Box
                     id="review-action-bar"
                     tabIndex={-1}
@@ -3040,10 +3069,29 @@ export function TailoredCvReview({
                 </Stack>
               </Paper>
             </Box>
+            {showEmptySuggestions && !docReview && (
+              <Paper
+                component="aside"
+                aria-label={tr('Suggestions')}
+                variant="outlined"
+                sx={{ mt: 2, p: 2 }}
+              >
+                <Typography variant="body2">
+                  {emptySuggestionsMessage}
+                </Typography>
+              </Paper>
+            )}
             <Paper
               variant="outlined"
               component="section"
               aria-label={tr('Save and approve')}
+              hidden={
+                showEmptySuggestions &&
+                isWizard &&
+                !dirty &&
+                !error &&
+                !blockingIssues.length
+              }
               sx={{ p: { xs: 2, sm: 2.5 }, mt: 2 }}
             >
               <Stack spacing={1.5}>
