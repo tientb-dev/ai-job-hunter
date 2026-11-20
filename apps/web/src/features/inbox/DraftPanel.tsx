@@ -1,5 +1,6 @@
 import { dateLocale, tr } from '../../app/i18n';
 import { Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
+import { AddIcon } from '../../components/icons';
 import type { SavedDraft } from './tailored-cv.contract';
 
 interface DraftItem {
@@ -91,9 +92,9 @@ export function DraftPanel({
                 <Button
                   size="small"
                   variant="outlined"
+                  startIcon={<AddIcon />}
                   disabled={disabled}
                   onClick={onNewDraft}
-                  sx={{ marginInlineStart: { sm: 'auto' } }}
                 >
                   {tr('New draft')}
                 </Button>
