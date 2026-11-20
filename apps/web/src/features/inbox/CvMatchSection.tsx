@@ -136,7 +136,7 @@ export function CvMatchSection({
   const findingsOverview = (
     <FindingsOverview
       preliminary={preAnalysis}
-      onGoToTailored={savedHandoff || preAnalysis ? undefined : onGoToTailored}
+      onGoToTailored={savedHandoff ? undefined : onGoToTailored}
       key={JSON.stringify([
         match.jobId,
         cv?.id,
@@ -272,19 +272,12 @@ export function CvMatchSection({
                           'Analyze your CV against this job to see requirement-by-requirement results and unlock CV suggestions and Tailored CV.',
                         )}
                       </Typography>
-                      <Stack
-                        direction={{ xs: 'column', sm: 'row' }}
-                        spacing={1.5}
-                        sx={{ alignItems: { sm: 'baseline' } }}
-                      >
-                        {analysisAction}
-                        {aboutAnalysis}
-                      </Stack>
+                      {analysisAction}
                     </Stack>
                   </Stack>
                 </Paper>
               )}
-              {!preAnalysis && aboutAnalysis}
+              {aboutAnalysis}
               {matchStatus === 'CHECKING' && (
                 <Typography role="status">
                   {tr('Checking the saved CV Match…')}
@@ -401,6 +394,16 @@ export function CvMatchSection({
               )}
             </Stack>
           </Paper>
+          {!showFindings && onGoToTailored && (
+            <Button
+              variant="contained"
+              endIcon={<ArrowForwardIcon />}
+              onClick={onGoToTailored}
+              sx={{ alignSelf: 'flex-start' }}
+            >
+              {tr('Open Tailored CV')}
+            </Button>
+          )}
           {preAnalysis ? (
             <Accordion
               disableGutters
@@ -490,16 +493,6 @@ export function CvMatchSection({
             </Accordion>
           ) : (
             showFindings && findingsOverview
-          )}
-          {(preAnalysis || !showFindings) && onGoToTailored && (
-            <Button
-              variant={preAnalysis ? 'text' : 'contained'}
-              endIcon={<ArrowForwardIcon />}
-              onClick={onGoToTailored}
-              sx={{ alignSelf: 'flex-start' }}
-            >
-              {tr('Open Tailored CV')}
-            </Button>
           )}
           {!preAnalysis &&
             skillMatch &&
