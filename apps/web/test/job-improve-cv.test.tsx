@@ -1,5 +1,6 @@
 import { ThemeProvider } from '@mui/material';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
 import {
   closeSuccess,
@@ -14,7 +15,11 @@ import { JobEditor } from '../src/features/inbox/JobEditor';
 import { emptyOpportunity } from '../src/features/inbox/opportunities-api';
 import { syntheticMatch } from './fixtures/cv-suggestions';
 const id = '00000000-0000-4000-8000-123456789012';
-function setup(saved = false, initialMatchRead?: Promise<void>) {
+function setup(
+  saved = false,
+  initialMatchRead?: Promise<void>,
+  withFindings = false,
+) {
   const result = {
     ...syntheticMatch,
     analyzedAt: new Date().toISOString(),
@@ -61,7 +66,28 @@ function setup(saved = false, initialMatchRead?: Promise<void>) {
         return Response.json(
           saved
             ? { status: 'VALID', result, matchValidForMs: 900000 }
-            : { status: 'MISSING' },
+            : {
+                status: 'MISSING',
+                ...(withFindings && {
+                  cvUpdatedAt: syntheticMatch.cvUpdatedAt,
+                  skillMatch: {
+                    ...result.skillMatch,
+                    findings: [
+                      {
+                        kind: 'skill',
+                        label: 'Java',
+                        sources: [
+                          { field: 'jdText', start: 0, end: 4, quote: 'Java' },
+                        ],
+                        evidence: {
+                          quote: 'Designed Java APIs.',
+                          origin: 'source',
+                        },
+                      },
+                    ],
+                  },
+                }),
+              },
         );
       }
       saved = true;
@@ -114,6 +140,52 @@ const analyzeButton = () =>
     return button;
   });
 
+test.each([false, true])(
+  'pre-analysis preserves the Tailored CV handoff (findings: %s)',
+  async (withFindings) => {
+    const { fetch } = setup(false, undefined, withFindings);
+    await screen.findByRole('heading', { name: 'Synthetic engineer' });
+    tab('CV Match');
+    const analyze = await analyzeButton();
+    const intro = screen.getByRole('region', {
+      name: 'Your CV Match assessment is not ready yet',
+    });
+    expect(intro).toContainElement(analyze);
+    expect(intro).not.toContainElement(screen.getByText('About this analysis'));
+    expect(analyze).toHaveClass('MuiButton-contained');
+
+    const preview = screen.getByRole('button', { name: 'Quick skill preview' });
+    if (withFindings) {
+      expect(
+        screen.queryByRole('button', { name: 'Open Tailored CV' }),
+      ).toBeNull();
+      fireEvent.click(preview);
+      expect(
+        within(
+          screen.getByRole('region', { name: 'Quick skill preview' }),
+        ).getByRole('button', { name: 'Open Tailored CV' }),
+      ).toBeVisible();
+    }
+    const handoff = screen.getByRole('button', { name: 'Open Tailored CV' });
+    expect(handoff).toHaveClass('MuiButton-contained');
+    if (!withFindings) {
+      expect(
+        handoff.compareDocumentPosition(preview) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
+    fireEvent.click(handoff);
+    const tailored = screen.getByRole('tab', { name: 'Tailored CV' });
+    expect(tailored).toHaveAttribute('aria-selected', 'true');
+    expect(tailored).toHaveFocus();
+    expect(
+      fetch.mock.calls.some(
+        ([url, init]) => url.endsWith('/match') && init?.method === 'POST',
+      ),
+    ).toBe(false);
+  },
+);
+
 test('CV Match opens Tailored CV for the same job and selected CV with no additional AI call', async () => {
   const { fetch } = setup(true);
   await screen.findByRole('heading', { name: 'Synthetic engineer' });
@@ -125,6 +197,10 @@ test('CV Match opens Tailored CV for the same job and selected CV with no additi
   const before = fetch.mock.calls.length;
   const handoff = screen.getByRole('button', { name: 'Open Tailored CV' });
   expect(handoff).toHaveClass('MuiButton-contained');
+  expect(handoff.closest('.MuiPaper-root')).toHaveTextContent('Saved match');
+  expect(
+    screen.queryByRole('button', { name: 'Quick skill preview' }),
+  ).toBeNull();
   expect(
     screen.getByRole('button', { name: 'Reanalyze CV Match' }),
   ).toHaveClass('MuiButton-outlined');

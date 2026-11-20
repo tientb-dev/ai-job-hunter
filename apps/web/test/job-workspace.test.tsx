@@ -78,12 +78,9 @@ test('switching sections keeps unsaved job edits without a prompt; leaving the j
   expect(router.state.location.pathname).toBe(`/jobs/${id}/application`);
 });
 
-test.each([
-  ['MISSING', 'Not analyzed yet.'],
-  ['STALE_CV', 'Outdated.'],
-])(
+test.each(['MISSING', 'STALE_CV'] as const)(
   'Match panel explains when the saved match is %s',
-  async (status, prefix) => {
+  async (status) => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url: string) =>
@@ -108,11 +105,23 @@ test.each([
         />
       </ThemeProvider>,
     );
-    const count = (text: string) =>
-      document.body.textContent!.split(text).length - 1;
-    await waitFor(() => expect(count(prefix)).toBe(1));
     expect(
-      count(prefix === 'Outdated.' ? 'Not analyzed yet.' : 'Outdated.'),
-    ).toBe(0);
+      screen.getByRole('heading', {
+        name: 'Your CV Match assessment is not ready yet',
+      }),
+    ).toBeVisible();
+    if (status === 'STALE_CV') {
+      expect(await screen.findByText(/Outdated.*different CV/)).toBeVisible();
+      expect(
+        screen.getByRole('button', { name: 'Reanalyze CV Match' }),
+      ).toBeEnabled();
+    } else {
+      await waitFor(() =>
+        expect(
+          screen.getByRole('button', { name: 'Analyze CV Match' }),
+        ).toBeEnabled(),
+      );
+      expect(screen.queryByText(/Outdated\./)).toBeNull();
+    }
   },
 );

@@ -145,15 +145,20 @@ test('shows the inventory limitation before analysis, without requesting inferen
   );
   vi.stubGlobal('fetch', fetch);
   render(<CvMatchPanel jobId="job" revision="1" jobUpdatedAt={revision} />);
-  expect(await screen.findByText('JD–CV Skill Match')).toBeVisible();
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Quick skill preview' }),
+  );
+  expect(
+    await screen.findByText('Skill group keyword comparison'),
+  ).toBeVisible();
   expect(screen.getByText('Java · Required')).toBeVisible();
   expect(screen.getByText('Unresolved JD requirements')).toBeVisible();
   expect(
-    screen.getByText(/The score covers only the requirements assessed here/),
+    screen.getByText(
+      /The keyword score covers only the skill groups shown here/,
+    ),
   ).toBeVisible();
-  expect(
-    screen.getByText('0% weighted match across assessed requirements'),
-  ).toBeVisible();
+  expect(screen.getByText('0% weighted keyword score')).toBeVisible();
   expect(
     fetch.mock.calls.filter(([url]) => url.endsWith('/match')),
   ).toHaveLength(1);

@@ -166,6 +166,55 @@ export const VI_TEXT: Record<string, string> = {
   'This finding applies to the named JD excerpt.':
     'Kết luận này chỉ áp dụng cho kỹ năng trong trích đoạn JD.',
   'Original CV evidence': 'Xem bằng chứng gốc trong CV',
+  'Your CV Match assessment is not ready yet':
+    'Chưa có kết quả đánh giá độ phù hợp của CV',
+  'Analyze your CV against this job to see requirement-by-requirement results and get personalized suggestions for Tailored CV.':
+    'Phân tích CV theo từng yêu cầu tuyển dụng để xem mức độ phù hợp và nhận gợi ý cá nhân hóa cho Tailored CV.',
+  'Quick skill preview': 'Xem trước kỹ năng',
+  'Preview only': 'Chỉ xem trước',
+  'A quick keyword-based comparison of the job requirements and your reviewed CV. This is not a full assessment.':
+    'Đối chiếu nhanh từ khóa trong yêu cầu công việc và CV đã rà soát. Đây không phải là đánh giá đầy đủ.',
+  'No keyword comparison is available for the selected CV.':
+    'Chưa có kết quả đối chiếu từ khóa cho CV đã chọn.',
+  'Keywords found: {skills}': 'Từ khóa tìm thấy: {skills}',
+  'Review this requirement against your CV.':
+    'Đối chiếu yêu cầu này với CV của bạn.',
+  'Keywords found': 'Có từ khóa',
+  'Check scope': 'Cần xem phạm vi yêu cầu',
+  'CV passages mentioning these skills': 'Đoạn CV đề cập đến các kỹ năng này',
+  'Related terms found. Review the specific requirement.':
+    'Tìm thấy từ khóa liên quan. Hãy xem lại yêu cầu cụ thể.',
+  'No direct keyword match was found for this requirement.':
+    'Chưa tìm thấy từ khóa trùng khớp trực tiếp cho yêu cầu này.',
+  'These keyword matches do not establish that the whole requirement is met.':
+    'Các từ khóa trùng khớp chưa đủ để xác nhận CV đáp ứng toàn bộ yêu cầu.',
+  'View CV passages': 'Xem các đoạn trích từ CV',
+  'CV passage': 'Đoạn trích từ CV',
+  'Skills mentioned in the CV: {skills}':
+    'Kỹ năng được nhắc đến trong CV: {skills}',
+  'Compare job requirements with the CV': 'Đối chiếu yêu cầu công việc với CV',
+  'Keyword comparison': 'Đối chiếu từ khóa',
+  'Requirements with keywords found': 'Yêu cầu có từ khóa trong CV',
+  'No direct keywords found.': 'Chưa tìm thấy từ khóa trùng khớp trực tiếp.',
+  'Other related CV passages': 'Các đoạn CV liên quan khác',
+  'Skill group keyword comparison': 'Đối chiếu từ khóa theo nhóm kỹ năng',
+  'Keywords found for {matched}/{total} skill groups':
+    'Tìm thấy từ khóa cho {matched}/{total} nhóm kỹ năng',
+  'No weighted keyword score available.': 'Chưa có điểm từ khóa theo trọng số.',
+  '{score}% weighted keyword score': 'Điểm từ khóa theo trọng số: {score}%',
+  'The keyword score covers only the skill groups shown here.':
+    'Điểm từ khóa chỉ tính các nhóm kỹ năng hiển thị ở đây.',
+  'Original JD and saved skills differ. The comparison uses the original JD priorities.':
+    'JD gốc và danh sách kỹ năng đã lưu khác nhau. Phần đối chiếu dùng mức ưu tiên trong JD gốc.',
+  'Skills with keywords found': 'Kỹ năng có từ khóa trong CV',
+  'Skills without keywords found': 'Kỹ năng chưa tìm thấy từ khóa trong CV',
+  'View unresolved requirements': 'Xem các yêu cầu chưa làm rõ',
+  'This requirement could not be compared reliably.':
+    'Chưa thể đối chiếu yêu cầu này một cách đáng tin cậy.',
+  'Related term from {skill}': 'Từ khóa liên quan đến {skill}',
+  'Direct term or alias': 'Từ khóa trực tiếp hoặc tên gọi khác',
+  'No keyword found in the reviewed CV for {skill}.':
+    'Chưa tìm thấy từ khóa cho {skill} trong CV đã rà soát.',
   'Compare CV with JD': 'Đối chiếu CV với JD',
   'About this analysis': 'Cách sử dụng CV khi phân tích',
   'Preliminary skill evidence: {skills}': 'Bằng chứng kỹ năng sơ bộ: {skills}',

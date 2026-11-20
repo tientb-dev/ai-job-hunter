@@ -7,7 +7,9 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react';
+import { setLocale } from '../src/app/i18n';
 import { CvMatchPanel } from '../src/features/inbox/CvMatchPanel';
 
 const job = '00000000-0000-4000-8000-0000000000e1';
@@ -129,6 +131,101 @@ test('uploading a CV in Job Detail saves it for this job, then opens its review'
   ).toBe(false);
 });
 
+test.each([
+  [
+    'en-US',
+    'Your CV Match assessment is not ready yet',
+    'Analyze CV Match',
+    'Analyze your CV against this job to see requirement-by-requirement results and get personalized suggestions for Tailored CV.',
+    'Quick skill preview',
+    'Preview only',
+    'A quick keyword-based comparison of the job requirements and your reviewed CV. This is not a full assessment.',
+    'View details for Java',
+    'CV passages mentioning these skills',
+  ],
+  [
+    'vi-VN',
+    'Chưa có kết quả đánh giá độ phù hợp của CV',
+    'Phân tích Đối chiếu CV',
+    'Phân tích CV theo từng yêu cầu tuyển dụng để xem mức độ phù hợp và nhận gợi ý cá nhân hóa cho Tailored CV.',
+    'Xem trước kỹ năng',
+    'Chỉ xem trước',
+    'Đối chiếu nhanh từ khóa trong yêu cầu công việc và CV đã rà soát. Đây không phải là đánh giá đầy đủ.',
+    'Xem chi tiết yêu cầu Java',
+    'Đoạn CV đề cập đến các kỹ năng này',
+  ],
+] as const)(
+  '%s introduces analysis and opens a keyboard-accessible, neutral keyword preview without another request',
+  async (
+    locale,
+    heading,
+    action,
+    heroDescription,
+    label,
+    badge,
+    description,
+    viewDetails,
+    passages,
+  ) => {
+    setLocale(locale);
+    const source = { field: 'jdText', start: 0, end: 4, quote: 'Java' };
+    const evidence = { quote: 'Skills: Java', origin: 'source' };
+    const fetch = mount({
+      status: 'MISSING',
+      cvUpdatedAt: cv.updatedAt,
+      skillMatch: {
+        version: 1,
+        score: 100,
+        limitation: null,
+        matchedCount: 1,
+        totalCount: 1,
+        rows: [
+          {
+            source,
+            priority: 'required',
+            skills: [{ name: 'Java', evidence }],
+          },
+        ],
+        findings: [
+          { kind: 'skill', label: 'Java', sources: [source], evidence },
+        ],
+      },
+    });
+    const intro = screen.getByRole('region', { name: heading });
+    const analyze = within(intro).getByRole('button', { name: action });
+    await waitFor(() => expect(analyze).toBeEnabled());
+    expect(within(intro).getByText(heroDescription)).toBeVisible();
+    const preview = screen.getByRole('button', { name: label });
+    expect(preview).toHaveAccessibleDescription(description);
+    expect(within(preview).getByText(badge)).toBeVisible();
+    expect(preview).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('button', { name: viewDetails })).toBeNull();
+    const requestCount = fetch.mock.calls.length;
+    const user = userEvent.setup();
+    preview.focus();
+    await user.keyboard('{Enter}');
+    const panel = screen.getByRole('region', { name: label });
+    expect(preview).toHaveAttribute('aria-controls', panel.id);
+    expect(preview).toHaveAttribute('aria-expanded', 'true');
+    await user.click(within(panel).getByRole('button', { name: viewDetails }));
+    expect(within(panel).getByText(passages)).toBeVisible();
+    expect(
+      panel.querySelector(
+        '[data-testid="CheckCircleOutlineIcon"], .MuiChip-colorSuccess',
+      ),
+    ).toBeNull();
+    expect(
+      within(panel).queryByText(
+        /Evidence supports|assessed skill groups matched/,
+      ),
+    ).toBeNull();
+    expect(fetch).toHaveBeenCalledTimes(requestCount);
+    expect(fetch.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(
+      false,
+    );
+  },
+);
+
 test.each(['MISSING', 'STALE_JOB', 'STALE_CV', 'EXPIRED'] as const)(
   '%s shows only preliminary evidence even if the response includes old rows',
   async (status) => {
@@ -155,8 +252,10 @@ test.each(['MISSING', 'STALE_JOB', 'STALE_CV', 'EXPIRED'] as const)(
         ],
       },
     });
+    const preview = screen.getByRole('button', { name: 'Quick skill preview' });
+    fireEvent.click(preview);
     expect(
-      await screen.findByText('Preliminary skill evidence: Java'),
+      await screen.findByText('Skills mentioned in the CV: Java'),
     ).toBeVisible();
     expect(
       screen.queryByRole('region', { name: 'Saved assessment coverage' }),
@@ -251,6 +350,17 @@ test('user-entered evidence is labelled as added in review, not from the file', 
   const reload = mount(saved);
   expect(await screen.findByText('1 JD requirements')).toBeVisible();
   expect(screen.getByRole('button', { name: 'Matched (1)' })).toBeVisible();
+  expect(
+    screen.getByRole('button', { name: 'Reanalyze CV Match' }),
+  ).toBeVisible();
+  expect(
+    screen.queryByRole('heading', {
+      name: 'Your CV Match assessment is not ready yet',
+    }),
+  ).toBeNull();
+  expect(
+    screen.queryByRole('button', { name: 'Quick skill preview' }),
+  ).toBeNull();
   expect(reload.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(
     false,
   );
