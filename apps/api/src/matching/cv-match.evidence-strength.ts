@@ -154,13 +154,20 @@ export function evidenceStrength(
   label: string,
   cv: string,
   group?: RequirementGroup,
+  selectedQuote?: string,
 ): EvidenceStrength | null {
   const all = lines(cv);
+  const start = selectedQuote === undefined ? -1 : cv.indexOf(selectedQuote);
+  const end = start + (selectedQuote?.length ?? 0);
   const pipeline =
     ciCdPipelines.test(label) || !!(group && andCiCdPractices(label, group));
   const sql = capabilityOf(label)?.id === 'sql-writing';
   const hits = all.filter(
     (line) =>
+      (selectedQuote === undefined ||
+        (start >= 0 &&
+          line.start >= start &&
+          line.start + line.text.length <= end)) &&
       (rules.mentions(label, line.text.replace(/\s+/gu, ' ')) ||
         (pipeline && supportsCiCdPipelineWork(line.text))) &&
       !rules.aiExcluded(label, line.text) &&

@@ -12,7 +12,10 @@ import type { ExtractionService } from '../../src/extraction/extraction.service.
 import { JobMatchService } from '../../src/matching/job-match.service.js';
 import { MatchingService } from '../../src/matching/matching.service.js';
 import { SavedCv } from '../../src/matching/saved-cv.entity.js';
-import { canonicalRequirements } from '../../src/matching/cv-match.js';
+import {
+  canonicalRequirements,
+  type MatchRequirement,
+} from '../../src/matching/cv-match.js';
 import type { Opportunity } from '../../src/opportunities/opportunity.entity.js';
 import type { OpportunitiesService } from '../../src/opportunities/opportunities.service.js';
 const cvText =
@@ -623,4 +626,209 @@ test('condition evidence persists with the saved assessment and current-match re
     result: { matchId: result.matchId, conditions: result.conditions },
   });
   expect(provider.generate).toHaveBeenCalledTimes(1);
+});
+
+test('semantic assessments preserve documented correspondence and incomplete scope through analysis', async () => {
+  const postgres = '- Maintained a PostgreSQL-backed billing application.';
+  const node = '- Built a payment service using Node.js.';
+  const allocation = '- Assigned sprint tasks to team members.';
+  const sqlServer = '- Optimized SQL Server reporting queries.';
+  const spring = '- Developed Spring Boot services in Java.';
+  const career = '6 years of experience in software development.';
+  const rest = 'Skills: REST APIs';
+  const planning = '- Planned and launched marketing campaigns.';
+  const title = 'Project: Enterprise Resource Planning';
+  const cases = [
+    [
+      'Có kinh nghiệm làm việc với cơ sở dữ liệu PostgreSQL',
+      'SUPPORTED',
+      postgres,
+      'EVIDENCED',
+    ],
+    [
+      'Có kinh nghiệm làm việc với NodeJS là lợi thế',
+      'SUPPORTED',
+      node,
+      'EVIDENCED',
+    ],
+    [
+      'Có khả năng estimate và phân chia technical task',
+      'RELATED',
+      allocation,
+      'PARTIAL',
+    ],
+    [
+      'Có kinh nghiệm làm việc với cơ sở dữ liệu PostgreSQL, có khả năng phân tích/tối ưu câu SQL khi cần thiết',
+      'RELATED',
+      postgres,
+      'PARTIAL',
+    ],
+    [
+      'Ít nhất >5 năm kinh nghiệm phát triển phần mềm bằng ngôn ngữ Java',
+      'SUPPORTED',
+      spring,
+      'PARTIAL',
+    ],
+    ['Experience delivering REST APIs', 'RELATED', rest, 'PARTIAL'],
+    [
+      'Nắm vững Core Java: Collections, Generics, Exception Handling, Stream API',
+      'NOT_FOUND',
+      '',
+      'NOT_EVIDENCED',
+    ],
+    [
+      'Có kinh nghiệm với Spring/Spring Boot OR các Java framework tương đương',
+      'SUPPORTED',
+      spring,
+      'EVIDENCED',
+    ],
+    [
+      'Có kinh nghiệm về các công cụ quản lý phiên bản (Git, SVN)',
+      'NOT_FOUND',
+      '',
+      'NOT_EVIDENCED',
+    ],
+    [
+      'Experience with Linux, CentOS, and checking logs, process, resource, network',
+      'NOT_FOUND',
+      '',
+      'NOT_EVIDENCED',
+    ],
+    [
+      'Experience with campaign planning and conversion attribution',
+      'RELATED',
+      planning,
+      'PARTIAL',
+    ],
+  ] as const;
+  const jd = cases.map(([requirement]) => requirement).join('\n');
+  const cv = [
+    title,
+    career,
+    postgres,
+    node,
+    allocation,
+    sqlServer,
+    spring,
+    rest,
+    planning,
+  ].join('\n\n');
+  const synthetic = {
+    ...job,
+    skills: jd,
+    preferredSkills: '',
+    experience: '',
+    domain: '',
+    description: jd,
+  };
+  const { service } = setup(
+    async ({ prompt }) => {
+      const payload = JSON.parse(prompt.slice(prompt.lastIndexOf('\n') + 1));
+      if (Array.isArray(payload)) {
+        return JSON.stringify({
+          items: payload.map(
+            ({
+              parentId,
+              requirement,
+            }: {
+              parentId: string;
+              requirement: string;
+            }) =>
+              requirement === cases[7][0]
+                ? {
+                    parentId,
+                    mode: 'OR',
+                    components: ['Spring', 'Spring Boot'],
+                  }
+                : { parentId, mode: 'UNSAFE', components: [] },
+          ),
+        });
+      }
+      return JSON.stringify({
+        requirements: payload.canonicalRequirements.map(
+          ({
+            group,
+            ...parent
+          }: MatchRequirement & {
+            group: {
+              mode: string;
+              components: { id: string; jdQuote: string }[];
+            };
+          }) => {
+            const [, correspondence, cvQuote] = cases.find(
+              ([requirement]) => requirement === parent.requirement,
+            )!;
+            const perComponent = new Map<string, string[]>([
+              [cases[2][0], ['', allocation]],
+              [cases[3][0], [postgres, sqlServer]],
+              [cases[7][0], ['', spring]],
+              [cases[10][0], [planning, '']],
+            ]);
+            const selectedQuotes = perComponent.get(parent.requirement) ?? [
+              cvQuote,
+            ];
+            const componentDecision = perComponent.has(parent.requirement)
+              ? 'SUPPORTED'
+              : correspondence;
+            return {
+              ...parent,
+              correspondence,
+              cvQuote: parent.requirement === cases[7][0] ? '' : cvQuote,
+              components: group.components.map((component, index) => {
+                const selected = selectedQuotes[index] ?? '';
+                return {
+                  componentId: component.id,
+                  jdQuote: component.jdQuote,
+                  cvQuote: selected,
+                  correspondence: !selected
+                    ? 'NOT_FOUND'
+                    : selected === sqlServer
+                      ? 'RELATED'
+                      : componentDecision,
+                };
+              }),
+            };
+          },
+        ),
+      });
+    },
+    cv,
+    synthetic,
+  );
+  const result = await service.analyze(LOCAL_OWNER_ID, synthetic.id);
+  expect(result.requirements.map(({ status }) => status)).toEqual(
+    cases.map(([, , , status]) => status),
+  );
+  expect(
+    result.requirements[2]?.coverage.components.map(({ status }) => status),
+  ).toEqual(['NOT_EVIDENCED', 'EVIDENCED']);
+  expect(
+    result.requirements[3]?.coverage.components.map(({ status, cvQuote }) => [
+      status,
+      cvQuote,
+    ]),
+  ).toEqual([
+    ['EVIDENCED', postgres],
+    ['PARTIAL', sqlServer],
+  ]);
+  expect(result.conditions).toContainEqual(
+    expect.objectContaining({
+      parentId: result.requirements[4]?.parentId,
+      status: 'UNKNOWN',
+      evidence: [],
+    }),
+  );
+  expect(result.requirements[7]?.coverage.components[1]).toMatchObject({
+    label: 'Spring Boot',
+    cvQuote: spring,
+    cvOrigin: 'source',
+  });
+  for (const index of [8, 9]) {
+    expect(result.requirements[index]?.evidence.review).toBe(false);
+    expect(
+      result.requirements[index]?.coverage.components.every(
+        (component) => !('strength' in component),
+      ),
+    ).toBe(true);
+  }
 });

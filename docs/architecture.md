@@ -2369,6 +2369,16 @@ Grounding decisions:
 
 ## CV Match decomposition stabilization and application guidance
 
+**Candidate-facing correspondence.** Match responses can label each parent and
+component as supported, related, not found, or unassessable. Related judgments
+retain an exact CV passage and can name the missing qualifier. The semantic
+path validates parent identity, component spans and CV passage provenance, then
+checks AND/OR composition and the existing scoped condition safeguards. A
+reviewed skill listing can support a skill requirement, while experience,
+proficiency and duration still need appropriate evidence. Strength attribution
+on this path stays inside the selected passage. Legacy responses without a
+correspondence verdict retain the previous scoring behavior.
+
 **Decomposition.** `requirementGroup` remains the deterministic first pass,
 now with one shared grammar for English and Vietnamese lead-ins ("Experience
 with", "Có kinh nghiệm (sử dụng|lập trình)", "Thành thạo", …) and connectors

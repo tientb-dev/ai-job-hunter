@@ -15,9 +15,10 @@ export class MatchingService {
     unverified = false,
     review?: ReviewedCvText,
   ) {
+    const conditions = assessConditions(canonical, jd, cv, review);
     return {
-      ...scoreCvMatch(proposals, cv, jd, canonical, unverified),
-      conditions: assessConditions(canonical, jd, cv, review),
+      ...scoreCvMatch(proposals, cv, jd, canonical, unverified, conditions),
+      conditions,
     };
   }
 

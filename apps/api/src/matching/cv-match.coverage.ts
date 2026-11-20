@@ -15,6 +15,13 @@ import { normalize } from './matching.policy.js';
 // a statement about the candidate; it earns no credit and lowers evaluability.
 export type CoverageStatus =
   'EVIDENCED' | 'PARTIAL' | 'NOT_EVIDENCED' | 'CONFLICT' | 'UNDECOMPOSED';
+export const CORRESPONDENCE = [
+  'SUPPORTED',
+  'RELATED',
+  'NOT_FOUND',
+  'UNASSESSABLE',
+] as const;
+export type Correspondence = (typeof CORRESPONDENCE)[number];
 export interface RequirementComponent {
   qualification?: QualificationPredicate;
   id: string;
@@ -50,6 +57,7 @@ export interface ComponentEvidence {
   componentId: string;
   jdQuote: string;
   cvQuote: string;
+  correspondence?: Correspondence;
 }
 export interface ComponentCoverage extends RequirementComponent {
   status: CoverageStatus;

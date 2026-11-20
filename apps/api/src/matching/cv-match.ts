@@ -1,4 +1,5 @@
 import {
+  CORRESPONDENCE,
   evaluateCoverage,
   requirementGroup,
   simpleSkillList,
@@ -9,6 +10,7 @@ import {
   notAssessable,
   type ComponentCoverage,
   type ComponentEvidence,
+  type Correspondence,
   type CoverageStatus,
   type RequirementGroup,
 } from './cv-match.coverage.js';
@@ -49,6 +51,8 @@ import {
   requirementLines,
 } from '../opportunities/job-import.sections.js';
 import type { Opportunity } from '../opportunities/opportunity.entity.js';
+import type { ConditionAssessment } from './cv-match.conditions.js';
+import { semanticCoverage } from './cv-match.semantic-coverage.js';
 
 export interface MatchRequirement {
   parentId?: string;
@@ -58,6 +62,8 @@ export interface MatchRequirement {
   category: 'skill' | 'experience' | 'domain';
   jdQuote: string;
   cvQuote: string;
+  correspondence?: Correspondence;
+  missingQualifier?: string;
   // Internal only: prevents recovery from replacing rejected model evidence.
   cvEvidenceUnverified?: true;
   // Internal only: an ambiguous component quote was dropped; blocks recovery.
@@ -91,6 +97,8 @@ export const MATCH_SCHEMA = {
           category: { type: 'string', enum: ['skill', 'experience', 'domain'] },
           jdQuote: { type: 'string', minLength: 1, maxLength: 2000 },
           cvQuote: { type: 'string', maxLength: 2000 },
+          correspondence: { type: 'string', enum: CORRESPONDENCE },
+          missingQualifier: { type: 'string', maxLength: 240 },
           parentId: { type: 'string', minLength: 2, maxLength: 10 },
           components: {
             type: 'array',
@@ -103,6 +111,7 @@ export const MATCH_SCHEMA = {
                 componentId: { type: 'string', minLength: 2, maxLength: 10 },
                 jdQuote: { type: 'string', minLength: 1, maxLength: 2000 },
                 cvQuote: { type: 'string', maxLength: 2000 },
+                correspondence: { type: 'string', enum: CORRESPONDENCE },
               },
             },
           },
@@ -511,9 +520,14 @@ Jobs may be technical or non-technical (marketing, sales, business). Treat compe
 An explicit technical skills declaration is CV evidence; Java Spring Boot development supports Java backend experience. AI-assisted coding tools are not production AI/ML experience.
 Seniority preferences are not qualifications and must not change the CV score. Do not infer duration or skills from a seniority label.
 For the exact familiarity-or-interest AI-assisted development family, contextual development-tool use or explicitly relevant interest is acceptable; interest is not professional experience. Keep its two predicates scoped to the supplied activities, not a demand for every activity. For recognized database-proficiency requirements, select concrete professional use even if the level remains unverified; the server distinguishes Partial from Matched.
-An isolated keyword outside a skills declaration, negation, aspiration (except explicitly permitted relevant interest), uncertain statement or insufficient duration is NOT support. Use an empty cvQuote when not fully evidenced.
+For each parent and each supplied component return correspondence:
+- SUPPORTED: the passage supports the requested skill, experience or other scope. A reviewed skills declaration is sufficient for a skill requirement, but it does not establish delivery experience, proficiency depth or duration. Prefer documented work when available.
+- RELATED: a passage supports a meaningful part of the requirement, while a qualifier, component or scope is not established. Copy the best exact passage, and use missingQualifier on the parent to name the unestablished part in the JD language.
+- NOT_FOUND: no meaningful evidence in the CV. Use an empty quote for that item.
+- UNASSESSABLE: the requirement cannot be interpreted reliably. Use an empty quote for that item. If there is useful partial evidence despite ambiguity, use RELATED.
+Do not treat a similar technology as equivalent unless the JD allows it and the CV passage establishes the relevant use. Keep evidence from separate projects separate: SQL Server query optimization cannot establish PostgreSQL query optimization. A team claim does not establish individual ownership. Negation, aspiration (except permitted relevant interest), or a passing mention does not establish use. Never infer technology-specific years from total tenure or project dates.
 A missing CV quote means not evidenced, never that the person lacks the skill. Do not infer years, domains or experience from job titles.
-Return only canonical parents; extra requirements never receive scoring weight. Include each parentId unchanged. For each supplied group component return components [{componentId, jdQuote, cvQuote}], selecting a separate allowed CV passage or empty string. Keep component IDs and JD spans exactly; never invent components. AND requires every component, OR requires one alternative plus all shared constraints. Personal delivery beyond prototype requires explicit personal build and production delivery, not team contribution or a prototype. Flag gaps with empty quotes, never with unrelated passages.
+Return only canonical parents; extra requirements never receive scoring weight. Include each parentId unchanged. For each supplied group component return components [{componentId, jdQuote, cvQuote, correspondence}], selecting an exact CV passage for each supported or related claim. Keep component IDs and JD spans exactly; never invent components. Mark an AND supported only when all components are supported, and an OR supported when one alternative and the shared constraints are supported. For a compound parent, use RELATED if you can substantiate part of the claim but not the whole. Personal delivery beyond prototype requires explicit personal build and production delivery, not team contribution or a prototype.
 Return JSON only, with requirements; priority required/preferred; category skill/experience/domain.
 ${JSON.stringify({ cv, job: jd, canonicalRequirements: canonical.map((item) => ({ parentId: item.parentId, requirement: item.requirement, priority: item.priority, category: item.category, jdQuote: item.jdQuote, group: groupOf(item) })) })}`;
 }
@@ -657,6 +671,20 @@ export function validateMatchAssessment(
       linksCanonicalRequirement(proposal, seed),
     );
     if (proposal.parentId && !parent)
+      throw new CvMatchError('CV_MATCH_INVALID_OUTPUT', 'PARENT_ID_UNLINKED', {
+        requirementIndex: index,
+      });
+    if (
+      proposal.correspondence !== undefined &&
+      (!parent ||
+        proposal.parentId !== parent.parentId ||
+        !proposal.parentId ||
+        quoteKey(proposal.jdQuote) !== quoteKey(parent.jdQuote) ||
+        proposals.some(
+          (other, offset) =>
+            offset !== index && linksCanonicalRequirement(other, parent),
+        ))
+    )
       throw new CvMatchError('CV_MATCH_INVALID_OUTPUT', 'PARENT_ID_UNLINKED', {
         requirementIndex: index,
       });
@@ -877,6 +905,7 @@ export function scoreCvMatch(
   canonical: MatchRequirement[] = [],
   // canonicalRequirementsUnverified(job): withhold the score and fit verdict.
   unverified = false,
+  conditions: readonly ConditionAssessment[] = [],
 ) {
   const seen = new Set<string>();
   let passages: string[] | undefined;
@@ -896,7 +925,8 @@ export function scoreCvMatch(
     const usable =
       !!quote.trim() &&
       cv.includes(quote) &&
-      (groupOf(item).mode !== 'SINGLE' ||
+      (proposal?.correspondence !== undefined ||
+        groupOf(item).mode !== 'SINGLE' ||
         ['EVIDENCED', 'PARTIAL', 'CONFLICT'].includes(
           simpleEvidenceStatus(item.requirement, quote, cv, item.category),
         ));
@@ -911,6 +941,8 @@ export function scoreCvMatch(
     return {
       ...item,
       modelQuote,
+      correspondence: proposal?.correspondence,
+      missingQualifier: proposal?.missingQualifier,
       rejectedComponentIds: linked.flatMap(
         (candidate) => candidate.rejectedComponentIds ?? [],
       ),
@@ -928,12 +960,17 @@ export function scoreCvMatch(
       ...(proposal?.cvEvidenceUnverified
         ? { cvEvidenceUnverified: true as const }
         : {}),
-      cvQuote: proposal?.cvEvidenceUnverified
-        ? ''
-        : usable
-          ? quote
-          : recoveredCvQuote(item, cv) ||
-            recoverSimpleQuote(item.requirement, item.category, cv),
+      cvQuote:
+        proposal?.correspondence !== undefined
+          ? usable
+            ? quote
+            : ''
+          : proposal?.cvEvidenceUnverified
+            ? ''
+            : usable
+              ? quote
+              : recoveredCvQuote(item, cv) ||
+                recoverSimpleQuote(item.requirement, item.category, cv),
     };
   });
   const groups: RequirementGroup[] = [];
@@ -943,6 +980,7 @@ export function scoreCvMatch(
     rejected: boolean;
     spanMismatch: boolean;
     rejectedComponentIds: readonly string[];
+    semantic: boolean;
   }[] = [];
   const requirements = merged
     .filter((item) => {
@@ -968,6 +1006,7 @@ export function scoreCvMatch(
             !item.rejectedComponentIds.length)
         ),
         rejectedComponentIds: item.rejectedComponentIds,
+        semantic: item.correspondence !== undefined,
       });
       // A malformed component span leaves the row unevaluable: the existing
       // UNDECOMPOSED path (no credit, full weight in the denominator, review).
@@ -1038,17 +1077,23 @@ export function scoreCvMatch(
           .map((component) => component.cvQuote),
       ].filter((quote) => quote.trim() && cv.includes(quote));
       const simpleQuote = item.cvQuote || selected[0] || '';
-      const coverage =
+      const legacyCoverage =
         group.mode === 'SINGLE'
           ? null
           : evaluateCoverage(
               group,
               item.componentSpanMismatch ? [] : selected,
               cv,
-              !item.cvEvidenceUnverified &&
+              item.correspondence === undefined &&
+                !item.cvEvidenceUnverified &&
                 !item.componentEvidenceUnverified &&
                 !item.componentSpanMismatch,
             );
+      const semantic =
+        item.correspondence && !item.componentSpanMismatch
+          ? semanticCoverage(item, group, cv, legacyCoverage, conditions)
+          : undefined;
+      const coverage = semantic?.coverage ?? legacyCoverage;
       const status =
         coverage?.status ??
         simpleEvidenceStatus(
@@ -1068,8 +1113,11 @@ export function scoreCvMatch(
       // A rejected component quote (Gemini) earns nothing and always needs review.
       const review =
         !!item.componentSpanMismatch ||
+        (item.correspondence !== undefined &&
+          (!!item.cvEvidenceUnverified || !!semantic?.invalidEvidence)) ||
         (!!item.componentEvidenceUnverified && status !== 'EVIDENCED') ||
-        (item.modelQuote !== 'ACCEPTED' &&
+        (item.correspondence === undefined &&
+          item.modelQuote !== 'ACCEPTED' &&
           status !== 'EVIDENCED' &&
           status !== 'CONFLICT' &&
           choices().some(
@@ -1091,12 +1139,14 @@ export function scoreCvMatch(
         priority: item.priority,
         category: item.category,
         jdQuote: item.jdQuote,
-        cvQuote: coverage
-          ? (coverage.components.find((component) => component.cvQuote)
-              ?.cvQuote ?? '')
-          : status !== 'NOT_EVIDENCED' && status !== 'UNDECOMPOSED'
-            ? simpleQuote
-            : '',
+        cvQuote: semantic
+          ? semantic.cvQuote
+          : coverage
+            ? (coverage.components.find((component) => component.cvQuote)
+                ?.cvQuote ?? '')
+            : status !== 'NOT_EVIDENCED' && status !== 'UNDECOMPOSED'
+              ? simpleQuote
+              : '',
         status,
         credit,
         evidence: { modelQuote: item.modelQuote, review },
@@ -1137,12 +1187,24 @@ export function scoreCvMatch(
               components: row.coverage.components.map(
                 (component, componentIndex) => {
                   const term = coverageSources[index]!.targets[componentIndex];
+                  const source = coverageSources[index]!;
+                  const scope = source.semantic
+                    ? (component.status === 'EVIDENCED' ||
+                        component.status === 'PARTIAL') &&
+                      component.cvQuote
+                    : undefined;
                   const strength =
                     term &&
-                    !coverageSources[index]!.spanMismatch &&
+                    !source.spanMismatch &&
+                    (!source.semantic || scope) &&
                     !spokenLanguage(component.label) &&
                     !spokenLanguage(term) &&
-                    evidenceStrength(term, cv, coverageSources[index]!.group);
+                    evidenceStrength(
+                      term,
+                      cv,
+                      source.group,
+                      scope || undefined,
+                    );
                   return strength ? { ...component, strength } : component;
                 },
               ),
