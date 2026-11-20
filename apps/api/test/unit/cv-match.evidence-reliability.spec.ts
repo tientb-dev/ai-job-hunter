@@ -114,15 +114,15 @@ describe.each([
     ['synthetic-cv.pdf', () => scenarioA],
     ['synthetic-cv-4-years.pdf', () => scenarioB],
   ])(
-    '%s: PostgreSQL recovered from work; Docker and Kubernetes not matched',
+    '%s: PostgreSQL recovered from work; Docker recognised from the tools list; Kubernetes not matched',
     (_, cv) => {
       const result = assess(cv(), quote);
       expect(result['Experience with PostgreSQL']).toMatchObject({
         status: 'EVIDENCED',
         cvQuote: '- Designed PostgreSQL schemas and wrote migrations.',
       });
-      // Docker appears only in a tools list: a keyword mention is not recovered.
-      expect(result['Familiarity with Docker']!.status).toBe('NOT_EVIDENCED');
+      // A tools-list line supports a familiarity row (PR57), with or without a model quote.
+      expect(result['Familiarity with Docker']!.status).toBe('EVIDENCED');
       expect(result['Experience with Kubernetes']).toMatchObject({
         status: 'NOT_EVIDENCED',
         cvQuote: '',

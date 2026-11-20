@@ -31,11 +31,127 @@ export interface ApplicationGuidance {
   gaps: string[];
   actions: GuidanceAction[];
 }
+export const COVERAGE_HIDDEN_REASONS = [
+  'TOO_FEW_ASSESSABLE_SKILLS',
+  'TOO_MUCH_UNASSESSABLE',
+  'EVIDENCE_VERIFICATION_FAILED',
+  'UNVERIFIED_JD',
+] as const;
+
+export interface MatchCondition {
+  reason?: 'DATED_PROGRAMMING' | 'IT_QUALIFICATION';
+  unknownExperience?: {
+    evidence: 'NONE' | 'UNDATED' | 'DATED';
+    years: number;
+    javaFullStack?: boolean;
+  };
+  parentId?: string;
+  componentId?: string;
+  mode: 'SINGLE' | 'AND' | 'OR' | 'UNKNOWN';
+  kind:
+    | 'LANGUAGE'
+    | 'LANGUAGE_CERTIFICATE'
+    | 'EXPERIENCE'
+    | 'EDUCATION'
+    | 'CERTIFICATION';
+  jdQuote: string;
+  status: 'MET' | 'UNKNOWN' | 'NOT_MET';
+  evidence: {
+    cvQuote: string;
+    start: number;
+    end: number;
+    cvOrigin?: CvOrigin;
+  }[];
+}
+
+type JobSourceField = 'jdText' | 'description' | 'postText';
+
+export interface EvidenceReview {
+  version: 1;
+  jobRevision: string;
+  profileRevisionId: string;
+  sources: { field: JobSourceField; text: string }[];
+  rows: {
+    field:
+      JobSourceField | 'skills' | 'preferredSkills' | 'experience' | 'domain';
+    start: number;
+    end: number;
+    quote: string;
+    status:
+      | 'VERIFIED_EVIDENCE'
+      | 'PARTIAL_EVIDENCE'
+      | 'NO_DOCUMENTED_EVIDENCE'
+      | 'NEEDS_REVIEW';
+    reason:
+      | 'DECLARED'
+      | 'MISSING'
+      | 'LIMITED'
+      | 'SCOPE'
+      | 'WORK_CONTEXT'
+      | 'TEAM_DEPLOYMENT'
+      | 'PRODUCTION_SCOPE'
+      | 'PROFICIENCY'
+      | 'SOURCE'
+      | 'SAVED_FIELD'
+      | 'VERIFY';
+    missing: string[];
+    evidence: {
+      quote: string;
+      start: number;
+      end: number;
+      entryId: string;
+      origin: CvOrigin;
+      kind: 'declaration' | 'review' | 'context';
+    }[];
+  }[];
+}
+
+export interface SkillMatch {
+  findings?: {
+    kind: 'skill' | 'related' | 'clause' | 'requirement';
+    label: string;
+    sources: { field: string; quote: string; start: number; end: number }[];
+    evidence: SkillMatch['rows'][number]['skills'][number]['evidence'];
+  }[];
+  partialScore?: number | null;
+  fieldConflict?: boolean;
+  version: 1;
+  score: number | null;
+  limitation: 'INCOMPLETE_INVENTORY' | 'NO_SKILLS' | null;
+  matchedCount: number;
+  totalCount: number;
+  unresolved?: string[];
+  mixedGroups?: string[];
+  unresolvedTechnicalGroupCount?: number;
+  unclassifiedRequirementCount?: number;
+  inventoryStatus?: 'MISSING' | 'STALE' | 'FAILED' | 'COMPLETE' | 'INCOMPLETE';
+  fallbackReview?: { source: { quote: string }; skills: { name: string }[] }[];
+  rows: {
+    priority: 'required' | 'preferred';
+    source: { quote: string };
+    skills: {
+      name: string;
+      evidence: {
+        quote: string;
+        origin: CvOrigin;
+        sectionKind?: 'skills' | 'experience' | 'projects';
+        relationship?: {
+          from: string;
+          reason: 'DIRECTIONAL_SKILL' | 'EXPLICIT_SQL_WORK';
+        };
+      } | null;
+    }[];
+  }[];
+}
+
 export interface MatchResult {
+  skillMatch?: SkillMatch;
+  evidenceReview?: EvidenceReview;
   matchId?: string;
   cvUpdatedAt?: string;
   jobUpdatedAt?: string;
   score: number | null;
+  coverageHidden?: (typeof COVERAGE_HIDDEN_REASONS)[number] | null;
   recommendation: string;
   explanation: string;
   advice: string;
@@ -51,6 +167,7 @@ export interface MatchResult {
   guidance?: ApplicationGuidance | null;
   /** This analysis was not saved; the previous reliable match is returned. */
   keptPrevious?: boolean;
+  conditions?: MatchCondition[];
   requirements: {
     evidence?: { modelQuote: string; review: boolean };
     parentId?: string;
@@ -63,6 +180,7 @@ export interface MatchResult {
     cvOrigin?: CvOrigin;
     status: MatchStatus;
     credit?: number;
+    notAssessed?: 'HEADING' | 'SUBJECTIVE';
     coverage?: {
       status?: MatchStatus;
       mode: 'SINGLE' | 'AND' | 'OR' | 'UNKNOWN';
@@ -110,6 +228,13 @@ const LEGACY_LABEL: Record<string, string> = {
 };
 export const recommendationLabel = (recommendation: string): string =>
   tr(LEGACY_LABEL[recommendation] ?? recommendation);
+
+export function matchVerdictLabel(result: MatchResult): string {
+  if (result.score === null) return tr('Review requirements');
+  return result.guidance
+    ? guidanceLabel(result.guidance.recommendation)
+    : recommendationLabel(result.recommendation);
+}
 /** Requirement shape in the UI language; SINGLE/UNKNOWN show no label. */
 export const coverageModeLabel = (mode: string): string =>
   mode === 'OR'

@@ -1,3 +1,11 @@
+import { isDeepStrictEqual } from 'node:util';
+import { randomUUID } from 'node:crypto';
+import {
+  extractJdSkillInventory,
+  confirmJdStructure,
+  jdInventoryState,
+  jdInventoryFingerprint,
+} from '../matching/cv-skill-match.js';
 import { lockOpportunityWrites } from './opportunity-write-lock.js';
 import {
   discoveredOpportunityFields,
@@ -28,6 +36,89 @@ export class OpportunitiesService {
     private readonly rows: Repository<Opportunity>,
     private readonly imports: JobImportService,
   ) {}
+  private withInitialInventory(row: Opportunity) {
+    row.id ??= randomUUID();
+    row.jdSkillInventory = extractJdSkillInventory(row);
+    return row;
+  }
+
+  async refreshJdSkillInventory(ownerId: string, id: string) {
+    return this.rows.manager.transaction(async (manager) => {
+      await lockOpportunityWrites(manager, ownerId);
+      const rows = manager.getRepository(Opportunity);
+      const row = await rows.findOneBy({ id, ownerId });
+      if (!row) throw new NotFoundException('Opportunity not found');
+      const state = jdInventoryState(row);
+      if (state === 'MISSING' || state === 'STALE' || state === 'FAILED') {
+        const previous = row.jdSkillInventory;
+        let inventory = extractJdSkillInventory(row);
+        if (previous?.fingerprint === inventory.fingerprint) {
+          try {
+            for (const group of previous.requirements) {
+              if (!group.confirmation) continue;
+              const fresh = inventory.requirements.find(
+                ({ id }) => id === group.id,
+              );
+              if (
+                !fresh ||
+                !isDeepStrictEqual(fresh.sources, group.sources) ||
+                !isDeepStrictEqual(fresh.candidates, group.candidates) ||
+                fresh.alternatives !== group.alternatives
+              )
+                throw new Error('Confirmation source structure changed');
+              inventory = confirmJdStructure(
+                { ...row, jdSkillInventory: inventory },
+                {
+                  ...group.confirmation,
+                  inventoryId: inventory.id,
+                  groupId: group.id,
+                },
+              );
+            }
+          } catch {
+            throw new ConflictException(
+              'The updated inventory policy could not preserve a confirmed JD structure. Review and edit the relevant JD requirements before reconfirming.',
+            );
+          }
+        }
+        row.jdSkillInventory = inventory;
+        // Updating derived data must not invalidate an existing CV assessment.
+        await rows.update(
+          { id, ownerId },
+          {
+            jdSkillInventory: row.jdSkillInventory,
+            updatedAt: () => '"updatedAt"',
+          },
+        );
+      }
+      return { state: jdInventoryState(row), inventory: row.jdSkillInventory };
+    });
+  }
+
+  async confirmJdSkillInventory(ownerId: string, id: string, input: unknown) {
+    return this.rows.manager.transaction(async (manager) => {
+      await lockOpportunityWrites(manager, ownerId);
+      const rows = manager.getRepository(Opportunity);
+      const row = await rows.findOneBy({ id, ownerId });
+      if (!row) throw new NotFoundException('Opportunity not found');
+      const inventory = confirmJdStructure(row, input);
+      await rows.update(
+        { id, ownerId },
+        { jdSkillInventory: inventory, updatedAt: () => '"updatedAt"' },
+      );
+      return { state: inventory.status, inventory };
+    });
+  }
+
+  async inspectJdSkillInventory(ownerId: string, id: string) {
+    const row = await this.get(ownerId, id);
+    const state = jdInventoryState(row);
+    return {
+      state,
+      inventory: state === 'STALE' ? null : row.jdSkillInventory,
+    };
+  }
+
   list(ownerId: string) {
     return this.rows.find({
       where: { ownerId },
@@ -146,15 +237,17 @@ export class OpportunitiesService {
         }
         const fields = discoveredOpportunityFields(job);
         const row = await rows.save(
-          rows.create({
-            ...fields,
-            ownerId,
-            jdText: '',
-            discovery: job.discovery,
-            documentName: null,
-            documentType: null,
-            documentBytes: null,
-          }),
+          this.withInitialInventory(
+            rows.create({
+              ...fields,
+              ownerId,
+              jdText: '',
+              discovery: job.discovery,
+              documentName: null,
+              documentType: null,
+              documentBytes: null,
+            }),
+          ),
         );
         existing.push(row);
         importedIds.push(row.id);
@@ -186,15 +279,17 @@ export class OpportunitiesService {
     if (match)
       return { opportunityId: match.id, outcome: 'linked_existing' as const };
     const row = await rows.save(
-      rows.create({
-        ...discoveredOpportunityFields(job),
-        ownerId,
-        jdText: '',
-        discovery: job.discovery,
-        documentName: null,
-        documentType: null,
-        documentBytes: null,
-      }),
+      this.withInitialInventory(
+        rows.create({
+          ...discoveredOpportunityFields(job),
+          ownerId,
+          jdText: '',
+          discovery: job.discovery,
+          documentName: null,
+          documentType: null,
+          documentBytes: null,
+        }),
+      ),
     );
     return { opportunityId: row.id, outcome: 'created' as const };
   }
@@ -244,17 +339,19 @@ export class OpportunitiesService {
           );
       }
       const row = await rows.save(
-        rows.create({
-          ...fields,
-          description:
-            fields.description ||
-            fullDescription(fields.postText, parsed?.source.text ?? ''),
-          ownerId,
-          jdText: parsed?.source.text ?? '',
-          documentName: document?.fileName ?? null,
-          documentType: document?.mediaType ?? null,
-          documentBytes: document?.bytes ?? null,
-        }),
+        this.withInitialInventory(
+          rows.create({
+            ...fields,
+            description:
+              fields.description ||
+              fullDescription(fields.postText, parsed?.source.text ?? ''),
+            ownerId,
+            jdText: parsed?.source.text ?? '',
+            documentName: document?.fileName ?? null,
+            documentType: document?.mediaType ?? null,
+            documentBytes: document?.bytes ?? null,
+          }),
+        ),
       );
       return rows.findOneByOrFail({ id: row.id, ownerId });
     });
@@ -265,51 +362,60 @@ export class OpportunitiesService {
     input: unknown,
     document?: JobDocument,
   ) {
-    const row = await this.get(ownerId, id);
-    if (document && row.documentName)
-      throw new BadRequestException(
-        'The original JD is preserved. Create another opportunity for a different document.',
-      );
     const parsed = document ? await this.imports.parse(document) : null;
-    const jdText = parsed?.source.text ?? row.jdText;
-    // Older tracker clients may omit new import fields; preserve the saved sources.
-    const inherited = {
-      appliedDate: row.appliedDate,
-      applicationChannel: row.applicationChannel,
-      followUpStatus: row.followUpStatus,
-      company: row.company,
-      agency: row.agency,
-      location: row.location,
-      workMode: row.workMode,
-      employmentType: row.employmentType,
-      seniority: row.seniority,
-      skills: row.skills,
-      experience: row.experience,
-      preferredSkills: row.preferredSkills,
-      domain: row.domain,
-      salary: row.salary,
-      postText: row.postText,
-      importReview: row.importReview,
-    };
-    const editable =
-      input && typeof input === 'object' && !Array.isArray(input)
-        ? { ...inherited, ...input }
-        : input;
-    const fields = validateOpportunity(editable, jdText);
-    // A new follow-up date is a new follow-up, whatever the client sent.
-    // Clearing the date keeps the status.
-    if (fields.followUpDate && fields.followUpDate !== row.followUpDate)
-      fields.followUpStatus = 'PENDING';
-    Object.assign(row, fields, { jdText });
-    if (document)
-      Object.assign(row, {
-        documentName: document.fileName,
-        documentType: document.mediaType,
-        documentBytes: document.bytes,
-      });
     await this.rows.manager.transaction(async (manager) => {
       await lockOpportunityWrites(manager, ownerId);
-      await manager.getRepository(Opportunity).save(row);
+      const rows = manager.getRepository(Opportunity);
+      const row = await rows.findOneBy({ id, ownerId });
+      if (!row) throw new NotFoundException('Opportunity not found');
+      if (document && row.documentName)
+        throw new BadRequestException(
+          'The original JD is preserved. Create another opportunity for a different document.',
+        );
+      const jdText = parsed?.source.text ?? row.jdText;
+      // Older tracker clients may omit new import fields; preserve the saved sources.
+      const inherited = {
+        appliedDate: row.appliedDate,
+        applicationChannel: row.applicationChannel,
+        followUpStatus: row.followUpStatus,
+        company: row.company,
+        agency: row.agency,
+        location: row.location,
+        workMode: row.workMode,
+        employmentType: row.employmentType,
+        seniority: row.seniority,
+        skills: row.skills,
+        experience: row.experience,
+        preferredSkills: row.preferredSkills,
+        domain: row.domain,
+        salary: row.salary,
+        postText: row.postText,
+        importReview: row.importReview,
+      };
+      const editable =
+        input && typeof input === 'object' && !Array.isArray(input)
+          ? { ...inherited, ...input }
+          : input;
+      const fields = validateOpportunity(editable, jdText);
+      // A new follow-up date is a new follow-up, whatever the client sent.
+      // Clearing the date keeps the status.
+      if (fields.followUpDate && fields.followUpDate !== row.followUpDate)
+        fields.followUpStatus = 'PENDING';
+      const before = jdInventoryFingerprint(row);
+      Object.assign(row, fields, { jdText });
+      const inventoryState = jdInventoryState(row);
+      if (
+        inventoryState !== 'COMPLETE' &&
+        before !== jdInventoryFingerprint(row)
+      )
+        row.jdSkillInventory = extractJdSkillInventory(row);
+      if (document)
+        Object.assign(row, {
+          documentName: document.fileName,
+          documentType: document.mediaType,
+          documentBytes: document.bytes,
+        });
+      await rows.save(row);
     });
     return this.get(ownerId, id);
   }

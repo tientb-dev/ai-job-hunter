@@ -233,19 +233,19 @@ describe('Vietnamese CV skills list and years against an English JD', () => {
       })['Proficient in Google Analytics'],
     ).toBe('EVIDENCED');
   });
-  test('an omitted quote is still not recovered from a skills list', () => {
+  test('an omitted quote is recovered from the same skills list', () => {
     expect(
       assess(job('- Proficient in Google Analytics'), cv, {})[
         'Proficient in Google Analytics'
       ],
-    ).toBe('NOT_EVIDENCED');
+    ).toBe('EVIDENCED');
   });
-  test('a skills list never supports an experience row', () => {
+  test('a skills list is recognised for an experience row, use not shown', () => {
     expect(
       assess(job('- Experience with Google Analytics'), cv, {
         'Experience with Google Analytics': list,
       })['Experience with Google Analytics'],
-    ).toBe('NOT_EVIDENCED');
+    ).toBe('PARTIAL');
   });
   test('"N năm" satisfies a minimum-years row, and fewer years do not', () => {
     const years = (quote: string, text = cv) =>

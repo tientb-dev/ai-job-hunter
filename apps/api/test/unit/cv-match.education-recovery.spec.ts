@@ -56,8 +56,7 @@ test.each([
     const cv = `EDUCATION\nSynthetic University\n${quote}`;
     const result = assess(cv);
     expect(result).toMatchObject({
-      score: 100,
-      recommendation: 'Apply',
+      coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
       requirements: [{ status: 'EVIDENCED', credit: 1, cvQuote: quote }],
     });
     expect(result.requirements[0]!.coverage.components[0]!.cvQuote).toBe(quote);
@@ -93,7 +92,7 @@ test.each([
   'I have no degree.',
 ])('unsupported attendance/degree/context remains Unknown: %s', (cv) => {
   expect(assess(cv)).toMatchObject({
-    score: 0,
+    coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
     requirements: [{ status: 'NOT_EVIDENCED', credit: 0, cvQuote: '' }],
   });
 });
@@ -188,8 +187,8 @@ test('a recovered bachelor degree cannot satisfy a higher or unspecified canonic
         degree,
         jd,
         canonical,
-      ).score,
-    ).toBe(0);
+      ).requirements[0],
+    ).toMatchObject({ credit: 0, cvQuote: '' });
   }
 });
 

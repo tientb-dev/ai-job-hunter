@@ -81,8 +81,14 @@ describe('"Title: work sentence" is professional project evidence', () => {
 });
 
 describe('declarations stay declarations', () => {
+  // A skills list is recognised as a match with use not shown (PARTIAL).
+  test('experience row: Experience with REST APIs ← Backend: Java, REST APIs → Partial', () => {
+    expect(
+      single('Experience with REST APIs', 'Backend: Java, REST APIs'),
+    ).toBe('PARTIAL/0.5');
+  });
   test.each([
-    ['Experience with REST APIs', 'Backend: Java, REST APIs'],
+    // A single-item label is not a skills list.
     ['Experience with Git', 'Tools used: Git'],
     // A project title alone is not experience.
     ['Experience with Kafka', 'Project: Kafka Streaming Platform'],
@@ -90,10 +96,10 @@ describe('declarations stay declarations', () => {
     expect(single(requirement, line)).toBe('NOT_EVIDENCED/0');
   });
 
-  test('"Technologies: Java, RabbitMQ" never proves broker use', () => {
+  test('"Technologies: Java, RabbitMQ" is a listed skill, never proven broker use', () => {
     const line = 'Technologies: Java, RabbitMQ';
     expect(status(broker, ['PROJECTS', line].join('\n'), '')).toBe(
-      'NOT_EVIDENCED/0',
+      'PARTIAL/0.5',
     );
   });
 
@@ -106,8 +112,13 @@ describe('declarations stay declarations', () => {
 });
 
 describe('ambiguous, negated and uncertain fail closed', () => {
+  // The list form is recognised as a listed skill, never as full experience.
+  test('list before the verb', () => {
+    expect(
+      single('Experience with REST APIs', 'Summary: Java, developed REST APIs'),
+    ).toBe('PARTIAL/0.5');
+  });
   test.each([
-    ['list before the verb', 'Summary: Java, developed REST APIs'],
     ['too short to be a sentence', 'Role: Developed REST APIs'],
     ['negated', 'Example Platform: Never developed REST APIs in production.'],
     ['uncertain', 'Example Platform: Maybe developed REST APIs later.'],

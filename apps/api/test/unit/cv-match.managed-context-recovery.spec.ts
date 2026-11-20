@@ -63,7 +63,7 @@ test.each([`Skills: ${skills}\n${work}`, `Skills\n${skills}\n${work}`])(
       },
     });
     expect(resolveCvQuote(cv, target(result).cvQuote)).toBe(work);
-    expect(result.score).toBe(75); // one required parent weight 3, unknown preferred weight 1
+    expect(result.coverageHidden).toBe('TOO_FEW_ASSESSABLE_SKILLS');
   },
 );
 
@@ -106,7 +106,7 @@ test.each([
       credit: 0,
       cvQuote: '',
     });
-    expect(result.score).toBe(0);
+    expect(result.coverageHidden).toBe('TOO_FEW_ASSESSABLE_SKILLS');
   },
 );
 
@@ -132,7 +132,7 @@ test('recovery preserves contradictory source statements instead of overriding a
     cvQuote: work,
     conflictingQuotes: [denial],
   });
-  expect(result.score).toBe(0);
+  expect(result.coverageHidden).toBe('TOO_FEW_ASSESSABLE_SKILLS');
 });
 
 test('multiple roles/projects keep Java work in its original attributed entry', () => {
@@ -243,5 +243,5 @@ test('paragraph breaks after a work heading preserve the same source-backed deve
     'Professional Experience\r\n\r\nDeveloped Java services with Spring Boot for 4 years.';
   const result = assess(`Skills\r\n${skills}\r\n${quote}`, skills);
   expect(target(result)).toMatchObject({ status: 'EVIDENCED', cvQuote: quote });
-  expect(result.score).toBe(75);
+  expect(result.coverageHidden).toBe('TOO_FEW_ASSESSABLE_SKILLS');
 });

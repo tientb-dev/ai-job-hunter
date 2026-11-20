@@ -62,7 +62,7 @@ test.each([
 ])('database mentions and aspirations earn no credit: %s', (cv) => {
   const result = assess(database, cv, cv);
   expect(row(result).status).toBe('NOT_EVIDENCED');
-  expect(result.score).toBe(0);
+  expect(row(result).credit).toBe(0);
 });
 test.each(['', 'Skills: SQL Server', work])(
   'database work recovers exact evidence and earns Partial, not proficiency: %s',
@@ -81,7 +81,7 @@ test.each(['', 'Skills: SQL Server', work])(
         { kind: 'experience', cvQuote: work },
       ]),
     });
-    expect(result.score).toBe(38); // Math.round(100 * (3 * .5) / (3 + 1))
+    expect(result.coverageHidden).toBe('TOO_FEW_ASSESSABLE_SKILLS');
     expect(row(result).coverage.reason).toContain('proficiency');
   },
 );

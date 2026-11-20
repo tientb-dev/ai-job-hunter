@@ -171,7 +171,7 @@ test('mocked real service reads the saved parsed text and returns original unqua
       { kind: 'experience', cvQuote: attributedProject },
     ]),
   });
-  expect(result.score).toBe(50);
+  expect(result.coverageHidden).toBe('TOO_FEW_ASSESSABLE_SKILLS');
   expect(cvs.findOne).toHaveBeenCalledWith(
     expect.objectContaining({
       select: expect.objectContaining({ text: true }),

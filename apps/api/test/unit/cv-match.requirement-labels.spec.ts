@@ -137,7 +137,7 @@ test('bulleted single skills use their named-skill rules', () => {
     status: 'EVIDENCED',
     cvQuote: '- Designed PostgreSQL schemas and wrote migrations.',
   });
-  // A tools-list mention is not recovered; Kubernetes is absent from the CV.
-  expect(rows['Familiarity with Docker']!.status).toBe('NOT_EVIDENCED');
+  // A tools-list line supports a familiarity row (PR57), quote or not; Kubernetes is absent.
+  expect(rows['Familiarity with Docker']!.status).toBe('EVIDENCED');
   expect(rows['Experience with Kubernetes']!.status).toBe('NOT_EVIDENCED');
 });

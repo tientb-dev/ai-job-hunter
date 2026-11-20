@@ -42,6 +42,9 @@ export interface RequirementGroup {
   languageProficiency?: true;
   /** "Sử dụng … CSDL": a skills-list mention alone is PARTIAL. */
   databaseUse?: true;
+  /** Open alternative ("framework tương đương", "or similar tools"): exact JD
+   * span kept for explanations; never a component and never scored. */
+  openAlternative?: string;
 }
 export interface ComponentEvidence {
   componentId: string;
@@ -70,7 +73,7 @@ export function simpleSkillList(line: string): boolean {
 }
 
 // A single named language is an atomic qualification, not an ambiguous list.
-const singleManagedLanguage =
+export const singleManagedLanguage =
   /^Backend service experience in managed languages including ([\w+#.-]+)$/iu;
 
 export function requirementGroup(
@@ -214,7 +217,7 @@ export function requirementGroup(
       };
   }
   const named =
-    /^(?:(?:strong|solid|proven|hands-on)\s+)?experience (?:working )?(?:with|in|using)\s+[\p{L} /-]{1,60}?\s+such as\s+(.+?)(?:,?\s+or\s+(?:equivalent|similar)(?:\s+[\p{L}-]+){0,2})?$/iu.exec(
+    /^(?:(?:strong|solid|proven|hands-on)\s+)?experience (?:working )?(?:with|in|using)\s+[\p{L} /-]{1,60}?\s+such as\s+(.+?)(?:,?\s+or\s+((?:equivalent|similar)(?:\s+[\p{L}-]+){0,2}))?$/iu.exec(
       text,
     );
   if (named) {
@@ -227,7 +230,11 @@ export function requirementGroup(
       !/\b(?:multiple|several|various|at least|two|three|all)\b/iu.test(text) &&
       labels.every((label) => /^[\w+#./-]+(?: [\w+#./-]+)?$/u.test(label))
     )
-      return { ...group('OR', labels, 'experience'), demonstratedUse: true };
+      return {
+        ...group('OR', labels, 'experience'),
+        demonstratedUse: true,
+        ...(named[2] ? { openAlternative: named[2] } : {}),
+      };
   }
   if (
     /\b(?:multiple|at least (?:[0-9]+|two|three|four|five)|such as|including|either.*and)\b|ít nhất|một trong/iu.test(
@@ -350,9 +357,53 @@ export function requirementGroup(
       )
     )
       return group('UNKNOWN', [text], context);
-    return withDuration(group(hasOr ? 'OR' : 'AND', labels, context));
+    const alt = alternativeLabels(labels, hasOr);
+    // "Strong communication skills and experience with Java": the soft part is
+    // not scored; the technical part stays (its own generic prefix stripped).
+    const objective = alt.labels.filter((label) => !subjectiveOnly(label));
+    if (!hasOr && objective.length && objective.length < alt.labels.length)
+      alt.labels = objective.map((label) =>
+        label
+          .slice(prefixPattern.exec(label)?.[0].length ?? 0)
+          .replace(/^(?:sử dụng|dùng|using|use of)\s+/iu, ''),
+      );
+    return withDuration({
+      ...group(hasOr || alt.examples ? 'OR' : 'AND', alt.labels, context),
+      ...(alt.open ? { openAlternative: alt.open } : {}),
+    });
   }
   return group('SINGLE', [text], context);
+}
+
+// "các công cụ AI như GitHub Copilot" / "tools such as Docker": the lead-in is
+// shared context, and what follows is a list of examples (any one suffices).
+const exampleLeadIn =
+  /^.*?(?:(?<!\p{L})(?:chẳng hạn như|như là|như|ví dụ)|\s(?:such as|e\.g\.,?|for example|like))\s+/iu;
+// "các AI coding assistant khác", "framework Java tương đương", "or equivalent":
+// an open alternative, never a required or matchable component.
+const openAlternative =
+  /(?<!\p{L})(?:khác|tương đương|tương tự|liên quan)(?!\p{L})|\b(?:equivalent|similar|other|related|comparable)\b/iu;
+// "VueJS/NuxtJS" names two products; "CI/CD", "UI/UX", "TCP/IP" stay whole.
+const slashAlternatives =
+  /^[\w.+#-]*\p{Ll}[\w.+#-]*(?:\/[\w.+#-]*\p{Ll}[\w.+#-]*)+$/u;
+function alternativeLabels(
+  labels: string[],
+  hasOr: boolean,
+): { labels: string[]; examples: boolean; open?: string } {
+  const lead = exampleLeadIn.exec(labels[0]!);
+  const first = lead ? labels[0]!.slice(lead[0].length).trim() : labels[0]!;
+  const open = hasOr || !!lead;
+  const all = [first, ...labels.slice(1)].filter(Boolean);
+  const isOpen = (label: string) => open && openAlternative.test(label);
+  const cleaned = all
+    .filter((label) => !isOpen(label))
+    .flatMap((label) =>
+      open && slashAlternatives.test(label) ? label.split('/') : [label],
+    );
+  const tail = all.find(isOpen);
+  return cleaned.length
+    ? { labels: cleaned, examples: !!lead, ...(tail ? { open: tail } : {}) }
+    : { labels, examples: false };
 }
 
 const databaseName = /^(?:MySQL|Oracle|SQL Server|PostgreSQL|MariaDB)$/iu;
@@ -425,6 +476,20 @@ function vietnameseOneOf(text: string): RequirementGroup | null {
   };
 }
 
+// Cursor the AI editor: capitalised product name, and not in a database
+// context ("database cursors", "PL/SQL cursor") unless AI context is explicit.
+function cursorTool(text: string): boolean {
+  if (!/(?<![\p{L}\p{N}])Cursor(?![\p{L}\p{N}])/u.test(text)) return false;
+  return (
+    /\b(?:ai|copilot|claude|chatgpt|assistants?|ide|editor|code generation)\b/iu.test(
+      text,
+    ) ||
+    !/\b(?:databases?|db|sql|pl\/sql|t-sql|oracle|stored procedures?|result sets?|quer(?:y|ies)|fetch(?:ing)?)\b/iu.test(
+      text,
+    )
+  );
+}
+
 const aliases: readonly [RegExp, RegExp][] = [
   [
     /^(?:mcp|model context protocol)$/iu,
@@ -448,11 +513,24 @@ const aliases: readonly [RegExp, RegExp][] = [
   [/^vector search$/iu, /\bvector (?:search|retrieval)\b/iu],
   [/^tool calling$/iu, /\b(?:tool|function) calling\b/iu],
   [/^sql$/iu, /\b(?:sql|postgresql|sql server)\b/iu],
+  // REST ≡ RESTful; upper-case only so prose "rest" never matches.
+  [
+    /^REST(?:ful)?(?:\s+(?:APIs?|services?|web services?))?$/iu,
+    /(?<![\p{L}\p{N}])(?:REST|RESTful|Restful)(?![\p{L}\p{N}])/u,
+  ],
+  [/^vue(?:\.?js)?$/iu, /(?<![\p{L}\p{N}])vue(?:\.?js)?(?![\p{L}\p{N}])/iu],
+  [/^nuxt(?:\.?js)?$/iu, /(?<![\p{L}\p{N}])nuxt(?:\.?js)?(?![\p{L}\p{N}])/iu],
+  [/^(?:github\s+)?copilot$/iu, /\bcopilot\b/iu],
   [/^nosql data stores$/iu, /\b(?:nosql|mongodb|dynamodb)\b/iu],
 ];
 // Capability concepts (EN/VI): a component naming one needs CV text showing
 // that capability. A related tool or product name alone (SQL Server for writing
 // queries, GitLab CI/CD for Git) is not support. Not a skill ontology.
+const sqlDialect = String.raw`(?:sql(?: server)?|pl/sql|t-sql|postgresql|mysql|oracle)`;
+const sqlQueryActivity = new RegExp(
+  String.raw`\b(?:wr[io]t\w*|author\w*|optimi[sz]\w*|tun(?:e|ed|ing)|develop\w*|creat\w*|implement\w*)\b[^.;\n]{0,40}\b(?:${sqlDialect}\s+quer(?:y|ies)|quer(?:y|ies)\s+(?:in|using|with)\s+${sqlDialect}|stored procedures?)\b|(?<!\p{L})(?:viết|tối ưu)(?!\p{L})[^.;\n]{0,30}(?:truy vấn sql|câu lệnh sql)`,
+  'iu',
+);
 export const CAPABILITIES: readonly {
   id: string;
   label: RegExp;
@@ -464,9 +542,8 @@ export const CAPABILITIES: readonly {
     id: 'sql-writing',
     activity: true,
     label:
-      /(?:\b(?:writ\w*)\b|(?<!\p{L})viết(?!\p{L})).*(?:\bquer(?:y|ies)\b|truy vấn)|truy vấn sql|\bsql quer/iu,
-    evidence:
-      /\b(?:wr[io]t\w*|author\w*|optimi[sz]\w*|tun(?:e|ed|ing)|develop\w*|creat\w*|implement\w*)\b[^.;\n]{0,40}\b(?:quer(?:y|ies)|stored procedures?)\b|\bsql quer(?:y|ies)\b|(?<!\p{L})(?:viết|tối ưu)(?!\p{L})[^.;\n]{0,30}(?:truy vấn|câu lệnh sql|quer)/iu,
+      /\bsql quer(?:y|ies)\b|\b(?:writ\w*)\b[^.;]*\bquer(?:y|ies)\s+(?:in|using|with)\s+sql\b|truy vấn sql|câu lệnh sql/iu,
+    evidence: sqlQueryActivity,
   },
   {
     id: 'data-analysis',
@@ -519,6 +596,7 @@ function mentions(label: string, text: string): boolean {
     );
   const capability = capabilityOf(label);
   if (capability) return capability.evidence.test(text);
+  if (/^cursor$/iu.test(label)) return cursorTool(text);
   // Go is the language Golang; case-sensitive whole word so "go", "Google",
   // "ago", "Go-to-market" or "Go to" never match.
   if (/^(?:golang|go)$/iu.test(label))
@@ -605,7 +683,9 @@ const headingLine = /^\s*[^\p{Ll}]*\p{Lu}[^\p{Ll}]*$/u;
 const sentenceEnd = /[.!?:;]\s*$/u;
 const connectorEnd =
   /(?:,|\b(?:and|or|with|using|via|to|for|of|in|on|into|from|by|the|a|an))\s*$/iu;
-export function bulletUnits(cv: string): string[] {
+export function wrappedBulletSpans(
+  cv: string,
+): { start: number; end: number }[] {
   const lines: { start: number; end: number; text: string }[] = [];
   let start = 0;
   for (const match of cv.matchAll(/\r\n|[\r\n\u2028\u2029]/gu)) {
@@ -613,7 +693,7 @@ export function bulletUnits(cv: string): string[] {
     start = match.index + match[0].length;
   }
   lines.push({ start, end: cv.length, text: cv.slice(start) });
-  const units: string[] = [];
+  const units: { start: number; end: number }[] = [];
   for (let i = 0; i < lines.length; i++) {
     if (!bulletStart.test(lines[i]!.text)) continue;
     let last = i;
@@ -625,18 +705,35 @@ export function bulletUnits(cv: string): string[] {
         bulletStart.test(next) ||
         headingLine.test(next) ||
         declarationLine(next) ||
+        /^(?:project|dự án|company|employer|role)\s*:|\b(?:19|20)\d{2}\s*[-–—]/iu.test(
+          next.trim(),
+        ) ||
         skillsDeclaration.test(next) ||
         sentenceEnd.test(previous) ||
-        !(/^\s*\p{Ll}/u.test(next) || connectorEnd.test(previous))
+        !(
+          /^\s*\p{Ll}/u.test(next) ||
+          connectorEnd.test(previous) ||
+          (/^[ \t]+/u.test(next) &&
+            !recoveryWork.test(next.trim().split(/\s+/u)[0]!))
+        )
       )
         break;
       last++;
     }
-    if (last > i)
-      units.push(cv.slice(lines[i]!.start, lines[last]!.end).trim());
+    if (last > i) {
+      const start =
+        lines[i]!.start +
+        lines[i]!.text.length -
+        lines[i]!.text.trimStart().length;
+      const end = lines[last]!.start + lines[last]!.text.trimEnd().length;
+      units.push({ start, end });
+    }
   }
   return units;
 }
+
+export const bulletUnits = (cv: string): string[] =>
+  wrappedBulletSpans(cv).map(({ start, end }) => cv.slice(start, end));
 
 // Broker demonstrated use: a wrapped bullet is one unit, and its lines are
 // never judged alone (a verb or negation on another line stays in context).
@@ -712,7 +809,8 @@ export function demonstratedUseReason(
 }
 
 const ciCdPractices = /^ci\/cd practices$/iu;
-const ciCdAutomation = String.raw`(?:(?:ci\s*\/\s*cd|continuous integration and (?:continuous )?(?:delivery|deployment))\s+(?:pipelines?|workflows?|automation)|automated\s+build(?:,\s*test)?\s+and\s+(?:test|deployment)\s+(?:pipelines?|workflows?))`;
+const buildPipeline = String.raw`build(?:,\s*test)?\s+and\s+(?:test|deployment)\s+(?:pipelines?|workflows?)`;
+const ciCdAutomation = String.raw`(?:(?:ci\s*\/\s*cd|continuous integration and (?:continuous )?(?:delivery|deployment))\s+(?:pipelines?|workflows?|automation)|automated\s+${buildPipeline})`;
 const ciCdPracticeDeclaration = /\bci\s*\/\s*cd\s+practices\b/iu;
 const ciCdPipelineContext = new RegExp(String.raw`\b${ciCdAutomation}\b`, 'iu');
 const ciCdDesignExperience = new RegExp(
@@ -724,17 +822,17 @@ const ciCdAppliedWork = new RegExp(
   String.raw`\b(?:designed|architected|implemented|configured|optimi[sz]ed|experience (?:in |with )?(?:designing|implementing|configuring|optimi[sz]ing))\s+(?:(?:REST(?:ful)?\s+)?APIs?\s+and\s+)?${ciCdModifiers}${ciCdAutomation}\b`,
   'iu',
 );
-const andCiCdPractices = (label: string, group: RequirementGroup) =>
+export const andCiCdPractices = (label: string, group: RequirementGroup) =>
   group.mode === 'AND' &&
   group.context === 'design' &&
   ciCdPractices.test(label);
+const ciCdNonWork =
+  /\b(?:will|would|want|wish|intend|aim|planning|hoping|goal|if|incomplete|pending|planned|draft|abandoned|documentation|manual|tutorial|courses?)\b/iu;
+const ciCdBuildWork = new RegExp(
+  String.raw`\b(?:built|created|maintained|automated|implemented)\s+(?:(?:a|the|our|existing)\s+)?(?:${ciCdAutomation}|${buildPipeline}|ci\s*\/\s*cd(?=\s+for\b|[.!?]|$))\b`,
+  'iu',
+);
 function supportsCiCdPractices(text: string): boolean {
-  if (
-    /\b(?:will|would|want|wish|intend|aim|planning|hoping|goal|if|incomplete|pending|planned|draft|abandoned|documentation|manual|tutorial|courses?)\b/iu.test(
-      text,
-    )
-  )
-    return false;
   // Preserve explicit design declarations, including coordinated design lists.
   if (
     /\b(?:designed|designing|architected|design experience)\b/iu.test(text) &&
@@ -797,7 +895,7 @@ function supports(
         (vietnameseProfessionalUse.test(text) &&
           !vietnameseAspiration.test(text))) &&
       !skillsDeclaration.test(text) &&
-      !aiToolUse.test(text)
+      !aiExcluded(label, text)
     );
   if (group.context === 'proficiency')
     return supportsDatabaseProficiency(label, text);
@@ -819,7 +917,7 @@ function supports(
       /\b(?:production|beyond (?:the )?prototype|real users)\b/iu.test(text) &&
       !/\b(?:prototype only|only a prototype|team built)\b/iu.test(text)
     );
-  if (andCiCdPractices(label, group)) return supportsCiCdPractices(text);
+  if (andCiCdPractices(label, group)) return supportsCiCdPipelineWork(text);
   if (group.context === 'design')
     return /\b(?:designed|designing|architected|design experience)\b/iu.test(
       text,
@@ -854,16 +952,48 @@ function headedSkillsLine(
     uncertain(quote)
   )
     return false;
-  return underSkillsHeading(quote, cv);
+  return underSkillsHeading(quote, cv) || listItemMention(label, quote);
 }
+// Any line of a skills block: the heading, then only list/declaration lines
+// ("Backend: …", "Frontend: …", "AI-assisted Development: …") up to this one.
 function underSkillsHeading(quote: string, cv: string): boolean {
   const lines = cv.split(/\r?\n/u).map((line) => line.trim());
-  return lines.some(
-    (line, index) =>
-      line === quote.trim() &&
-      skillsHeading.test(
-        lines.slice(0, index).findLast((before) => before) ?? '',
-      ),
+  return lines.some((line, index) => {
+    if (line !== quote.trim()) return false;
+    for (let i = index - 1; i >= 0; i--) {
+      const before = lines[i]!;
+      if (!before) continue;
+      if (skillsHeading.test(before)) return true;
+      if (!declarationLine(before)) return false;
+    }
+    return false;
+  });
+}
+// A list line without any skills heading ("Tech stack: Java, Spring Boot",
+// "AI tools: Claude, GitHub Copilot"): the label must be one short list item,
+// so prose that happens to contain a name ("Claude Monet Gallery …") is not.
+function listItemMention(label: string, line: string): boolean {
+  const head = declarationLabel.exec(line);
+  if (!head || !declarationLine(line)) return false;
+  const items = line
+    .slice(head[0].length)
+    .split(/\s*[,|;•·]\s*/u)
+    .map((item) => item.replace(/[.\s]+$/u, ''))
+    .filter(Boolean);
+  return (
+    items.length >= 2 &&
+    items.some(
+      (item) => item.split(/\s+/u).length <= 4 && mentions(label, item),
+    )
+  );
+}
+// A skills-list line naming the component, without negation or hedging.
+function skillListLine(label: string, line: string, cv: string): boolean {
+  return (
+    mentions(label, line) &&
+    !negative(line) &&
+    !uncertain(line) &&
+    (underSkillsHeading(line, cv) || listItemMention(label, line))
   );
 }
 
@@ -1222,6 +1352,10 @@ const andDesignTerms: readonly [RegExp, RegExp][] = [
     /\bcloud[- ](?:based )?architectures?\b/iu,
   ],
 ];
+export const isDesignTarget = (label: string, group: RequirementGroup) =>
+  group.context === 'design' &&
+  andDesignTerms.some(([pattern]) => pattern.test(label));
+
 function recoverAndDesign(
   component: RequirementComponent,
   group: RequirementGroup,
@@ -1328,7 +1462,7 @@ export function evaluateCoverage(
     ? selected.filter(
         (quote) => cv.includes(quote) && completeAttribution(cv, quote),
       )
-    : group.demonstratedUse
+    : group.demonstratedUse || group.context === 'design'
       ? demonstratedPassages(selected, cv)
       : selected.flatMap(passages);
   // Reuse the existing source-passage enumeration and exact quote resolver.
@@ -1352,7 +1486,17 @@ export function evaluateCoverage(
         )
         .sort((a, b) => a.length - b.length)
     : [];
-  const all = passages(cv);
+  const all =
+    group.context === 'design' ? demonstratedPassages([cv], cv) : passages(cv);
+  const plain =
+    !contextual &&
+    !group.demonstratedUse &&
+    !group.languageProficiency &&
+    !group.personalDelivery &&
+    group.minimumYears === undefined &&
+    // Design rows keep their stricter recoverAndDesign rules.
+    group.context !== 'design' &&
+    group.context !== 'education';
   const education =
     group.mode === 'OR' && group.context === 'education'
       ? educationPassages(cv)
@@ -1406,10 +1550,23 @@ export function evaluateCoverage(
               /\b(?:built|designed|architected|developed|delivered|implemented|used|worked|integrated|deployed|led|created|skills|knowledge|proficient|experience)\b/iu.test(
                 quote,
               ) &&
-              !/copilot|cursor|claude code|codeium|tabnine|chatgpt|ai[- ]assisted|coding (?:tools?|assistants?)/iu.test(
-                quote,
-              ) &&
+              !aiExcluded(component.label, quote) &&
               supports(component.label, quote, group),
+          )
+        : undefined) ??
+      // Plain alternatives/components: model quotes are optional. Recover the
+      // first exact CV passage that passes the same strict checks.
+      (allowRecovery && plain
+        ? all.find(
+            (quote) =>
+              quote.length <= 2000 &&
+              !aspiration.test(quote) &&
+              !aiExcluded(component.label, quote) &&
+              // Completed work or a skills-list line; a bare fragment
+              // ("MCP build") or a title is never recovered.
+              ((supports(component.label, quote, group) &&
+                (recoveryWork.test(quote) || vietnameseWork.test(quote))) ||
+                headedSkillsLine(component.label, quote, cv, group)),
           )
         : undefined);
     const degree =
@@ -1514,8 +1671,18 @@ export function evaluateCoverage(
       if (use) observations.push({ kind: 'experience', cvQuote: use });
     }
     // A database named in a skills list, with no described use: PARTIAL.
+    // Named alternatives listed in skills only: recognised, use not shown.
+    const listedDemonstrated =
+      allowRecovery && group.demonstratedUse && !group.databaseUse && !positive
+        ? all.find(
+            (line) =>
+              !aiExcluded(component.label, line) &&
+              skillListLine(component.label, line, cv),
+          )
+        : undefined;
     const listed =
-      group.databaseUse && !positive
+      listedDemonstrated ??
+      (group.databaseUse && !positive
         ? all.find(
             (line) =>
               mentions(component.label, line) &&
@@ -1525,11 +1692,11 @@ export function evaluateCoverage(
                 skillsDeclaration.test(line) ||
                 underSkillsHeading(line, cv)),
           )
-        : undefined;
+        : undefined);
     if (listed) observations.push({ kind: 'mention', cvQuote: listed });
     const work = observations.find((item) => item.kind === 'experience');
     const partial =
-      (!!group.databaseUse && !!listed) ||
+      ((!!group.databaseUse || !!group.demonstratedUse) && !!listed) ||
       (group.context === 'proficiency' &&
         !!work &&
         databaseProfessionalUse(work.cvQuote)) ||
@@ -1572,7 +1739,7 @@ export function evaluateCoverage(
               ? `Use is evidenced in the CV; the required ${group.minimumYears}+ years is not established.`
               : work
                 ? 'Project experience is evidenced; proficiency remains unverified.'
-                : group.databaseUse
+                : group.databaseUse || group.demonstratedUse
                   ? 'Listed as a skill in the CV; work use is not described yet.'
                   : 'Mentioned in the CV; proficiency remains unverified.',
           }
@@ -1591,7 +1758,8 @@ export function evaluateCoverage(
           ? 1
           : (group.context === 'proficiency' ||
                 group.languageProficiency ||
-                group.databaseUse) &&
+                group.databaseUse ||
+                group.demonstratedUse) &&
               components.some((item) => item.status === 'PARTIAL')
             ? 0.5
             : 0
@@ -1718,8 +1886,25 @@ export function roleExperience(
 }
 const recoveryWork =
   /\b(?:built|designed|architected|developed|delivered|implemented|used|worked|integrated|deployed|led|created|maintained|wrote|administered|migrated|operated|containeri[sz]ed|consumed|consuming|published|publishing)\b/iu;
-const aiToolUse =
-  /copilot|cursor|claude code|codeium|tabnine|chatgpt|ai[- ]assisted|coding (?:tools?|assistants?)/iu;
+const aiToolUse = {
+  test: (text: string) =>
+    /copilot|claude code|codeium|tabnine|chatgpt|ai[- ]assisted|coding (?:tools?|assistants?)/iu.test(
+      text,
+    ) || cursorTool(text),
+};
+// AI-tool passages are not evidence for other skills, but they are the
+// evidence when the component itself names an AI coding tool.
+const aiToolLabel =
+  /\b(?:copilot|codex|claude|chatgpt|cursor|codeium|tabnine|gemini|windsurf)\b|\bai (?:coding )?assistants?\b/iu;
+// Plans, wishes and conditionals are not completed work (EN/VI).
+const aspiration = {
+  test: (text: string) =>
+    /\b(?:will|would|want|wish|intend|aim|planning|hoping|goal|if)\b/iu.test(
+      text,
+    ) || vietnameseAspiration.test(text),
+};
+const aiExcluded = (label: string, text: string) =>
+  aiToolUse.test(text) && !aiToolLabel.test(label);
 
 // Recover a single named skill only from an exact CV passage describing work
 // with it; a skills-list or other keyword-only mention never establishes it.
@@ -1729,15 +1914,35 @@ export function recoverSimpleQuote(
   cv: string,
 ): string {
   const label = simpleLabel(requirement);
-  if (category !== 'skill' || !/^[\w+#./-]+$/u.test(label)) return '';
+  const sql = capabilityOf(label)?.id === 'sql-writing';
+  // One named skill of up to three words ("RESTful APIs"), never a compound.
+  if (
+    category !== 'skill' ||
+    (!/^[\w+#./-]+(?: [\w+#./-]+){0,2}$/u.test(label) && !sql) ||
+    /(?<!\p{L})(?:and|or|và|hoặc)(?!\p{L})/iu.test(label)
+  )
+    return '';
+  // Recovery never borrows the model-link rule: the line must name the skill.
+  const lines = demonstratedPassages([cv], cv).filter(
+    (line) =>
+      line.length <= 2000 &&
+      !aiExcluded(label, line) &&
+      mentionsTechnology(label, line.replace(/\s+/gu, ' ')),
+  );
+  // Work evidence first; a skills-list line is recognised as limited evidence.
   return (
-    passages(cv).find(
+    lines.find(
       (line) =>
-        line.length <= 2000 &&
-        recoveryWork.test(line) &&
-        !aiToolUse.test(line) &&
+        (recoveryWork.test(line) || ciCdPipelines.test(label) || sql) &&
         simpleEvidenceStatus(requirement, line, cv, category) === 'EVIDENCED',
-    ) ?? ''
+    ) ??
+    lines.find(
+      (line) =>
+        skillListLine(label, line, cv) &&
+        simpleEvidenceStatus(requirement, line, cv, category) !==
+          'NOT_EVIDENCED',
+    ) ??
+    ''
   );
 }
 
@@ -1784,22 +1989,30 @@ function namedTechnology(
   // CI/CD pipelines is the one approved lowercase-word capability (PO, PR68).
   return named || ciCdPipelines.test(label) ? { label, experience } : null;
 }
-const ciCdPipelines = /^CI\/CD pipelines?$/iu;
+export const ciCdPipelines = /^CI\/CD pipelines?$/iu;
 // Exact mention or approved alias; REST API and REST APIs are equivalent.
 function mentionsTechnology(label: string, text: string): boolean {
-  if (/^REST APIs?$/iu.test(label)) return /\bREST APIs?\b/iu.test(text);
+  // REST API ≡ REST APIs ≡ RESTful API(s); upper-case so prose "rest" never matches.
+  if (/^REST(?:ful)?\s+APIs?$/iu.test(label))
+    return /(?<![\p{L}\p{N}])(?:REST|RESTful|Restful)(?![\p{L}\p{N}])/u.test(
+      text,
+    );
   // "CI/CD" or the existing CI/CD automation phrases; no wider DevOps terms.
   if (ciCdPipelines.test(label))
-    return (
-      /\bci\s*\/\s*cd\b/iu.test(text) ||
-      new RegExp(ciCdAutomation, 'iu').test(text)
-    );
+    return /\bci\s*\/\s*cd\b/iu.test(text) || ciCdPipelineContext.test(text);
+
   return mentions(label, text);
 }
 const passingMention =
   /\b(?:attend(?:ed|ing|s)?|meetups?|workshops?|conferences?|webinars?|courses?|coursework|tutorials?|training|bootcamps?|certifications?|interested|interests?|learning|exploring|reading|curious)\b/iu;
 // Work related to the technology: a work verb in the same clause as the
 // mention, with no passing-mention marker in that clause.
+export function supportsCiCdPipelineWork(text: string): boolean {
+  const clause = text.replace(/\s+/gu, ' ');
+  if (ciCdNonWork.test(clause) || negative(clause) || uncertain(clause))
+    return false;
+  return supportsCiCdPractices(clause) || ciCdBuildWork.test(clause);
+}
 function relatedWork(label: string, passage: string): boolean {
   return passage
     .split(
@@ -1808,10 +2021,9 @@ function relatedWork(label: string, passage: string): boolean {
     .some(
       (clause) =>
         mentionsTechnology(label, clause) &&
-        (recoveryWork.test(clause) ||
-          // Existing CI/CD automation wording ("Automated build and test pipelines").
-          (ciCdPipelines.test(label) &&
-            /\bautomat(?:ed|ing)\b/iu.test(clause))) &&
+        (ciCdPipelines.test(label)
+          ? supportsCiCdPipelineWork(clause)
+          : recoveryWork.test(clause)) &&
         !passingMention.test(clause),
     );
 }
@@ -1836,12 +2048,19 @@ function namedTechnologyStatus(
       // Skills declarations support bare and familiarity rows only (PR57).
       (!experience && declaration(passage)),
   );
-  if (!supported) return 'NOT_EVIDENCED';
-  return passages(cv).some(
-    (line) => mentionsTechnology(label, line) && negative(line),
+  // An experience row named only in a skills list: recognised, use not shown.
+  const listedOnly =
+    !supported &&
+    experience &&
+    candidates.some((passage) => skillListLine(label, passage, cv));
+  if (!supported && !listedOnly) return 'NOT_EVIDENCED';
+  if (
+    passages(cv).some(
+      (line) => mentionsTechnology(label, line) && negative(line),
+    )
   )
-    ? 'CONFLICT'
-    : 'EVIDENCED';
+    return 'CONFLICT';
+  return listedOnly ? 'PARTIAL' : 'EVIDENCED';
 }
 
 // "(Hands-on) experience with <descriptive phrase>" (e.g. "asynchronous processing
@@ -1984,7 +2203,24 @@ function skillExperienceStatus(
     // records, so overlapping projects are not counted twice.
     return (recordMonths(passage, cv) ?? 0) >= years * 12;
   });
-  if (!supported) return 'NOT_EVIDENCED';
+  // Named only in a skills list, no duration asked: recognised, use not shown.
+  // shortcut: a duration row stays NOT_EVIDENCED until conditions are split (Checkpoint 5).
+  const listedOnly =
+    !supported &&
+    years === undefined &&
+    passages(quote).some(
+      (line) =>
+        mentionsTechnology(label, line) &&
+        !negative(line) &&
+        skillListLine(label, line, cv),
+    );
+  if (!supported && !listedOnly) return 'NOT_EVIDENCED';
+  if (listedOnly)
+    return passages(cv).some(
+      (line) => mentionsTechnology(label, line) && negative(line),
+    )
+      ? 'CONFLICT'
+      : 'PARTIAL';
   return passages(cv).some(
     (line) => mentionsTechnology(label, line) && negative(line),
   )
@@ -2155,7 +2391,20 @@ export function simpleEvidenceStatus(
   cv: string,
   category = 'skill',
 ): CoverageStatus {
+  if (genericSingle(requirement, category)) return 'UNDECOMPOSED';
   if (!quote) return 'NOT_EVIDENCED';
+  if (capabilityOf(simpleLabel(requirement))?.id === 'sql-writing') {
+    const matches = demonstratedPassages([quote], cv).some(
+      (passage) =>
+        sqlQueryActivity.test(passage.replace(/\s+/gu, ' ')) &&
+        !negative(passage) &&
+        !uncertain(passage) &&
+        !passingMention.test(passage) &&
+        !declarationLine(passage) &&
+        !underSkillsHeading(passage, cv),
+    );
+    return matches ? 'EVIDENCED' : 'NOT_EVIDENCED';
+  }
   const roleYears = vietnameseRoleExperience(requirement);
   if (roleYears) return roleDurationStatus(roleYears, quote, cv);
   const skillWork = skillExperience(requirement);
@@ -2209,16 +2458,6 @@ export function simpleEvidenceStatus(
     )
       return 'NOT_EVIDENCED';
     return 'EVIDENCED';
-  }
-  if (genericSingle(requirement, category)) {
-    // Whole-sentence prose: an active verb in the quote is not support. Only
-    // a passage naming the full label counts; otherwise it needs interpretation.
-    const label = simpleLabel(requirement);
-    return passages(quote).some(
-      (line) => mentions(label, line) && !negative(line) && !uncertain(line),
-    )
-      ? 'EVIDENCED'
-      : 'UNDECOMPOSED';
   }
   const language = singleManagedLanguage.exec(
     requirement.trim().replace(/\.$/u, ''),
@@ -2276,3 +2515,50 @@ export const workEvidence = (quote: string): boolean =>
       !uncertain(line) &&
       (recoveryWork.test(line) || vietnameseWork.test(line)),
   );
+
+// ── Assessability (CV Match CP2) ───────────────────────────────────────────
+// A standalone section heading, never a qualification ("Required
+// Qualifications", "Yêu cầu công việc", "Các năng lực … dưới đây là lợi thế lớn").
+const jdHeading = [
+  /^(?:(?:required|preferred|minimum|basic|technical|key|additional|nice[- ]to[- ]have|job)\s+)*(?:qualifications?|requirements?|skills?|responsibilities)(?:\s+and\s+(?:qualifications?|requirements?|skills?|experience))?\s*:?$/iu,
+  /^(?:yêu cầu(?:\s+(?:công việc|ứng viên|kỹ thuật|chuyên môn))?|kỹ năng(?:\s+yêu cầu)?|mô tả công việc|ưu tiên|điểm cộng)\s*:?$/iu,
+  /(?<!\p{L})(?:dưới đây|sau đây)(?!\p{L}).*(?:lợi thế(?:\s+lớn)?|ưu tiên|điểm cộng)\s*:?$|\b(?:the following|below)\b.*\b(?:plus|advantage|preferred|nice to have)\b\s*:?$/iu,
+];
+// Purely subjective qualities: the CV never proves or disproves them, so an
+// absence is not a missing qualification. Conservative: every word of the row
+// must be one of these phrases or a filler word; anything else stays assessable.
+const softPhrase =
+  /(?<!\p{L})(?:communication|giao tiếp|teamwork|team ?work(?:ing)?|team players?|làm việc (?:theo |đội |trong )?(?:đội )?nhóm|working (?:well )?(?:in|with) (?:a )?teams?|collaboration|collaborative|hợp tác|responsibility|responsible|trách nhiệm|willingness to learn|eager(?:ness)? to learn|(?:quick|fast) learner|learning attitude|ham học hỏi|học hỏi|cầu tiến|proactive(?:ness)?|chủ động|self[- ]motivated|positive attitude|tích cực|hard[- ]working|chăm chỉ|careful|cẩn thận|tỉ mỉ|detail[- ]oriented|attention to detail|honest(?:y)?|integrity|trung thực|nhiệt tình|enthusias(?:m|tic)|adaptab(?:le|ility)|flexib(?:le|ility)|linh hoạt|sẵn sàng tiếp nhận thử thách(?: mới)?|chịu được áp lực|work(?:ing)? under pressure|làm việc độc lập|work(?:ing)? independently)(?!\p{L})/giu;
+const softFiller =
+  /(?<!\p{L})(?:có|good|strong|excellent|great|effective|solid|kỹ năng|khả năng|tinh thần|thái độ|tốt|rất|cao|skills?|abilit(?:y|ies)|sense of|the|a|an|to|in|trong|công việc|work|working|be|being|well|and|và|or|hoặc|with|others|người khác|mới|spirit|attitude)(?!\p{L})/giu;
+export function subjectiveOnly(text: string): boolean {
+  if (!text.match(softPhrase)) return false;
+  return !text
+    .replace(softPhrase, ' ')
+    .replace(softFiller, ' ')
+    .replace(/[\s,;.:!()/&-]+/gu, '');
+}
+export type NotAssessedReason = 'HEADING' | 'SUBJECTIVE';
+export function notAssessable(requirement: string): NotAssessedReason | null {
+  const text = requirement.trim().replace(/[.;]+$/u, '');
+  if (jdHeading.some((pattern) => pattern.test(text))) return 'HEADING';
+  return subjectiveOnly(text) ? 'SUBJECTIVE' : null;
+}
+
+// Shared with cv-match.evidence-strength.ts (same rules, one implementation).
+export const evidenceRules = {
+  mentions: (label: string, text: string) =>
+    mentions(label, text) || mentionsTechnology(label, text),
+  aiExcluded,
+  negative,
+  uncertain,
+  aspiration: (text: string) => aspiration.test(text),
+  passingMention: (text: string) => passingMention.test(text),
+  workVerb: (text: string) =>
+    recoveryWork.test(text) || vietnameseWork.test(text),
+  listed: (label: string, line: string, cv: string) =>
+    declarationLine(line) ||
+    underSkillsHeading(line, cv) ||
+    listItemMention(label, line),
+  skillsHeading: (line: string) => skillsHeading.test(line),
+};

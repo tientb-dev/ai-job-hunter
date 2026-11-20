@@ -1308,8 +1308,16 @@ Partial and Unknown requirements retain typed review issues.
 AI sees only bounded eligible narrative facts and canonical requirement context,
 not contact details, tracking notes, document bytes or a new candidate-evidence
 source from the JD. It selects fact IDs, priorities and optional wording in small
-serial batches confined to one section/entry. The existing AiService/OllamaProvider
-and qwen3:4b defaults are reused. Model-facing ID enums guide the small model;
+serial batches. Adjacent facts from several entries can share one batch within
+the six-fact, 12,000-byte fact-text and 64 KiB prompt limits. Each fact carries its own
+section and entry identity. The server assembles by the original fact ID and
+validates wording against that fact's reviewed text. The two-proposal limit
+still applies per batch, so a packed batch can return fewer optional proposals
+while retaining all accepted facts. Fewer serial calls reduce repeated
+requirement context without increasing the 180-second generation budget.
+A bounded generation log uses a random correlation ID and includes provider
+attempts, timing, prompt sizes and deadline source. It excludes document text
+and record identifiers. Model-facing ID enums guide the model;
 the existing dual-schema structured API separately validates the runtime envelope,
 then server allowlists enforce exact fact ownership and parent requirement IDs.
 Component IDs cannot be substituted for parent requirement IDs. No validator or
@@ -2370,13 +2378,38 @@ interpret (`UNKNOWN`, or long prose with no specific rule) get **one bounded
 AI request per analysis** (`cv-match.decomposition.ts`, ≤12 rows, requirement
 text only, no CV). A proposal is accepted only if its components are ordered,
 non-overlapping literal spans of the JD row joined solely by separators that
-agree with the proposed AND/OR mode (an OR claim needs an explicit
-"or"/"hoặc"/"/"), with at most a 3-word shared tail. Quantities, degrees and
-nested qualifications are never sent. Accepted groups are cached in-process by
-SHA-256 of category + row text, so a JD edit naturally misses the cache.
-Provider timeout, invalid output or a rejected proposal leaves the row
-`UNDECOMPOSED`; analysis continues. Alternative considered: persisting the
-cache in a table — deferred (needs a migration; one small call refills it).
+agree with the proposed AND/OR mode. An OR claim needs an explicit
+"or"/"hoặc"/"/", and a slash cannot separate AND components. Atomic forms
+such as "CI/CD" stay intact. The validator accepts only known shared lead-ins
+and the neutral "skills" suffix. Other unmatched qualifiers leave the
+requirement unresolved. "R" and "C" are recognized as standalone labels with the same
+literal span and boundary checks as other labels. Quantities, degrees and
+nested qualifications excluded by selection are never sent. The analyzer
+rejects all duplicate proposals for a parent and counts each accepted target
+once. Accepted groups are cached in-process by SHA-256 of category + row text,
+so a JD edit naturally misses the cache. Provider timeout, invalid output or
+a rejected proposal leaves the row `UNDECOMPOSED` and analysis continues.
+Persisting the cache would require a migration, so the bounded request
+continues to refill it after restart.
+
+`CV_MATCH_DECOMPOSITION` reports the batch outcome, counts, and a fixed reason
+for each target using its zero-based canonical index. Cached and deferred
+targets are distinguished from provider omissions and invalid proposals.
+For attempts with decomposition targets, `CV_MATCH_PERSISTENCE` shares the
+random analysis attempt ID and records
+`PERSISTED_FRESH` after the transaction commits or `RETAINED_PREVIOUS` when
+the existing snapshot is returned. Neither event includes source text,
+provider payloads, or persistent identifiers. Rejection codes distinguish
+component count, short labels, duplicate labels and an OR-only cloud lead
+proposed as AND. Shared negation and proficiency stay unresolved when a flat
+decomposition cannot carry their scope. Literal English working-experience and
+Vietnamese knowledge/experience lead-ins retain their context, and Vietnamese
+`cũng như` is additive.
+
+AI coding-tool mentions still do not count as production AI evidence. A verified
+passage can retain a separate, explicit completed production ML model deployment
+clause when followed by a recognized coding-tool use clause. Other mixed
+production/tooling phrasing remains conservative.
 
 **Evidence.** A small capability table (`CAPABILITIES`) distinguishes
 capabilities from tool names: SQL Server is not "writing SQL queries",
@@ -2398,6 +2431,27 @@ limits as applicant gaps (a 13/100 match with three unread required rows).
 Inflation is still prevented: unread rows earn nothing and a mostly unread JD
 gets no score. A single row with relevant but unconfirmed support (a role
 without a datable duration) earns 0.5, as a partial OR alternative does.
+
+**Evidence Coverage (Checkpoint 4).** The numeric score now uses CV evidence
+strength for assessable technical parents. Required and preferred parents
+carry weights of 3 and 1. AND uses the component mean, OR uses the strongest
+alternative, and a missing skill contributes zero. Excluding missing skills
+would inflate scores as requirements lose evidence. The earlier row-credit
+calculation continues to inform evaluability and preparation guidance.
+
+Coverage requires at least three assessable technical parents and allows up to
+40% genuinely unassessable technical weight. CP3 and CP4 use the same targets
+from the verified JD and accepted decomposition. Resolving targets from CV
+quotes would let a quote selection change which parents count. Supported
+targets with missing evidence earn zero, while a parent with unresolved
+technical prose counts toward the unassessable weight.
+
+Model quote and span rejections are tracked against the canonical group.
+Independent CV strength can resolve a CV quote rejection for the affected
+component. A component JD-span mismatch withholds coverage for review. An unresolved alternative cannot
+affect an OR score already at the strength cap. Other unresolved verification
+withholds the score and triggers the existing uncertain-reanalysis retention
+path. JD verification takes precedence over the other visibility reasons.
 
 **Vietnamese one-of and role-duration rows.** "Sử dụng tối thiểu/ít nhất 01
 (loại) ngôn ngữ … | hệ quản trị CSDL (…)" is an OR of known names (DB aliases My
@@ -2426,3 +2480,289 @@ highest-priority gaps as codes; the UI renders vi-VN/en-US text. The legacy
 `recommendation` string is now derived from guidance. `MATCHING_POLICY_VERSION`
 is bumped, so older saved matches show as expired and are re-analyzed; no
 schema migration is needed (assessment is JSONB).
+
+### CV Match Conditions (Checkpoint 5)
+
+Saved CV Match adds a `conditions` array alongside the existing assessment. Each
+entry refers to a canonical JD parent and, where applicable, its component and
+AND/OR mode. Evidence cites exact spans in reviewed CV text with source or
+user-entered provenance when available. Older snapshots may omit the array.
+Their policy version and validity checks stay the same.
+
+The condition evaluator is deterministic and runs after technical Coverage.
+It compares explicitly stated durations in the same scope, comparable language
+levels or exam results, and explicit degree and credential declarations.
+Education accepts the reviewed CV's `Qualification:` prefix and retains
+the source offsets. Adjacent pending status remains `UNKNOWN`.
+An explicit lower comparable value may produce `NOT_MET`. Missing, conflicting
+or noncomparable evidence produces `UNKNOWN`. The evaluator leaves dates
+unsummed, avoids conversions between language levels and test scores, and
+preserves unsupported qualifications for review. The alternative of using
+model assessments for these decisions would require a separate verification
+policy for equivalence and attribution.
+
+### Legacy Evidence Review response
+
+The job Match read and analyze responses include a versioned Evidence Review
+computed from the saved job and the completed, revision-bound Source CV Review.
+The existing JSONB assessment remains the source for Tailored CV and the
+Suggestions API. Existing valid snapshots acquire the new view on read without
+a backfill or policy-version bump. A completed Source CV Review also unlocks
+the deterministic view before any Match is saved. Conditions come from the
+existing saved assessment.
+
+The review retains original JD sources and shows saved fields that cannot be
+reconciled by exact wording. Only bare catalog technologies and simple ANDs
+receive automatic positive credit from exact declarations in reviewed Skills
+entries. Other passages may be shown for manual review after literal,
+single-entry verification. The full original sources remain available when
+a requirement is not safely identifiable. CP5 Conditions and CP4 computations are available in the existing assessment
+contract.
+
+Evidence Review can surface exact work passages from the completed CV review
+before a Match exists. The presentation uses a bounded activity and deployment
+lookup to find context within a single CV entry. Context carries source
+provenance and leaves full evidence credit to the existing policy. A production
+claim for an unmatched target is excluded from an explicitly scoped work card.
+Conditions remain tied to the current saved assessment.
+
+### JD–CV Skill Match presentation
+
+Match reads and analysis responses also expose `skillMatch.version = 1` for the
+current saved job and completed Source CV Review. The response-only score is
+available before an assessment exists. The persisted assessment, policy version,
+revision checks, Conditions, suggestions and Tailored CV interfaces keep their
+existing behavior. The Evidence Review response is still available to existing
+API consumers.
+
+The additive `partialScore` field uses the same weights as the full `score`
+(required 3, preferred 1). Only a complete nonempty inventory populates
+`score`. An incomplete inventory with reliable groups populates only
+`partialScore`. Both fields are null when there are no reliable groups.
+AND components count independently. An OR counts once and requires all
+alternatives to be understood. Overlapping groups are excluded together.
+Exact duplicates count once under the existing required-first priority rule.
+When original and saved groups disagree, the response flags the conflict and
+uses original groups and priorities. Saved skills cannot stand in for an
+unresolved original alternative. Conditions stay outside the denominator.
+
+The calculation uses the existing terminology catalogs and bounded alias
+matching against confirmed CV Skills declarations or mentions in Work
+Experience. References identify the matching reviewed fact and its origin.
+This makes the score usable without provider inference or evidence-strength
+credit. It measures whether the CV names the requested skills. Review &
+Improve CV provides source editing and the existing revision-bound suggestions
+flow. CP5 Conditions display with the current saved assessment.
+
+For the supported Vietnamese programming-duration condition, the assessment pairs
+a confirmed development role with its dates in the same reviewed work entry.
+It counts the union of complete interior calendar months. This gives a conservative
+lower bound when the CV supplies only months. The reviewed IT qualification is
+assessed within Education. Changes to these persisted Conditions invalidate older
+assessments through the existing matching cache version.
+
+Skill Match uses a directional evidence policy for Spring Boot evidence supporting
+a Spring requirement. The original confirmed fact supplies the citation and
+exact Spring evidence takes precedence. The inventory excludes recognized
+headings and non-skill qualifications, recovers explicit terms in supported
+phrases, and keeps ambiguous mixed groups and unsupported technical capabilities
+unresolved. Those unresolved groups limit the score to the assessed subset.
+
+Scoped UNKNOWN experience Conditions can describe whether related reviewed
+work has dates. The explanation uses dated facts in the same review entry and
+does not calculate qualifying tenure from those dates. Valid saved assessments
+receive this additive explanation on read from their bound completed revision.
+
+### Structured JD Skill Inventory
+
+Migration `1795200000000` adds one nullable `opportunities.jdSkillInventory`
+JSONB column without a data backfill. The saved document records its schema
+and extraction policy versions, job identity, extraction status, and a hash
+of the original and saved requirement inputs. Field placement and source
+headings carry priority. Discovery's saved requirement baseline participates
+when it affects how saved requirements are interpreted. Tracking fields
+such as notes and application status are outside the fingerprint.
+
+Saving a new opportunity from a fetched page, document, discovery, or manual
+entry generates the inventory with the validated job. Changing an extraction
+input regenerates it. Extraction is deterministic and uses no provider.
+Failures save the validated job and a failed inventory marker, with no
+eligible rows. Literal candidates retain verified source offsets, even when
+the clause cannot be scored. Known formatting variants share a requirement
+identity. More substantial wording changes remain separate for review.
+
+`GET /api/v1/opportunities/:id/jd-skill-inventory` reports the state and the
+current inventory. An owner can explicitly refresh a missing, stale, or failed
+inventory with `POST /api/v1/opportunities/:id/jd-skill-inventory/refresh`.
+This derived-data write preserves the job revision and existing assessments.
+Match consumes the same persisted groups and withholds scores for stale or
+failed inventories. For a legacy job with no persisted inventory, Match can
+use a deterministic, bounded in-process result without writing to the
+database. The inventory is automatically extracted, pending any future user
+confirmation workflow.
+
+Inventory schema and extraction policy version 2 recover explicit database
+requirements in supported prose. The inventory distinguishes equal
+alternatives, named frontend alternatives with an open fallback, and
+unresolved alternatives. PostgreSQL-to-SQL is recorded as a directional
+relationship requiring explicit SQL work. Skill Match does not apply it
+or award substitution credit. The unresolved string list now projects one
+label per unresolved technical group. Unclassified requirements have a
+separate count and still prevent a complete score.
+
+Skill Match can cite confirmed Skills, Work Experience and Projects facts
+from the bound completed Source CV Review. It returns the original fact,
+section, offsets and origin. The evidence policy also records when Spring
+Boot supports Spring, or when a work or project statement explicitly links
+query or stored-procedure work to PostgreSQL, SQL Server or Oracle and
+therefore supports general SQL. A database listing or an unattributed query
+statement supplies no directional SQL evidence. Direct SQL evidence takes
+precedence. This policy conveys neither proficiency nor duration.
+
+Extraction policy version 3 shares Vue, Nuxt and Spring Boot spellings
+between the inventory and evidence lookup. Equal OR alternatives still
+count once. Open frontend fallbacks remain visible in the inventory and
+outside the score until their scope and any substitute credit are defined.
+
+A source-ambiguous inventory group can be confirmed through the owner-scoped
+`POST /api/v1/opportunities/:id/jd-skill-inventory/confirm` route. The payload
+identifies the inventory revision and group and assigns each supported,
+source-listed candidate to an independent requirement, one alternative
+branch, or context. The two assessed branches carry explicit priorities.
+An unstructured source can leave priority unknown until confirmation.
+Confirmation validates the original source spans and rejects duplicates and
+skills already scored elsewhere in the inventory. The same inventory
+document stores the interpretation and the resulting eligible groups.
+
+The job write lock serializes confirmation with job edits. Confirmation
+preserves the job timestamp and leaves saved assessments and CV Review
+bindings alone. Relevant source edits regenerate the inventory and invalidate
+the confirmation. Tracking edits and refreshing a current inventory preserve
+it. When a confirmed open branch has no direct named match, Match reports its
+fallback as needing review and excludes that branch from the denominator.
+
+Extraction policy version 5 admits a single explicit, supported skill from
+a recognized duration clause. The duration still uses the existing
+Conditions evaluation. Illustrative lists retain source references and
+candidates. Only a clear generic requirement before the example marker can
+enter scoring. The inventory keeps the clause intact across the abbreviation
+`e.g.` without changing the shared default sentence splitter.
+
+A policy refresh on unchanged JD inputs may replay a confirmation after
+checking its group identity, source spans, candidates, and alternative scope
+against the rebuilt inventory. It also reruns current confirmation validation.
+If a confirmation no longer validates, refresh returns a conflict and
+preserves the stored inventory. Relevant JD edits still invalidate prior
+interpretations.
+
+The CV Match overview derives qualitative findings at read time from the selected
+JD inventory and the job-bound completed review. A named skill carries its JD
+spans and the confirmed fact used by the existing evidence matcher. A separate
+clause finding describes unresolved scope. Required assessed groups and explicitly required standalone Sales terms can
+produce an undocumented requirement warning. The bounded Sales vocabulary also
+recognizes CRM and lead generation within stored requirement spans. Salesforce
+evidence can illustrate related CRM experience. These qualitative observations
+do not change v5 extraction, the weighted groups, or saved assessments. The
+overview withholds an overall judgment because assessed skill groups and CP5
+conditions do not establish coverage of the entire job.
+
+The requirement coverage bar counts each saved JD assessment row once. Section
+headings are excluded. Subjective and uninterpretable rows, and missing-evidence
+rows with rejected quotations, count as unable to assess. Other rows flagged for
+evidence review count with conflicts. An unverified JD, missing rows, or
+contradictory row statuses withhold the breakdown. Technical score verification
+can fail while the saved requirement rows still support a count. This lets the UI
+report requirement counts without treating multiple named findings within a
+clause as separate requirements or deriving a new score.
+
+The summary actions wait for the comparison card to finish expanding, then
+scroll, focus and highlight it. The fallback CV experience list suppresses
+repeated finding labels with identical CV evidence and retains distinct
+quotations and provenance.
+
+### Optional OpenAI provider for Tailored CV
+
+The Nest AI module supplies a separate Tailored CV client only when the backend
+override is selected. This keeps the trial on the saved CV Match and leaves the
+global provider selection in place. Both hosted clients share the existing
+PostgreSQL usage counters and process concurrency limit.
+
+The adapter uses the Responses API over the existing HTTP approach with strict
+structured output, no response storage, and explicit retries bounded by the
+existing deadlines. Optional fields use nullable wire values that decode to
+omitted application fields. Ajv and the draft policy still validate the original
+contract. Draft generation logs include allowlisted numeric token counts when
+OpenAI reports usage. Charges for attempts without usage require billing
+reconciliation. Draft persistence continues to use the existing pin checks and
+records the selected provider and pinned model in generation metadata.
+
+#### Tailored CV suggestion quality
+
+**Code must not act as a second, less flexible AI.** Tailored CV gives the
+model responsibility for job-specific opportunity assessment, semantic
+relevance and wording. Code enforces schema, bounded input and output,
+fact-to-entry attribution, saved requirement IDs, pinned revisions and
+review transitions. The candidate decides whether wording is accurate and
+useful. Acceptance and approval record that decision.
+
+One logical request projects the pinned reviewed CV as sections, entries, and
+eligible facts. Entry context includes role, project, employer, and dates
+where available. Context is bounded and cannot be used as a proposal anchor.
+Dates describe the entry and provide no independent proof of skill tenure.
+Every eligible fact is sent in profile order. A prompt exceeding 64 KiB fails
+before a provider call, so exceeding the budget cannot silently remove entries.
+
+Tailored CV rebuilds the rendered text and line offsets from the pinned profile
+revision. Supplied offsets must match the saved passage exactly. Quotes without
+offsets must occur exactly once. A passage covering several facts is attached
+once to their common entry and lists those facts together. References preserve
+source or user-entered origin and distinguish selected evidence, passage
+strength levels, related observations, and condition context. Requirement and
+condition statuses stay separate from those references. The projection reuses
+fact IDs instead of repeating CV excerpts. The model decides which entries
+deserve attention using the job requirements, dated context, and documented
+contributions. CV Match classification and scoring are unchanged.
+
+The result has an explicit no-change outcome or up to two rewrites and four
+ranked candidate questions. Assembly retains the first question for each of
+the first two distinct fact anchors. Each retained question keeps its own
+rationale and saved requirement IDs. Whitespace-equivalent rewrites are omitted
+after framing, with question selection independent of rewrite selection.
+
+Each item identifies its fact and entry. The original in the comparison comes
+from the pinned profile. A proposal may carry a specific confirmation assertion
+about its own wording. That proposal stays visible and cannot be accepted
+verbatim. Standalone questions do not change Accept eligibility. The user can
+keep the original or edit, and can separately confirm a user-authored answer
+and include it. Confirmation alone leaves export wording intact. Historical
+confirmation flags continue to apply.
+
+New drafts record the UI locale supplied at generation time. Requests without
+a locale use Vietnamese, the application's default. Questions and rationales
+follow the generation locale. Proposed wording follows the source fact
+language, and saved CV/JD text stays as written. Switching the UI locale
+changes UI labels and leaves stored model text intact.
+
+Draft diagnostics count facts presented for assessment, returned outcomes,
+persisted cards, and failures of the technical output contract. These counts
+do not measure usefulness. The existing generation logs and new draft metadata
+capture provider attempts, retries, latency and reported token usage where
+available. The larger context can increase input token cost even with one
+logical request. Historical drafts retain their saved wording and decisions.
+
+An approved draft can preview selected improvements against the latest source
+profile in the same review lineage. Applying the diff pins the draft and
+profile revisions, preserves source facts, and calls the existing profile
+append path. Additions become confirmed user-entered facts. Eligible wording
+replacements link back to the original fact. Future matches use the new profile
+revision, and the approved job draft retains its historical export.
+
+#### Optional OpenAI provider for CV Match
+
+CV Match analysis can opt into the shared OpenAI adapter independently of
+Tailored CV. OpenAI uses the existing hosted analysis prompt, quote schema and
+bounded completion path used by Gemini. The match validator still enforces
+the exact permitted passages and the scorer retains its existing evidence
+rules. Legacy CV suggestions use the global provider. Per-stage diagnostics
+record provider, model, elapsed time, attempts and reported tokens, with the
+same anonymous attempt identifier as the existing failure events.

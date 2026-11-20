@@ -98,10 +98,10 @@ test('bounded omitted-quote recovery honors proficiency and rejected evidence su
   );
 });
 
-test('validated canonical parent scores once, without changing P6 weights/OR aggregation', () => {
+test('a validated database OR parent contributes its strongest alternative and required weight once', () => {
   const job = {
     skills: requirement,
-    preferredSkills: 'Rust',
+    preferredSkills: 'Rust\nKotlin',
     experience: '',
     domain: '',
     title: '',
@@ -119,13 +119,13 @@ test('validated canonical parent scores once, without changing P6 weights/OR agg
   }));
   const verified = validateMatchAssessment(proposals, cv, jd, canonical);
   const result = scoreCvMatch(verified, cv, jd, canonical);
-  expect(result.requirements).toHaveLength(2);
+  expect(result.requirements).toHaveLength(3);
   expect(result.requirements[0]).toMatchObject({
     status: 'EVIDENCED',
     credit: 1,
     coverage: { mode: 'OR' },
   });
-  expect(result.score).toBe(75); // one required 3 + one unknown preferred 1
+  expect(result.score).toBe(Math.round((3 * 40) / (3 + 1 + 1)));
 });
 
 test('unrecognized quantities and unrelated requirement families retain conservative parsing', () => {

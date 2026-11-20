@@ -131,7 +131,7 @@ test('only professional Java work satisfies the managed-language experience alte
       status: evidence === cv.split('\n')[1] ? 'EVIDENCED' : 'NOT_EVIDENCED',
       cvQuote: evidence === cv.split('\n')[1] ? evidence : '',
     });
-    expect(result.score).toBe(evidence === cv.split('\n')[1] ? 100 : 0);
+    expect(result.coverageHidden).toBe('TOO_FEW_ASSESSABLE_SKILLS');
     expect(evidence).toContain(result.requirements[0]!.cvQuote);
   }
 });

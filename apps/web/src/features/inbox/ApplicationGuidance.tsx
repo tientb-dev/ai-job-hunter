@@ -2,7 +2,7 @@ import { Box, Chip, Stack, Typography } from '@mui/material';
 import { tr } from '../../app/i18n';
 import {
   type ApplicationGuidance as ApplicationGuidanceData,
-  guidanceLabel,
+  matchVerdictLabel,
   type GuidanceAction,
   type MatchResult,
 } from './cv-match.types';
@@ -68,7 +68,8 @@ export function GuidanceVerdict({ result }: { result: MatchResult }) {
   const guidance = result.guidance;
   if (!guidance) return null;
   const { core, confidence, recommendation } = guidance;
-  const low = confidence === 'LOW';
+  const withheld = result.score === null;
+  const low = confidence === 'LOW' || withheld;
   return (
     <Box component="section" aria-label={tr('Application guidance')}>
       <Typography variant="overline" color="text.secondary" component="p">
@@ -87,12 +88,12 @@ export function GuidanceVerdict({ result }: { result: MatchResult }) {
           sx={{
             fontWeight: 600,
             color:
-              COLOR[recommendation] === 'success'
+              !withheld && COLOR[recommendation] === 'success'
                 ? 'success.dark'
                 : 'text.primary',
           }}
         >
-          {guidanceLabel(recommendation)}
+          {matchVerdictLabel(result)}
         </Typography>
         {low && (
           <Chip size="small" variant="outlined" label={tr('Low confidence')} />
@@ -100,7 +101,7 @@ export function GuidanceVerdict({ result }: { result: MatchResult }) {
       </Stack>
       <Typography variant="body2" sx={{ mt: 1 }}>
         {[
-          low
+          (!withheld && low) || result.evaluability?.low
             ? tr(
                 'The system could not analyze several important requirements, so this is a cautious read. Check the items marked System could not analyze yourself — they are not counted against you.',
               )
@@ -115,7 +116,7 @@ export function GuidanceVerdict({ result }: { result: MatchResult }) {
                   'This evidence comes mainly from skills lists, not described work.',
                 )
             : '',
-          tr(CLOSING[recommendation]),
+          withheld ? '' : tr(CLOSING[recommendation]),
         ]
           .filter(Boolean)
           .join(' ')}

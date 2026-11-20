@@ -1,6 +1,7 @@
 {
   "worth": {
-    "score": 50,
+    "score": 39,
+    "coverageHidden": null,
     "recommendation": "Apply",
     "evidenceUncertain": false,
     "evaluability": {
@@ -64,7 +65,27 @@
               "jdQuote": "Java Core",
               "status": "EVIDENCED",
               "cvQuote": "- Developed Java Spring Boot microservices for payment processing.",
-              "conflictingQuotes": []
+              "conflictingQuotes": [],
+              "strength": {
+                "level": "APPLIED_PLUS",
+                "strength": 90,
+                "independentUnits": 1,
+                "listed": true,
+                "quotes": [
+                  {
+                    "quote": "- Maintained and debugged existing Java services in production.",
+                    "start": 189,
+                    "end": 252,
+                    "level": "APPLIED_PLUS"
+                  },
+                  {
+                    "quote": "Summary: 5 years of experience with Java and Spring Boot.",
+                    "start": 0,
+                    "end": 57,
+                    "level": "LISTED"
+                  }
+                ]
+              }
             },
             {
               "id": "c2",
@@ -110,7 +131,27 @@
               "jdQuote": "Java",
               "status": "EVIDENCED",
               "cvQuote": "Summary: 5 years of experience with Java and Spring Boot.",
-              "conflictingQuotes": []
+              "conflictingQuotes": [],
+              "strength": {
+                "level": "APPLIED_PLUS",
+                "strength": 90,
+                "independentUnits": 1,
+                "listed": true,
+                "quotes": [
+                  {
+                    "quote": "- Maintained and debugged existing Java services in production.",
+                    "start": 189,
+                    "end": 252,
+                    "level": "APPLIED_PLUS"
+                  },
+                  {
+                    "quote": "Summary: 5 years of experience with Java and Spring Boot.",
+                    "start": 0,
+                    "end": 57,
+                    "level": "LISTED"
+                  }
+                ]
+              }
             },
             {
               "id": "c2",
@@ -118,7 +159,27 @@
               "jdQuote": "Spring Boot",
               "status": "EVIDENCED",
               "cvQuote": "Summary: 5 years of experience with Java and Spring Boot.",
-              "conflictingQuotes": []
+              "conflictingQuotes": [],
+              "strength": {
+                "level": "APPLIED",
+                "strength": 80,
+                "independentUnits": 1,
+                "listed": true,
+                "quotes": [
+                  {
+                    "quote": "- Developed Java Spring Boot microservices for payment processing.",
+                    "start": 122,
+                    "end": 188,
+                    "level": "APPLIED"
+                  },
+                  {
+                    "quote": "Summary: 5 years of experience with Java and Spring Boot.",
+                    "start": 0,
+                    "end": 57,
+                    "level": "LISTED"
+                  }
+                ]
+              }
             }
           ],
           "credit": 1,
@@ -178,7 +239,21 @@
               "jdQuote": "Docker",
               "status": "EVIDENCED",
               "cvQuote": "Skills: Java, Spring Boot, SQL Server, Docker",
-              "conflictingQuotes": []
+              "conflictingQuotes": [],
+              "strength": {
+                "level": "LISTED",
+                "strength": 40,
+                "independentUnits": 0,
+                "listed": true,
+                "quotes": [
+                  {
+                    "quote": "Skills: Java, Spring Boot, SQL Server, Docker",
+                    "start": 382,
+                    "end": 427,
+                    "level": "LISTED"
+                  }
+                ]
+              }
             },
             {
               "id": "c2",
@@ -195,11 +270,12 @@
         }
       }
     ],
-    "explanation": "Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Conflict earns zero; requirements the system could not interpret are excluded from the score and listed separately. AI links and requirement completeness need human review; this is not a hiring probability.",
+    "explanation": "Evidence Coverage is the weighted mean of CV evidence strength for technical requirements. Required requirements have weight 3 and preferred requirements have weight 1. An AND requirement uses the mean of its components. An OR requirement uses its strongest alternative. Missing evidence and conflicts contribute zero.",
     "advice": "Some required items are not clearly shown in your CV yet. If you have that experience, add accurate examples."
   },
   "low": {
     "score": null,
+    "coverageHidden": "TOO_FEW_ASSESSABLE_SKILLS",
     "recommendation": "Review requirements",
     "evidenceUncertain": false,
     "evaluability": {
@@ -348,7 +424,21 @@
               "jdQuote": "Docker",
               "status": "EVIDENCED",
               "cvQuote": "Skills: Java, Spring Boot, SQL Server, Docker",
-              "conflictingQuotes": []
+              "conflictingQuotes": [],
+              "strength": {
+                "level": "LISTED",
+                "strength": 40,
+                "independentUnits": 0,
+                "listed": true,
+                "quotes": [
+                  {
+                    "quote": "Skills: Java, Spring Boot, SQL Server, Docker",
+                    "start": 382,
+                    "end": 427,
+                    "level": "LISTED"
+                  }
+                ]
+              }
             },
             {
               "id": "c2",
@@ -365,11 +455,12 @@
         }
       }
     ],
-    "explanation": "Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Conflict earns zero; requirements the system could not interpret are excluded from the score and listed separately. AI links and requirement completeness need human review; this is not a hiring probability.",
+    "explanation": "Evidence Coverage is the weighted mean of CV evidence strength for technical requirements. Required requirements have weight 3 and preferred requirements have weight 1. An AND requirement uses the mean of its components. An OR requirement uses its strongest alternative. Missing evidence and conflicts contribute zero.",
     "advice": "Too few requirements could be evaluated reliably to give a score. Use the strengths and next steps below, and check the requirements the system could not analyze yourself."
   },
   "stretch": {
     "score": 0,
+    "coverageHidden": null,
     "recommendation": "Low Fit",
     "evidenceUncertain": false,
     "evaluability": {
@@ -566,7 +657,7 @@
         }
       }
     ],
-    "explanation": "Heuristic documented-evidence coverage: one canonical parent weight 3 if required, 1 if preferred; AND credit is proportional, OR needs one supported alternative and shared constraints. Conflict earns zero; requirements the system could not interpret are excluded from the score and listed separately. AI links and requirement completeness need human review; this is not a hiring probability.",
+    "explanation": "Evidence Coverage is the weighted mean of CV evidence strength for technical requirements. Required requirements have weight 3 and preferred requirements have weight 1. An AND requirement uses the mean of its components. An OR requirement uses its strongest alternative. Missing evidence and conflicts contribute zero.",
     "advice": "Some required items are not clearly shown in your CV yet. If you have that experience, add accurate examples."
   }
 }

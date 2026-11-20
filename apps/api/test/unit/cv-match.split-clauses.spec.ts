@@ -196,7 +196,7 @@ describe('scoring the repaired clauses', () => {
   test('degree and broker OR clauses count once with exact CV evidence', () => {
     for (const saved of [fragments, uiOrder]) {
       const result = assess(job(saved));
-      expect(result.score).toBe(100);
+      expect(result.coverageHidden).toBe('TOO_FEW_ASSESSABLE_SKILLS');
       expect(result.requirements).toHaveLength(3);
       for (const row of result.requirements) {
         expect(row.status).toBe('EVIDENCED');
@@ -228,7 +228,14 @@ describe('scoring the repaired clauses', () => {
     });
   });
 
-  test.each(['Skills: Kafka, RabbitMQ', 'Never used Kafka or RabbitMQ.'])(
+  test('a skills list is recognised as partial broker evidence', () => {
+    const result = assess(job(fragments), 'Skills: Kafka, RabbitMQ');
+    expect(
+      result.requirements.find((row) => row.requirement === broker),
+    ).toMatchObject({ status: 'PARTIAL', credit: 0.5 });
+  });
+
+  test.each(['Never used Kafka or RabbitMQ.'])(
     'no broker credit: %s',
     (line) => {
       const result = assess(job(fragments), line);

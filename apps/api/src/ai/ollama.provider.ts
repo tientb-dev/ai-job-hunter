@@ -32,13 +32,14 @@ export class OllamaProvider implements AiProvider {
       void reader.cancel().catch(() => {});
     };
     const partial = request.partial;
-    const expires = partial
-      ? Math.min(
-          partial.deadline,
-          performance.now() +
-            Math.min(this.config.timeoutMs, PARTIAL_GENERATION_MAX_MS),
-        )
-      : performance.now() + this.config.timeoutMs;
+    const began = performance.now();
+    let attempts = 0;
+    const providerDeadline =
+      began +
+      (partial
+        ? Math.min(this.config.timeoutMs, PARTIAL_GENERATION_MAX_MS)
+        : this.config.timeoutMs);
+    const expires = Math.min(partial?.deadline ?? Infinity, providerDeadline);
     const expire = () => {
       timedOut = true;
       controller.abort();
@@ -83,6 +84,7 @@ export class OllamaProvider implements AiProvider {
       });
       const call = async (path: string, body?: string): Promise<unknown> => {
         ensureLive();
+        attempts++;
         const pending = fetch(`${this.config.baseUrl}${path}`, {
           method: body === undefined ? 'GET' : 'POST',
           redirect: 'error',
@@ -186,6 +188,17 @@ export class OllamaProvider implements AiProvider {
         // The read has settled before finally; cancellation completion is not required.
         reader.releaseLock();
       }
+      partial?.onProviderTiming?.({
+        attempts,
+        retries: 0,
+        elapsedMs: Math.round(performance.now() - began),
+        timeout: timedOut
+          ? partial?.signal.aborted ||
+            (partial?.deadline ?? Infinity) <= providerDeadline
+            ? 'overall'
+            : 'provider'
+          : undefined,
+      });
     }
   }
 }

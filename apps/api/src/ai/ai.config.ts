@@ -1,10 +1,12 @@
+export const CV_MATCH_AI_CONFIG = Symbol('CV_MATCH_AI_CONFIG');
+export const TAILORED_CV_AI_CONFIG = Symbol('TAILORED_CV_AI_CONFIG');
 export const AI_CONFIG = Symbol('AI_CONFIG');
 interface BaseAiConfig {
   readonly baseUrl: string;
   readonly model: string;
   readonly timeoutMs: number;
 }
-/** Hosted (Gemini) usage limits; Ollama runs locally and is not limited. */
+/** Hosted usage limits; Ollama runs locally and is not limited. */
 export interface AiLimits {
   readonly dailyPerUser: number;
   readonly dailyGlobal: number;
@@ -13,7 +15,7 @@ export interface AiLimits {
 export type AiConfig =
   | (BaseAiConfig & { readonly provider: 'ollama' })
   | (BaseAiConfig & {
-      readonly provider: 'gemini';
+      readonly provider: 'gemini' | 'openai';
       readonly apiKey: string;
       readonly limits: AiLimits;
     });
@@ -59,14 +61,59 @@ function geminiConfig(env: NodeJS.ProcessEnv): AiConfig {
     baseUrl: GEMINI_BASE_URL,
     model: GEMINI_MODEL,
     timeoutMs: timeoutMs(env),
-    limits: {
-      dailyPerUser: limit(env, 'AI_DAILY_USER_LIMIT', 100, 100_000),
-      dailyGlobal: limit(env, 'AI_DAILY_GLOBAL_LIMIT', 500, 1_000_000),
-      concurrent: limit(env, 'AI_MAX_CONCURRENT', 4, 64),
-    },
+    limits: hostedLimits(env),
   };
   // Non-enumerable so logging or serializing the config never includes the key.
   return Object.defineProperty(config, 'apiKey', { value: apiKey }) as AiConfig;
+}
+
+function hostedLimits(env: NodeJS.ProcessEnv): AiLimits {
+  return {
+    dailyPerUser: limit(env, 'AI_DAILY_USER_LIMIT', 100, 100_000),
+    dailyGlobal: limit(env, 'AI_DAILY_GLOBAL_LIMIT', 500, 1_000_000),
+    concurrent: limit(env, 'AI_MAX_CONCURRENT', 4, 64),
+  };
+}
+
+export const OPENAI_MODEL = 'gpt-5.4-mini-2026-03-17';
+export const OPENAI_BASE_URL = 'https://api.openai.com';
+
+export function tailoredCvAiConfig(
+  fallback: AiConfig,
+  env: NodeJS.ProcessEnv = process.env,
+): AiConfig {
+  return scopedAiConfig(fallback, 'TAILORED_CV_AI_PROVIDER', env);
+}
+
+export function cvMatchAiConfig(
+  fallback: AiConfig,
+  env: NodeJS.ProcessEnv = process.env,
+): AiConfig {
+  return scopedAiConfig(fallback, 'CV_MATCH_AI_PROVIDER', env);
+}
+
+function scopedAiConfig(
+  fallback: AiConfig,
+  name: 'CV_MATCH_AI_PROVIDER' | 'TAILORED_CV_AI_PROVIDER',
+  env: NodeJS.ProcessEnv,
+): AiConfig {
+  const override = env[name];
+  if (override === undefined) return fallback;
+  if (override !== 'openai') throw new Error(`${name} must be openai or unset`);
+  const apiKey = env.OPENAI_API_KEY ?? '';
+  if (!/^[A-Za-z0-9._-]{20,512}$/.test(apiKey))
+    throw new Error('OPENAI_API_KEY must be set to a valid API key');
+  return Object.defineProperty(
+    {
+      provider: 'openai',
+      baseUrl: OPENAI_BASE_URL,
+      model: OPENAI_MODEL,
+      timeoutMs: timeoutMs(env),
+      limits: hostedLimits(env),
+    },
+    'apiKey',
+    { value: apiKey },
+  ) as AiConfig;
 }
 
 export function aiConfig(env: NodeJS.ProcessEnv = process.env): AiConfig {

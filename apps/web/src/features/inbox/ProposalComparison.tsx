@@ -65,6 +65,7 @@ export function ProposalComparison({
   evidence,
   disabled,
   onDecision,
+  requiresConfirmation = false,
 }: {
   original: string;
   suggestion: string;
@@ -79,6 +80,7 @@ export function ProposalComparison({
   reviewNote?: string;
   evidence?: ReactNode;
   disabled: boolean;
+  requiresConfirmation?: boolean;
   onDecision: (decision: 'accept' | 'reject') => void;
 }) {
   const [changing, setChanging] = useState(false);
@@ -184,7 +186,9 @@ export function ProposalComparison({
             {needsCheck && (
               <Alert severity="warning" variant="outlined">
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {tr('Check this before accepting.')}
+                  {requiresConfirmation
+                    ? tr('This suggestion needs a confirmed detail.')
+                    : tr('Check this before accepting.')}
                 </Typography>
                 <Typography variant="body2">{needsCheck}</Typography>
               </Alert>
@@ -196,7 +200,7 @@ export function ProposalComparison({
             >
               <Button
                 variant="outlined"
-                disabled={disabled}
+                disabled={disabled || requiresConfirmation}
                 aria-label={tr('Accept suggestion for {where}', {
                   where: where,
                 })}

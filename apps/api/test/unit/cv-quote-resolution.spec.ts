@@ -74,13 +74,13 @@ test('one invalid model match is downgraded without recovering replacement evide
     cvQuote: '',
   });
   expect(result.requirements[1]?.status).toBe('EVIDENCED');
-  // Named-technology relevance: "Spring Boot" and the work verb sit on
-  // different lines of a non-bullet wrap, which is not a reliably bounded unit
-  // (PR67 boundaries), so it fails closed instead of linking across lines.
+  // The wrapped work line is not a reliably bounded unit (PR67), so the model
+  // quote is not used; the exact skills line is recovered instead (CV Match CP1).
   expect(result.requirements[2]).toMatchObject({
-    status: 'NOT_EVIDENCED',
+    status: 'EVIDENCED',
+    cvQuote: 'Skills: Java, Spring Boot',
   });
-  expect(result.score).toBe(33);
+  expect(result.coverageHidden).toBe('TOO_FEW_ASSESSABLE_SKILLS');
   expect(
     result.requirements.every((item) => !('cvEvidenceUnverified' in item)),
   ).toBe(true);

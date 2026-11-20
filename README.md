@@ -50,6 +50,22 @@ the app's default AI provider.
 
 Tracking jobs and applications works without any AI.
 
+### Optional OpenAI trial for Tailored CV
+
+Keep `AI_PROVIDER=gemini` and your existing Gemini settings. In the backend's
+ignored `.env`, set `TAILORED_CV_AI_PROVIDER=openai` and `OPENAI_API_KEY` to an
+OpenAI project key, then restart the API. Tailored CV generation uses the pinned
+`gpt-5.4-mini-2026-03-17` model and sends reviewed CV facts and job requirements to
+OpenAI. Use synthetic data for the first probe and confirm API model access and
+billing separately from your ChatGPT subscription. Other AI workflows use `AI_PROVIDER` unless their own override is enabled. Remove the override and restart to return Tailored
+CV generation to Gemini.
+
+To trial OpenAI for CV Match analysis, set `CV_MATCH_AI_PROVIDER=openai` and
+the same backend-only `OPENAI_API_KEY`, then restart the API. The Tailored CV
+override is independent. A new analysis sends reviewed CV text and job
+requirements to OpenAI. Saved matches are not regenerated automatically. Remove `CV_MATCH_AI_PROVIDER` and restart to return CV Match to
+the global provider.
+
 ## Privacy
 
 - Your jobs, CVs, drafts and interview answers are stored in a PostgreSQL

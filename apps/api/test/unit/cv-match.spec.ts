@@ -31,31 +31,39 @@ const item = (
   cvQuote,
 });
 test('required evidence outweighs preferred and omitted canonical gaps remain visible', () => {
+  const saved = { ...job, preferredSkills: 'Java\nKotlin' };
+  const source = matchJobText(saved);
+  const canonical = canonicalRequirements(saved);
   const required = scoreCvMatch(
-    [item('Python', 'Built Python applications.')],
-    cv,
-    jd,
-    canonicalRequirements(job),
+    [],
+    'Built Python applications.',
+    source,
+    canonical,
   );
   const preferred = scoreCvMatch(
-    [item('Java', 'Developed Java services.', 'preferred')],
-    cv,
-    jd,
-    canonicalRequirements(job),
+    [],
+    'Developed Java services.',
+    source,
+    canonical,
   );
-  // An omitted model link is recovered from an exact CV work passage naming the skill.
-  expect(required.score).toBe(50);
-  expect(preferred.score).toBe(50);
+  expect(required.score).toBe(Math.round((75 * 3) / 5));
+  expect(preferred.score).toBe(Math.round(75 / 5));
+  const both = scoreCvMatch(
+    [item('Python', 'Built Python applications.')],
+    cv,
+    source,
+    canonical,
+  );
   expect(
-    required.requirements.find((row) => row.requirement === 'Java'),
+    both.requirements.find((row) => row.requirement === 'Java'),
   ).toMatchObject({ status: 'EVIDENCED', cvQuote: 'Developed Java services.' });
   expect(
-    required.requirements.find((row) => row.category === 'experience')?.status,
+    both.requirements.find((row) => row.category === 'experience')?.status,
   ).toBe('NOT_EVIDENCED');
   expect(
-    required.requirements.find((row) => row.category === 'domain')?.status,
+    both.requirements.find((row) => row.category === 'domain')?.status,
   ).toBe('NOT_EVIDENCED');
-  expect(required.advice).toContain('accurate');
+  expect(both.advice).toContain('accurate');
 });
 test('rejects fabricated quotes, prevents priority downgrade and never asserts absent abilities', () => {
   const result = scoreCvMatch(
@@ -71,8 +79,7 @@ test('rejects fabricated quotes, prevents priority downgrade and never asserts a
     jd,
     canonicalRequirements(job),
   );
-  // Only the omitted preferred Java link is recovered from CV work.
-  expect(result.score).toBe(13);
+  expect(result.coverageHidden).toBe('TOO_FEW_ASSESSABLE_SKILLS');
   expect(
     result.requirements.find((row) => row.requirement === 'Python'),
   ).toMatchObject({
@@ -90,15 +97,24 @@ test('empty evidence produces no misleading numeric fit score', () => {
   expect(scoreCvMatch([], cv, '').score).toBeNull();
 });
 test('fully supported required skills can recommend Apply; reanalysis reflects new CV evidence', () => {
-  const seed = [item('Python'), item('Java', '', 'preferred')];
+  const seed = [
+    item('Python'),
+    item('Java', '', 'preferred'),
+    item('Kotlin', '', 'preferred'),
+  ];
   expect(
-    scoreCvMatch([item('Python', 'Built Python applications.')], cv, jd, seed),
-  ).toMatchObject({ score: 100, recommendation: 'Apply' });
+    scoreCvMatch(
+      [item('Python', 'Built Python applications.')],
+      cv,
+      `${jd}\nKotlin`,
+      seed,
+    ),
+  ).toMatchObject({ score: Math.round((75 * 4) / 5), recommendation: 'Apply' });
   expect(
     scoreCvMatch(
       [item('Python', 'Built Python applications.')],
       'Updated CV without evidence.',
-      jd,
+      `${jd}\nKotlin`,
       seed,
     ),
   ).toMatchObject({ score: 0, recommendation: 'Low Fit' });
@@ -141,7 +157,7 @@ test('recovers explicit backend Java and sufficient overall experience when the 
       .filter((item) => item.status === 'NOT_EVIDENCED')
       .map((item) => item.requirement),
   ).toEqual(['Python', 'AI/ML', 'AI application development']);
-  expect(result.score).toBe(31);
+  expect(result.score).toBe(Math.round(40 / 10));
 });
 
 test('equivalent model labels link to canonical requirements without duplicate score entries', () => {
@@ -163,7 +179,7 @@ test('equivalent model labels link to canonical requirements without duplicate s
     canonicalRequirements(reviewedJob),
   );
   expect(result.requirements).toHaveLength(5);
-  expect(result.score).toBe(31);
+  expect(result.score).toBe(Math.round(40 / 10));
 });
 
 test('explicit work duration supports the generic minimum without adding overlapping roles', () => {

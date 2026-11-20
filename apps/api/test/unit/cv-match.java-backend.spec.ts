@@ -45,8 +45,9 @@ describe('Java backend CV match (Gemini path)', () => {
   test('compound labels drop generic prefixes', () => {
     const labels = (text: string) =>
       requirementGroup(text, 'skill').components.map((c) => c.label);
+    // An open "other …" alternative is not a required or matchable component.
     expect(labels('Familiarity with Kafka or other messaging systems')).toEqual(
-      ['Kafka', 'other messaging systems'],
+      ['Kafka'],
     );
     expect(labels('Proficient in Java, Spring Boot and Hibernate')).toEqual([
       'Java',

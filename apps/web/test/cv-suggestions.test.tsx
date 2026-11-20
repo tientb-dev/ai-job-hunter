@@ -1,15 +1,10 @@
 import { useState } from 'react';
 import userEvent from '@testing-library/user-event';
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
-import { CvMatchPanel } from '../src/features/inbox/CvMatchPanel';
+import { CvMatchSection } from '../src/features/inbox/CvMatchSection';
+import { CvSuggestionsSection } from '../src/features/inbox/CvSuggestionsSection';
+import { useCvMatch } from '../src/features/inbox/useCvMatch';
 import {
   hasSuggestionContext,
   isSuggestionsResponse,
@@ -38,19 +33,41 @@ function Harness({
   jobId?: string;
 }) {
   const [view, setView] = useState<'match' | 'improve'>('improve');
+  const [suggesting, setSuggesting] = useState(false);
+  const [inspected, setInspected] = useState('');
+  const match = useCvMatch(jobId, revision);
   return (
     <>
       <button onClick={() => setView('match')}>Open CV Match</button>
       <button onClick={() => setView('improve')}>Open Improve CV</button>
-      <CvMatchPanel
-        jobId={jobId}
-        revision={revision}
-        view={view}
-        onGoToMatch={() => setView('match')}
+      <CvMatchSection
+        match={match}
+        labelledBy="job-tab-1"
+        hidden={view !== 'match'}
+        analyzeBlocked={suggesting}
+        uploadBlocked={suggesting}
       />
+      <CvSuggestionsSection
+        key={`${match.result?.matchId ?? 'none'}:${match.attempt}:${match.contextRejected}`}
+        result={match.result}
+        jobId={jobId}
+        disabled={match.busy}
+        cvSaved={Boolean(match.cv)}
+        jobDirty={false}
+        rejected={match.contextRejected && match.matchStatus !== 'MISSING'}
+        onBusyChange={setSuggesting}
+        onGoToMatch={() => setView('match')}
+        onInvalidContext={match.rejectContext}
+        onInspect={(parentId) => {
+          setInspected(parentId);
+          setView('match');
+        }}
+      />
+      <output aria-label="Inspected requirement">{inspected}</output>
     </>
   );
 }
+
 function setup(
   response = syntheticSuggestions,
   match = syntheticMatch,
@@ -206,10 +223,10 @@ test('explicit suggestions show four compact cards, a header count and preserve 
   fireEvent.click(screen.getByRole('button', { name: 'Show less' }));
   expect(within(section()).getAllByRole('article')).toHaveLength(4);
   fireEvent.click(screen.getByRole('button', { name: 'Open CV Match' }));
-  // Workspace Match shows the assessment with its gaps-and-advice below.
+  // The harness keeps the suggestions mounted while exercising Match controls.
   expect(screen.getByRole('region', { name: 'Improve your CV' })).toBeVisible();
   expect(
-    screen.getByText('Reference score: 50/100 · see Technical details'),
+    screen.getByRole('heading', { name: 'Compare CV with JD' }),
   ).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Open Improve CV' }));
   expect(within(section()).getAllByRole('article')).toHaveLength(4);
@@ -260,7 +277,7 @@ test('suggesting excludes duplicate and source-changing actions while retaining 
   ).toBeDisabled();
   expect(screen.getByLabelText('Save CV for matching')).toBeDisabled();
   expect(
-    screen.getByText('Reference score: 50/100 · see Technical details'),
+    screen.getByRole('heading', { name: 'Compare CV with JD' }),
   ).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Open Improve CV' }));
   await act(async () => pending.resolve(Response.json(syntheticSuggestions)));
@@ -407,9 +424,9 @@ test('conflict offers a single action and opens contradictory evidence in CV Mat
   fireEvent.click(
     within(card).getByRole('button', { name: 'Review evidence' }),
   );
-  expect(
-    screen.getByLabelText('Conflicting CV evidence: Java').textContent,
-  ).toBe('I have never used Java.');
+  expect(screen.getByLabelText('Inspected requirement')).toHaveTextContent(
+    conflictSuggestions.suggestions[0]!.parentId,
+  );
 });
 
 test('keyboard copy writes only exact server wording and announces failure safely', async () => {
@@ -428,41 +445,22 @@ test('keyboard copy writes only exact server wording and announces failure safel
   await screen.findByText(/Could not copy/);
 });
 
-test('Review evidence crosses tabs, reopens a collapsed group and focuses the exact expanded row', async () => {
+test('the legacy Review evidence control invokes the requirement callback by keyboard', async () => {
   const user = userEvent.setup();
   const state = setup();
   await state.analyze();
   await state.suggest();
-  fireEvent.click(screen.getByRole('button', { name: 'Open CV Match' }));
-  const group = screen.getByRole('button', { name: /^To clarify \(/ });
-  fireEvent.click(group);
-  expect(group).toHaveAttribute('aria-expanded', 'false');
-  // The row stays mounted inside the collapsed group, so inspect can target it.
-  const row = screen.getByRole('button', {
-    name: 'Partial: Experience designing APIs and integrations',
-    hidden: true,
-  });
-  const scroll = vi.fn();
-  row.scrollIntoView = scroll;
-  fireEvent.click(screen.getByRole('button', { name: 'Open Improve CV' }));
   const button = within(screen.getAllByRole('article')[0]!).getByRole(
     'button',
-    { name: 'Review evidence' },
+    {
+      name: 'Review evidence',
+    },
   );
   button.focus();
   await user.keyboard('{Enter}');
-  const target = screen.getByRole('button', {
-    name: 'Partial: Experience designing APIs and integrations',
-  });
-  await waitFor(() => expect(target).toHaveFocus());
-  expect(target).toHaveAttribute('aria-expanded', 'true');
-  expect(group).toHaveAttribute('aria-expanded', 'true');
-  expect(scroll).toHaveBeenCalledTimes(1);
-  expect(scroll).toHaveBeenLastCalledWith({
-    block: 'start',
-    inline: 'nearest',
-    behavior: 'instant',
-  });
+  expect(screen.getByLabelText('Inspected requirement')).toHaveTextContent(
+    syntheticSuggestions.suggestions[0]!.parentId,
+  );
 });
 
 test('malformed or unreadable responses clear actionable cards', async () => {
@@ -751,12 +749,9 @@ test('database Partial stays unverified and cannot be copied as proficiency', as
   fireEvent.click(
     within(card).getByRole('button', { name: 'Review evidence' }),
   );
-  expect(
-    screen.getByRole('button', { name: `Partial: ${requirement}` }),
-  ).toHaveAttribute('aria-expanded', 'true');
-  expect(
-    screen.getByLabelText('Professional experience: SQL Server').textContent,
-  ).toBe(quote);
+  expect(screen.getByLabelText('Inspected requirement')).toHaveTextContent(
+    response.suggestions[0]!.parentId,
+  );
 });
 
 test('specific server clarification is retained instead of a generic replacement', async () => {
@@ -860,8 +855,12 @@ test('Matched database OR stays satisfied when other alternatives have unverifie
   expect(
     screen.getByText(/Make this verified passage easier to find/),
   ).toBeVisible();
-  expect(screen.queryByText(/proficiency remains unverified/)).toBeNull();
-  expect(screen.queryByText(/describe your own database design/)).toBeNull();
+  expect(
+    within(section()).queryByText(/proficiency remains unverified/),
+  ).toBeNull();
+  expect(
+    within(section()).queryByText(/describe your own database design/),
+  ).toBeNull();
 });
 
 function clarificationFixture(

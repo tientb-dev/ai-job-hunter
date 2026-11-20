@@ -1,10 +1,13 @@
 import { randomUUID } from 'node:crypto';
+import type { ConditionAssessment } from './cv-match.conditions.js';
 import type { scoreCvMatch } from './cv-match.js';
 
 export type Immutable<T> = T extends object
   ? { readonly [K in keyof T]: Immutable<T[K]> }
   : T;
-export type SavedCvAssessment = Immutable<ReturnType<typeof scoreCvMatch>>;
+export type SavedCvAssessment = Immutable<
+  ReturnType<typeof scoreCvMatch> & { conditions?: ConditionAssessment[] }
+>;
 export interface SourceRevisions {
   readonly cvUpdatedAt: string;
   readonly jobUpdatedAt: string;
@@ -31,7 +34,7 @@ export class MatchContextError extends Error {
 }
 
 // Bump whenever deterministic evidence semantics change. Internal cache only.
-export const MATCHING_POLICY_VERSION = 'guidance-p1/v13';
+export const MATCHING_POLICY_VERSION = 'evidence-strength/v3';
 
 // Only assessment excerpts are retained, never a second complete source document.
 export class MatchContexts {

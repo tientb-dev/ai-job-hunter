@@ -73,7 +73,7 @@ test.each([
       cvQuote: quote,
     });
     expect(resolveCvQuote(cv, row.cvQuote)).toBe(quote);
-    expect(result.score).toBe(50);
+    expect(result.coverageHidden).toBe('TOO_FEW_ASSESSABLE_SKILLS');
   },
 );
 test.each([work, wrapped])(
@@ -144,7 +144,7 @@ test.each([
   (text) => {
     const cv = `${stack}\n${text}`;
     expect(assess(cv)).toMatchObject({
-      score: 0,
+      coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
       requirements: [{ status: 'NOT_EVIDENCED', credit: 0, cvQuote: '' }],
     });
   },
@@ -161,7 +161,7 @@ test('contradiction still wins over exact wrapped professional work', () => {
   expect(
     result.requirements[0]?.coverage.components[2]?.conflictingQuotes,
   ).toContain(denial);
-  expect(result.score).toBe(0);
+  expect(result.coverageHidden).toBe('TOO_FEW_ASSESSABLE_SKILLS');
 });
 test('strong database responsibility stays Matched without changing policy', () => {
   const quote = [
@@ -169,7 +169,7 @@ test('strong database responsibility stays Matched without changing policy', () 
     'Designed SQL Server database schemas for a production billing application.',
   ].join('\n');
   expect(assess(`${stack}\n${quote}`)).toMatchObject({
-    score: 100,
+    coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
     requirements: [{ status: 'EVIDENCED', credit: 1, cvQuote: quote }],
   });
 });

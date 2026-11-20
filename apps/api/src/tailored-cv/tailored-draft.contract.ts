@@ -23,6 +23,10 @@ const failures = {
     422,
     'Decide every wording proposal, acknowledge review issues and explicitly review edited wording before approval.',
   ],
+  CV_DRAFT_DETAIL_UNCLEAR: [
+    422,
+    'Say what changed, what was counted, or what you did.',
+  ],
   CV_DRAFT_INVALID_REQUEST: [
     400,
     'Invalid tailored draft request. Check contract version and revisions.',
@@ -131,6 +135,15 @@ export interface DraftFact {
   field: string;
   acceptedText: string;
   selected: boolean;
+  clarification?: {
+    kind: 'impact' | 'scale' | 'ownership';
+    question?: string;
+    explanation?: string;
+    requirementIds: string[];
+    status: 'open' | 'no_metrics' | 'skipped' | 'confirmed' | 'included';
+    answer?: string;
+    addition?: string;
+  };
   provenance: {
     profileFactId: string;
     origin: 'source' | 'user_entered';
@@ -149,6 +162,9 @@ export interface DraftFact {
     requirementIds: string[];
     /** Why the change is relevant to the job; absent on older drafts. */
     explanation?: string;
+    requiresConfirmation?: boolean;
+    confirmationAssertion?: string;
+    benefit?: 'purpose' | 'action' | 'readability' | 'requirement';
   } | null;
   /**
    * D2.3: a stronger framing containing details the source does not establish.
@@ -226,15 +242,24 @@ export interface DraftPlan {
 }
 export interface BatchOutput {
   selectedFactIds: string[];
+  questions?: {
+    factId: string;
+    requirementIds: string[];
+    question: string;
+    explanation: string;
+  }[];
   proposals: {
     factId: string;
     text: string;
     requirementIds: string[];
-    /** Optional stronger framing that needs user verification. */
-    verify?: string;
+    explanation?: string;
+    confirmationAssertion?: string;
   }[];
 }
+export type DraftLocale = 'en' | 'vi';
+
 export interface DraftInput {
+  locale?: DraftLocale;
   plan: DraftPlan;
   match: MatchSnapshot;
   job: DraftJobSnapshot;

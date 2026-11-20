@@ -164,7 +164,7 @@ describe('CV_MATCH_EVIDENCE_SUMMARY', () => {
     ]);
   });
 
-  test('skills-only CV: blocked with no eligible candidate', async () => {
+  test('skills-only CV: an ambiguous quote blocks recovery although a listed candidate exists', async () => {
     configureCvMatchDiagnostics(true);
     const cv = [
       'SKILLS',
@@ -178,7 +178,7 @@ describe('CV_MATCH_EVIDENCE_SUMMARY', () => {
       index: 0,
       mode: 'OR',
       status: 'NOT_EVIDENCED',
-      recovery: 'BLOCKED_NO_CANDIDATE',
+      recovery: 'BLOCKED_WITH_CANDIDATE',
       components: [
         {
           position: 0,

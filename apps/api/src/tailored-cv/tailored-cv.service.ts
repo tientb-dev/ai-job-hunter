@@ -1,3 +1,5 @@
+import { enrichedWording } from './tailored-draft-review.policy.js';
+import { draftHash } from './tailored-draft.policy.js';
 import { TailoredDraftError } from './tailored-draft.contract.js';
 import { SourceProfileProposalService } from './source-profile-proposal.js';
 import { excludeDecorativeCoverage } from './source-profile-structure.js';
@@ -434,11 +436,16 @@ export class TailoredCvService {
       document: latest.document,
     });
   }
-  async appendProfile(ownerId: string, profileId: string, body: unknown) {
+  async appendProfile(
+    ownerId: string,
+    profileId: string,
+    body: unknown,
+    manager?: EntityManager,
+  ) {
     profileId = uuid(profileId);
     const request = version(body, ['expectedRevision', 'document']);
     const expected = revision(request.expectedRevision);
-    return this.db.transaction(async (m) => {
+    const append = async (m: EntityManager) => {
       await this.lock(m, ownerId, profileId);
       const repo = m.getRepository(CvProfileRevision);
       const latest = await repo.findOne({
@@ -511,6 +518,202 @@ export class TailoredCvService {
         }),
       );
       return this.profileDto(row);
+    };
+    return manager ? append(manager) : this.db.transaction(append);
+  }
+
+  async sourceUpdate(
+    ownerId: string,
+    draftId: string,
+    body: unknown,
+    apply: boolean,
+  ) {
+    const request = version(
+      body,
+      apply
+        ? ['expectedDraftRevision', 'expectedProfileRevision', 'factIds']
+        : ['expectedDraftRevision'],
+    );
+    const expectedDraft = revision(request.expectedDraftRevision);
+    const expectedProfile = apply
+      ? revision(request.expectedProfileRevision)
+      : null;
+    const ids = request.factIds;
+    if (
+      apply &&
+      (!Array.isArray(ids) ||
+        !ids.length ||
+        ids.length > 96 ||
+        ids.some(
+          (id) => typeof id !== 'string' || !id.length || id.length > 100,
+        ) ||
+        new Set(ids).size !== ids.length)
+    )
+      invalid();
+
+    return this.db.transaction(async (m) => {
+      const draft = await m.getRepository(TailoredCvDraft).findOne({
+        where: { ownerId, id: draftId },
+        select: { revision: true, document: true },
+        lock: { mode: 'pessimistic_read' },
+      });
+      if (
+        !draft ||
+        !draft.document ||
+        !('kind' in draft.document) ||
+        draft.document.kind !== 'tailored_cv'
+      )
+        throw new TailoredDraftError('CV_DRAFT_NOT_FOUND');
+      const doc = draft.document;
+      if (draft.revision !== expectedDraft)
+        throw new TailoredDraftError('CV_DRAFT_SAVE_CONFLICT');
+      if (doc.review?.approval?.revision !== draft.revision)
+        throw new TailoredDraftError('CV_EXPORT_NOT_APPROVED');
+
+      await this.lock(m, ownerId, doc.pins.profileId);
+      const source = await this.source(m, ownerId, doc.pins.sourceRevisionId);
+      const stale = () => new TailoredDraftError('CV_DRAFT_STALE_PROFILE');
+      const current = await this.current
+        .forCapture(m, ownerId, source.savedCvUpdatedAt.toISOString())
+        .catch((error: unknown) => {
+          if (error instanceof ConflictException) throw stale();
+          throw error;
+        });
+      if (
+        source.text !== current.text ||
+        source.fileName !== current.fileName ||
+        source.textHash !== doc.pins.sourceHash
+      )
+        throw stale();
+      const repo = m.getRepository(CvProfileRevision);
+      const pinned = await repo.findOne({
+        where: { ownerId, id: doc.pins.profileRevisionId },
+        select: { document: true },
+      });
+      const latest = await repo.findOne({
+        where: { ownerId, sourceRevisionId: source.id },
+        select: { id: true, profileId: true, revision: true, document: true },
+        order: { createdAt: 'DESC', revision: 'DESC', id: 'DESC' },
+      });
+      if (
+        !pinned ||
+        draftHash(pinned.document) !== doc.pins.profileHash ||
+        !latest ||
+        latest.profileId !== doc.pins.profileId ||
+        (expectedProfile !== null && latest.revision !== expectedProfile)
+      )
+        throw stale();
+      const next = structuredClone(latest.document);
+      const changes: { factId: string; before: string; after: string }[] = [];
+      for (const section of doc.sections) {
+        if (section.kind !== 'experience' && section.kind !== 'projects')
+          continue;
+        const targetSection = next.sections.find(
+          (item) => item.id === section.id,
+        );
+        if (targetSection?.review !== 'confirmed') continue;
+        for (const entry of section.entries) {
+          const target = targetSection.entries.find(
+            (item) => item.id === entry.id,
+          );
+          const attributed = pinned.document.sections
+            .find((item) => item.id === section.id)
+            ?.entries.find((item) => item.id === entry.id);
+          const attribution = (item: NonNullable<typeof target>) =>
+            item.facts.filter((fact) =>
+              ['role', 'title', 'project', 'employer', 'dates'].includes(
+                fact.field,
+              ),
+            );
+          if (
+            !target ||
+            !attributed ||
+            target.employerFactId !== attributed.employerFactId ||
+            draftHash(attribution(target)) !==
+              draftHash(attribution(attributed))
+          )
+            continue;
+          for (const fact of entry.facts) {
+            const state = doc.review.factReviews[fact.id];
+            if (
+              !state ||
+              state.exportIncluded === false ||
+              fact.field !== 'description'
+            )
+              continue;
+            const original = target.facts.find(
+              (item) => item.id === fact.provenance.profileFactId,
+            );
+            if (
+              !original ||
+              original.field !== fact.field ||
+              original.value !== state.reviewedText ||
+              original.origin !== fact.provenance.origin ||
+              target.facts.some((item) => item.replacesFactId === original.id)
+            )
+              continue;
+            const answer =
+              fact.clarification?.status === 'included'
+                ? (fact.clarification.addition ?? fact.clarification.answer)
+                : undefined;
+            const addition =
+              answer &&
+              fact.acceptedText === enrichedWording(original.value, answer)
+                ? answer
+                : undefined;
+            const replacement =
+              original.origin === 'source' &&
+              state.wording === 'ai_accepted' &&
+              state.proposal === 'accepted' &&
+              fact.acceptedText === fact.proposedWording?.text &&
+              fact.acceptedText !== original.value
+                ? fact.acceptedText
+                : undefined;
+            const value = addition ?? replacement;
+            if (
+              !value ||
+              target.facts.some(
+                (item) => item.field === fact.field && item.value === value,
+              )
+            )
+              continue;
+            changes.push({
+              factId: fact.id,
+              before: original.value,
+              after: fact.acceptedText,
+            });
+            if (apply && (ids as string[]).includes(fact.id)) {
+              target.facts.push({
+                id: randomUUID(),
+                field: fact.field,
+                value,
+                origin: 'user_entered',
+                review: 'confirmed',
+                evidence: [],
+                ...(replacement ? { replacesFactId: original.id } : {}),
+              });
+            }
+          }
+        }
+      }
+      if (!apply) return { profileRevision: latest.revision, changes };
+      if (
+        !(ids as string[]).every((id) =>
+          changes.some((change) => change.factId === id),
+        )
+      )
+        throw stale();
+      const saved = await this.appendProfile(
+        ownerId,
+        latest.profileId,
+        {
+          contractVersion: '1',
+          expectedRevision: latest.revision,
+          document: next,
+        },
+        m,
+      );
+      return { profileRevision: saved.revision };
     });
   }
   // Internal persistence boundary only: no generation or draft creation HTTP API in P8.1.

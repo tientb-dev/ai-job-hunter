@@ -287,6 +287,28 @@ export class TailoredCvController {
   ) {
     return this.drafts.review(owner, id, body, true);
   }
+  @Post('drafts/:id/source-update/preview')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  previewSourceUpdate(
+    @CurrentOwner() owner: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: unknown,
+  ) {
+    return this.service.sourceUpdate(owner, id, body, false);
+  }
+
+  @Post('drafts/:id/source-update')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  applySourceUpdate(
+    @CurrentOwner() owner: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: unknown,
+  ) {
+    return this.service.sourceUpdate(owner, id, body, true);
+  }
+
   @Post('drafts/:id/export')
   async exportDraft(
     @CurrentOwner() owner: string,

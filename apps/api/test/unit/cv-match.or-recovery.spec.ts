@@ -83,8 +83,7 @@ test('captured P6.3 omission replays through the matching service as 44 / Consid
   );
   const result = await service.analyze(LOCAL_OWNER_ID, job.id);
   expect(result).toMatchObject({
-    score: 44,
-    recommendation: 'Low Fit',
+    coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
     requirements: [
       { status: 'PARTIAL', credit: 0.25 },
       { status: 'EVIDENCED', credit: 1, cvQuote: 'Built MCP servers.' },
@@ -128,7 +127,7 @@ test.each([
   'omitted unsupported/negative/aspirational/tooling passage remains Unknown: %s',
   (cv) => {
     expect(omitted(cv)).toMatchObject({
-      score: 0,
+      coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
       requirements: [{ status: 'NOT_EVIDENCED', cvQuote: '' }],
     });
   },
@@ -137,7 +136,7 @@ test.each([
 test('omitted contradictory MCP evidence surfaces Conflict with both original passages', () => {
   const result = omitted('Built MCP servers.\nNever used MCP.');
   expect(result).toMatchObject({
-    score: 0,
+    coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
     requirements: [{ status: 'CONFLICT', credit: 0 }],
   });
   expect(result.requirements[0]!.coverage.components[0]).toMatchObject({
@@ -171,27 +170,35 @@ test('OR recovery honors personal production delivery and shared minimum duratio
   expect(omitted(cv, delivery).requirements[0]!.status).toBe('EVIDENCED');
   const duration = jobFor('', 'At least 3 years of experience with MCP or RAG');
   for (const text of ['Skills: MCP.', '2 years of experience with MCP.'])
-    expect(omitted(text, duration).score).toBe(0);
-  expect(omitted('4 years of experience with MCP.', duration).score).toBe(100);
+    expect(omitted(text, duration).requirements[0]?.credit).toBe(0);
+  expect(
+    omitted('4 years of experience with MCP.', duration).requirements[0]
+      ?.credit,
+  ).toBe(1);
 });
 
-test('unsupported quantity, mixed logic and unrecognized alternatives never gain recovery credit', () => {
+test('unsupported quantity and mixed logic never gain recovery credit', () => {
+  const cv =
+    'Built MCP, RAG, tool calling, flux capacitor and temporal routing systems.';
+  // Any plain alternative named in completed work is recovered (CV Match CP1).
+  expect(
+    omitted(cv, jobFor('', 'Flux capacitor or temporal routing'))
+      .requirements[0]?.credit,
+  ).toBe(1);
   for (const requirement of [
     'Experience with at least 2 MCP or RAG applications',
     'MCP and RAG or tool calling',
-    'Flux capacitor or temporal routing',
   ]) {
-    const cv =
-      'Built MCP, RAG, tool calling, flux capacitor and temporal routing systems.';
-    // Never credited (null when the row is unevaluable).
-    expect(omitted(cv, jobFor('', requirement)).score ?? 0).toBe(0);
+    expect(omitted(cv, jobFor('', requirement)).requirements[0]?.credit).toBe(
+      0,
+    );
   }
 });
 
 test('AND design recovery evaluates explicit components individually while preserving partial credit', () => {
   const job = jobFor('Experience designing APIs and integrations', '');
   const cv = 'Designed APIs.\nDesigned integrations.';
-  expect(omitted(cv, job).score).toBe(100);
+  expect(omitted(cv, job).requirements[0]?.credit).toBe(1);
   const partialCv = 'Designed APIs.';
   const canonical = canonicalRequirements(job),
     jd = matchJobText(job);
@@ -204,8 +211,7 @@ test('AND design recovery evaluates explicit components individually while prese
       canonical,
     ),
   ).toMatchObject({
-    score: 50,
-    recommendation: 'Apply',
+    coverageHidden: 'TOO_FEW_ASSESSABLE_SKILLS',
     requirements: [{ status: 'PARTIAL', credit: 0.5 }],
   });
 });

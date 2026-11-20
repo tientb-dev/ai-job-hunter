@@ -27,8 +27,8 @@ vi.mock('../src/features/inbox/CvMatchPanel', () => ({
       </div>
       <div
         role="tabpanel"
-        id="job-panel-2"
-        aria-labelledby="job-tab-2"
+        id="job-panel-5"
+        aria-labelledby="job-tab-5"
         hidden={view !== 'improve'}
       >
         CV improvement workflow
@@ -113,9 +113,7 @@ const tab = (name: string) =>
     name === 'Edit JD'
       ? screen.getByRole('link', { name })
       : screen.getByRole('tab', {
-          name: new RegExp(
-            `^${name === 'CV Match' || name === 'Improve CV' ? 'Match' : name}`,
-          ),
+          name: new RegExp(`^${name}`),
         }),
   );
 
@@ -520,10 +518,11 @@ test('narrow tab strip supports all workspace tabs and keyboard selection withou
   const tabs = screen.getAllByRole('tab');
   expect(tabs.map((tab) => tab.textContent)).toEqual([
     'Overview',
-    'Match',
+    'CV Match',
     'Tailored CV',
     'Application',
     'Interview',
+    'Review & Improve CV',
   ]);
   const strip = screen
     .getByRole('tablist', { name: 'Job sections' })
@@ -609,7 +608,13 @@ test('discovery provenance appears once between the tabs and every active panel'
   );
   mount(`/jobs/${id}`);
   await screen.findByRole('heading', { name: 'Synthetic engineer' });
-  for (const name of ['Overview', 'Match', 'Application', 'Edit JD']) {
+  for (const name of [
+    'Overview',
+    'CV Match',
+    'Review & Improve CV',
+    'Application',
+    'Edit JD',
+  ]) {
     tab(name);
     const banner = screen.getByLabelText('Discovery provenance');
     expect(screen.getAllByLabelText('Discovery provenance')).toHaveLength(1);
@@ -668,7 +673,7 @@ test('jobs without discovery provenance have no banner on any tab', async () => 
   for (const name of [
     'Overview',
     'CV Match',
-    'Improve CV',
+    'Review & Improve CV',
     'Application',
     'Edit JD',
   ]) {

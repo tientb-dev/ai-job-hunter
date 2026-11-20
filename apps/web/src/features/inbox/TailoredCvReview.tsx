@@ -1,4 +1,4 @@
-import { tr } from '../../app/i18n';
+import { dateLocale, tr } from '../../app/i18n';
 import {
   ArrowForwardIcon,
   AutoAwesomeIcon,
@@ -11,6 +11,7 @@ import { DialogCloseButton } from '../../components/DialogCloseButton';
 import { ProposalComparison } from './ProposalComparison';
 import type { Theme } from '@mui/material/styles';
 import { useNotify } from '../../components/useNotify';
+import { ClarificationCard, SourceCvUpdate } from './TailoredCvEnrichment';
 import { DraftPanel } from './DraftPanel';
 import {
   CvSectionView,
@@ -67,6 +68,7 @@ import {
   type CvTemplate,
   issueBlocksApproval,
   type DraftOperation,
+  type ClarificationOperation,
   type SavedDraft,
 } from './tailored-cv.contract';
 import { decodeCvProfile, decodeCvSource } from './source-cv-review.contract';
@@ -479,13 +481,20 @@ export function TailoredCvReview({
         state.wording = 'user_edited';
         if (state.proposal === 'pending') state.proposal = 'rejected';
       }
+      if (
+        fact.clarification?.status === 'included' &&
+        (op.action === 'accept' ||
+          op.action === 'reject' ||
+          op.action === 'restore')
+      )
+        fact.clarification.status = 'confirmed';
       if (op.action === 'accept') {
         fact.acceptedText = fact.proposedWording!.text;
         state.proposal = 'accepted';
         state.wording = 'ai_accepted';
       }
-      if (op.action === 'reject') {
-        state.proposal = 'rejected';
+      if (op.action === 'reject' || op.action === 'restore') {
+        state.proposal = fact.proposedWording ? 'rejected' : 'none';
         state.wording = 'reviewed_profile';
         fact.acceptedText = state.reviewedText;
       }
@@ -646,7 +655,23 @@ export function TailoredCvReview({
             const reviewNotes = issues
               .filter((issue) => issue.code === 'SEMANTIC_REVIEW_REQUIRED')
               .map((issue) => issue.reason);
-            return { section, fact, where, checkReasons, reviewNotes };
+            const attribution = entry.facts
+              .filter((field) =>
+                ['role', 'title', 'project', 'employer'].includes(field.field),
+              )
+              .map((field) =>
+                document.review.factReviews[field.id]!.reviewedText.trim(),
+              )
+              .filter(Boolean)
+              .join(' · ');
+            return {
+              section,
+              fact,
+              where,
+              attribution,
+              checkReasons,
+              reviewNotes,
+            };
           }),
         ),
       )
@@ -909,7 +934,7 @@ export function TailoredCvReview({
       multiline
       autoFocus={autoFocus}
       value={fact.acceptedText}
-      disabled={blocked}
+      disabled={blocked || fact.clarification?.status === 'included'}
       error={!fact.acceptedText.trim()}
       slotProps={{
         htmlInput: { maxLength: 4000 },
@@ -921,9 +946,13 @@ export function TailoredCvReview({
           text: e.target.value,
         })
       }
-      helperText={tr(
-        'Edits are user-authored wording, not original-source evidence.',
-      )}
+      helperText={
+        fact.clarification?.status === 'included'
+          ? tr(
+              'Edit the confirmed detail in Opportunities to strengthen your CV.',
+            )
+          : tr('Edits are user-authored wording, not original-source evidence.')
+      }
     />
   );
   // Accurate wording status: an edit is the user's own wording, never a
@@ -1098,6 +1127,33 @@ export function TailoredCvReview({
       </Stack>
     </Alert>
   );
+  const proposalExplanation = (fact: (typeof facts)[number]) => {
+    const proposal = fact.proposedWording!;
+    const benefits = {
+      purpose: tr('Brings the documented purpose forward.'),
+      action: tr('Brings a documented action forward.'),
+      readability: tr('Splits a dense bullet into clearer sentences.'),
+      requirement: tr(
+        'Makes the relevant documented experience easier to find.',
+      ),
+    };
+    const benefit = proposal.benefit
+      ? benefits[proposal.benefit]
+      : proposal.explanation;
+    const linked = document?.requirements
+      ?.filter((row) => proposal.requirementIds.includes(row.id))
+      .map((row) => row.text);
+    const relevance = linked?.length
+      ? tr('Related job requirement: {requirement}', {
+          requirement: linked.join(' · '),
+        })
+      : proposal.benefit
+        ? tr(
+            'Clarity-only improvement. No specific job requirement could be linked.',
+          )
+        : undefined;
+    return [benefit, relevance].filter(Boolean).join(' ');
+  };
   const renderProposal = ({
     fact,
     state,
@@ -1126,9 +1182,29 @@ export function TailoredCvReview({
         proposal={state.proposal}
         manuallyEdited={state.wording === 'user_edited'}
         where={where}
-        why={fact.proposedWording!.explanation}
-        needsCheck={checkReasons.join(' ') || undefined}
-        reviewNote={reviewNotes.join(' ') || undefined}
+        why={proposalExplanation(fact)}
+        requiresConfirmation={fact.proposedWording!.requiresConfirmation}
+        needsCheck={
+          fact.proposedWording!.requiresConfirmation
+            ? [
+                fact.proposedWording!.confirmationAssertion,
+                fact.clarification &&
+                !fact.proposedWording!.confirmationAssertion
+                  ? tr(
+                      'Keep the original and use Evidence Enrichment to confirm and include the detail, or edit the wording yourself.',
+                    )
+                  : tr('Keep the original or edit the wording yourself.'),
+              ]
+                .filter(Boolean)
+                .join(' ')
+            : checkReasons.join(' ') || undefined
+        }
+        reviewNote={
+          reviewNotes.join(' ') ||
+          tr(
+            'Compare the suggestion with the original and check that every claim is accurate before accepting.',
+          )
+        }
         evidence={evidenceFor(fact)}
         disabled={blocked}
         onDecision={(action) => {
@@ -1182,14 +1258,14 @@ export function TailoredCvReview({
         <Typography variant="body2" sx={{ fontWeight: 600 }}>
           {navLabel}
         </Typography>
-        <LinearProgress
-          variant="determinate"
-          value={
-            proposalCards.length ? (decided / proposalCards.length) * 100 : 100
-          }
-          aria-label={tr('Suggestions decided')}
-          sx={{ mt: 0.5, height: 4, borderRadius: 2 }}
-        />
+        {proposalCards.length > 0 && (
+          <LinearProgress
+            variant="determinate"
+            value={(decided / proposalCards.length) * 100}
+            aria-label={tr('Suggestions decided')}
+            sx={{ mt: 0.5, height: 4, borderRadius: 2 }}
+          />
+        )}
       </Box>
       <Button
         size="small"
@@ -1307,6 +1383,36 @@ export function TailoredCvReview({
   ) : null;
   // Set on a successful wizard save; Continue takes focus as soon as it renders.
   const focusContinue = useRef(false);
+  async function saveClarification(operation: ClarificationOperation) {
+    if (!saved || blocked || dirty) return false;
+    let succeeded = false;
+    await run(async (token) => {
+      try {
+        const value = await draftRequest(`/drafts/${saved.id}/review`, {
+          expectedRevision: saved.revision,
+          operations: [operation],
+        });
+        if (token === epoch.current) {
+          accept(value);
+          succeeded = true;
+          setMessage(tr('Draft updated.'));
+        }
+      } catch (failure) {
+        if (token === epoch.current)
+          notify({
+            severity: 'error',
+            title: tr('Could not update the draft detail.'),
+            text:
+              failure instanceof Error
+                ? failure.message
+                : tr('Could not update the draft detail.'),
+          });
+        throw failure;
+      }
+    });
+    return succeeded;
+  }
+
   function saveDraft() {
     if (!saved) return;
     const wasApproved =
@@ -1337,7 +1443,7 @@ export function TailoredCvReview({
     {
       key: 'recommended',
       title: tr('Recommended'),
-      hint: tr('rewrites of your own CV wording for this job'),
+      hint: tr('clearer wording or stronger emphasis on documented experience'),
     },
     {
       key: 'warnings',
@@ -1564,7 +1670,10 @@ export function TailoredCvReview({
               const { sourceRevisionId: _sourceRevisionId, ...pins } =
                 server.pins;
               void _sourceRevisionId;
-              const value = await draftRequest(`/jobs/${jobId}/drafts`, pins);
+              const value = await draftRequest(`/jobs/${jobId}/drafts`, {
+                ...pins,
+                locale: dateLocale() === 'en-US' ? 'en' : 'vi',
+              });
               if (token === epoch.current) {
                 accept(value);
                 setGeneratedAfterSource(true);
@@ -1672,6 +1781,52 @@ export function TailoredCvReview({
       {isWizard && saved && generateSection}
       {document && saved && (
         <>
+          {wizardStep !== 3 && cards.some(({ fact }) => fact.clarification) && (
+            <Stack
+              component="section"
+              spacing={1.5}
+              aria-labelledby="cv-clarifications-title"
+            >
+              <Typography
+                id="cv-clarifications-title"
+                variant="h6"
+                component="h3"
+              >
+                {tr('Opportunities to strengthen your CV')}
+              </Typography>
+              {dirty && (
+                <Typography variant="body2">
+                  {tr(
+                    'Save your wording edits before changing a confirmed detail.',
+                  )}
+                </Typography>
+              )}
+              {cards
+                .filter(({ fact }) => fact.clarification)
+                .map(({ fact, where, attribution }) => (
+                  <ClarificationCard
+                    key={`${saved.id}:${fact.id}`}
+                    fact={fact}
+                    where={attribution || where}
+                    requirements={document.requirements
+                      ?.filter((row) =>
+                        fact.clarification!.requirementIds.includes(row.id),
+                      )
+                      .map((row) => row.text)}
+                    original={
+                      document.review.factReviews[fact.id]!.reviewedText
+                    }
+                    disabled={blocked || dirty}
+                    wording={document.review.factReviews[fact.id]!.wording}
+                    proposalPending={
+                      document.review.factReviews[fact.id]!.proposal ===
+                      'pending'
+                    }
+                    onDecision={saveClarification}
+                  />
+                ))}
+            </Stack>
+          )}
           {wizardStep !== 3 && (
             <Paper
               variant="outlined"
@@ -1693,11 +1848,17 @@ export function TailoredCvReview({
                     component="p"
                     sx={{ fontWeight: 600 }}
                   >
-                    {decided} {tr('of')} {proposalCards.length}{' '}
-                    {tr('suggestions decided')}
-                    {pending > 0
-                      ? tr(' · {pending} remaining', { pending: pending })
-                      : ''}
+                    {proposalCards.length ? (
+                      <>
+                        {decided} {tr('of')} {proposalCards.length}{' '}
+                        {tr('suggestions decided')}
+                        {pending > 0
+                          ? tr(' · {pending} remaining', { pending })
+                          : ''}
+                      </>
+                    ) : (
+                      tr('No rewrite suggestions for this draft.')
+                    )}
                   </Typography>
                   <Typography
                     role="status"
@@ -1718,18 +1879,16 @@ export function TailoredCvReview({
                         : ''}
                   </Typography>
                 </Stack>
-                <LinearProgress
-                  variant="determinate"
-                  aria-label={tr('Suggestions decided')}
-                  value={
-                    proposalCards.length
-                      ? (decided / proposalCards.length) * 100
-                      : 100
-                  }
-                  sx={{ height: 8, borderRadius: 4 }}
-                />
+                {proposalCards.length > 0 && (
+                  <LinearProgress
+                    variant="determinate"
+                    aria-label={tr('Suggestions decided')}
+                    value={(decided / proposalCards.length) * 100}
+                    sx={{ height: 8, borderRadius: 4 }}
+                  />
+                )}
                 <Typography variant="body2" color="text.secondary">
-                  {decisionHint}{' '}
+                  {proposalCards.length > 0 && decisionHint}{' '}
                   {tr('Then read the full CV, save, and approve.')}
                 </Typography>
                 {pending > 0 && !isWizard && (
@@ -1973,6 +2132,14 @@ export function TailoredCvReview({
               </Typography>
             </Stack>
           </Paper>
+          {approvedUnchanged && (wizardStep === 3 || !isWizard) && (
+            <SourceCvUpdate
+              key={`${saved.id}:${saved.revision}`}
+              draft={saved}
+              disabled={blocked}
+              onUpdated={() => setRefresh((n) => n + 1)}
+            />
+          )}
           {wizardStep === 3 && (
             <Stack
               component="section"
@@ -2626,16 +2793,21 @@ export function TailoredCvReview({
                                         variant="body2"
                                         color="text.secondary"
                                       >
-                                        {state.wording === 'user_edited'
-                                          ? tr('Manually edited')
-                                          : state.wording === 'ai_accepted'
-                                            ? tr('AI wording accepted by you')
-                                            : fact.provenance.origin ===
-                                                'source'
-                                              ? tr('Source-derived')
-                                              : tr(
-                                                  'User-entered confirmed fact',
-                                                )}
+                                        {fact.clarification?.status ===
+                                        'included'
+                                          ? tr(
+                                              'Includes a detail you confirmed for this draft',
+                                            )
+                                          : state.wording === 'user_edited'
+                                            ? tr('Manually edited')
+                                            : state.wording === 'ai_accepted'
+                                              ? tr('AI wording accepted by you')
+                                              : fact.provenance.origin ===
+                                                  'source'
+                                                ? tr('Source-derived')
+                                                : tr(
+                                                    'User-entered confirmed fact',
+                                                  )}
                                         {!fact.selected
                                           ? tr(
                                               ' · Retained, not AI-prioritized',

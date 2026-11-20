@@ -14,7 +14,7 @@ import { compileOutputSchema } from './ai.schema.js';
 export class AiService {
   constructor(
     @Inject(AI_PROVIDER) private readonly provider: AiProvider,
-    // Null for local Ollama; hosted Gemini requests always go through limits.
+    // Null for local Ollama; hosted requests always go through limits.
     // Explicit token: a union type would make Nest look up `Object` and skip it.
     @Optional()
     @Inject(AiUsageService)
@@ -50,6 +50,9 @@ export class AiService {
     const send = () =>
       this.provider.generate({
         ...(request.partial ? { partial: request.partial } : {}),
+        ...(request.onProviderTiming
+          ? { onProviderTiming: request.onProviderTiming }
+          : {}),
         prompt: request.prompt,
         schema,
         ...(request.seed === undefined ? {} : { seed: request.seed }),

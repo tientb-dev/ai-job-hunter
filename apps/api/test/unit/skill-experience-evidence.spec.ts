@@ -92,14 +92,14 @@ describe('skill-specific professional experience', () => {
   );
 
   test.each(fields)(
-    '2. skills-only PostgreSQL does not meet production or hands-on professional experience (%s)',
+    '2. skills-only PostgreSQL is recognised but never full production or hands-on professional experience (%s)',
     (field) => {
       const text = cv('- Built PostgreSQL queue services in production.');
       for (const requirement of [
         'Production experience with PostgreSQL',
         'Hands-on professional experience with PostgreSQL',
       ])
-        expect(status(requirement, skills, text, field)).toBe('NOT_EVIDENCED');
+        expect(status(requirement, skills, text, field)).toBe('PARTIAL');
     },
   );
 

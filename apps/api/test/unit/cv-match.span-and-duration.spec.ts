@@ -119,15 +119,16 @@ describe('component JD spans', () => {
   });
 
   test('a cached AI decomposition is what the model sees and what validation checks', () => {
-    const text = 'Sử dụng thành thạo Git và Docker';
+    const text = 'Experience working with Git as well as Docker';
     const job = jobOf(text);
     const [row] = canonicalRequirements(job);
     const group = validateDecomposition(row!, {
       mode: 'AND',
       components: ['Git', 'Docker'],
     });
-    expect(group).not.toBeNull();
-    rememberDecomposition(row!, group!);
+    if (typeof group === 'string') throw new Error(group);
+    expect(group.context).toBe('experience');
+    rememberDecomposition(row!, group);
     // As JobMatchService.decompose attaches it on a later (cached) run.
     const canonical = canonicalRequirements(job).map((item) => ({
       ...item,

@@ -7,7 +7,12 @@ import {
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource, type EntityManager } from 'typeorm';
 import { randomUUID } from 'node:crypto';
-import { AI_CONFIG, GEMINI_MODEL, type AiConfig } from '../ai/ai.config.js';
+import {
+  TAILORED_CV_AI_CONFIG,
+  GEMINI_MODEL,
+  OPENAI_MODEL,
+  type AiConfig,
+} from '../ai/ai.config.js';
 import { OLLAMA_CONTEXT_PROFILE } from '../ai/ollama.context.js';
 import {
   JobMatchService,
@@ -37,6 +42,7 @@ import { TailoredDraftGenerator } from './tailored-draft.generator.js';
 import { reviewedPlan, draftHash } from './tailored-draft.policy.js';
 import { ReviewedCvService } from '../reviewed-cv/reviewed-cv.service.js';
 interface GenerateRequest {
+  locale: 'en' | 'vi';
   profileRevisionId: string;
   expectedProfileRevision: number;
   expectedJobUpdatedAt: string;
@@ -110,6 +116,7 @@ WHERE o."ownerId" = $1`;
 
 /** Drafts run only on the model whose prompts and guards were verified. */
 export function draftModelSupported(config: AiConfig): boolean {
+  if (config.provider === 'openai') return config.model === OPENAI_MODEL;
   return (
     config.model ===
     (config.provider === 'gemini' ? GEMINI_MODEL : OLLAMA_CONTEXT_PROFILE.model)
@@ -134,7 +141,7 @@ export class TailoredDraftService {
     private readonly jobs: OpportunitiesService,
     private readonly matches: JobMatchService,
     private readonly generator: TailoredDraftGenerator,
-    @Inject(AI_CONFIG) private readonly config: AiConfig,
+    @Inject(TAILORED_CV_AI_CONFIG) private readonly config: AiConfig,
     private readonly reviewedCvs: ReviewedCvService,
   ) {}
   // Read-only preflight. Reuse the exact generation context checks; never call AI
@@ -353,8 +360,15 @@ export class TailoredDraftService {
         'expectedProfileRevision',
         'expectedJobUpdatedAt',
         'matchId',
+        ...(body && typeof body === 'object' && Object.hasOwn(body, 'locale')
+          ? ['locale']
+          : []),
       ]);
+      const locale = Object.hasOwn(value, 'locale') ? value.locale : 'vi';
+      if (locale !== 'en' && locale !== 'vi')
+        throw new TailoredDraftError('CV_DRAFT_INVALID_REQUEST');
       return {
+        locale,
         profileRevisionId: uuid(value.profileRevisionId),
         expectedProfileRevision: revision(value.expectedProfileRevision),
         expectedJobUpdatedAt: timestamp(value.expectedJobUpdatedAt),
@@ -368,7 +382,7 @@ export class TailoredDraftService {
     manager: EntityManager,
     ownerId: string,
     jobId: string,
-    request: GenerateRequest,
+    request: Omit<GenerateRequest, 'locale'>,
   ) {
     const profile = await manager.getRepository(CvProfileRevision).findOne({
       where: { ownerId, id: request.profileRevisionId },
@@ -540,14 +554,19 @@ export class TailoredDraftService {
           throw new TailoredDraftError('CV_DRAFT_STALE_JOB');
       };
       const began = performance.now();
-      const generated = await this.generator.generate(initial, recheck);
+      const generated = await this.generator.generate(
+        { ...initial, locale: request.locale },
+        recheck,
+      );
       generated.document.review = initialReview(generated.document);
       const metadata = {
-        pipelineVersion: 'p8.3-v1',
+        pipelineVersion: 'p8.3-opportunities-v3',
+        locale: request.locale,
         ...draftModelProvenance(this.config),
         generatedAt: new Date().toISOString(),
         latencyMs: Math.round(performance.now() - began),
         batches: generated.measurements,
+        decisions: generated.decisions,
         acceptedWording: 'reviewed-profile',
         proposalsAcceptedAutomatically: false,
       };
