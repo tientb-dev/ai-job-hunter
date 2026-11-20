@@ -6,6 +6,11 @@ import { memoryMatchRows } from '../support/memory-match-rows.js';
 import { expect, jest, test } from '@jest/globals';
 import { Repository } from 'typeorm';
 import { AiError } from '../../src/ai/ai.errors.js';
+import {
+  aiConfig,
+  cvMatchAiConfig,
+  type AiConfig,
+} from '../../src/ai/ai.config.js';
 import { AiService } from '../../src/ai/ai.service.js';
 import type { AiProvider } from '../../src/ai/ai-provider.js';
 import type { ExtractionService } from '../../src/extraction/extraction.service.js';
@@ -48,6 +53,7 @@ function setup(
   generate: AiProvider['generate'],
   text: string | null = cvText,
   savedJob = job,
+  config?: AiConfig,
 ) {
   const row =
     text === null
@@ -69,6 +75,7 @@ function setup(
     jobs as unknown as OpportunitiesService,
     memoryMatchRows(),
     reviewedAsIs(),
+    config,
   );
   return { service, provider, cvs, jobs };
 }
@@ -638,6 +645,8 @@ test('semantic assessments preserve documented correspondence and incomplete sco
   const rest = 'Skills: REST APIs';
   const planning = '- Planned and launched marketing campaigns.';
   const title = 'Project: Enterprise Resource Planning';
+  const listed = 'Skills: PostgreSQL, Node.js, Docker';
+  const pipeline = '- Maintained build automation in GitLab CI/CD.';
   const cases = [
     [
       'Có kinh nghiệm làm việc với cơ sở dữ liệu PostgreSQL',
@@ -700,6 +709,13 @@ test('semantic assessments preserve documented correspondence and incomplete sco
       planning,
       'PARTIAL',
     ],
+    ['Docker', 'SUPPORTED', listed, 'EVIDENCED'],
+    [
+      'Experience with source control using Git or SVN',
+      'RELATED',
+      pipeline,
+      'PARTIAL',
+    ],
   ] as const;
   const jd = cases.map(([requirement]) => requirement).join('\n');
   const cv = [
@@ -712,6 +728,8 @@ test('semantic assessments preserve documented correspondence and incomplete sco
     spring,
     rest,
     planning,
+    listed,
+    pipeline,
   ].join('\n\n');
   const synthetic = {
     ...job,
@@ -744,6 +762,11 @@ test('semantic assessments preserve documented correspondence and incomplete sco
           ),
         });
       }
+      expect(prompt).toContain(
+        'Prefer the work passage when it documents applying the same skill',
+      );
+      expect(payload.cv).toContain(listed);
+      expect(payload.cv).toContain(postgres);
       return JSON.stringify({
         requirements: payload.canonicalRequirements.map(
           ({
@@ -773,6 +796,10 @@ test('semantic assessments preserve documented correspondence and incomplete sco
             return {
               ...parent,
               correspondence,
+              ...(cvQuote === pipeline && {
+                missingQualifier:
+                  'Build automation is documented. Git and SVN use remain unconfirmed.',
+              }),
               cvQuote: parent.requirement === cases[7][0] ? '' : cvQuote,
               components: group.components.map((component, index) => {
                 const selected = selectedQuotes[index] ?? '';
@@ -799,6 +826,19 @@ test('semantic assessments preserve documented correspondence and incomplete sco
   expect(result.requirements.map(({ status }) => status)).toEqual(
     cases.map(([, , , status]) => status),
   );
+  expect(result.requirements[0]?.cvQuote).toBe(postgres);
+  expect(result.requirements[1]?.cvQuote).toBe(node);
+  expect(result.requirements[11]?.cvQuote).toBe(listed);
+  expect(result.requirements[12]?.coverage).toMatchObject({
+    status: 'PARTIAL',
+    reason:
+      'Build automation is documented. Git and SVN use remain unconfirmed.',
+  });
+  expect(
+    result.requirements[12]?.coverage.components.some(
+      (component) => component.status === 'EVIDENCED',
+    ),
+  ).toBe(false);
   expect(
     result.requirements[2]?.coverage.components.map(({ status }) => status),
   ).toEqual(['NOT_EVIDENCED', 'EVIDENCED']);
@@ -832,3 +872,72 @@ test('semantic assessments preserve documented correspondence and incomplete sco
     ).toBe(true);
   }
 });
+
+test.each([
+  ['unsupported CV passage', 'Fabricated attribution project', false, true],
+  ['missing CV passage', '', false, true],
+  ['wrong component JD span', '', true, false],
+] as const)(
+  'a semantic AND isolates %s only when component identity is intact',
+  async (_name, badQuote, badSpan, retainsEvidence) => {
+    const requirement =
+      'Experience with campaign planning and conversion attribution';
+    const cv = '- Planned marketing campaigns.';
+    const savedJob = {
+      ...job,
+      skills: requirement,
+      description: requirement,
+      preferredSkills: '',
+      experience: '',
+      domain: '',
+    };
+    const config = cvMatchAiConfig(aiConfig({}), {
+      CV_MATCH_AI_PROVIDER: 'openai',
+      OPENAI_API_KEY: 'synthetic-key-for-mocked-provider',
+    });
+    const { service } = setup(
+      async () =>
+        JSON.stringify({
+          requirements: canonicalRequirements(savedJob).map((parent) => ({
+            ...parent,
+            correspondence: 'RELATED',
+            cvQuote: cv,
+            components: [
+              {
+                componentId: 'c1',
+                jdQuote: 'campaign planning',
+                correspondence: 'SUPPORTED',
+                cvQuote: cv,
+              },
+              {
+                componentId: 'c2',
+                jdQuote: badSpan ? 'other skill' : 'conversion attribution',
+                correspondence: 'SUPPORTED',
+                cvQuote: badQuote,
+              },
+            ],
+          })),
+        }),
+      cv,
+      savedJob,
+      config,
+    );
+    const result = await service.analyze(LOCAL_OWNER_ID, savedJob.id);
+    const row = result.requirements[0]!;
+    expect(row.status).toBe(retainsEvidence ? 'PARTIAL' : 'UNDECOMPOSED');
+    expect(row.evidence.review).toBe(!retainsEvidence);
+    expect(row.cvQuote).toBe(retainsEvidence ? cv : '');
+    expect(row.coverage.components[1]?.cvQuote).toBe('');
+    if (retainsEvidence) {
+      expect(row.coverage.components[0]).toMatchObject({
+        status: 'EVIDENCED',
+        cvQuote: cv,
+        cvOrigin: 'source',
+      });
+      expect(row.coverage.components[1]).toMatchObject({
+        status: 'UNDECOMPOSED',
+        qualificationReason: 'This component’s evidence could not be verified.',
+      });
+    }
+  },
+);

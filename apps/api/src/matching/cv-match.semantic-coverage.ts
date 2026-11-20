@@ -38,15 +38,12 @@ export function semanticCoverage(
     group.context === 'education' ||
     row.category === 'experience';
   const single = group.mode === 'SINGLE' || group.mode === 'UNKNOWN';
-  let invalidEvidence = false;
   const passage = (decision: Correspondence | undefined, quote: string) => {
     if (decision !== 'SUPPORTED' && decision !== 'RELATED') {
-      if (decision && quote.trim()) invalidEvidence = true;
-      return '';
+      return { quote: '', invalid: !!decision && !!quote.trim() };
     }
     if (!quote.trim() || !cv.includes(quote)) {
-      invalidEvidence = true;
-      return '';
+      return { quote: '', invalid: true };
     }
     if (
       !group.aiFamiliarityOrInterest &&
@@ -54,13 +51,14 @@ export function semanticCoverage(
         evidenceRules.uncertain(quote) ||
         evidenceRules.aspiration(quote))
     )
-      return '';
-    return quote;
+      return { quote: '', invalid: false };
+    return { quote, invalid: false };
   };
-  const parentQuote =
+  const parent =
     !single && !row.cvQuote.trim()
-      ? ''
+      ? { quote: '', invalid: false }
       : passage(row.correspondence, row.cvQuote);
+  const rejectedComponents = new Set(row.rejectedComponentIds);
   const components: ComponentCoverage[] = group.components.map(
     (component, index) => {
       const selected = row.components?.find(
@@ -68,9 +66,24 @@ export function semanticCoverage(
       );
       const existing = legacy?.components[index];
       const judge = single ? row.correspondence : selected?.correspondence;
-      const quote = single
-        ? parentQuote
+      const evidence = single
+        ? parent
         : passage(judge, selected?.cvQuote ?? '');
+      if (
+        !single &&
+        (evidence.invalid || rejectedComponents.has(component.id))
+      ) {
+        rejectedComponents.add(component.id);
+        return {
+          ...component,
+          status: 'UNDECOMPOSED',
+          cvQuote: '',
+          conflictingQuotes: [],
+          qualificationReason:
+            'This component’s evidence could not be verified.',
+        };
+      }
+      const { quote } = evidence;
       const conflict =
         existing?.status === 'CONFLICT'
           ? existing.conflictingQuotes
@@ -108,13 +121,22 @@ export function semanticCoverage(
       };
     },
   );
-  const quote =
-    parentQuote ||
-    components.find((component) => component.cvQuote)?.cvQuote ||
-    '';
+  const componentQuote =
+    components.find((component) => component.cvQuote)?.cvQuote || '';
+  const quote = parent.quote || componentQuote;
   const hasGap =
     row.correspondence === 'NOT_FOUND' || row.correspondence === 'UNASSESSABLE';
-  if (hasGap === Boolean(quote)) invalidEvidence = true;
+  const isolatedComponentFailure =
+    !single &&
+    rejectedComponents.size > 0 &&
+    components.some(
+      (component) =>
+        component.status === 'EVIDENCED' || component.status === 'PARTIAL',
+    );
+  const invalidEvidence =
+    parent.invalid ||
+    hasGap === Boolean(quote) ||
+    (rejectedComponents.size > 0 && !isolatedComponentFailure);
   const supported =
     group.mode === 'OR'
       ? components.some((component) => component.status === 'EVIDENCED')
@@ -143,7 +165,8 @@ export function semanticCoverage(
         : (legacy?.reason ?? 'Review the selected evidence.');
   return {
     invalidEvidence,
-    cvQuote: retain ? quote : '',
+    isolatedComponentFailure,
+    cvQuote: retain ? (isolatedComponentFailure ? componentQuote : quote) : '',
     coverage: {
       mode: group.mode,
       credit: status === 'EVIDENCED' ? 1 : status === 'PARTIAL' ? 0.5 : 0,

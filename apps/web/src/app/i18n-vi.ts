@@ -94,6 +94,8 @@ export const VI_TEXT: Record<string, string> = {
   'Not evidenced in reviewed CV': 'Chưa thấy bằng chứng trong CV đã rà soát',
   'Unable to assess': 'Không thể đánh giá',
   'CV Match assessment': 'Đánh giá độ phù hợp CV',
+  'This component’s evidence could not be verified.':
+    'Không thể xác minh bằng chứng cho phần yêu cầu này.',
   'Requirements by assessment result': 'Yêu cầu theo kết quả đánh giá',
   'Preliminary skill evidence': 'Bằng chứng kỹ năng sơ bộ',
   'Preliminary CV evidence': 'Bằng chứng sơ bộ từ CV',

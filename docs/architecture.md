@@ -2374,7 +2374,9 @@ component as supported, related, not found, or unassessable. Related judgments
 retain an exact CV passage and can name the missing qualifier. The semantic
 path validates parent identity, component spans and CV passage provenance, then
 checks AND/OR composition and the existing scoped condition safeguards. A
-reviewed skill listing can support a skill requirement, while experience,
+component with an invalid passage keeps its own unresolved status. Verified
+evidence from a sibling can still support Partial when the parent and JD spans
+are valid. A reviewed skill listing can support a skill requirement, while experience,
 proficiency and duration still need appropriate evidence. Strength attribution
 on this path stays inside the selected passage. Legacy responses without a
 correspondence verdict retain the previous scoring behavior.

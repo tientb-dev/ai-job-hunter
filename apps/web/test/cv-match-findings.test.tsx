@@ -432,3 +432,60 @@ test('ignores a saved skill mirror while keeping independent source occurrences'
   expect(fallback).not.toHaveTextContent('Confirmed project using VueJS');
   expect(screen.queryByText(/characters|postText/)).toBeNull();
 });
+
+test('a Partial row exposes its verified CV passage and unresolved sibling in the same accordion', async () => {
+  const user = userEvent.setup();
+  const title = 'Campaign planning and conversion attribution';
+  const quote = 'Planned marketing campaigns.';
+  render(
+    <FindingsOverview
+      findings={[]}
+      requirements={[
+        {
+          ...requirement(title, 'PARTIAL'),
+          cvQuote: quote,
+          coverage: {
+            mode: 'AND',
+            status: 'PARTIAL',
+            credit: 0.5,
+            reason: 'Conversion attribution remains unconfirmed.',
+            components: [
+              {
+                id: 'c1',
+                label: 'Campaign planning',
+                jdQuote: 'Campaign planning',
+                status: 'EVIDENCED',
+                cvQuote: quote,
+                cvOrigin: 'source',
+                conflictingQuotes: [],
+              },
+              {
+                id: 'c2',
+                label: 'conversion attribution',
+                jdQuote: 'conversion attribution',
+                status: 'UNDECOMPOSED',
+                cvQuote: '',
+                conflictingQuotes: [],
+                qualificationReason:
+                  'This component’s evidence could not be verified.',
+              },
+            ],
+          },
+        },
+      ]}
+    />,
+  );
+  await user.click(screen.getByRole('button', { name: 'Partial (1)' }));
+  const bucket = screen.getByRole('region', { name: 'Partial (1)' });
+  await user.click(
+    within(bucket).getByRole('button', { name: `Partial: ${title}` }),
+  );
+  expect(
+    within(bucket).getByText(
+      'This component’s evidence could not be verified.',
+    ),
+  ).toBeVisible();
+  expect(within(bucket).getByText('Next step')).toBeVisible();
+  await user.click(within(bucket).getByText('Original CV evidence'));
+  expect(within(bucket).getByText(quote)).toBeVisible();
+});
