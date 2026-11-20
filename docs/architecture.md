@@ -2781,3 +2781,25 @@ the exact permitted passages and the scorer retains its existing evidence
 rules. Legacy CV suggestions use the global provider. Per-stage diagnostics
 record provider, model, elapsed time, attempts and reported tokens, with the
 same anonymous attempt identifier as the existing failure events.
+
+### CV Match to Tailored CV handoff
+
+The CV Match action and legacy Improve links open the same job's Tailored CV
+workspace. The workspace reads the job's saved CV selection, persisted match and
+source-review readiness on entry. Analysis and draft generation remain explicit
+actions.
+
+The stepper uses the review editor's existing saved-draft readiness check to
+mark Tailor & Review complete at Approve & Export. Approval and export still use
+the saved revision's approval record. Local edits suspend approval and block
+step navigation to export until the user saves or discards them.
+
+The saved-assessment handoff is the primary CV Match action, with reanalysis
+available as a secondary action. Tailor & Review labels factual clarifications
+separately from wording decisions. Approve & Export shows the saved draft and
+template before the full preview, then places confirmation and download actions
+below it. Approved revisions show the PDF preview in the same position.
+
+When a saved draft is open, the draft header opens a confirmation before
+generation. The confirmation uses the existing readiness and pinned request.
+Factual detail forms stay mounted when their disclosure is collapsed.

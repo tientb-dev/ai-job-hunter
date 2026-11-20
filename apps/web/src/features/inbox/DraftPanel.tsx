@@ -1,5 +1,6 @@
 import { dateLocale, tr } from '../../app/i18n';
 import { Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
+import { AddIcon } from '../../components/icons';
 import type { SavedDraft } from './tailored-cv.contract';
 
 interface DraftItem {
@@ -25,6 +26,7 @@ export function DraftPanel({
   latestReview,
   canSwitch,
   onGoToSwitch,
+  onNewDraft,
   disabled,
   dirty,
   hasMore,
@@ -38,6 +40,7 @@ export function DraftPanel({
   latestReview: boolean | null;
   canSwitch: boolean;
   onGoToSwitch?: () => void;
+  onNewDraft?: () => void;
   disabled: boolean;
   dirty: boolean;
   hasMore: boolean;
@@ -85,6 +88,17 @@ export function DraftPanel({
                       : tr('Not approved')
                 }
               />
+              {onNewDraft && (
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  startIcon={<AddIcon />}
+                  disabled={disabled}
+                  onClick={onNewDraft}
+                >
+                  {tr('New draft')}
+                </Button>
+              )}
             </Stack>
             <Typography variant="body2" color="text.secondary">
               {tr('Saved version')} {saved.revision} {tr('· last saved')}{' '}

@@ -125,7 +125,6 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
             aria-expanded={expanded}
             aria-controls="discovery-preferences"
             onClick={() => setExpanded((value) => !value)}
-            sx={{ minHeight: { xs: 44, sm: 36 } }}
           >
             {expanded ? tr('Hide preferences') : tr('Edit preferences')}
           </Button>
@@ -134,7 +133,7 @@ export function DiscoverJobs({ onDiscovered }: { onDiscovered: () => void }) {
             disabled={busy}
             onClick={() => void discover()}
             startIcon={<SearchIcon />}
-            sx={{ flexShrink: 0, minHeight: { xs: 44, sm: 36 } }}
+            sx={{ flexShrink: 0 }}
           >
             {tr('Run discovery')}
           </Button>

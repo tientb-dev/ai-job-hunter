@@ -1,11 +1,22 @@
 import { MemoryRouter } from 'react-router-dom';
 import { expect, test, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from './render';
+import {
+  closeSuccess,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from './render';
 import { CvMatchPanel } from '../src/features/inbox/CvMatchPanel';
 import { tailoredDraftFixture, draftJobId } from './fixtures/tailored-cv';
 
 test('resume bypasses completed source work, preserves draft pins and explains export blockers', async () => {
-  const draft = tailoredDraftFixture();
+  let draft = tailoredDraftFixture();
+  const fact = draft.document.sections.find(
+    (section) => section.kind === 'experience',
+  )!.entries[0]!.facts[0]!;
+  fact.clarification = { kind: 'impact', status: 'open', requirementIds: [] };
   const fetch = vi.fn(async (url: string, init?: RequestInit) => {
     if (url.endsWith('/match') && init?.method === 'POST')
       throw Error('Resume must not analyze');
@@ -34,6 +45,23 @@ test('resume bypasses completed source work, preserves draft pins and explains e
         ],
         nextCursor: null,
       });
+    if (url.endsWith('/review')) {
+      draft = structuredClone(draft);
+      draft.revision += 1;
+      draft.document.review.factReviews.description!.proposal = 'rejected';
+      return Response.json(draft);
+    }
+    if (url.endsWith('/approve')) {
+      expect(JSON.parse(init!.body as string).expectedRevision).toBe(
+        draft.revision,
+      );
+      draft = structuredClone(draft);
+      draft.document.review.approval = {
+        revision: draft.revision,
+        approvedAt: draft.updatedAt,
+      };
+      return Response.json(draft);
+    }
     if (url.endsWith(`/drafts/${draft.id}`)) return Response.json(draft);
     throw Error(`Unexpected request: ${url}`);
   });
@@ -44,7 +72,6 @@ test('resume bypasses completed source work, preserves draft pins and explains e
         jobId={draftJobId}
         revision="1"
         jobUpdatedAt={draft.updatedAt}
-        view="improve"
         wizard
       />
     </MemoryRouter>,
@@ -67,9 +94,30 @@ test('resume bypasses completed source work, preserves draft pins and explains e
   // An open draft drives the next action even though the match is stale: the
   // progress card carries it, so the duplicate Next banner is not shown.
   expect(screen.queryByRole('status', { name: 'Next step' })).toBeNull();
+  const details = screen.getByRole('button', {
+    name: /Add factual details.*Optional/,
+  });
+  expect(details).toHaveAttribute('aria-expanded', 'false');
+  expect(screen.queryByRole('button', { name: 'Provide details' })).toBeNull();
+  expect(
+    screen.getByRole('button', { name: /^Keep original for/ }),
+  ).toBeVisible();
+  fireEvent.click(details);
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Provide details' }),
+  );
+  const detail = screen.getByRole('textbox', { name: 'Your factual detail' });
+  fireEvent.change(detail, { target: { value: 'Synthetic unsaved detail' } });
+  fireEvent.click(details);
+  expect(details).toHaveAttribute('aria-expanded', 'false');
+  fireEvent.click(details);
+  expect(
+    screen.getByRole('textbox', { name: 'Your factual detail' }),
+  ).toHaveValue('Synthetic unsaved detail');
+  fireEvent.click(details);
   expect(
     screen.getByRole('region', { name: 'Review progress' }),
-  ).toHaveTextContent(/suggestions decided/);
+  ).toHaveTextContent('wording suggestions decided');
   expect(screen.getByText(/Pinned source/)).toHaveTextContent(
     draft.document.pins.sourceRevisionId.slice(0, 8),
   );
@@ -146,24 +194,73 @@ test('resume bypasses completed source work, preserves draft pins and explains e
   expect(fetch.mock.calls.some(([url]) => url.endsWith('/sources'))).toBe(
     false,
   );
-});
-
-test('Improve CV advice stays separate from the Tailored CV tab', async () => {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async () => Response.json(null)),
-  );
-  render(
-    <MemoryRouter>
-      <CvMatchPanel jobId={draftJobId} revision="1" view="improve" />
-    </MemoryRouter>,
-  );
-  // Tailored CV is a workspace tab now; the advice panel no longer links to it.
-  expect(screen.queryByRole('link', { name: /tailored CV$/ })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  await closeSuccess();
+  const proceed = await screen.findByRole('button', {
+    name: 'Continue to Approve & Export',
+  });
   expect(
-    await screen.findByRole('region', { name: 'Improve your CV' }),
+    screen.getByRole('tab', { name: /Tailor & Review.*Current/ }),
+  ).not.toHaveTextContent('Complete');
+  expect(
+    screen.getByRole('tab', { name: /Approve & Export.*Ready/ }),
+  ).toBeEnabled();
+  fireEvent.click(proceed);
+  expect(
+    screen.getByRole('tab', { name: /Source CV.*Complete/ }),
   ).toBeVisible();
   expect(
-    screen.queryByRole('button', { name: 'Review source CV' }),
-  ).not.toBeInTheDocument();
+    screen.getByRole('tab', { name: /Tailor & Review.*Complete.*Draft saved/ }),
+  ).toBeVisible();
+  expect(
+    screen.getByRole('tab', {
+      name: /Approve & Export.*Current.*Needs approval/,
+    }),
+  ).toHaveAttribute('aria-current', 'step');
+  expect(screen.getByRole('button', { name: 'Download PDF' })).toBeDisabled();
+  expect(
+    screen.getByRole('button', { name: 'Approve saved draft' }),
+  ).toBeDisabled();
+  const preview = screen.getByRole('region', { name: 'Final preview' });
+  const confirm = screen.getByRole('checkbox', {
+    name: /I reviewed the complete saved CV/,
+  });
+  const reviewInstruction = screen.getByText(
+    'Review the complete CV below, then confirm and approve it at the bottom.',
+  );
+  const approve = screen.getByRole('button', { name: 'Approve saved draft' });
+  const pdf = screen.getByRole('button', { name: 'Download PDF' });
+  const ordered = [
+    screen.getByRole('region', { name: 'Current draft' }),
+    screen.getByRole('combobox', { name: 'CV template' }),
+    reviewInstruction,
+    within(preview).getByText('Assisted a team prototype only.'),
+    confirm,
+    approve,
+    pdf,
+  ];
+  ordered.slice(1).forEach((element, index) => {
+    expect(
+      ordered[index]!.compareDocumentPosition(element) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+  expect(screen.queryByRole('status', { name: 'Next step' })).toBeNull();
+  expect(screen.queryByText('To approve:')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Download DOCX' })).toBeDisabled();
+  fireEvent.click(
+    screen.getByRole('checkbox', { name: /I reviewed the complete saved CV/ }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Approve saved draft' }));
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Download PDF' })).toBeEnabled(),
+  );
+  expect(
+    preview.compareDocumentPosition(pdf) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  expect(
+    screen.queryByRole('button', { name: 'Approve saved draft' }),
+  ).toBeNull();
+  expect(reviewInstruction).not.toBeInTheDocument();
+  expect(screen.getAllByRole('tab', { name: /Complete/ })).toHaveLength(3);
 });

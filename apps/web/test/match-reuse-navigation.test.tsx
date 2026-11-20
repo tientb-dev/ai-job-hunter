@@ -39,11 +39,13 @@ function setup(
   } = {},
 ) {
   const draft = tailoredDraftFixture();
-  if (options.approved)
+  if (options.approved) {
+    draft.document.review.factReviews.description!.proposal = 'rejected';
     draft.document.review.approval = {
       revision: draft.revision,
       approvedAt: draft.updatedAt,
     };
+  }
   const drafts = options.drafts ?? (options.draft ? [draft] : []);
   let releaseInitial!: () => void;
   const initialWait = new Promise<void>((resolve) => {
@@ -141,6 +143,12 @@ function setup(
         matchValidForMs: ready ? 900000 : 0,
       });
     }
+    if (url.endsWith(`/jobs/${draftJobId}/drafts`) && init?.method === 'POST') {
+      const generated = tailoredDraftFixture();
+      generated.id = '00000000-0000-4000-8000-000000000099';
+      drafts.unshift(generated);
+      return Response.json(generated);
+    }
     if (url.endsWith('/drafts/list'))
       return Response.json({
         items: drafts.map((row) => ({
@@ -164,18 +172,11 @@ function setup(
   vi.stubGlobal('fetch', fetch);
   function Job() {
     const { id } = useParams();
-    const [view, setView] = useState<'match' | 'improve'>('match');
     return (
       <>
-        <button onClick={() => setView('improve')}>Improve CV tab</button>
         {/* Stand-in for the workspace Tailored CV tab link. */}
         <Link to={`/jobs/${id}/tailored-cv`}>Continue tailored CV</Link>
-        <CvMatchPanel
-          jobId={id!}
-          revision="1"
-          jobUpdatedAt={draft.updatedAt}
-          view={view}
-        />
+        <CvMatchPanel jobId={id!} revision="1" jobUpdatedAt={draft.updatedAt} />
       </>
     );
   }
@@ -197,7 +198,6 @@ function setup(
           jobId={id!}
           revision={draft.updatedAt}
           jobUpdatedAt={draft.updatedAt}
-          view="improve"
           wizard
           onReviewDirtyChange={setDirty}
         />
@@ -258,8 +258,13 @@ test('reviewed source and authoritative valid match enter Step 3 without analysi
     screen.getByText(/Saved match.*No new analysis is needed/),
   ).toBeEnabled();
   expect(
-    screen.getByRole('tab', { name: /Approve & Export.*Unavailable/ }),
+    screen.getByRole('tab', { name: /Approve & Export.*Locked/ }),
   ).toBeDisabled();
+  fireEvent.click(screen.getByRole('tab', { name: /Source CV/ }));
+  expect(screen.getByRole('button', { name: 'Upload new CV' })).toHaveClass(
+    'MuiButton-outlined',
+    'MuiButton-sizeMedium',
+  );
 });
 
 test.each(['MISSING', 'EXPIRED', 'STALE_CV', 'STALE_JOB'])(
@@ -289,7 +294,6 @@ test('Job Detail analysis is reused by wizard and wizard analysis is reflected o
   );
   fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
   await screen.findByText(/Saved match.*No new analysis is needed/);
-  fireEvent.click(screen.getByRole('button', { name: 'Improve CV tab' }));
   fireEvent.click(screen.getByRole('link', { name: /tailored CV$/ }));
   await screen.findByRole('heading', { name: 'Step 2 of 3 · Tailor & Review' });
   expect(state.analyses()).toBe(1);
@@ -499,7 +503,6 @@ test('manual step selection during automatic draft loading is not overridden by 
 
 test('approved current draft opens Approve & Export from Job Detail; review stays one step back', async () => {
   setup({ draft: true, approved: true, start: `/jobs/${draftJobId}` });
-  fireEvent.click(screen.getByRole('button', { name: 'Improve CV tab' }));
   fireEvent.click(screen.getByRole('link', { name: /tailored CV$/ }));
   await screen.findByRole('heading', {
     name: 'Step 3 of 3 · Approve & Export',
@@ -507,6 +510,7 @@ test('approved current draft opens Approve & Export from Job Detail; review stay
   expect(
     await screen.findByRole('button', { name: 'Download PDF' }),
   ).toBeEnabled();
+  expect(screen.getAllByRole('tab', { name: /Complete/ })).toHaveLength(3);
   // A current draft shows no older-job-snapshot warning.
   expect(screen.queryByText(/older saved job snapshot/)).toBeNull();
   fireEvent.click(screen.getByRole('tab', { name: /Tailor & Review/ }));
@@ -695,8 +699,7 @@ test('returning from Job Detail restores the saved draft without analysis', asyn
   const state = setup({ draft: true, status: 'EXPIRED' });
   await screen.findByRole('heading', { name: 'Step 2 of 3 · Tailor & Review' });
   fireEvent.click(screen.getByRole('link', { name: /Back to job/ }));
-  await screen.findByRole('button', { name: 'Improve CV tab' });
-  fireEvent.click(screen.getByRole('button', { name: 'Improve CV tab' }));
+  await screen.findByRole('link', { name: /tailored CV$/ });
   fireEvent.click(screen.getByRole('link', { name: /tailored CV$/ }));
   await screen.findByRole('heading', { name: 'Step 2 of 3 · Tailor & Review' });
   // The merged step's match gate shows the match is not current.
@@ -718,9 +721,6 @@ test('focus revalidation keeps saved workspace and completion labels stable whil
   });
   await screen.findByRole('tab', { name: /Source CV.*Complete/ });
   await screen.findByText(/Saved match.*No new analysis is needed/);
-  fireEvent.click(screen.getByText('Generate a new draft instead'));
-  const generate = screen.getByRole('button', { name: 'Generate new draft' });
-  await waitFor(() => expect(generate).toBeEnabled());
   const lists = () =>
     state.fetch.mock.calls.filter(([url]) => url.endsWith('/drafts/list'))
       .length;
@@ -745,6 +745,10 @@ test('focus revalidation keeps saved workspace and completion labels stable whil
   expect(
     screen.getAllByText('Assisted a team prototype only.')[0],
   ).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'New draft' }));
+  const generate = within(
+    screen.getByRole('dialog', { name: 'New draft' }),
+  ).getByRole('button', { name: 'Generate new draft' });
   // Same-context revalidation keeps the last valid readiness: no disabled
   // flash. The server still rejects stale pins at generation.
   expect(generate).toBeEnabled();
@@ -752,6 +756,55 @@ test('focus revalidation keeps saved workspace and completion labels stable whil
   await waitFor(() => expect(generate).toBeEnabled());
   expect(lists()).toBe(listBefore);
   expect(state.analyses()).toBe(0);
+});
+
+test('new draft requires confirmation and keeps the previous draft and decisions', async () => {
+  const previous = tailoredDraftFixture();
+  previous.document.review.factReviews.description!.proposal = 'rejected';
+  const state = setup({ drafts: [previous] });
+  const user = userEvent.setup();
+  const requests = () =>
+    state.fetch.mock.calls.filter(
+      ([url, init]) =>
+        url.endsWith(`/jobs/${draftJobId}/drafts`) && init?.method === 'POST',
+    );
+  await screen.findByRole('heading', { name: 'Step 2 of 3 · Tailor & Review' });
+  const header = screen.getByRole('region', { name: 'Current draft' });
+  const newDraft = within(header).getByRole('button', { name: 'New draft' });
+  await user.click(newDraft);
+  const dialog = screen.getByRole('dialog', { name: 'New draft' });
+  expect(dialog).toHaveTextContent(
+    /AI will create a separate draft.*saved CV Match.*review decisions stay intact/,
+  );
+  expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus();
+  await user.keyboard('{Escape}');
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  expect(requests()).toHaveLength(0);
+  expect(state.analyses()).toBe(0);
+  await user.click(newDraft);
+  await user.click(
+    within(screen.getByRole('dialog', { name: 'New draft' })).getByRole(
+      'button',
+      { name: 'Generate new draft' },
+    ),
+  );
+  await closeSuccess();
+  expect(requests()).toHaveLength(1);
+  expect(JSON.parse(requests()[0]![1]!.body as string)).toMatchObject({
+    matchId: '00000000-0000-4000-8000-000000000090',
+    profileRevisionId: previous.document.pins.profileRevisionId,
+  });
+  expect(state.analyses()).toBe(0);
+  expect(within(header).getByText('Draft 2 of 2')).toBeVisible();
+  fireEvent.click(within(header).getByText('Switch draft (2)'));
+  fireEvent.click(
+    within(header).getByRole('button', { name: /^Draft 1 .*version/ }),
+  );
+  await closeSuccess();
+  expect(within(header).getByText('Draft 1 of 2')).toBeVisible();
+  expect(
+    screen.getByRole('region', { name: 'Review progress' }),
+  ).toHaveTextContent('1 of 1 wording suggestions decided');
 });
 
 test('resolving the entry step does not reload the draft over early edits', async () => {
@@ -815,10 +868,11 @@ test.each(['EXPIRED', 'MISSING', 'STALE_CV', 'STALE_JOB'])(
     expect(
       screen.getByRole('heading', { name: 'Step 2 of 3 · Tailor & Review' }),
     ).toBeVisible();
-    fireEvent.click(screen.getByText('Generate a new draft instead'));
+    fireEvent.click(screen.getByRole('button', { name: 'New draft' }));
     expect(
       screen.getByRole('button', { name: 'Generate new draft' }),
     ).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(
       screen.getAllByText('Assisted a team prototype only.')[0],
     ).toBeVisible();
@@ -839,7 +893,7 @@ test('failed background checks retain the draft, report the error and block gene
   expect(
     screen.getByRole('heading', { name: 'Step 2 of 3 · Tailor & Review' }),
   ).toBeVisible();
-  fireEvent.click(screen.getByText('Generate a new draft instead'));
+  fireEvent.click(screen.getByRole('button', { name: 'New draft' }));
   expect(
     screen.getByRole('button', { name: 'Generate new draft' }),
   ).toBeDisabled();
@@ -868,7 +922,7 @@ test('an earlier draft does not skip an incomplete source review for the current
   expect(state.analyses()).toBe(0);
   expect(
     screen.getByRole('tab', { name: /Tailor & Review/ }),
-  ).toHaveTextContent('Earlier draft available');
+  ).toHaveTextContent('Ready');
   fireEvent.click(screen.getByRole('tab', { name: /Tailor & Review/ }));
   await screen.findByRole('heading', { name: 'Step 2 of 3 · Tailor & Review' });
   expect(
@@ -910,18 +964,12 @@ test('Step 2 leads with the open draft: compact match row, then draft, then the 
     within(summary).getByRole('button', { name: 'Reanalyze CV Match' }),
   ).toHaveClass('MuiButton-outlined');
   expect(screen.queryByText(/Tailoring uses the saved CV Match/)).toBeNull();
-  // The open draft comes before the option to generate another one.
   const draft = await screen.findByRole('region', { name: 'Current draft' });
-  const generate = screen
-    .getByText('Generate a new draft instead')
-    .closest('details')!;
-  expect(
-    draft.compareDocumentPosition(generate) & Node.DOCUMENT_POSITION_FOLLOWING,
-  ).toBeTruthy();
-  expect(generate).not.toHaveAttribute('open');
-  expect(generate).toHaveTextContent(
-    /open draft and its decisions stay unchanged/,
+  expect(within(draft).getByRole('button', { name: 'New draft' })).toHaveClass(
+    'MuiButton-outlined',
   );
+  expect(screen.queryByRole('dialog', { name: 'New draft' })).toBeNull();
+  expect(screen.queryByText('Generate a new draft instead')).toBeNull();
   // Approval state is on the draft card, not repeated in the progress card,
   // and the duplicate Next banner is not shown.
   expect(within(draft).getByText('Not approved')).toBeVisible();

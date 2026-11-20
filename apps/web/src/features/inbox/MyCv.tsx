@@ -1,14 +1,15 @@
 import { dateLocale, tr } from '../../app/i18n';
 import {
-  AddIcon,
   ArrowForwardIcon,
   CheckIcon,
   DeleteIcon,
   DescriptionIcon,
   DownloadIcon,
   EditIcon,
+  UploadIcon,
   RefreshIcon,
   StarIcon,
+  VisibilityIcon,
 } from '../../components/icons';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { useNotify } from '../../components/useNotify';
@@ -235,7 +236,7 @@ export function MyCv() {
         actions={
           loaded && (
             <Button
-              startIcon={<AddIcon />}
+              startIcon={<UploadIcon />}
               component="label"
               variant="contained"
               disabled={locked || full}
@@ -508,6 +509,7 @@ export function MyCv() {
                     }}
                     component={Link}
                     to={`/cv/${cv.id}/review`}
+                    startIcon={<VisibilityIcon />}
                   >
                     {tr('Review CV')}
                   </Button>

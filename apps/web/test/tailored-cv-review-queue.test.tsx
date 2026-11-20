@@ -120,6 +120,7 @@ test('each decision offers the next undecided suggestion, then save unlocks Cont
   const cont = await screen.findByRole('button', {
     name: 'Continue to Approve & Export',
   });
+  expect(bar).toHaveTextContent('Draft saved');
   await waitFor(() => expect(cont).toHaveFocus());
   fireEvent.click(cont);
   expect(onContinue).toHaveBeenCalledOnce();

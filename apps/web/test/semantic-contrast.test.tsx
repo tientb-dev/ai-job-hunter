@@ -1,4 +1,4 @@
-import { Alert, Chip, ThemeProvider, createTheme } from '@mui/material';
+import { Alert, Button, Chip, ThemeProvider, createTheme } from '@mui/material';
 import { expect, test, vi } from 'vitest';
 import { render, screen } from './render';
 import { theme } from '../src/app/theme';
@@ -106,4 +106,52 @@ test('server-unreachable warning keeps normal-text contrast', async () => {
   expect(contrast(styles.color, styles.backgroundColor)).toBeGreaterThanOrEqual(
     4.5,
   );
+});
+
+test('blue secondary buttons contrast with white cards and keep neutral actions distinct', () => {
+  render(
+    <ThemeProvider theme={theme}>
+      <Button variant="outlined" color="secondary">
+        Secondary action
+      </Button>
+      <Button variant="outlined" color="secondary" disabled>
+        Unavailable action
+      </Button>
+      <Button variant="outlined">Neutral action</Button>
+      <Button variant="outlined" color="error">
+        Destructive action
+      </Button>
+    </ThemeProvider>,
+  );
+  const styles = (name: string) =>
+    getComputedStyle(screen.getByRole('button', { name }));
+  const secondary = styles('Secondary action');
+  expect(
+    contrast(secondary.color, secondary.backgroundColor),
+  ).toBeGreaterThanOrEqual(4.5);
+  expect(
+    contrast(secondary.borderTopColor, 'rgb(255, 255, 255)'),
+  ).toBeGreaterThanOrEqual(3);
+  expect(
+    contrast(secondary.borderTopColor, secondary.backgroundColor),
+  ).toBeGreaterThanOrEqual(3);
+  const disabled = styles('Unavailable action');
+  expect(disabled.color).not.toBe(secondary.color);
+  expect(
+    contrast(disabled.color, disabled.backgroundColor),
+  ).toBeGreaterThanOrEqual(4.5);
+  for (const name of ['Neutral action', 'Destructive action']) {
+    const neutral = styles(name);
+    expect(neutral.backgroundColor).toBe('rgb(255, 255, 255)');
+    expect(neutral.borderTopColor).not.toBe(secondary.borderTopColor);
+    for (const surface of [
+      'rgb(255, 255, 255)',
+      'rgb(245, 248, 255)',
+      'rgb(239, 244, 255)',
+    ]) {
+      expect(contrast(neutral.borderTopColor, surface)).toBeGreaterThanOrEqual(
+        3,
+      );
+    }
+  }
 });

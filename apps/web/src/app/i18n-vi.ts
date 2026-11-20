@@ -624,6 +624,19 @@ export const VI_TEXT: Record<string, string> = {
     'Tổng nguồn vượt giới hạn dán. Dữ liệu hiện có không thay đổi; hãy dán thủ công phần JD liên quan.',
   Company: 'Công ty',
   Complete: 'Hoàn tất',
+  'Checking…': 'Đang kiểm tra…',
+  Locked: 'Chưa mở khóa',
+  Ready: 'Sẵn sàng',
+  'Review the complete CV below, then confirm and approve it at the bottom.':
+    'Xem toàn bộ CV bên dưới, sau đó xác nhận và duyệt ở cuối bản xem trước.',
+  'Add factual details': 'Bổ sung thông tin thực tế',
+  'Add details you can confirm from your own experience.':
+    'Bổ sung những chi tiết bạn có thể xác nhận từ kinh nghiệm của mình.',
+  'wording suggestions decided': 'gợi ý chỉnh câu chữ đã xử lý',
+  'Accept a rewrite or keep your original wording.':
+    'Chấp nhận bản viết lại hoặc giữ nguyên câu chữ của bạn.',
+  'Draft saved': 'Đã lưu bản nháp',
+  'Open Tailored CV': 'Mở CV tùy chỉnh',
   'Complete review': 'Hoàn tất rà soát',
   'Component coverage: {requirement}': 'Mức bao phủ thành phần: {requirement}',
   'Configured weight:': 'Trọng số cấu hình:',
@@ -964,7 +977,12 @@ export const VI_TEXT: Record<string, string> = {
   'Generate 5–8 technical questions grounded in this job description. The AI usually takes under 30 seconds.':
     'Tạo 5–8 câu hỏi kỹ thuật dựa trên mô tả công việc này. AI thường mất dưới 30 giây.',
   'Generate a new draft': 'Tạo bản nháp mới',
-  'Generate a new draft instead': 'Tạo bản nháp mới thay thế',
+  'New draft': 'Bản nháp mới',
+  'Choose New draft in the draft header to use the saved source review.':
+    'Chọn Bản nháp mới ở đầu bản nháp để dùng bản rà soát CV gốc đã lưu.',
+  Optional: 'Không bắt buộc',
+  'AI will create a separate draft using your saved CV review and saved CV Match. Your current draft and review decisions stay intact.':
+    'AI sẽ tạo một bản nháp riêng dựa trên bản rà soát CV và kết quả đối chiếu CV đã lưu. Bản nháp hiện tại và các quyết định rà soát của bạn được giữ nguyên.',
   'Generate a new question set?': 'Tạo bộ câu hỏi mới?',
   'Generate a tailored draft from your reviewed CV.':
     'Tạo bản nháp tùy chỉnh từ CV đã rà soát của bạn.',
@@ -2798,8 +2816,8 @@ export const VI_TEXT: Record<string, string> = {
   'Open Evidence Review for requirement-specific CV guidance.':
     'Mở Rà soát bằng chứng để xem gợi ý cho từng yêu cầu.',
   'View Evidence Review': 'Xem Rà soát bằng chứng',
-  'Some evidence in the saved assessment needs review.':
-    'Một số bằng chứng trong đánh giá đã lưu cần được xem lại.',
+  'Some evidence passages could not be verified. Open individual requirements to see available evidence and verification details.':
+    'Không thể xác minh một số đoạn minh chứng. Mở từng yêu cầu để xem minh chứng hiện có và chi tiết xác minh.',
   'Evidence Review is available. Tailored CV uses a current saved assessment.':
     'Bạn có thể rà soát bằng chứng. CV điều chỉnh sử dụng đánh giá đã lưu còn hiệu lực.',
   'Relevant documented context': 'Nội dung liên quan được ghi trong CV',

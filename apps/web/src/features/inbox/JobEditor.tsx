@@ -177,7 +177,6 @@ function workspaceTabs({
     },
     // Last, so existing tab and panel indices stay stable.
     { label: 'Interview', value: 'interview', badge: null },
-    { label: 'Review & Improve CV', value: 'improve', badge: null },
   ] as const;
 }
 const latestContactDate = (dates: string[]) =>
@@ -190,13 +189,12 @@ const workspaceViews = [
   'application',
   'interview',
   'edit',
-  'improve',
 ] as const;
 type WorkspaceView = (typeof workspaceViews)[number];
 // Pre-workspace links used ?tab=.
 const legacyTabs: Record<string, WorkspaceView> = {
   match: 'match',
-  improve: 'improve',
+  improve: 'tailored-cv',
   application: 'application',
 };
 
@@ -212,13 +210,15 @@ export function JobEditor() {
     id && (workspaceViews as readonly string[]).includes(segment)
       ? (segment as WorkspaceView)
       : 'overview';
-  const legacyTab = new URLSearchParams(location.search).get('tab');
+  const legacyTab =
+    segment === 'improve'
+      ? 'improve'
+      : new URLSearchParams(location.search).get('tab');
   const setView = (next: WorkspaceView) => {
     if (next !== view) navigate(next === 'overview' ? base : `${base}/${next}`);
   };
   const [savedRevision, setSavedRevision] = useState(0);
   const [savedJobUpdatedAt, setSavedJobUpdatedAt] = useState('');
-  const [sourceCvDirty, setSourceCvDirty] = useState(false);
   const [tailoredDirty, setTailoredDirty] = useState(false);
   const [summary, setSummary] = useState<MatchPanelSummary | null>(null);
   // Re-read draft and source state each time Overview is shown.
@@ -1396,7 +1396,6 @@ export function JobEditor() {
         form="job-editor-form"
         variant="contained"
         disabled={disabled || conflicts.length > 0}
-        sx={id ? { minHeight: { xs: 44, sm: 36 } } : undefined}
       >
         {busy
           ? tr('Saving…')
@@ -1419,8 +1418,8 @@ export function JobEditor() {
         />
       )}
       <UnsavedJobGuard
-        dirty={dirty || sourceCvDirty}
-        sourceCvDirty={sourceCvDirty || reviewDirty}
+        dirty={dirty}
+        sourceCvDirty={reviewDirty}
         savedNavigation={savedNavigation}
         allowPath={(path) =>
           // Sections share one mounted editor; only the Tailored CV review
@@ -1479,8 +1478,8 @@ export function JobEditor() {
               component={Link}
               to="/jobs"
               variant="outlined"
-              startIcon={<ArrowBackIcon sx={{ fontSize: 20 }} />}
-              sx={{ alignSelf: 'flex-start', minHeight: { xs: 44, sm: 36 } }}
+              startIcon={<ArrowBackIcon />}
+              sx={{ alignSelf: 'flex-start' }}
             >
               {tr('Back to Jobs')}
             </Button>
@@ -1721,17 +1720,14 @@ export function JobEditor() {
                 startIcon={<EditIcon />}
                 component={Link}
                 to={`${base}/edit`}
-                size="small"
                 variant="outlined"
                 aria-current={view === 'edit' ? 'page' : undefined}
                 sx={{
                   flexShrink: 0,
-                  minHeight: 36,
                   alignSelf: { xs: 'flex-end', sm: 'center' },
                   // One primary per view: Save stays the only filled button.
                   '&[aria-current="page"]': {
                     bgcolor: 'action.selected',
-                    fontWeight: 600,
                   },
                 }}
               >
@@ -1919,21 +1915,13 @@ export function JobEditor() {
               jobId={id}
               revision={`${savedRevision}:${JSON.stringify(form)}`}
               jobUpdatedAt={savedJobUpdatedAt}
-              jobDirty={dirty}
-              onReviewDirtyChange={setSourceCvDirty}
-              view={view === 'match' || view === 'improve' ? view : 'hidden'}
+              view={view === 'match' ? 'match' : 'hidden'}
               onSummary={setSummary}
               summaryRefresh={overviewVisits}
-              onGoToImprove={() => {
-                setView('improve');
+              onGoToTailored={() => {
+                setView('tailored-cv');
                 document
-                  .getElementById('job-tab-5')
-                  ?.focus({ preventScroll: true });
-              }}
-              onGoToMatch={() => {
-                setView('match');
-                document
-                  .getElementById('job-tab-1')
+                  .getElementById('job-tab-2')
                   ?.focus({ preventScroll: true });
               }}
             />
@@ -1952,7 +1940,6 @@ export function JobEditor() {
                   jobId={id}
                   revision={savedJobUpdatedAt}
                   jobUpdatedAt={savedJobUpdatedAt}
-                  view="improve"
                   wizard
                   onReviewDirtyChange={setTailoredDirty}
                 />

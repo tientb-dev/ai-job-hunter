@@ -269,7 +269,6 @@ export function DiscoveryCandidateReview({
             flexWrap: 'wrap',
             gap: 1,
             p: 2,
-            '& .MuiButton-root': { minHeight: { xs: 44, sm: 36 } },
           }}
         >
           <Button disabled={busy} onClick={onClose}>

@@ -1,6 +1,6 @@
 import { ThemeProvider } from '@mui/material';
 import { expect, test, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from './render';
+import { fireEvent, render, screen, waitFor, within } from './render';
 import { theme } from '../src/app/theme';
 import { TailoredCvReview } from '../src/features/inbox/TailoredCvReview';
 import { draftJobId, tailoredDraftFixture } from './fixtures/tailored-cv';
@@ -58,11 +58,15 @@ test('a draft built from an earlier CV review shows a non-blocking notice with a
   expect(notice).toHaveTextContent(
     'This draft uses an earlier review of your CV. Generate a new draft to include your latest corrections.',
   );
-  const section = document.getElementById('generate-new-draft')!;
-  expect(section).not.toHaveAttribute('open');
-  fireEvent.click(screen.getByRole('button', { name: 'Generate a new draft' }));
-  await waitFor(() => expect(section).toHaveAttribute('open'));
-  // The old draft stays open and reviewable.
+  expect(screen.queryByRole('dialog')).toBeNull();
+  const header = screen.getByRole('region', { name: 'Current draft' });
+  fireEvent.click(within(header).getByRole('button', { name: 'New draft' }));
+  const dialog = await screen.findByRole('dialog', { name: 'New draft' });
+  expect(
+    within(dialog).getByRole('button', { name: 'Generate new draft' }),
+  ).toBeDisabled();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   expect(screen.getByText(/suggestions decided/)).toBeVisible();
 });
 

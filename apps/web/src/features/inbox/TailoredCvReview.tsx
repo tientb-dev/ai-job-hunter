@@ -1,9 +1,12 @@
 import { dateLocale, tr } from '../../app/i18n';
 import {
+  ArrowBackIcon,
   ArrowForwardIcon,
   AutoAwesomeIcon,
   CheckIcon,
   DownloadIcon,
+  EditIcon,
+  ExpandMoreIcon,
   RefreshIcon,
   SaveIcon,
 } from '../../components/icons';
@@ -39,6 +42,9 @@ import {
   type Ref,
 } from 'react';
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -168,7 +174,8 @@ export function TailoredCvReview({
   const [listFailed, setListFailed] = useState(false);
   const [opening, setOpening] = useState<string | null>(null);
   // null: follow the default (open right after Source CV Review).
-  const [generateOpen, setGenerateOpen] = useState<boolean | null>(null);
+  const [generateOpen, setGenerateOpen] = useState(false);
+  const generateCancel = useRef<HTMLButtonElement>(null);
   const [generatedAfterSource, setGeneratedAfterSource] = useState(false);
   const sourceJustSaved = continued && !generatedAfterSource;
   const [cvOpen, setCvOpen] = useState(false);
@@ -621,6 +628,89 @@ export function TailoredCvReview({
       ))}
     </TextField>
   );
+  const finalPreview = wizardStep === 3 && document && (
+    <Stack
+      component="section"
+      spacing={1}
+      aria-labelledby="final-preview-title"
+    >
+      <Typography id="final-preview-title" variant="h6" component="h3">
+        {tr('Final preview')}
+      </Typography>
+      {approvedUnchanged ? (
+        <>
+          {pdfError && (
+            <Alert
+              severity="error"
+              action={
+                <Button
+                  color="inherit"
+                  size="small"
+                  onClick={() => setPdfAttempt((n) => n + 1)}
+                >
+                  {tr('Retry')}
+                </Button>
+              }
+            >
+              {pdfError}
+            </Alert>
+          )}
+          <Box
+            aria-busy={pdfLoading}
+            sx={{
+              position: 'relative',
+              height: { xs: '70vh', sm: '85vh' },
+              border: 1,
+              borderColor: 'divider',
+              borderRadius: 1,
+              bgcolor: '#ffffff',
+              overflow: 'hidden',
+            }}
+          >
+            {pdfLoading && (
+              <LinearProgress
+                aria-label={tr('Generating PDF preview')}
+                sx={{
+                  position: 'absolute',
+                  inset: '0 0 auto',
+                  zIndex: 1,
+                }}
+              />
+            )}
+            {pdfUrl && (
+              <Box
+                component="iframe"
+                title={tr('PDF preview')}
+                src={pdfUrl}
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  border: 0,
+                  display: 'block',
+                  opacity: pdfLoading ? 0.6 : 1,
+                  transition: 'opacity 150ms',
+                }}
+              />
+            )}
+          </Box>
+          {pdfUrl && (
+            <Link href={pdfUrl} target="_blank" rel="noopener">
+              {tr('Open the PDF in a new tab')}
+            </Link>
+          )}
+        </>
+      ) : (
+        <>
+          <Typography variant="body2" color="text.secondary">
+            {tr(
+              'Review the complete CV below, then confirm and approve it at the bottom.',
+            )}
+          </Typography>
+          <TailoredCvPreview document={document} template={template} />
+        </>
+      )}
+    </Stack>
+  );
   const approvalReady =
     !!saved &&
     !dirty &&
@@ -746,6 +836,14 @@ export function TailoredCvReview({
   const decisionHint = tr(
     'Every suggestion needs a decision, but you do not have to accept any. “Keep original” is a complete decision that keeps your CV wording unchanged.',
   );
+  const decisionCount = `${decided} ${tr('of')} ${proposalCards.length} ${tr('decided')}`;
+  const reviewActionStatus = dirty
+    ? decisionCount + tr(' · unsaved changes')
+    : approvedUnchanged
+      ? tr('Approved')
+      : approvalReady
+        ? tr('Draft saved')
+        : decisionCount;
   const approvalSteps = [
     ...(pending > 0
       ? [
@@ -1013,6 +1111,7 @@ export function TailoredCvReview({
         <Button
           size="small"
           disabled={blocked}
+          startIcon={<EditIcon />}
           aria-label={tr('Edit wording for {where}', { where: where })}
           onClick={() => setContextEdit(fact.id)}
         >
@@ -1270,6 +1369,7 @@ export function TailoredCvReview({
       <Button
         size="small"
         variant="outlined"
+        startIcon={<ArrowBackIcon />}
         aria-label={tr('Previous suggestion')}
         onClick={() => step(-1)}
       >
@@ -1278,6 +1378,7 @@ export function TailoredCvReview({
       <Button
         size="small"
         variant="outlined"
+        endIcon={<ArrowForwardIcon />}
         aria-label={tr('Next suggestion')}
         onClick={() => step(1)}
       >
@@ -1356,6 +1457,7 @@ export function TailoredCvReview({
             </Typography>
             <Button
               size="small"
+              startIcon={<ArrowBackIcon />}
               aria-label={tr('Previous suggestion')}
               onClick={() => step(-1)}
             >
@@ -1363,6 +1465,7 @@ export function TailoredCvReview({
             </Button>
             <Button
               size="small"
+              endIcon={<ArrowForwardIcon />}
               aria-label={tr('Next suggestion')}
               onClick={() => step(1)}
             >
@@ -1497,18 +1600,10 @@ export function TailoredCvReview({
         />
         <Box>
           <Button
-            variant={
-              isWizard &&
-              !dirty &&
-              reviewed &&
-              pending === 0 &&
-              !issuesRemaining &&
-              openPlaceholders === 0
-                ? 'contained'
-                : 'outlined'
-            }
+            startIcon={<CheckIcon />}
+            variant={isWizard ? 'contained' : 'outlined'}
             aria-describedby={
-              approvalSteps.length ? 'approve-needs' : undefined
+              !isWizard && approvalSteps.length ? 'approve-needs' : undefined
             }
             disabled={
               blocked ||
@@ -1524,7 +1619,7 @@ export function TailoredCvReview({
             {tr('Approve saved draft')}
           </Button>
         </Box>
-        {approvalSteps.length > 0 && (
+        {!isWizard && approvalSteps.length > 0 && (
           <Alert
             id="approve-needs"
             severity="info"
@@ -1564,52 +1659,57 @@ export function TailoredCvReview({
   // match can still look current there, so its readiness message stays.
   const matchOwnedAbove =
     isWizard && !saved && server?.reason === 'CV_DRAFT_MATCH_REQUIRED';
-  const generateSection = wizardStep !== 3 && (
-    <Box
-      component={isWizard && saved ? 'details' : 'div'}
-      id="generate-new-draft"
-      // Space the readiness alert, actions and messages (they touched).
-      // Margins, not flex gap: <details> content ignores the host's gap.
-      sx={{ '& > * + *': { mt: 1.5 } }}
-      {...(isWizard && saved
-        ? {
-            open: generateOpen ?? sourceJustSaved,
-            onToggle: (event: React.SyntheticEvent<HTMLElement>) =>
-              setGenerateOpen((event.currentTarget as HTMLDetailsElement).open),
-          }
-        : {})}
-    >
-      {isWizard && saved && (
-        <Typography component="summary">
-          {tr('Generate a new draft instead')}
-        </Typography>
-      )}
-      {isWizard && saved && (
-        <Typography variant="body2" color="text.secondary">
-          {tr(
-            'Creates a separate draft from your current CV and match. The open draft and its decisions stay unchanged.',
-          )}
-        </Typography>
-      )}
+  function generateDraft() {
+    if (!readiness.ready) return;
+    setGenerateOpen(false);
+    setGenerating(true);
+    void run(async (token) => {
+      if (!server?.ready || !server.pins) return;
+      const { sourceRevisionId: _sourceRevisionId, ...pins } = server.pins;
+      void _sourceRevisionId;
+      const value = await draftRequest(`/jobs/${jobId}/drafts`, {
+        ...pins,
+        locale: dateLocale() === 'en-US' ? 'en' : 'vi',
+      });
+      if (token === epoch.current) {
+        accept(value);
+        setGeneratedAfterSource(true);
+        setMessage(
+          tr('New draft generated and opened. Existing drafts are unchanged.'),
+        );
+      }
+    }).finally(() => setGenerating(false));
+  }
+
+  const generationFeedback = (
+    <>
       {/* In the workflow without a draft, the CV Match card above already
           explains a missing match and offers Analyze. */}
-      {!matchOwnedAbove && (
+      {!matchOwnedAbove && (!saved || !isWizard || !readiness.ready) && (
         <Alert severity={readiness.ready ? 'success' : 'info'} role="status">
           {readiness.text}
         </Alert>
       )}
-      {readiness.action === 'match' && !matchOwnedAbove && (
-        <Button
-          startIcon={<RefreshIcon />}
-          variant={saved ? 'outlined' : 'contained'}
-          disabled={blocked || dirty || !onRefreshMatch}
-          onClick={onRefreshMatch}
-        >
-          {tr('Refresh CV Match')}
-        </Button>
-      )}
+      {readiness.action === 'match' &&
+        !matchOwnedAbove &&
+        !(isWizard && saved) && (
+          <Button
+            startIcon={<RefreshIcon />}
+            variant={saved ? 'outlined' : 'contained'}
+            disabled={blocked || dirty || !onRefreshMatch}
+            onClick={onRefreshMatch}
+          >
+            {tr('Refresh CV Match')}
+          </Button>
+        )}
       {readiness.action === 'review' && onReviewSource && (
-        <Button endIcon={<ArrowForwardIcon />} onClick={onReviewSource}>
+        <Button
+          endIcon={<ArrowForwardIcon />}
+          onClick={() => {
+            setGenerateOpen(false);
+            onReviewSource();
+          }}
+        >
           {tr('Go to Source CV Review')}
         </Button>
       )}
@@ -1634,6 +1734,11 @@ export function TailoredCvReview({
       {readiness.action === 'match' && matchRefreshError && (
         <Alert severity="error">{matchRefreshError}</Alert>
       )}
+    </>
+  );
+  const generateSection = wizardStep !== 3 && (
+    <Box sx={{ '& > * + *': { mt: 1.5 } }}>
+      {generationFeedback}
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
         {(!isWizard || listFailed) && (
           <Button
@@ -1663,41 +1768,11 @@ export function TailoredCvReview({
           disabled={!readiness.ready}
           loading={generating}
           loadingPosition="start"
-          onClick={() => {
-            setGenerating(true);
-            void run(async (token) => {
-              if (!server?.ready || !server.pins) return;
-              const { sourceRevisionId: _sourceRevisionId, ...pins } =
-                server.pins;
-              void _sourceRevisionId;
-              const value = await draftRequest(`/jobs/${jobId}/drafts`, {
-                ...pins,
-                locale: dateLocale() === 'en-US' ? 'en' : 'vi',
-              });
-              if (token === epoch.current) {
-                accept(value);
-                setGeneratedAfterSource(true);
-                setGenerateOpen(false);
-                setMessage(
-                  tr(
-                    'New draft generated and opened. Existing drafts are unchanged.',
-                  ),
-                );
-              }
-            }).finally(() => setGenerating(false));
-          }}
+          onClick={generateDraft}
         >
           {generating ? tr('Generating draft…') : tr('Generate new draft')}
         </Button>
       </Stack>
-      {generating && (
-        <Stack spacing={1} role="status" sx={{ mt: 2 }}>
-          <LinearProgress aria-label={tr('Generating draft…')} />
-          <Typography variant="body2" color="text.secondary">
-            {tr('Generating a tailored draft with the AI…')}
-          </Typography>
-        </Stack>
-      )}
     </Box>
   );
   return (
@@ -1708,7 +1783,6 @@ export function TailoredCvReview({
         mt: isWizard ? 0 : 3,
         minWidth: 0,
         overflowWrap: 'anywhere',
-        '& .MuiButton-root': { minHeight: 44 },
       }}
       aria-labelledby={isWizard ? 'wizard-step-title' : 'tailored-cv-title'}
     >
@@ -1733,9 +1807,13 @@ export function TailoredCvReview({
       {error && <Alert severity="error">{error}</Alert>}
       {sourceJustSaved && (
         <Typography role="status">
-          {tr(
-            'Check readiness below, then choose Generate new draft. Existing drafts can be loaded separately.',
-          )}
+          {saved
+            ? tr(
+                'Choose New draft in the draft header to use the saved source review.',
+              )
+            : tr(
+                'Check readiness below, then choose Generate new draft. Existing drafts can be loaded separately.',
+              )}
         </Typography>
       )}
       {!(isWizard && saved) && generateSection}
@@ -1757,6 +1835,9 @@ export function TailoredCvReview({
           }
           // Switching lives in Tailor & Review only; Approve & Export links there.
           canSwitch={wizardStep !== 3}
+          onNewDraft={
+            wizardStep === 2 && saved ? () => setGenerateOpen(true) : undefined
+          }
           onGoToSwitch={wizardStep === 3 ? onContinueDraft : undefined}
           disabled={blocked || dirty}
           dirty={dirty}
@@ -1778,54 +1859,111 @@ export function TailoredCvReview({
           }}
         />
       )}
-      {isWizard && saved && generateSection}
+      {wizardStep === 2 && saved && (
+        <Dialog
+          open={generateOpen}
+          onClose={() => setGenerateOpen(false)}
+          aria-labelledby="new-draft-title"
+          aria-describedby="new-draft-description"
+          slotProps={{
+            transition: { onEntered: () => generateCancel.current?.focus() },
+          }}
+          fullWidth
+          maxWidth="xs"
+        >
+          <DialogTitle id="new-draft-title">{tr('New draft')}</DialogTitle>
+          <DialogContent>
+            <Stack spacing={1.5}>
+              <Typography id="new-draft-description">
+                {tr(
+                  'AI will create a separate draft using your saved CV review and saved CV Match. Your current draft and review decisions stay intact.',
+                )}
+              </Typography>
+              {generationFeedback}
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button
+              ref={generateCancel}
+              autoFocus
+              onClick={() => setGenerateOpen(false)}
+            >
+              {tr('Cancel')}
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<AutoAwesomeIcon />}
+              disabled={!readiness.ready}
+              onClick={generateDraft}
+            >
+              {tr('Generate new draft')}
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
+      {generating && (
+        <Stack spacing={1} role="status" sx={{ mt: 2 }}>
+          <LinearProgress aria-label={tr('Generating draft…')} />
+          <Typography variant="body2" color="text.secondary">
+            {tr('Generating a tailored draft with the AI…')}
+          </Typography>
+        </Stack>
+      )}
       {document && saved && (
         <>
           {wizardStep !== 3 && cards.some(({ fact }) => fact.clarification) && (
-            <Stack
-              component="section"
-              spacing={1.5}
-              aria-labelledby="cv-clarifications-title"
+            <Accordion
+              defaultExpanded={!isWizard}
+              disableGutters
+              elevation={0}
+              variant="outlined"
             >
-              <Typography
+              <AccordionSummary
                 id="cv-clarifications-title"
-                variant="h6"
-                component="h3"
+                aria-controls="cv-clarifications-panel"
+                expandIcon={<ExpandMoreIcon />}
+                sx={{ minHeight: 44 }}
               >
-                {tr('Opportunities to strengthen your CV')}
-              </Typography>
-              {dirty && (
-                <Typography variant="body2">
-                  {tr(
-                    'Save your wording edits before changing a confirmed detail.',
-                  )}
+                <Typography sx={{ fontWeight: 600 }}>
+                  {tr('Add factual details')} · {tr('Optional')}
                 </Typography>
-              )}
-              {cards
-                .filter(({ fact }) => fact.clarification)
-                .map(({ fact, where, attribution }) => (
-                  <ClarificationCard
-                    key={`${saved.id}:${fact.id}`}
-                    fact={fact}
-                    where={attribution || where}
-                    requirements={document.requirements
-                      ?.filter((row) =>
-                        fact.clarification!.requirementIds.includes(row.id),
-                      )
-                      .map((row) => row.text)}
-                    original={
-                      document.review.factReviews[fact.id]!.reviewedText
-                    }
-                    disabled={blocked || dirty}
-                    wording={document.review.factReviews[fact.id]!.wording}
-                    proposalPending={
-                      document.review.factReviews[fact.id]!.proposal ===
-                      'pending'
-                    }
-                    onDecision={saveClarification}
-                  />
-                ))}
-            </Stack>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Stack spacing={1.5}>
+                  {dirty && (
+                    <Typography variant="body2">
+                      {tr(
+                        'Save your wording edits before changing a confirmed detail.',
+                      )}
+                    </Typography>
+                  )}
+                  {cards
+                    .filter(({ fact }) => fact.clarification)
+                    .map(({ fact, where, attribution }) => (
+                      <ClarificationCard
+                        key={`${saved.id}:${fact.id}`}
+                        fact={fact}
+                        where={attribution || where}
+                        requirements={document.requirements
+                          ?.filter((row) =>
+                            fact.clarification!.requirementIds.includes(row.id),
+                          )
+                          .map((row) => row.text)}
+                        original={
+                          document.review.factReviews[fact.id]!.reviewedText
+                        }
+                        disabled={blocked || dirty}
+                        wording={document.review.factReviews[fact.id]!.wording}
+                        proposalPending={
+                          document.review.factReviews[fact.id]!.proposal ===
+                          'pending'
+                        }
+                        onDecision={saveClarification}
+                      />
+                    ))}
+                </Stack>
+              </AccordionDetails>
+            </Accordion>
           )}
           {wizardStep !== 3 && (
             <Paper
@@ -1851,7 +1989,11 @@ export function TailoredCvReview({
                     {proposalCards.length ? (
                       <>
                         {decided} {tr('of')} {proposalCards.length}{' '}
-                        {tr('suggestions decided')}
+                        {tr(
+                          isWizard
+                            ? 'wording suggestions decided'
+                            : 'suggestions decided',
+                        )}
                         {pending > 0
                           ? tr(' · {pending} remaining', { pending })
                           : ''}
@@ -1887,10 +2029,13 @@ export function TailoredCvReview({
                     sx={{ height: 8, borderRadius: 4 }}
                   />
                 )}
-                <Typography variant="body2" color="text.secondary">
-                  {proposalCards.length > 0 && decisionHint}{' '}
-                  {tr('Then read the full CV, save, and approve.')}
-                </Typography>
+                {pending > 0 && (
+                  <Typography variant="body2" color="text.secondary">
+                    {isWizard
+                      ? tr('Accept a rewrite or keep your original wording.')
+                      : decisionHint}
+                  </Typography>
+                )}
                 {pending > 0 && !isWizard && (
                   <Button
                     variant="outlined"
@@ -1987,18 +2132,13 @@ export function TailoredCvReview({
                 severity="info"
                 aria-label={tr('Earlier CV review')}
                 action={
-                  isWizard ? (
+                  wizardStep === 3 ? (
                     <Button
                       startIcon={<AutoAwesomeIcon />}
                       disabled={blocked || dirty}
                       onClick={() => {
-                        if (wizardStep === 3) onContinueDraft?.();
+                        onContinueDraft?.();
                         setGenerateOpen(true);
-                        requestAnimationFrame(() =>
-                          window.document
-                            .getElementById('generate-new-draft')
-                            ?.scrollIntoView?.({ block: 'start' }),
-                        );
                       }}
                     >
                       {tr('Generate a new draft')}
@@ -2018,6 +2158,43 @@ export function TailoredCvReview({
               )}
             </Alert>
           )}
+          {wizardStep === 3 &&
+            !approvedUnchanged &&
+            (dirty ||
+              pending > 0 ||
+              issuesRemaining ||
+              openPlaceholders > 0) && (
+              <Alert
+                severity="info"
+                action={
+                  onContinueDraft && (
+                    <Button onClick={onContinueDraft}>
+                      {tr('Finish review in Tailor & Review')}
+                    </Button>
+                  )
+                }
+              >
+                {dirty
+                  ? tr('Save draft.')
+                  : pending > 0
+                    ? tr(
+                        'Approval is blocked: {pending} of {length} suggestions still need a decision in Tailor & Review. Accept or Keep original both count.',
+                        {
+                          pending,
+                          length: proposalCards.length,
+                        },
+                      )
+                    : issuesRemaining
+                      ? tr(
+                          'Finish Tailor & Review first: confirm any conflicting facts and save.',
+                        )
+                      : tr(
+                          'Replace every [placeholder] in your adopted wording with your own facts.',
+                        )}
+              </Alert>
+            )}
+          {wizardStep === 3 && templatePicker}
+          {finalPreview}
           <Paper
             variant="outlined"
             component="section"
@@ -2026,57 +2203,21 @@ export function TailoredCvReview({
             sx={{ p: { xs: 2, sm: 2.5 } }}
           >
             <Stack spacing={1.5}>
-              {approvedUnchanged ? (
-                <Alert severity="success" role="status">
-                  {tr('Revision')} {saved.revision}{' '}
-                  {tr('is approved and ready to download.')}
-                </Alert>
-              ) : (
-                <Alert
-                  severity="info"
-                  action={
-                    isWizard &&
-                    onContinueDraft &&
-                    (dirty ||
-                      pending > 0 ||
-                      issuesRemaining ||
-                      openPlaceholders > 0) ? (
-                      <Button onClick={onContinueDraft}>
-                        {tr('Finish review in Tailor & Review')}
-                      </Button>
-                    ) : undefined
-                  }
-                >
-                  {isWizard
-                    ? dirty ||
-                      pending > 0 ||
-                      issuesRemaining ||
-                      openPlaceholders > 0
-                      ? dirty
-                        ? tr(
-                            'You have unsaved review changes. They are kept: finish and save them in Tailor & Review, then approve the saved revision here.',
-                          )
-                        : pending > 0
-                          ? tr(
-                              'Approval is blocked: {pending} of {length} suggestions still need a decision in Tailor & Review. Accept or Keep original both count.',
-                              {
-                                pending: pending,
-                                length: proposalCards.length,
-                              },
-                            )
-                          : tr(
-                              'Finish Tailor & Review first: confirm any conflicting facts and save.',
-                            )
-                      : tr(
-                          'Confirm you reviewed the complete CV, then approve this revision to unlock downloads.',
-                        )
-                    : tr(
-                        'Downloads unlock after you decide every suggestion, confirm any conflicting facts, save, and approve this draft.',
-                      )}
-                </Alert>
-              )}
+              {!isWizard &&
+                (approvedUnchanged ? (
+                  <Alert severity="success" role="status">
+                    {tr('Revision')} {saved.revision}{' '}
+                    {tr('is approved and ready to download.')}
+                  </Alert>
+                ) : (
+                  <Alert severity="info">
+                    {tr(
+                      'Downloads unlock after you decide every suggestion, confirm any conflicting facts, save, and approve this draft.',
+                    )}
+                  </Alert>
+                ))}
               {isWizard && renderApproval(document, saved)}
-              {templatePicker}
+              {!isWizard && templatePicker}
               <Stack
                 direction={{ xs: 'column', sm: 'row' }}
                 spacing={1}
@@ -2087,7 +2228,9 @@ export function TailoredCvReview({
                     startIcon={<DownloadIcon />}
                     key={format}
                     variant={
-                      isWizard && format === 'docx' ? 'contained' : 'outlined'
+                      isWizard && approvedUnchanged && format === 'docx'
+                        ? 'contained'
+                        : 'outlined'
                     }
                     disabled={
                       blocked ||
@@ -2139,89 +2282,6 @@ export function TailoredCvReview({
               disabled={blocked}
               onUpdated={() => setRefresh((n) => n + 1)}
             />
-          )}
-          {wizardStep === 3 && (
-            <Stack
-              component="section"
-              spacing={1}
-              aria-labelledby="final-preview-title"
-            >
-              <Typography id="final-preview-title" variant="h6" component="h3">
-                {tr('Final preview')}
-              </Typography>
-              {approvedUnchanged ? (
-                <>
-                  {pdfError && (
-                    <Alert
-                      severity="error"
-                      action={
-                        <Button
-                          color="inherit"
-                          size="small"
-                          onClick={() => setPdfAttempt((n) => n + 1)}
-                        >
-                          {tr('Retry')}
-                        </Button>
-                      }
-                    >
-                      {pdfError}
-                    </Alert>
-                  )}
-                  <Box
-                    aria-busy={pdfLoading}
-                    sx={{
-                      position: 'relative',
-                      height: { xs: '70vh', sm: '85vh' },
-                      border: 1,
-                      borderColor: 'divider',
-                      borderRadius: 1,
-                      bgcolor: '#ffffff',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {pdfLoading && (
-                      <LinearProgress
-                        aria-label={tr('Generating PDF preview')}
-                        sx={{
-                          position: 'absolute',
-                          inset: '0 0 auto',
-                          zIndex: 1,
-                        }}
-                      />
-                    )}
-                    {pdfUrl && (
-                      <Box
-                        component="iframe"
-                        title={tr('PDF preview')}
-                        src={pdfUrl}
-                        sx={{
-                          width: '100%',
-                          height: '100%',
-                          border: 0,
-                          display: 'block',
-                          opacity: pdfLoading ? 0.6 : 1,
-                          transition: 'opacity 150ms',
-                        }}
-                      />
-                    )}
-                  </Box>
-                  {pdfUrl && (
-                    <Link href={pdfUrl} target="_blank" rel="noopener">
-                      {tr('Open the PDF in a new tab')}
-                    </Link>
-                  )}
-                </>
-              ) : (
-                <>
-                  <Alert severity="info">
-                    {tr(
-                      'Approve this revision to see the exact PDF with its page breaks. Until then this is a content preview of the selected template.',
-                    )}
-                  </Alert>
-                  <TailoredCvPreview document={document} template={template} />
-                </>
-              )}
-            </Stack>
           )}
           {!isWizard && (
             <Box
@@ -2376,9 +2436,7 @@ export function TailoredCvReview({
                             role="status"
                             sx={{ fontWeight: 600, mr: 'auto', minWidth: 0 }}
                           >
-                            {decided} {tr('of')} {proposalCards.length}{' '}
-                            {tr('decided')}
-                            {dirty ? tr(' · unsaved changes') : ''}
+                            {reviewActionStatus}
                           </Typography>
                           {pending > 0 && (
                             <>
@@ -2386,6 +2444,7 @@ export function TailoredCvReview({
                                 size="small"
                                 variant="outlined"
                                 disabled={blocked}
+                                endIcon={<ArrowForwardIcon />}
                                 onClick={() => showSuggestion(undecidedIds[0]!)}
                               >
                                 {tr('Next undecided')}
@@ -2476,9 +2535,7 @@ export function TailoredCvReview({
                           role="status"
                           sx={{ fontWeight: 600, mr: 'auto', minWidth: 0 }}
                         >
-                          {decided} {tr('of')} {proposalCards.length}{' '}
-                          {tr('decided')}
-                          {dirty ? tr(' · unsaved changes') : ''}
+                          {reviewActionStatus}
                         </Typography>
                         {pending > 0 && (
                           <>
@@ -2486,6 +2543,7 @@ export function TailoredCvReview({
                               size="small"
                               variant="outlined"
                               disabled={blocked}
+                              endIcon={<ArrowForwardIcon />}
                               onClick={() => showSuggestion(undecidedIds[0]!)}
                             >
                               {tr('Next undecided')}
@@ -2611,9 +2669,7 @@ export function TailoredCvReview({
                       role="status"
                       sx={{ fontWeight: 600, mr: 'auto', minWidth: 0 }}
                     >
-                      {decided} {tr('of')} {proposalCards.length}{' '}
-                      {tr('decided')}
-                      {dirty ? tr(' · unsaved changes') : ''}
+                      {reviewActionStatus}
                     </Typography>
                     {pending > 0 && (
                       <>
@@ -2621,6 +2677,7 @@ export function TailoredCvReview({
                           size="small"
                           variant="outlined"
                           disabled={blocked}
+                          endIcon={<ArrowForwardIcon />}
                           onClick={() => showSuggestion(undecidedIds[0]!)}
                         >
                           {tr('Next undecided')}
@@ -2723,6 +2780,13 @@ export function TailoredCvReview({
                             {section.kind}
                           </Typography>
                           <Button
+                            startIcon={
+                              editing === section.id ? (
+                                <CheckIcon />
+                              ) : (
+                                <EditIcon />
+                              )
+                            }
                             disabled={blocked}
                             onClick={() =>
                               setEditing(

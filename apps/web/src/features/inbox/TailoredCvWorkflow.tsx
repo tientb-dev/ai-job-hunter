@@ -13,7 +13,6 @@ import {
   StepButton,
   Stepper,
   Typography,
-  useMediaQuery,
 } from '@mui/material';
 import { type DraftReadiness, readinessReasons } from './tailored-cv-readiness';
 import { TailoredCvReview } from './TailoredCvReview';
@@ -53,7 +52,6 @@ export function TailoredCvWorkflow({
     match;
   const { analyze, reload } = match;
   const [step, setStep] = useState(0);
-  const wideSteps = useMediaQuery('(min-width:600px)');
   const [entryResolved, setEntryResolved] = useState(false);
   const [readinessError, setReadinessError] = useState('');
   const [checkedReadiness, setCheckedReadiness] = useState<{
@@ -201,32 +199,15 @@ export function TailoredCvWorkflow({
               : tr(
                   'Your source CV is reviewed. Continue with reviewed source to tailor it for this job.',
                 )
-            : draftLoaded
-              ? // An open draft keeps its own pins; match state only gates new drafts.
-                approved
-                ? step === 2
-                  ? tr('This draft is approved. Download it below.')
-                  : tr(
-                      'This draft is approved. Download it in Approve & Export.',
-                    )
-                : step === 2
-                  ? tr(
-                      'Confirm your review and approve this draft to download it.',
-                    )
-                  : approvalReady
-                    ? tr('Review finished. Continue to Approve & Export.')
-                    : tr(
-                        'Decide each suggestion and save, then continue to Approve & Export.',
-                      )
-              : hasDrafts
-                ? matchCurrent
-                  ? tr('Resume your latest draft, or generate a new one.')
-                  : tr(
-                      'Resume your latest draft. A new draft needs a current CV Match.',
-                    )
-                : matchCurrent
-                  ? tr('Generate a tailored draft from your reviewed CV.')
-                  : tr('Analyze CV Match for this job to start tailoring.');
+            : hasDrafts
+              ? matchCurrent
+                ? tr('Resume your latest draft, or generate a new one.')
+                : tr(
+                    'Resume your latest draft. A new draft needs a current CV Match.',
+                  )
+              : matchCurrent
+                ? tr('Generate a tailored draft from your reviewed CV.')
+                : tr('Analyze CV Match for this job to start tailoring.');
   return (
     <>
       <Stack spacing={2} sx={{ mb: 3 }}>
@@ -261,36 +242,39 @@ export function TailoredCvWorkflow({
           }}
         >
           {STEPS.map((label, index) => {
+            const draftSavedForApproval = step === 2 && approvalReady;
             const complete =
               entryResolved &&
               (index === 0
-                ? sourceReady
+                ? sourceReady || (step === 2 && approved)
                 : index === 1
-                  ? draftLoaded && approved
-                  : false);
-            const unavailable = index === 2 && !draftLoaded;
+                  ? draftSavedForApproval
+                  : approved);
+            const unavailable = index === 2 && (!draftLoaded || draftDirty);
+            const readyForNextAction =
+              index === 1
+                ? draftLoaded || (sourceReady && matchCurrent)
+                : index === 2 && approvalReady;
+            const current = entryResolved && step === index;
             const state = !entryResolved
-              ? 'Checking…'
-              : index === 0
-                ? sourceReady
-                  ? 'Complete'
-                  : tr('To do')
-                : index === 1
-                  ? // Saved drafts are history, never current readiness.
-                    hasDrafts
-                    ? approved
-                      ? tr('Earlier draft approved')
-                      : tr('Earlier draft available')
-                    : matchStatus === 'CHECKING'
-                      ? tr('Checking match…')
-                      : matchCurrent
-                        ? tr('Saved match')
-                        : tr('Match needed')
+              ? tr('Checking…')
+              : complete
+                ? tr('Complete')
+                : current
+                  ? tr('Current')
                   : unavailable
-                    ? tr('Unavailable until a draft is open')
-                    : approved
-                      ? tr('Ready to download')
-                      : tr('Needs approval');
+                    ? tr('Locked')
+                    : readyForNextAction
+                      ? tr('Ready')
+                      : tr('To do');
+            const detail =
+              index === 1 && draftSavedForApproval && !approved
+                ? tr('Draft saved')
+                : index === 2 && current && !approved
+                  ? tr('Needs approval')
+                  : current && complete
+                    ? tr('Current')
+                    : undefined;
             return (
               <Step key={label} completed={complete} disabled={unavailable}>
                 <StepButton
@@ -300,9 +284,7 @@ export function TailoredCvWorkflow({
                       ? 'source-wizard-panel'
                       : 'tailored-review-panel'
                   }
-                  aria-current={
-                    entryResolved && step === index ? 'step' : undefined
-                  }
+                  aria-current={current ? 'step' : undefined}
                   disabled={
                     unavailable ||
                     reviewDirty ||
@@ -326,15 +308,24 @@ export function TailoredCvWorkflow({
                     />
                   }
                   optional={
-                    // Status stays in the accessible name; on phones it is
-                    // visually hidden so three steps fit on one row.
-                    <Typography
-                      component="span"
-                      variant="caption"
-                      sx={wideSteps ? undefined : visuallyHidden}
-                    >
-                      {entryResolved && step === index ? tr('Current') : state}
-                    </Typography>
+                    <>
+                      <Typography
+                        component="span"
+                        variant="caption"
+                        sx={{ display: 'block' }}
+                      >
+                        {state}
+                      </Typography>
+                      {detail && (
+                        <Typography
+                          component="span"
+                          variant="caption"
+                          sx={{ display: 'block' }}
+                        >
+                          {detail}
+                        </Typography>
+                      )}
+                    </>
                   }
                 >
                   {tr(label)}
@@ -386,16 +377,7 @@ export function TailoredCvWorkflow({
             >
               {tr('Step')} {step + 1} {tr('of 3 ·')} {tr(STEPS[step] ?? '')}
             </Typography>
-            {/* With a draft open in Tailor & Review, the progress card states the
-                same next action; the banner returns for anything else. */}
-            {!(
-              step === 1 &&
-              draftLoaded &&
-              !approved &&
-              !approvalReady &&
-              !reviewDirty &&
-              !draftDirty
-            ) && (
+            {(step === 0 || !draftLoaded) && (
               <NextStep
                 text={nextStep}
                 action={
@@ -551,17 +533,6 @@ export function TailoredCvWorkflow({
     </>
   );
 }
-
-const visuallyHidden = {
-  position: 'absolute',
-  left: 0,
-  top: 0,
-  width: 1,
-  height: 1,
-  overflow: 'hidden',
-  clip: 'rect(0 0 0 0)',
-  whiteSpace: 'nowrap',
-} as const;
 
 function NextStep({ text, action }: { text: string; action: React.ReactNode }) {
   return (

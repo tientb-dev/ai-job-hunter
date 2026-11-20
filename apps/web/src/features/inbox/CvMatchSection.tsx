@@ -2,11 +2,13 @@ import { surface } from '../../app/theme';
 import { JdStructureReview } from './JdStructureReview';
 import { dateLocale, tr } from '../../app/i18n';
 import {
+  ArrowForwardIcon,
   AutoAwesomeIcon,
   RefreshIcon,
   CheckCircleOutlineIcon,
   ErrorOutlineIcon,
   ExpandMoreIcon,
+  VisibilityIcon,
 } from '../../components/icons';
 import { Link, Navigate, useInRouterContext } from 'react-router-dom';
 import { validSourceDate } from './cv-suggestions.contract';
@@ -54,7 +56,7 @@ export function CvMatchSection({
   preferSecondary = false,
   analyzeBlocked = false,
   uploadBlocked = false,
-  onGoToImprove,
+  onGoToTailored,
 }: {
   match: CvMatchState;
   labelledBy: string;
@@ -63,13 +65,14 @@ export function CvMatchSection({
   preferSecondary?: boolean;
   analyzeBlocked?: boolean;
   uploadBlocked?: boolean;
-  onGoToImprove?: () => void;
+  onGoToTailored?: () => void;
 }) {
   const { cv, busy, error, result, matchStatus, matchReadError, skillMatch } =
     match;
   const { analyze, reload } = match;
   const showFindings =
     !!skillMatch?.findings || (matchStatus === 'VALID' && !!result);
+  const savedHandoff = matchStatus === 'VALID' && !!result && onGoToTailored;
   const routing = useInRouterContext();
   // A CV uploaded here opens its Source CV Review next.
   const [uploaded, setUploaded] = useState('');
@@ -114,7 +117,12 @@ export function CvMatchSection({
                 analysisAction={
                   <Button
                     startIcon={<AutoAwesomeIcon />}
-                    variant={preferSecondary ? 'outlined' : 'contained'}
+                    variant={
+                      preferSecondary || savedHandoff ? 'outlined' : 'contained'
+                    }
+                    color={
+                      preferSecondary || savedHandoff ? 'secondary' : 'primary'
+                    }
                     disableElevation
                     loading={busy}
                     loadingPosition="start"
@@ -174,6 +182,7 @@ export function CvMatchSection({
                         size="small"
                         component={Link}
                         to={reviewHref(match.reviewCvId, match.jobId)}
+                        startIcon={<VisibilityIcon />}
                         sx={{ minHeight: 44, flexShrink: 0 }}
                       >
                         {tr('Review CV')}
@@ -230,12 +239,23 @@ export function CvMatchSection({
               )}
               {!busy &&
                 matchStatus === 'VALID' &&
-                result?.evidenceUncertain &&
-                !result.keptPrevious && (
-                  <Alert severity="warning">
-                    {tr('Some evidence in the saved assessment needs review.')}
-                  </Alert>
+                result?.evidenceUncertain && (
+                  <Typography variant="body2" color="text.secondary">
+                    {tr(
+                      'Some evidence passages could not be verified. Open individual requirements to see available evidence and verification details.',
+                    )}
+                  </Typography>
                 )}
+              {savedHandoff && (
+                <Button
+                  variant="contained"
+                  endIcon={<ArrowForwardIcon />}
+                  onClick={savedHandoff}
+                  sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
+                >
+                  {tr('Open Tailored CV')}
+                </Button>
+              )}
               {busy && (
                 <Stack direction="row" spacing={1} role="status">
                   <CircularProgress size={20} />
@@ -262,7 +282,7 @@ export function CvMatchSection({
           </Paper>
           {showFindings && (
             <FindingsOverview
-              onGoToImprove={onGoToImprove}
+              onGoToTailored={savedHandoff ? undefined : onGoToTailored}
               key={JSON.stringify([
                 match.jobId,
                 cv?.id,
@@ -289,13 +309,14 @@ export function CvMatchSection({
               }
             />
           )}
-          {!showFindings && onGoToImprove && (
+          {!showFindings && onGoToTailored && (
             <Button
-              variant="outlined"
-              onClick={onGoToImprove}
+              variant="contained"
+              endIcon={<ArrowForwardIcon />}
+              onClick={onGoToTailored}
               sx={{ alignSelf: 'flex-start' }}
             >
-              {tr('Review & Improve CV')}
+              {tr('Open Tailored CV')}
             </Button>
           )}
           {skillMatch &&
@@ -350,7 +371,7 @@ export function FindingsOverview({
   coverageLimited,
   review,
   conditions = [],
-  onGoToImprove,
+  onGoToTailored,
 }: {
   findings: NonNullable<SkillMatch['findings']>;
   scored?: SkillMatch['rows'];
@@ -358,7 +379,7 @@ export function FindingsOverview({
   coverageLimited?: boolean;
   review?: EvidenceReview;
   conditions?: MatchCondition[];
-  onGoToImprove?: () => void;
+  onGoToTailored?: () => void;
 }) {
   const reduced = useMediaQuery('(prefers-reduced-motion: reduce)');
   const [direct, setDirect] = useState(false);
@@ -871,13 +892,14 @@ export function FindingsOverview({
       </Paper>
     );
   }
-  const improveAction = onGoToImprove && (
+  const tailoredAction = onGoToTailored && (
     <Button
       variant="contained"
-      onClick={onGoToImprove}
+      endIcon={<ArrowForwardIcon />}
+      onClick={onGoToTailored}
       sx={{ alignSelf: { xs: 'stretch', sm: 'flex-end' } }}
     >
-      {tr('Review & Improve CV')}
+      {tr('Open Tailored CV')}
     </Button>
   );
   const headline = skills.length
@@ -1053,7 +1075,7 @@ export function FindingsOverview({
           ))}
         </Box>
       )}
-      {improveAction}
+      {tailoredAction}
     </Stack>
   );
 }
@@ -1832,6 +1854,7 @@ export function MatchGate({
               <Button
                 startIcon={<AutoAwesomeIcon />}
                 variant="outlined"
+                color="secondary"
                 disabled={analyzeBlocked || !cv}
                 loading={match.busy}
                 loadingPosition="start"
@@ -1928,6 +1951,7 @@ export function MatchGate({
             <Button
               startIcon={<AutoAwesomeIcon />}
               variant={current || preferSecondary ? 'outlined' : 'contained'}
+              color={current || preferSecondary ? 'secondary' : 'primary'}
               disableElevation
               disabled={
                 busy ||

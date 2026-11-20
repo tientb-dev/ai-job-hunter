@@ -218,7 +218,7 @@ test('partial response with malformed component evidence is rejected rather than
 test.each([
   [
     { evidenceUncertain: true },
-    /Some evidence in the saved assessment needs review/,
+    /Some evidence passages could not be verified/,
     false,
   ],
   [
@@ -254,7 +254,9 @@ test.each([
   await screen.findByText(
     /JD–CV Skill Match is unavailable for this saved assessment/,
   );
-  expect(screen.getByText(notice)).toBeVisible();
+  const disclosure = screen.getByText(notice);
+  expect(disclosure).toBeVisible();
+  if (!upToDate) expect(disclosure.closest('[role="alert"]')).toBeNull();
   // An unreliable result must not claim that no new analysis is needed.
   expect(screen.getByText(/^Saved match/)).toBeVisible();
   expect(screen.queryAllByText(/No new analysis is needed/).length > 0).toBe(
