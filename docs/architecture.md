@@ -2369,6 +2369,18 @@ Grounding decisions:
 
 ## CV Match decomposition stabilization and application guidance
 
+**Candidate-facing correspondence.** Match responses can label each parent and
+component as supported, related, not found, or unassessable. Related judgments
+retain an exact CV passage and can name the missing qualifier. The semantic
+path validates parent identity, component spans and CV passage provenance, then
+checks AND/OR composition and the existing scoped condition safeguards. A
+component with an invalid passage keeps its own unresolved status. Verified
+evidence from a sibling can still support Partial when the parent and JD spans
+are valid. A reviewed skill listing can support a skill requirement, while experience,
+proficiency and duration still need appropriate evidence. Strength attribution
+on this path stays inside the selected passage. Legacy responses without a
+correspondence verdict retain the previous scoring behavior.
+
 **Decomposition.** `requirementGroup` remains the deterministic first pass,
 now with one shared grammar for English and Vietnamese lead-ins ("Experience
 with", "Có kinh nghiệm (sử dụng|lập trình)", "Thành thạo", …) and connectors
@@ -2382,7 +2394,10 @@ agree with the proposed AND/OR mode. An OR claim needs an explicit
 "or"/"hoặc"/"/", and a slash cannot separate AND components. Atomic forms
 such as "CI/CD" stay intact. The validator accepts only known shared lead-ins
 and the neutral "skills" suffix. Other unmatched qualifiers leave the
-requirement unresolved. "R" and "C" are recognized as standalone labels with the same
+requirement unresolved. An open-ended OR with an unresolved slash inside its
+named options also uses this request. The validator retains the exact open
+fallback and accepts only named options connected as alternatives. If the split
+cannot be validated, the row stays unresolved. "R" and "C" are recognized as standalone labels with the same
 literal span and boundary checks as other labels. Quantities, degrees and
 nested qualifications excluded by selection are never sent. The analyzer
 rejects all duplicate proposals for a parent and counts each accepted target

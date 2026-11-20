@@ -25,6 +25,7 @@ import {
   type CvMatchState,
 } from './useCvMatch';
 import {
+  assessedComparisons,
   compareRequirements,
   containsSpan,
   type Comparison,
@@ -67,6 +68,8 @@ export function CvMatchSection({
   const { cv, busy, error, result, matchStatus, matchReadError, skillMatch } =
     match;
   const { analyze, reload } = match;
+  const showFindings =
+    !!skillMatch?.findings || (matchStatus === 'VALID' && !!result);
   const routing = useInRouterContext();
   // A CV uploaded here opens its Source CV Review next.
   const [uploaded, setUploaded] = useState('');
@@ -230,9 +233,7 @@ export function CvMatchSection({
                 result?.evidenceUncertain &&
                 !result.keptPrevious && (
                   <Alert severity="warning">
-                    {tr(
-                      'The saved assessment may have missed some CV passages.',
-                    )}
+                    {tr('Some evidence in the saved assessment needs review.')}
                   </Alert>
                 )}
               {busy && (
@@ -259,7 +260,7 @@ export function CvMatchSection({
               )}
             </Stack>
           </Paper>
-          {skillMatch?.findings && (
+          {showFindings && (
             <FindingsOverview
               onGoToImprove={onGoToImprove}
               key={JSON.stringify([
@@ -271,21 +272,24 @@ export function CvMatchSection({
                 match.attempt,
                 result?.analyzedAt,
               ])}
-              scored={skillMatch.rows}
+              scored={skillMatch?.rows}
               requirements={
                 matchStatus === 'VALID' ? result?.requirements : undefined
               }
-              coverageLimited={result?.coverageHidden === 'UNVERIFIED_JD'}
+              coverageLimited={
+                matchStatus === 'VALID' &&
+                result?.coverageHidden === 'UNVERIFIED_JD'
+              }
               review={
                 matchStatus === 'VALID' ? result?.evidenceReview : undefined
               }
-              findings={skillMatch.findings}
+              findings={skillMatch?.findings ?? []}
               conditions={
                 matchStatus === 'VALID' ? result?.conditions : undefined
               }
             />
           )}
-          {!skillMatch?.findings && onGoToImprove && (
+          {!showFindings && onGoToImprove && (
             <Button
               variant="outlined"
               onClick={onGoToImprove}
@@ -300,7 +304,7 @@ export function CvMatchSection({
                 <AccordionSummary
                   expandIcon={<span aria-hidden="true">⌄</span>}
                 >
-                  {tr('Assessed score and JD structure')}
+                  {tr('Preliminary skill score and JD structure')}
                 </AccordionSummary>
                 <AccordionDetails>
                   <SkillMatchSummary
@@ -324,16 +328,6 @@ export function CvMatchSection({
               )}
             </Typography>
           )}
-          {matchStatus === 'VALID' && result && (
-            <RequirementObservations requirements={result.requirements} />
-          )}
-          <MatchConditions
-            conditions={
-              !skillMatch?.findings && matchStatus === 'VALID'
-                ? result?.conditions
-                : undefined
-            }
-          />
         </Stack>
       </Paper>
     </Box>
@@ -341,7 +335,7 @@ export function CvMatchSection({
 }
 
 const findingReasons = {
-  skill: 'Confirmed CV evidence supports this named skill.',
+  skill: 'The preliminary comparison found evidence for this named skill.',
   related:
     'The reviewed CV shows related experience. The specific requirement still needs clarification.',
   clause:
@@ -413,23 +407,24 @@ export function FindingsOverview({
     ...new Map(conditions.map((c) => [JSON.stringify(c), c])).values(),
   ];
   const skills = findings.filter((f) => f.kind === 'skill');
-  const all = compareRequirements(
-    findings,
-    unique,
-    scored,
-    review,
-    requirements,
-  );
+  const all = compareRequirements(findings, [], scored, review);
   const comparisons = all.filter((r) => !r.unmapped);
+  const assessed = coverageLimited
+    ? undefined
+    : assessedComparisons(requirements, all, unique, review);
   const evidenceKey = (finding: (typeof findings)[number]) =>
     JSON.stringify([finding.label.toLowerCase(), finding.evidence]);
   const presented = new Set(
-    comparisons.flatMap((row) => row.findings.map(evidenceKey)),
+    (assessed ?? comparisons).flatMap((row) => row.findings.map(evidenceKey)),
   );
   const fallback = new Map<string, NonNullable<SkillMatch['findings']>>();
-  for (const row of all.filter((r) => r.unmapped))
+  for (const row of all.filter((r) => assessed || r.unmapped))
     for (const finding of row.findings) {
-      if (presented.has(evidenceKey(finding))) continue;
+      if (
+        presented.has(evidenceKey(finding)) ||
+        (assessed && !finding.evidence)
+      )
+        continue;
       const key = finding.label.toLocaleLowerCase();
       const entries = fallback.get(key) ?? [];
       if (!entries.includes(finding)) entries.push(finding);
@@ -462,7 +457,7 @@ export function FindingsOverview({
         .map((f) => f.label);
       return [
         names.length &&
-          tr('Confirmed here: {skills}', { skills: names.join(', ') }),
+          tr('Skills documented here: {skills}', { skills: names.join(', ') }),
         tr(
           'The duration is unverified. Check dates for the relevant role or project.',
         ),
@@ -472,7 +467,7 @@ export function FindingsOverview({
     }
     if (c) return tr(conditionStatusLabel[c.status]);
     if (row.supported)
-      return tr('Confirmed here: {skills}', {
+      return tr('Skills documented here: {skills}', {
         skills: row.findings
           .filter((f) => f.kind === 'skill')
           .map((f) => f.label)
@@ -541,6 +536,341 @@ export function FindingsOverview({
       </Box>
     );
   }
+  function renderComparison(row: Comparison, i: number) {
+    const open = selection === row.key;
+    const evidence = [
+      ...new Map(
+        row.findings.flatMap((f) =>
+          f.evidence ? [[JSON.stringify(f.evidence), f.evidence] as const] : [],
+        ),
+      ).values(),
+    ];
+    const directNames = row.findings
+      .filter((f) => f.kind === 'skill')
+      .map((f) => f.label);
+    const duration = row.conditions.some(
+      (c) => c.kind === 'EXPERIENCE' && c.status === 'UNKNOWN',
+    );
+    const assessment = row.assessment;
+    const badge = assessment
+      ? coverageCategories[assessment.status][0]
+      : duration
+        ? 'Experience duration needs verification'
+        : row.status;
+    const gap = row.findings.some((f) => f.kind === 'requirement');
+    const next = duration
+      ? 'Check role dates and project periods against each quoted requirement before editing your CV.'
+      : assessment
+        ? assessmentNextSteps[assessment.status]
+        : gap
+          ? 'If accurate, describe the task you performed in the relevant role or project.'
+          : row.status === 'Evidence supports part of this requirement'
+            ? 'Check which parts the employer requires before updating your CV.'
+            : !row.supported
+              ? 'Check the required scope against the experience documented in your CV.'
+              : undefined;
+    const spans = row.findings
+      .filter((f) => f.kind === 'skill')
+      .flatMap((f) => f.sources);
+    return (
+      <Paper
+        key={row.key}
+        variant="outlined"
+        sx={{
+          my: 1,
+          overflow: 'hidden',
+          borderRadius: 2,
+          borderColor: open ? 'primary.main' : 'divider',
+          transition: 'border-color 240ms ease-out',
+        }}
+      >
+        <Button
+          fullWidth
+          aria-expanded={open}
+          aria-label={assessment ? `${tr(badge)}: ${row.title}` : undefined}
+          onClick={() => {
+            pendingReveal.current = undefined;
+            setDirect(true);
+            setHighlight(undefined);
+            setSelection(open ? undefined : row.key);
+          }}
+          sx={{
+            textAlign: 'start',
+            justifyContent: 'space-between',
+            px: 2,
+            py: 1.5,
+            borderRadius: 0,
+            bgcolor:
+              highlight === row.key
+                ? 'action.selected'
+                : open
+                  ? surface.primaryTint
+                  : 'background.default',
+            transition: 'background-color 160ms ease-out',
+            '&.Mui-focusVisible, &:focus-visible': {
+              outline: '2px solid',
+              outlineColor: 'primary.main',
+              outlineOffset: -3,
+            },
+
+            color: 'text.primary',
+            textTransform: 'none',
+          }}
+          endIcon={
+            <ExpandMoreIcon
+              sx={{ transform: open ? 'rotate(180deg)' : 'none' }}
+            />
+          }
+          id={id + '-req-' + i}
+          aria-controls={id + '-body-' + i}
+          ref={(node: HTMLButtonElement | null) => {
+            if (node) refs.current.set(row.key, node);
+            else refs.current.delete(row.key);
+          }}
+        >
+          <Box>
+            <Typography
+              variant="subtitle1"
+              sx={{ fontWeight: open ? 700 : 600 }}
+            >
+              {row.title}
+            </Typography>
+            <Stack
+              direction="row"
+              spacing={1}
+              useFlexGap
+              sx={{ alignItems: 'center', flexWrap: 'wrap', mt: 0.5 }}
+            >
+              <Chip
+                size="small"
+                variant="outlined"
+                color={
+                  assessment
+                    ? assessmentColors[assessment.status]
+                    : duration || gap
+                      ? 'warning'
+                      : row.supported &&
+                          row.status !==
+                            'Evidence supports part of this requirement'
+                        ? 'success'
+                        : 'info'
+                }
+                label={tr(badge)}
+                sx={{
+                  height: 'auto',
+                  minHeight: 24,
+                  '& .MuiChip-label': { whiteSpace: 'normal' },
+                }}
+              />
+              {!open && (
+                <Typography variant="body2" color="text.secondary">
+                  {assessment
+                    ? tr(assessmentReasons[assessment.status])
+                    : explanation(row)}
+                </Typography>
+              )}
+            </Stack>
+          </Box>
+        </Button>
+        <Collapse
+          in={open}
+          timeout={{
+            enter: reduced ? 0 : 170,
+            exit: direct && !reduced ? 170 : 0,
+          }}
+          mountOnEnter
+          unmountOnExit
+          onEntered={() => {
+            entered.current = row.key;
+            positionDetails(row.key);
+          }}
+          onExit={() => {
+            if (entered.current === row.key) entered.current = undefined;
+          }}
+          sx={
+            !open && !direct
+              ? { height: '0 !important', transition: 'none !important' }
+              : undefined
+          }
+        >
+          <Box
+            role="region"
+            aria-labelledby={id + '-req-' + i}
+            id={id + '-body-' + i}
+            sx={{ p: 2 }}
+          >
+            <Stack spacing={1.5}>
+              {(row.source || assessment) && (
+                <Box
+                  sx={{
+                    pb: 1.5,
+                    borderBottom: 1,
+                    borderColor: 'divider',
+                  }}
+                >
+                  <Typography variant="subtitle2" color="text.secondary">
+                    {tr('Job description')}
+                  </Typography>
+                  <Typography component="blockquote" sx={{ m: 0, mt: 0.5 }}>
+                    {row.source
+                      ? highlightedQuote(row.source, spans)
+                      : row.title}
+                  </Typography>
+                </Box>
+              )}
+              {assessment && (
+                <SavedRequirementDetails
+                  assessment={assessment}
+                  reviewEvidence={
+                    review?.rows.find(
+                      (item) =>
+                        row.source &&
+                        containsSpan(item, row.source) &&
+                        containsSpan(row.source, item),
+                    )?.evidence
+                  }
+                />
+              )}
+              {directNames.length > 0 && (
+                <Box>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ fontWeight: 600, mb: 0.75 }}
+                  >
+                    {tr(
+                      assessment ? 'Preliminary skill evidence' : 'CV evidence',
+                    )}
+                  </Typography>
+                  <Stack
+                    direction="row"
+                    spacing={0.75}
+                    useFlexGap
+                    sx={{ flexWrap: 'wrap' }}
+                  >
+                    {directNames.map((name) => (
+                      <Chip
+                        key={name}
+                        label={name}
+                        size="small"
+                        color="success"
+                        variant="outlined"
+                      />
+                    ))}
+                  </Stack>
+                </Box>
+              )}
+              {row.findings
+                .filter((f) => f.kind === 'related')
+                .map((f) => (
+                  <Typography key={f.label} variant="body2">
+                    {f.label} · {tr(findingReasons.related)}
+                  </Typography>
+                ))}
+              {!assessment && gap && (
+                <Typography variant="body2">
+                  {tr('The reviewed CV does not establish this requirement.')}
+                </Typography>
+              )}
+              {row.status === 'Evidence supports part of this requirement' && (
+                <Typography variant="body2">
+                  {tr(
+                    'Individual skills are documented. The full requirement remains unverified.',
+                  )}
+                </Typography>
+              )}
+              {row.conditions.length > 0 && (
+                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                  {tr('Review of the condition')}
+                </Typography>
+              )}
+              {row.conditions.map((c, index) => (
+                <Box key={JSON.stringify([c.parentId, c.componentId, index])}>
+                  {(row.conditions.length > 1 || c.jdQuote !== row.title) && (
+                    <Typography variant="subtitle2">{c.jdQuote}</Typography>
+                  )}
+                  <Typography variant="body2">
+                    {tr(
+                      c.status === 'UNKNOWN'
+                        ? 'More CV evidence is needed'
+                        : conditionStatusLabel[c.status],
+                    )}
+                    {c.mode === 'OR' &&
+                      ' · ' + tr('Alternative in the job description')}
+                    {c.reason === 'DATED_PROGRAMMING' &&
+                      ' · ' +
+                        tr(
+                          'Reviewed work dates and programming roles do not establish the required duration.',
+                        )}
+                    {c.reason === 'IT_QUALIFICATION' &&
+                      ' · ' +
+                        tr(
+                          'Reviewed education does not establish the required IT degree.',
+                        )}
+                    {c.unknownExperience &&
+                      ' · ' + unknownExperienceText(c.unknownExperience)}
+                  </Typography>
+                </Box>
+              ))}
+              {!assessment && !row.source && row.conditions.length > 0 && (
+                <Typography variant="body2" color="text.secondary">
+                  {tr(
+                    'Shown separately because its JD source could not be linked uniquely.',
+                  )}
+                </Typography>
+              )}
+              {next && (
+                <Box>
+                  <Typography variant="subtitle2">{tr('Next step')}</Typography>
+                  <Typography variant="body2">{tr(next)}</Typography>
+                </Box>
+              )}
+              {(evidence.length > 0 ||
+                row.conditions.some((c) => c.evidence.length)) && (
+                <details>
+                  <summary>
+                    {tr(
+                      assessment
+                        ? 'Preliminary and condition evidence'
+                        : 'Original CV evidence',
+                    )}
+                  </summary>
+                  {evidence.map((e) => (
+                    <EvidenceQuote
+                      key={JSON.stringify(e)}
+                      source="CV evidence"
+                      title={
+                        assessment ? tr('Preliminary CV evidence') : undefined
+                      }
+                      quote={e.quote}
+                      origin={e.origin}
+                      detail={[
+                        e.factId && tr('CV fact: {id}', { id: e.factId }),
+                        e.sectionKind &&
+                          tr(reviewedSectionLabels[e.sectionKind]),
+                        e.origin === 'source' && tr('From reviewed source'),
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    />
+                  ))}
+                  {row.conditions
+                    .flatMap((c) => c.evidence)
+                    .map((e, index) => (
+                      <EvidenceQuote
+                        key={index}
+                        source="CV evidence"
+                        quote={e.cvQuote}
+                        origin={e.cvOrigin}
+                      />
+                    ))}
+                </details>
+              )}
+            </Stack>
+          </Box>
+        </Collapse>
+      </Paper>
+    );
+  }
   const improveAction = onGoToImprove && (
     <Button
       variant="contained"
@@ -551,432 +881,142 @@ export function FindingsOverview({
     </Button>
   );
   const headline = skills.length
-    ? tr('Confirmed skill evidence: {skills}', {
+    ? tr('Preliminary skill evidence: {skills}', {
         skills: skills
           .slice(0, 2)
           .map((f) => f.label)
           .join(', '),
       })
-    : tr('Findings from your CV and the JD');
+    : tr('Preliminary CV and JD comparison');
   return (
     <Stack
       component="section"
       spacing={1.5}
       sx={{ minWidth: 0, overflowWrap: 'anywhere' }}
     >
-      <Box
-        sx={{
-          border: '1px solid',
-          borderColor: 'divider',
-          borderRadius: `${surface.radius}px`,
-          p: 2,
-        }}
-      >
-        <Typography variant="overline" color="text.secondary">
-          {tr('CV evidence summary')}
-        </Typography>
-        <Typography component="h3" variant="h5" sx={{ fontWeight: 600 }}>
-          {headline}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {skills.length > 0 &&
-            tr('Your reviewed CV documents relevant skills for this job.')}
-          {!findings.length &&
-            !unique.length &&
-            tr('No findings available for this review.')}
-        </Typography>
+      {assessed ? (
         <RequirementCoverage
-          requirements={coverageLimited ? undefined : requirements}
+          rows={assessed}
+          renderComparison={renderComparison}
         />
-      </Box>
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: {
-            xs: 'minmax(0,1fr)',
-            sm: 'repeat(2,minmax(0,1fr))',
-          },
-          gap: 1.5,
-        }}
-      >
-        <Paper
-          component="section"
-          variant="outlined"
-          sx={{ p: 2, minWidth: 0 }}
-        >
-          <Typography
-            component="h4"
-            variant="subtitle1"
-            sx={{ fontWeight: 600 }}
+      ) : (
+        <>
+          <Box
+            sx={{
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: `${surface.radius}px`,
+              p: 2,
+            }}
           >
-            <CheckCircleOutlineIcon
-              sx={{
-                fontSize: 19,
-                color: 'success.main',
-                verticalAlign: 'text-bottom',
-                mr: 1,
-              }}
-            />
-            {tr('JD requirements with evidence')}
-          </Typography>
-          {supported.slice(0, 4).map(summaryRow)}
-          {!supported.length && (
-            <Typography variant="body2">
-              {tr('No confirmed strengths identified in this review.')}
+            <Typography variant="overline" color="text.secondary">
+              {tr('CV evidence summary')}
             </Typography>
-          )}
-        </Paper>
-        <Paper
-          component="section"
-          variant="outlined"
-          sx={{ p: 2, minWidth: 0 }}
-        >
-          <Typography
-            component="h4"
-            variant="subtitle1"
-            sx={{ fontWeight: 600 }}
+            <Typography component="h3" variant="h5" sx={{ fontWeight: 600 }}>
+              {headline}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {skills.length > 0 &&
+                tr(
+                  'The preliminary comparison links named skills to your reviewed CV. Full requirements are evaluated in the saved assessment.',
+                )}
+              {!findings.length &&
+                !unique.length &&
+                tr('No findings available for this review.')}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              {tr(
+                requirements || coverageLimited
+                  ? 'Requirement coverage is unavailable. The assessment does not provide trustworthy requirement counts.'
+                  : 'Analyze CV Match to see saved assessment coverage.',
+              )}
+            </Typography>
+          </Box>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: 'minmax(0,1fr)',
+                sm: 'repeat(2,minmax(0,1fr))',
+              },
+              gap: 1.5,
+            }}
           >
-            <ErrorOutlineIcon
-              sx={{
-                fontSize: 19,
-                color: 'warning.main',
-                verticalAlign: 'text-bottom',
-                mr: 1,
-              }}
-            />
-            {tr('Points to review')}
-          </Typography>
-          {important.map(summaryRow)}
-          {!pending.length && (
-            <Typography variant="body2">
-              {tr('No attention items identified in this review.')}
-            </Typography>
-          )}
-        </Paper>
-      </Box>
-      <Box component="section">
-        <Typography
-          component="h4"
-          variant="subtitle1"
-          sx={{ fontWeight: 600, mb: 1 }}
-        >
-          {tr('Compare individual JD requirements')}
-        </Typography>
-        {comparisons.map((row, i) => {
-          const open = selection === row.key;
-          const evidence = [
-            ...new Map(
-              row.findings.flatMap((f) =>
-                f.evidence
-                  ? [[JSON.stringify(f.evidence), f.evidence] as const]
-                  : [],
-              ),
-            ).values(),
-          ];
-          const directNames = row.findings
-            .filter((f) => f.kind === 'skill')
-            .map((f) => f.label);
-          const duration = row.conditions.some(
-            (c) => c.kind === 'EXPERIENCE' && c.status === 'UNKNOWN',
-          );
-          const badge = duration
-            ? 'Experience duration needs verification'
-            : row.status;
-          const gap = row.findings.some((f) => f.kind === 'requirement');
-          const next = duration
-            ? 'Check role dates and project periods against each quoted requirement before editing your CV.'
-            : gap
-              ? 'If accurate, describe the task you performed in the relevant role or project.'
-              : row.status === 'Evidence supports part of this requirement'
-                ? 'Check which parts the employer requires before updating your CV.'
-                : !row.supported
-                  ? 'Check the required scope against the experience documented in your CV.'
-                  : undefined;
-          const spans = row.findings
-            .filter((f) => f.kind === 'skill')
-            .flatMap((f) => f.sources);
-          return (
             <Paper
-              key={row.key}
+              component="section"
               variant="outlined"
-              sx={{
-                my: 1,
-                overflow: 'hidden',
-                borderRadius: 2,
-                borderColor: open ? 'primary.main' : 'divider',
-                transition: 'border-color 240ms ease-out',
-              }}
+              sx={{ p: 2, minWidth: 0 }}
             >
-              <Button
-                fullWidth
-                aria-expanded={open}
-                onClick={() => {
-                  pendingReveal.current = undefined;
-                  setDirect(true);
-                  setHighlight(undefined);
-                  setSelection(open ? undefined : row.key);
-                }}
-                sx={{
-                  textAlign: 'start',
-                  justifyContent: 'space-between',
-                  px: 2,
-                  py: 1.5,
-                  borderRadius: 0,
-                  bgcolor:
-                    highlight === row.key
-                      ? 'action.selected'
-                      : open
-                        ? surface.primaryTint
-                        : 'background.default',
-                  transition: 'background-color 160ms ease-out',
-                  '&.Mui-focusVisible, &:focus-visible': {
-                    outline: '2px solid',
-                    outlineColor: 'primary.main',
-                    outlineOffset: -3,
-                  },
-
-                  color: 'text.primary',
-                  textTransform: 'none',
-                }}
-                endIcon={
-                  <ExpandMoreIcon
-                    sx={{ transform: open ? 'rotate(180deg)' : 'none' }}
-                  />
-                }
-                id={id + '-req-' + i}
-                aria-controls={id + '-body-' + i}
-                ref={(node: HTMLButtonElement | null) => {
-                  if (node) refs.current.set(row.key, node);
-                  else refs.current.delete(row.key);
-                }}
+              <Typography
+                component="h4"
+                variant="subtitle1"
+                sx={{ fontWeight: 600 }}
               >
-                <Box>
-                  <Typography
-                    variant="subtitle1"
-                    sx={{ fontWeight: open ? 700 : 600 }}
-                  >
-                    {row.title}
-                  </Typography>
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    useFlexGap
-                    sx={{ alignItems: 'center', flexWrap: 'wrap', mt: 0.5 }}
-                  >
-                    <Chip
-                      size="small"
-                      variant="outlined"
-                      color={
-                        duration || gap
-                          ? 'warning'
-                          : row.supported &&
-                              row.status !==
-                                'Evidence supports part of this requirement'
-                            ? 'success'
-                            : 'info'
-                      }
-                      label={tr(badge)}
-                      sx={{
-                        height: 'auto',
-                        minHeight: 24,
-                        '& .MuiChip-label': { whiteSpace: 'normal' },
-                      }}
-                    />
-                    {!open && (
-                      <Typography variant="body2" color="text.secondary">
-                        {explanation(row)}
-                      </Typography>
-                    )}
-                  </Stack>
-                </Box>
-              </Button>
-              <Collapse
-                in={open}
-                timeout={{
-                  enter: reduced ? 0 : 170,
-                  exit: direct && !reduced ? 170 : 0,
-                }}
-                mountOnEnter
-                unmountOnExit
-                onEntered={() => {
-                  entered.current = row.key;
-                  positionDetails(row.key);
-                }}
-                onExit={() => {
-                  if (entered.current === row.key) entered.current = undefined;
-                }}
-                sx={
-                  !open && !direct
-                    ? { height: '0 !important', transition: 'none !important' }
-                    : undefined
-                }
-              >
-                <Box
-                  role="region"
-                  aria-labelledby={id + '-req-' + i}
-                  id={id + '-body-' + i}
-                  sx={{ p: 2 }}
-                >
-                  <Stack spacing={1.5}>
-                    {row.source && (
-                      <Box
-                        sx={{
-                          pb: 1.5,
-                          borderBottom: 1,
-                          borderColor: 'divider',
-                        }}
-                      >
-                        <Typography variant="subtitle2" color="text.secondary">
-                          {tr('Job description')}
-                        </Typography>
-                        <Typography
-                          component="blockquote"
-                          sx={{ m: 0, mt: 0.5 }}
-                        >
-                          {highlightedQuote(row.source, spans)}
-                        </Typography>
-                      </Box>
-                    )}
-                    {directNames.length > 0 && (
-                      <Box>
-                        <Typography
-                          variant="subtitle2"
-                          sx={{ fontWeight: 600, mb: 0.75 }}
-                        >
-                          {tr('CV evidence')}
-                        </Typography>
-                        <Stack
-                          direction="row"
-                          spacing={0.75}
-                          useFlexGap
-                          sx={{ flexWrap: 'wrap' }}
-                        >
-                          {directNames.map((name) => (
-                            <Chip
-                              key={name}
-                              label={name}
-                              size="small"
-                              color="success"
-                              variant="outlined"
-                            />
-                          ))}
-                        </Stack>
-                      </Box>
-                    )}
-                    {row.findings
-                      .filter((f) => f.kind === 'related')
-                      .map((f) => (
-                        <Typography key={f.label} variant="body2">
-                          {f.label} · {tr(findingReasons.related)}
-                        </Typography>
-                      ))}
-                    {gap && (
-                      <Typography variant="body2">
-                        {tr(
-                          'The reviewed CV does not establish this requirement.',
-                        )}
-                      </Typography>
-                    )}
-                    {row.status ===
-                      'Evidence supports part of this requirement' && (
-                      <Typography variant="body2">
-                        {tr(
-                          'Individual skills are documented. The full requirement remains unverified.',
-                        )}
-                      </Typography>
-                    )}
-                    {row.conditions.length > 0 && (
-                      <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                        {tr('Review of the condition')}
-                      </Typography>
-                    )}
-                    {row.conditions.map((c, index) => (
-                      <Box
-                        key={JSON.stringify([c.parentId, c.componentId, index])}
-                      >
-                        {(row.conditions.length > 1 ||
-                          c.jdQuote !== row.title) && (
-                          <Typography variant="subtitle2">
-                            {c.jdQuote}
-                          </Typography>
-                        )}
-                        <Typography variant="body2">
-                          {tr(
-                            c.status === 'UNKNOWN'
-                              ? 'More CV evidence is needed'
-                              : conditionStatusLabel[c.status],
-                          )}
-                          {c.mode === 'OR' &&
-                            ' · ' + tr('Alternative in the job description')}
-                          {c.reason === 'DATED_PROGRAMMING' &&
-                            ' · ' +
-                              tr(
-                                'Reviewed work dates and programming roles do not establish the required duration.',
-                              )}
-                          {c.reason === 'IT_QUALIFICATION' &&
-                            ' · ' +
-                              tr(
-                                'Reviewed education does not establish the required IT degree.',
-                              )}
-                          {c.unknownExperience &&
-                            ' · ' + unknownExperienceText(c.unknownExperience)}
-                        </Typography>
-                      </Box>
-                    ))}
-                    {!row.source && row.conditions.length > 0 && (
-                      <Typography variant="body2" color="text.secondary">
-                        {tr(
-                          'Shown separately because its JD source could not be linked uniquely.',
-                        )}
-                      </Typography>
-                    )}
-                    {next && (
-                      <Box>
-                        <Typography variant="subtitle2">
-                          {tr('Next step')}
-                        </Typography>
-                        <Typography variant="body2">{tr(next)}</Typography>
-                      </Box>
-                    )}
-                    {(evidence.length > 0 ||
-                      row.conditions.some((c) => c.evidence.length)) && (
-                      <details>
-                        <summary>{tr('Original CV evidence')}</summary>
-                        {evidence.map((e) => (
-                          <EvidenceQuote
-                            key={JSON.stringify(e)}
-                            source="CV evidence"
-                            quote={e.quote}
-                            origin={e.origin}
-                            detail={[
-                              e.sectionKind &&
-                                tr(reviewedSectionLabels[e.sectionKind]),
-                              e.origin === 'source' &&
-                                tr('From reviewed source'),
-                            ]
-                              .filter(Boolean)
-                              .join(' · ')}
-                          />
-                        ))}
-                        {row.conditions
-                          .flatMap((c) => c.evidence)
-                          .map((e, index) => (
-                            <EvidenceQuote
-                              key={index}
-                              source="CV evidence"
-                              quote={e.cvQuote}
-                              origin={e.cvOrigin}
-                            />
-                          ))}
-                      </details>
-                    )}
-                  </Stack>
-                </Box>
-              </Collapse>
+                <CheckCircleOutlineIcon
+                  sx={{
+                    fontSize: 19,
+                    color: 'success.main',
+                    verticalAlign: 'text-bottom',
+                    mr: 1,
+                  }}
+                />
+                {tr('JD requirements with preliminary evidence')}
+              </Typography>
+              {supported.slice(0, 4).map(summaryRow)}
+              {!supported.length && (
+                <Typography variant="body2">
+                  {tr('No preliminary evidence found for these requirements.')}
+                </Typography>
+              )}
             </Paper>
-          );
-        })}
-      </Box>
+            <Paper
+              component="section"
+              variant="outlined"
+              sx={{ p: 2, minWidth: 0 }}
+            >
+              <Typography
+                component="h4"
+                variant="subtitle1"
+                sx={{ fontWeight: 600 }}
+              >
+                <ErrorOutlineIcon
+                  sx={{
+                    fontSize: 19,
+                    color: 'warning.main',
+                    verticalAlign: 'text-bottom',
+                    mr: 1,
+                  }}
+                />
+                {tr('Points to review')}
+              </Typography>
+              {important.map(summaryRow)}
+              {!pending.length && (
+                <Typography variant="body2">
+                  {tr('No items flagged in this comparison.')}
+                </Typography>
+              )}
+            </Paper>
+          </Box>
+          <Box component="section">
+            <Typography
+              component="h4"
+              variant="subtitle1"
+              sx={{ fontWeight: 600, mb: 1 }}
+            >
+              {tr('Compare individual JD requirements')}
+            </Typography>
+            {comparisons.map(renderComparison)}
+          </Box>
+        </>
+      )}
+      {assessed && (
+        <MatchConditions
+          conditions={unique.filter(
+            (condition) =>
+              !assessed.some((row) => row.conditions.includes(condition)),
+          )}
+        />
+      )}
       {fallback.size > 0 && (
         <Box component="details">
           <Box component="summary" sx={{ cursor: 'pointer', py: 1 }}>
@@ -1018,6 +1058,156 @@ export function FindingsOverview({
   );
 }
 
+const assessmentReasons = {
+  EVIDENCED: 'The saved assessment found sufficient supporting evidence.',
+  PARTIAL: 'The saved evidence supports part of the requirement.',
+  NOT_EVIDENCED:
+    'The assessment did not establish sufficient evidence in the reviewed CV.',
+  CONFLICT: 'The saved assessment flagged an evidence issue for review.',
+  UNDECOMPOSED: 'The saved assessment could not make a reliable determination.',
+} as const;
+
+const assessmentNextSteps = {
+  EVIDENCED: undefined,
+  PARTIAL: 'Check which parts the employer requires before updating your CV.',
+  NOT_EVIDENCED:
+    'If accurate, describe the task you performed in the relevant role or project.',
+  CONFLICT:
+    'Compare the saved evidence with the original requirement and reviewed CV.',
+  UNDECOMPOSED:
+    'Check the required scope against the experience documented in your CV.',
+} as const;
+
+const assessmentColors = {
+  EVIDENCED: 'success',
+  PARTIAL: 'info',
+  NOT_EVIDENCED: 'default',
+  CONFLICT: 'error',
+  UNDECOMPOSED: 'warning',
+} as const;
+
+function SavedRequirementDetails({
+  assessment: { requirement, status },
+  reviewEvidence = [],
+}: {
+  assessment: NonNullable<Comparison['assessment']>;
+  reviewEvidence?: EvidenceReview['rows'][number]['evidence'];
+}) {
+  const components = requirement.coverage?.components ?? [];
+  const supporting = new Map<string, { origin?: CvOrigin; title: string }>();
+  for (const component of components) {
+    for (const passage of Array.isArray(component.strength?.quotes)
+      ? component.strength.quotes
+      : []) {
+      if (typeof passage?.quote === 'string' && passage.quote.trim())
+        supporting.set(passage.quote, {
+          title: tr('Evidence strength passage'),
+        });
+    }
+    for (const quote of component.conflictingQuotes)
+      supporting.set(quote, { title: tr('Conflicting CV evidence') });
+    if (component.cvQuote.trim())
+      supporting.set(component.cvQuote, {
+        origin: component.cvOrigin,
+        title: tr('Evidence selected in the assessment'),
+      });
+  }
+  if (requirement.cvQuote.trim() && !supporting.has(requirement.cvQuote))
+    supporting.set(requirement.cvQuote, {
+      origin: requirement.cvOrigin,
+      title: tr('Evidence selected in the assessment'),
+    });
+
+  const reason = requirement.coverage?.reason;
+  const hasReason =
+    reason && !/^Review the selected (?:component )?evidence\.$/u.test(reason);
+  return (
+    <Stack spacing={1}>
+      <Typography variant="body2">{tr(assessmentReasons[status])}</Typography>
+      {hasReason && <Typography variant="body2">{tr(reason)}</Typography>}
+      {requirement.evidence?.modelQuote === 'REJECTED' && (
+        <Typography variant="body2">
+          {tr(
+            'An assessment passage was rejected during evidence verification.',
+          )}
+        </Typography>
+      )}
+      {components.map((component) => (
+        <Box key={component.id}>
+          {components.length > 1 && (
+            <Typography variant="subtitle2">
+              {component.label} · {statusLabel(component.status)}
+            </Typography>
+          )}
+          {component.qualificationReason && (
+            <Typography variant="body2">
+              {tr(component.qualificationReason)}
+            </Typography>
+          )}
+          {component.observations?.map(({ kind, cvQuote }) => (
+            <EvidenceQuote
+              key={JSON.stringify([kind, cvQuote])}
+              source="CV evidence"
+              title={tr(
+                kind === 'experience'
+                  ? 'Verified professional experience'
+                  : 'Verified technology mention',
+              )}
+              label={tr(
+                kind === 'experience'
+                  ? 'Professional experience: {label}'
+                  : 'Technology mention: {label}',
+                { label: component.label },
+              )}
+              quote={cvQuote}
+            />
+          ))}
+        </Box>
+      ))}
+      {supporting.size > 0 ? (
+        <details>
+          <summary>{tr('Original CV evidence')}</summary>
+          {[...supporting].map(([quote, evidence]) => {
+            const refs = new Set(
+              reviewEvidence
+                .filter(
+                  (item) =>
+                    item.quote === quote &&
+                    (!evidence.origin || item.origin === evidence.origin),
+                )
+                .map((item) => item.entryId),
+            );
+            const entryId = refs.size === 1 ? [...refs][0] : undefined;
+            return (
+              <EvidenceQuote
+                key={quote}
+                source="CV evidence"
+                quote={quote}
+                detail={
+                  entryId ? tr('CV entry: {id}', { id: entryId }) : undefined
+                }
+                {...evidence}
+              />
+            );
+          })}
+        </details>
+      ) : (
+        !components.some((component) => component.observations?.length) && (
+          <Typography variant="body2" color="text.secondary">
+            {tr('No evidence passages were saved for this requirement.')}
+          </Typography>
+        )
+      )}
+      {!hasReason &&
+        !components.some((component) => component.qualificationReason) && (
+          <Typography variant="body2" color="text.secondary">
+            {tr('No further assessment rationale was saved.')}
+          </Typography>
+        )}
+    </Stack>
+  );
+}
+
 const coverageCategories = {
   EVIDENCED: ['Matched', 'success.main'],
   PARTIAL: ['Partial', 'info.main'],
@@ -1026,142 +1216,31 @@ const coverageCategories = {
   UNDECOMPOSED: ['Unable to assess', 'warning.main'],
 } as const;
 
-function RequirementObservations({
-  requirements,
-}: {
-  requirements: MatchResult['requirements'];
-}) {
-  const rows = requirements.flatMap((row) => {
-    const components = row.coverage?.components.filter(
-      (component) => component.observations?.length,
-    );
-    return components?.length ? [{ row, components }] : [];
-  });
-  if (!rows.length) return null;
-
-  return (
-    <Stack component="section" aria-label={tr('Requirements')} spacing={1}>
-      {rows.map(({ row, components }, index) => (
-        <Accordion
-          key={row.parentId ?? index}
-          disableGutters
-          elevation={0}
-          variant="outlined"
-        >
-          <AccordionSummary
-            expandIcon={<ExpandMoreIcon />}
-            aria-label={`${statusLabel(row.status)}: ${row.requirement}`}
-          >
-            {row.requirement} · {statusLabel(row.status)}
-          </AccordionSummary>
-          <AccordionDetails>
-            <Stack spacing={2}>
-              {row.coverage?.reason &&
-                (dateLocale() === 'en-US' ||
-                  tr(row.coverage.reason) !== row.coverage.reason) && (
-                  <Typography variant="body2">
-                    {tr(row.coverage.reason)}
-                  </Typography>
-                )}
-              {components.map((component) => (
-                <Stack key={component.id} spacing={0.5}>
-                  <Typography variant="subtitle2">
-                    {component.label} · {statusLabel(component.status)}
-                  </Typography>
-                  {component.qualificationReason &&
-                    (dateLocale() === 'en-US' ||
-                      tr(component.qualificationReason) !==
-                        component.qualificationReason) && (
-                      <Typography variant="body2">
-                        {tr(component.qualificationReason)}
-                      </Typography>
-                    )}
-                  {component.observations?.map(({ kind, cvQuote }) => (
-                    <EvidenceQuote
-                      key={JSON.stringify([kind, cvQuote])}
-                      source="CV evidence"
-                      title={
-                        kind === 'experience'
-                          ? tr('Verified professional experience')
-                          : tr('Verified technology mention')
-                      }
-                      label={
-                        kind === 'experience'
-                          ? tr('Professional experience: {label}', {
-                              label: component.label,
-                            })
-                          : tr('Technology mention: {label}', {
-                              label: component.label,
-                            })
-                      }
-                      quote={cvQuote}
-                    />
-                  ))}
-                </Stack>
-              ))}
-            </Stack>
-          </AccordionDetails>
-        </Accordion>
-      ))}
-    </Stack>
-  );
-}
-
 function RequirementCoverage({
-  requirements,
+  rows,
+  renderComparison,
 }: {
-  requirements?: MatchResult['requirements'];
+  rows: Comparison[];
+  renderComparison: (row: Comparison, index: number) => React.ReactNode;
 }) {
-  const rows = requirements?.filter((row) => row.notAssessed !== 'HEADING');
-  if (
-    !rows?.length ||
-    rows.some(
-      (row) =>
-        !Object.hasOwn(coverageCategories, row.status) ||
-        (row.coverage?.status !== undefined &&
-          row.coverage.status !== row.status),
-    )
-  )
-    return (
-      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-        {tr(
-          'Requirement coverage is unavailable. The assessment does not provide trustworthy requirement counts.',
-        )}
-      </Typography>
-    );
-
-  const counts = {
-    EVIDENCED: 0,
-    PARTIAL: 0,
-    NOT_EVIDENCED: 0,
-    CONFLICT: 0,
-    UNDECOMPOSED: 0,
-  };
-  for (const row of rows) {
-    const status =
-      row.notAssessed ||
-      row.status === 'UNDECOMPOSED' ||
-      (row.status === 'NOT_EVIDENCED' &&
-        row.evidence?.modelQuote === 'REJECTED')
-        ? 'UNDECOMPOSED'
-        : row.evidence?.review
-          ? 'CONFLICT'
-          : row.status;
-    counts[status]++;
-  }
-  const categories = (Object.keys(counts) as (keyof typeof counts)[]).map(
-    (status) => ({
-      label: coverageCategories[status][0],
-      color: coverageCategories[status][1],
-      count: counts[status],
-    }),
-  );
-
+  const id = useId();
+  const categories = (
+    Object.keys(coverageCategories) as (keyof typeof coverageCategories)[]
+  ).map((status) => {
+    const [label, color] = coverageCategories[status];
+    const members = rows.filter((row) => row.assessment?.status === status);
+    return { status, label, color, count: members.length, members };
+  });
   return (
     <Box
       component="section"
-      aria-label={tr('Requirement evidence coverage')}
-      sx={{ mt: 2 }}
+      aria-label={tr('Saved assessment coverage')}
+      sx={{
+        p: 2,
+        border: '1px solid',
+        borderColor: 'divider',
+        borderRadius: `${surface.radius}px`,
+      }}
     >
       <Stack
         direction="row"
@@ -1173,8 +1252,8 @@ function RequirementCoverage({
           gap: 0.5,
         }}
       >
-        <Typography component="h4" variant="subtitle2">
-          {tr('Requirement evidence coverage')}
+        <Typography component="h3" variant="subtitle1" sx={{ fontWeight: 600 }}>
+          {tr('CV Match assessment')}
         </Typography>
         <Typography variant="body2" color="text.secondary">
           {tr('{count} JD requirements', { count: rows.length })}
@@ -1202,8 +1281,7 @@ function RequirementCoverage({
           m: 0,
           mt: 1,
           display: 'grid',
-          gridTemplateColumns:
-            'repeat(auto-fit, minmax(min(100%, 128px), 1fr))',
+          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
           gap: 1,
         }}
       >
@@ -1222,7 +1300,7 @@ function RequirementCoverage({
                 bgcolor: color,
               }}
             />
-            <Typography component="dt" variant="body2">
+            <Typography component="dt" variant="body2" sx={{ order: 1 }}>
               {tr(label)}
             </Typography>
             <Typography
@@ -1243,6 +1321,50 @@ function RequirementCoverage({
       >
         {tr('Missing CV evidence leaves real-world ability unverified.')}
       </Typography>
+      <Box
+        sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}
+      >
+        <Typography component="h4" variant="subtitle2" sx={{ mb: 1 }}>
+          {tr('Requirements by assessment result')}
+        </Typography>
+        {categories
+          .filter(({ count }) => count > 0)
+          .map(({ status, label, color, count, members }) => (
+            <Accordion key={status} disableGutters elevation={0}>
+              <AccordionSummary
+                id={id + status}
+                aria-controls={id + status + '-requirements'}
+                expandIcon={<ExpandMoreIcon />}
+              >
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{ alignItems: 'center' }}
+                >
+                  <Box
+                    aria-hidden="true"
+                    sx={{
+                      width: 8,
+                      height: 8,
+                      bgcolor: color,
+                      borderRadius: '50%',
+                    }}
+                  />
+                  <Typography
+                    component="span"
+                    variant="subtitle1"
+                    sx={{ fontWeight: 600 }}
+                  >
+                    {tr(label)} ({count})
+                  </Typography>
+                </Stack>
+              </AccordionSummary>
+              <AccordionDetails sx={{ px: { xs: 0, sm: 1 }, pt: 0 }}>
+                {members.map((row) => renderComparison(row, rows.indexOf(row)))}
+              </AccordionDetails>
+            </Accordion>
+          ))}
+      </Box>
     </Box>
   );
 }

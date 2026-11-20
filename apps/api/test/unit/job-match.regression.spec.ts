@@ -1,3 +1,4 @@
+import { matchPassages } from '../../src/matching/cv-match.passages.js';
 import { reviewedAsIs } from '../support/reviewed-cv.stub.js';
 import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js';
 import { asLocalOwner } from '../support/as-local-owner.js';
@@ -6,13 +7,22 @@ import { memoryMatchRows } from '../support/memory-match-rows.js';
 import { expect, jest, test } from '@jest/globals';
 import { Repository } from 'typeorm';
 import { AiError } from '../../src/ai/ai.errors.js';
+import {
+  aiConfig,
+  cvMatchAiConfig,
+  type AiConfig,
+} from '../../src/ai/ai.config.js';
 import { AiService } from '../../src/ai/ai.service.js';
 import type { AiProvider } from '../../src/ai/ai-provider.js';
 import type { ExtractionService } from '../../src/extraction/extraction.service.js';
 import { JobMatchService } from '../../src/matching/job-match.service.js';
 import { MatchingService } from '../../src/matching/matching.service.js';
 import { SavedCv } from '../../src/matching/saved-cv.entity.js';
-import { canonicalRequirements } from '../../src/matching/cv-match.js';
+import {
+  canonicalRequirements,
+  matchQuoteChoices,
+  type MatchRequirement,
+} from '../../src/matching/cv-match.js';
 import type { Opportunity } from '../../src/opportunities/opportunity.entity.js';
 import type { OpportunitiesService } from '../../src/opportunities/opportunities.service.js';
 const cvText =
@@ -45,6 +55,7 @@ function setup(
   generate: AiProvider['generate'],
   text: string | null = cvText,
   savedJob = job,
+  config?: AiConfig,
 ) {
   const row =
     text === null
@@ -66,6 +77,7 @@ function setup(
     jobs as unknown as OpportunitiesService,
     memoryMatchRows(),
     reviewedAsIs(),
+    config,
   );
   return { service, provider, cvs, jobs };
 }
@@ -624,3 +636,428 @@ test('condition evidence persists with the saved assessment and current-match re
   });
   expect(provider.generate).toHaveBeenCalledTimes(1);
 });
+
+test('semantic assessments preserve documented correspondence and incomplete scope through analysis', async () => {
+  const postgres = '- Maintained a PostgreSQL-backed billing application.';
+  const node = '- Built a payment service using Node.js.';
+  const allocation = '- Assigned sprint tasks to team members.';
+  const sqlServer = '- Optimized SQL Server reporting queries.';
+  const spring = '- Developed Spring Boot services in Java.';
+  const career = '6 years of experience in software development.';
+  const rest = 'Skills: REST APIs';
+  const planning = '- Planned and launched marketing campaigns.';
+  const title = 'Project: Enterprise Resource Planning';
+  const listed = 'Skills: PostgreSQL, Node.js, Docker';
+  const pipeline = '- Maintained build automation in GitLab CI/CD.';
+  const cases = [
+    [
+      'Có kinh nghiệm làm việc với cơ sở dữ liệu PostgreSQL',
+      'SUPPORTED',
+      postgres,
+      'EVIDENCED',
+    ],
+    [
+      'Có kinh nghiệm làm việc với NodeJS là lợi thế',
+      'SUPPORTED',
+      node,
+      'EVIDENCED',
+    ],
+    [
+      'Có khả năng estimate và phân chia technical task',
+      'RELATED',
+      allocation,
+      'PARTIAL',
+    ],
+    [
+      'Có kinh nghiệm làm việc với cơ sở dữ liệu PostgreSQL, có khả năng phân tích/tối ưu câu SQL khi cần thiết',
+      'RELATED',
+      postgres,
+      'PARTIAL',
+    ],
+    [
+      'Ít nhất >5 năm kinh nghiệm phát triển phần mềm bằng ngôn ngữ Java',
+      'SUPPORTED',
+      spring,
+      'PARTIAL',
+    ],
+    ['Experience delivering REST APIs', 'RELATED', rest, 'PARTIAL'],
+    [
+      'Nắm vững Core Java: Collections, Generics, Exception Handling, Stream API',
+      'NOT_FOUND',
+      '',
+      'NOT_EVIDENCED',
+    ],
+    [
+      'Có kinh nghiệm với Spring/Spring Boot OR các Java framework tương đương',
+      'SUPPORTED',
+      spring,
+      'EVIDENCED',
+    ],
+    [
+      'Có kinh nghiệm về các công cụ quản lý phiên bản (Git, SVN)',
+      'NOT_FOUND',
+      '',
+      'NOT_EVIDENCED',
+    ],
+    [
+      'Experience with Linux, CentOS, and checking logs, process, resource, network',
+      'NOT_FOUND',
+      '',
+      'NOT_EVIDENCED',
+    ],
+    [
+      'Experience with campaign planning and conversion attribution',
+      'RELATED',
+      planning,
+      'PARTIAL',
+    ],
+    ['Docker', 'SUPPORTED', listed, 'EVIDENCED'],
+    [
+      'Experience with source control using Git or SVN',
+      'RELATED',
+      pipeline,
+      'PARTIAL',
+    ],
+  ] as const;
+  const jd = cases.map(([requirement]) => requirement).join('\n');
+  const cv = [
+    title,
+    career,
+    postgres,
+    node,
+    allocation,
+    sqlServer,
+    spring,
+    rest,
+    planning,
+    listed,
+    pipeline,
+  ].join('\n\n');
+  const synthetic = {
+    ...job,
+    skills: jd,
+    preferredSkills: '',
+    experience: '',
+    domain: '',
+    description: jd,
+  };
+  const { service } = setup(
+    async ({ prompt }) => {
+      const payload = JSON.parse(prompt.slice(prompt.lastIndexOf('\n') + 1));
+      if (Array.isArray(payload)) {
+        return JSON.stringify({
+          items: payload.map(
+            ({
+              parentId,
+              requirement,
+            }: {
+              parentId: string;
+              requirement: string;
+            }) =>
+              requirement === cases[7][0]
+                ? {
+                    parentId,
+                    mode: 'OR',
+                    components: ['Spring', 'Spring Boot'],
+                  }
+                : { parentId, mode: 'UNSAFE', components: [] },
+          ),
+        });
+      }
+      expect(prompt).toContain(
+        'Prefer the work passage when it documents applying the same skill',
+      );
+      expect(payload.cv).toContain(listed);
+      expect(payload.cv).toContain(postgres);
+      const select = (quote: string) => {
+        if (!quote) return { cvQuote: '' };
+        const line = payload.evidenceLines.indexOf(quote) + 1;
+        const passage = payload.passages.find(
+          ([, first, last]: [string, number, number]) =>
+            first === line && last === line,
+        );
+        expect(passage).toBeDefined();
+        return { cvQuote: '', passageId: passage[0] };
+      };
+      return JSON.stringify({
+        requirements: payload.canonicalRequirements.map(
+          ({
+            group,
+            ...parent
+          }: MatchRequirement & {
+            group: {
+              mode: string;
+              components: { id: string; jdQuote: string }[];
+            };
+          }) => {
+            const [, correspondence, cvQuote] = cases.find(
+              ([requirement]) => requirement === parent.requirement,
+            )!;
+            const perComponent = new Map<string, string[]>([
+              [cases[2][0], ['', allocation]],
+              [cases[3][0], [postgres, sqlServer]],
+              [cases[7][0], ['', spring]],
+              [cases[10][0], [planning, '']],
+            ]);
+            const selectedQuotes = perComponent.get(parent.requirement) ?? [
+              cvQuote,
+            ];
+            const componentDecision = perComponent.has(parent.requirement)
+              ? 'SUPPORTED'
+              : correspondence;
+            return {
+              ...parent,
+              correspondence,
+              ...(cvQuote === pipeline && {
+                missingQualifier:
+                  'Build automation is documented. Git and SVN use remain unconfirmed.',
+              }),
+              ...select(parent.requirement === cases[7][0] ? '' : cvQuote),
+              components: group.components.map((component, index) => {
+                const selected = selectedQuotes[index] ?? '';
+                return {
+                  componentId: component.id,
+                  jdQuote: component.jdQuote,
+                  ...select(selected),
+                  ...(parent.requirement === cases[2][0] &&
+                    index === 0 && { passageId: 'unknown-estimation-passage' }),
+                  correspondence: !selected
+                    ? 'NOT_FOUND'
+                    : selected === sqlServer
+                      ? 'RELATED'
+                      : componentDecision,
+                };
+              }),
+            };
+          },
+        ),
+      });
+    },
+    cv,
+    synthetic,
+    cvMatchAiConfig(aiConfig({}), {
+      CV_MATCH_AI_PROVIDER: 'openai',
+      OPENAI_API_KEY: 'synthetic-key-for-mocked-provider',
+    }),
+  );
+  const result = await service.analyze(LOCAL_OWNER_ID, synthetic.id);
+  expect(result.requirements.map(({ status }) => status)).toEqual(
+    cases.map(([, , , status]) => status),
+  );
+  expect(result.requirements[0]?.cvQuote).toBe(postgres);
+  expect(result.requirements[1]?.cvQuote).toBe(node);
+  expect(result.requirements[11]?.cvQuote).toBe(listed);
+  expect(result.requirements[12]?.coverage).toMatchObject({
+    status: 'PARTIAL',
+    reason:
+      'Build automation is documented. Git and SVN use remain unconfirmed.',
+  });
+  expect(
+    result.requirements[12]?.coverage.components.some(
+      (component) => component.status === 'EVIDENCED',
+    ),
+  ).toBe(false);
+  expect(
+    result.requirements[2]?.coverage.components.map(({ status }) => status),
+  ).toEqual(['UNDECOMPOSED', 'EVIDENCED']);
+  expect(
+    result.requirements[3]?.coverage.components.map(({ status, cvQuote }) => [
+      status,
+      cvQuote,
+    ]),
+  ).toEqual([
+    ['EVIDENCED', postgres],
+    ['PARTIAL', sqlServer],
+  ]);
+  expect(result.conditions).toContainEqual(
+    expect.objectContaining({
+      parentId: result.requirements[4]?.parentId,
+      status: 'UNKNOWN',
+      evidence: [],
+    }),
+  );
+  expect(result.requirements[7]?.coverage.components[1]).toMatchObject({
+    label: 'Spring Boot',
+    cvQuote: spring,
+    cvOrigin: 'source',
+  });
+  for (const index of [8, 9]) {
+    expect(result.requirements[index]?.evidence.review).toBe(false);
+    expect(
+      result.requirements[index]?.coverage.components.every(
+        (component) => !('strength' in component),
+      ),
+    ).toBe(true);
+  }
+});
+
+test.each([
+  ['unsupported CV passage', 'Fabricated attribution project', false, true],
+  ['missing CV passage', '', false, true],
+  ['wrong component JD span', '', true, false],
+] as const)(
+  'a semantic AND isolates %s only when component identity is intact',
+  async (_name, badQuote, badSpan, retainsEvidence) => {
+    const requirement =
+      'Experience with campaign planning and conversion attribution';
+    const cv = '- Planned marketing campaigns.';
+    const savedJob = {
+      ...job,
+      skills: requirement,
+      description: requirement,
+      preferredSkills: '',
+      experience: '',
+      domain: '',
+    };
+    const config = cvMatchAiConfig(aiConfig({}), {
+      CV_MATCH_AI_PROVIDER: 'openai',
+      OPENAI_API_KEY: 'synthetic-key-for-mocked-provider',
+    });
+    const { service } = setup(
+      async () =>
+        JSON.stringify({
+          requirements: canonicalRequirements(savedJob).map((parent) => ({
+            ...parent,
+            correspondence: 'RELATED',
+            cvQuote: cv,
+            components: [
+              {
+                componentId: 'c1',
+                jdQuote: 'campaign planning',
+                correspondence: 'SUPPORTED',
+                cvQuote: cv,
+              },
+              {
+                componentId: 'c2',
+                jdQuote: badSpan ? 'other skill' : 'conversion attribution',
+                correspondence: 'SUPPORTED',
+                cvQuote: badQuote,
+              },
+            ],
+          })),
+        }),
+      cv,
+      savedJob,
+      config,
+    );
+    const result = await service.analyze(LOCAL_OWNER_ID, savedJob.id);
+    const row = result.requirements[0]!;
+    expect(row.status).toBe(retainsEvidence ? 'PARTIAL' : 'UNDECOMPOSED');
+    expect(row.evidence.review).toBe(!retainsEvidence);
+    expect(row.cvQuote).toBe(retainsEvidence ? cv : '');
+    expect(row.coverage.components[1]?.cvQuote).toBe('');
+    if (retainsEvidence) {
+      expect(row.coverage.components[0]).toMatchObject({
+        status: 'EVIDENCED',
+        cvQuote: cv,
+        cvOrigin: 'source',
+      });
+      expect(row.coverage.components[1]).toMatchObject({
+        status: 'UNDECOMPOSED',
+        qualificationReason: 'This component’s evidence could not be verified.',
+      });
+    }
+  },
+);
+
+test.each([
+  'unknown',
+  'altered',
+  'other revision',
+  'unapproved',
+  'parent only',
+])(
+  'hosted analysis isolates %s evidence without borrowing the parent passage',
+  async (kind) => {
+    const requirement =
+      'Experience with campaign planning and conversion attribution';
+    const savedJob = {
+      ...job,
+      skills: requirement,
+      description: requirement,
+      preferredSkills: '',
+      experience: '',
+      domain: '',
+    };
+    const cv = '- Planned marketing campaigns.';
+    const reviewed = {
+      text: cv,
+      lines: [
+        {
+          factId: 'planning',
+          sectionKind: 'additional' as const,
+          entryId: 'entry',
+          origin: 'source' as const,
+          start: 0,
+          end: cv.length,
+        },
+      ],
+    };
+    const eligible = new Set(
+      matchQuoteChoices(cv, canonicalRequirements(savedJob)),
+    );
+    const source = matchPassages(
+      reviewed,
+      'another-reviewed-revision',
+      eligible,
+    );
+    const otherRevision = source.input.passages[0]![0];
+    expect(
+      matchPassages(reviewed, 'another-reviewed-revision', eligible).input,
+    ).toEqual(source.input);
+    expect(
+      matchPassages(reviewed, 'another-reviewed-revision', new Set()).input
+        .passages,
+    ).toEqual([]);
+    const { service } = setup(
+      async ({ prompt }) => {
+        const payload = JSON.parse(prompt.slice(prompt.lastIndexOf('\n') + 1));
+        const id = payload.passages[0][0] as string;
+        expect(id).not.toBe(otherRevision);
+        const selection = {
+          unknown: { passageId: 'unknown', cvQuote: '' },
+          altered: { passageId: id, cvQuote: '- Led all marketing campaigns.' },
+          'other revision': { passageId: otherRevision, cvQuote: '' },
+          unapproved: { cvQuote: '- Owned conversion attribution.' },
+          'parent only': { cvQuote: '' },
+        }[kind]!;
+        return JSON.stringify({
+          requirements: canonicalRequirements(savedJob).map((parent) => ({
+            ...parent,
+            correspondence: 'RELATED',
+            passageId: id,
+            cvQuote: '',
+            components: [
+              {
+                componentId: 'c1',
+                jdQuote: 'campaign planning',
+                correspondence: 'SUPPORTED',
+                ...selection,
+              },
+              {
+                componentId: 'c2',
+                jdQuote: 'conversion attribution',
+                correspondence: 'NOT_FOUND',
+                cvQuote: '',
+              },
+            ],
+          })),
+        });
+      },
+      cv,
+      savedJob,
+      cvMatchAiConfig(aiConfig({}), {
+        CV_MATCH_AI_PROVIDER: 'openai',
+        OPENAI_API_KEY: 'synthetic-key-for-mocked-provider',
+      }),
+    );
+    const result = await service.analyze(LOCAL_OWNER_ID, savedJob.id);
+    const parent = result.requirements[0]!;
+    expect(parent.cvQuote).toBe('');
+    expect(parent.status).toBe('UNDECOMPOSED');
+    for (const component of parent.coverage.components) {
+      expect(component.status).not.toBe('EVIDENCED');
+      expect(component.cvQuote || '').toBe('');
+    }
+  },
+);

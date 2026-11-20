@@ -1,7 +1,8 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, test } from 'vitest';
 import { compareRequirements } from '../src/features/inbox/requirement-comparison';
+import { setLocale } from '../src/app/i18n';
 import { FindingsOverview } from '../src/features/inbox/CvMatchSection';
 import type {
   MatchCondition,
@@ -73,8 +74,14 @@ test('Job C regression fixture uses requirement counts and opens the right evide
         requirement('Spring Boot or a comparable framework', 'EVIDENCED'),
         requirement(frontend, 'PARTIAL'),
         requirement('Write SQL queries for reporting', 'NOT_EVIDENCED'),
-        requirement('Two years overall', 'UNDECOMPOSED'),
-        requirement('Two years in Java delivery', 'PARTIAL'),
+        {
+          ...requirement('Two years overall', 'UNDECOMPOSED'),
+          parentId: 'general',
+        },
+        {
+          ...requirement('Two years in Java delivery', 'PARTIAL'),
+          parentId: 'scoped',
+        },
         requirement('IT qualification', 'CONFLICT'),
         {
           ...requirement('Required skills', 'UNDECOMPOSED'),
@@ -93,36 +100,40 @@ test('Job C regression fixture uses requirement counts and opens the right evide
   ).toEqual(['2', '2', '1', '1', '1']);
   expect(screen.getByText('7 JD requirements')).toBeVisible();
   expect(container.textContent).not.toContain('%');
-  const left = screen.getByRole('heading', {
-    name: 'JD requirements with evidence',
-  }).parentElement!;
-  expect(within(left).getAllByRole('button')).toHaveLength(2);
-  const front = within(left).getByRole('button', { name: /VueJS\/NuxtJS/ });
-  expect(front).toHaveTextContent('View details');
+  const partial = screen.getByRole('button', { name: 'Partial (2)' });
+  partial.focus();
+  await user.keyboard('{Enter}');
+  const bucket = screen.getByRole('region', { name: 'Partial (2)' });
+  expect(within(bucket).getAllByRole('button')).toHaveLength(2);
+  const front = within(bucket).getByRole('button', {
+    name: /Partial: VueJS\/NuxtJS/,
+  });
   front.focus();
   await user.keyboard('{Enter}');
-  await waitFor(() =>
-    expect(document.activeElement).toHaveAttribute('aria-expanded', 'true'),
-  );
+  expect(front).toHaveAttribute('aria-expanded', 'true');
+  const comparison = within(bucket).getByRole('region', {
+    name: /Partial: VueJS/,
+  });
   expect(
-    [...container.querySelectorAll('mark')].map((e) => e.textContent),
-  ).toEqual(['VueJS', 'NuxtJS', 'JavaScript']);
-  expect(container.querySelector('blockquote')).toHaveTextContent(frontend);
-  const right = screen.getByRole('heading', {
-    name: 'Points to review',
-  }).parentElement!;
-  await user.click(within(right).getByRole('button', { name: /Write SQL/ }));
-  await waitFor(() =>
-    expect(document.activeElement).toHaveTextContent(
-      'Write SQL queries for reporting',
+    [...comparison.querySelectorAll('mark')].map(
+      (element) => element.textContent,
     ),
-  );
-  await user.click(
-    within(right).getByRole('button', { name: /Two years in Java delivery/ }),
-  );
+  ).toEqual(['VueJS', 'NuxtJS', 'JavaScript']);
   expect(
-    screen.getByRole('region', { name: /Two years in Java delivery/ }),
-  ).toHaveTextContent('Two years overall');
+    within(comparison).getByText('Preliminary skill evidence'),
+  ).toBeVisible();
+  expect(within(comparison).getByText('Next step')).toBeVisible();
+  expect(
+    within(comparison).getByText('Preliminary and condition evidence'),
+  ).toBeVisible();
+  const duration = within(bucket).getByRole('button', {
+    name: 'Partial: Two years in Java delivery',
+  });
+  await user.click(duration);
+  expect(within(bucket).getByText('Review of the condition')).toBeVisible();
+  expect(
+    within(bucket).getByText(/Check role dates and project periods/),
+  ).toBeVisible();
 });
 test('marketing requirements follow source spans and refreshed findings close the comparison', async () => {
   const user = userEvent.setup();
@@ -151,15 +162,28 @@ test('marketing requirements follow source spans and refreshed findings close th
     [...container.querySelectorAll('dd')].map((el) => el.textContent),
   ).toEqual(['1', '0', '1', '1', '2']);
   expect(screen.getByText('5 JD requirements')).toBeVisible();
-  const left = screen.getByRole('heading', {
-    name: 'JD requirements with evidence',
-  }).parentElement!;
-  await user.click(
-    within(left).getByRole('button', { name: /Google Ads or equivalent/ }),
-  );
-  await waitFor(() =>
-    expect(document.activeElement).toHaveAttribute('aria-expanded', 'true'),
-  );
+  for (const [label, count] of [
+    ['Matched', 1],
+    ['Not evidenced in reviewed CV', 1],
+    ['Conflict / Needs review', 1],
+    ['Unable to assess', 2],
+  ] as const) {
+    await user.click(
+      screen.getByRole('button', { name: `${label} (${count})` }),
+    );
+    const bucket = screen.getByRole('region', { name: `${label} (${count})` });
+    expect(within(bucket).getAllByRole('button')).toHaveLength(count);
+    expect(
+      within(bucket).getAllByRole('button', {
+        name: new RegExp(`^${label}: `),
+      }),
+    ).toHaveLength(count);
+  }
+  expect(
+    screen.getByRole('button', {
+      name: 'Matched: Google Ads or equivalent channels',
+    }),
+  ).toBeVisible();
   rerender(<FindingsOverview key="new-review" findings={[...data]} />);
   expect(document.querySelector('[aria-expanded="true"]')).toBeNull();
   rerender(<FindingsOverview findings={[]} />);
@@ -167,14 +191,16 @@ test('marketing requirements follow source spans and refreshed findings close th
     screen.getByText('No findings available for this review.'),
   ).toBeVisible();
   expect(
-    screen.queryByRole('region', { name: 'Requirement evidence coverage' }),
+    screen.queryByRole('region', { name: 'Saved assessment coverage' }),
   ).toBeNull();
 });
 
 test('reports unavailable coverage when the requirement data cannot be trusted', () => {
   const data = [finding('skill', 'CRM')];
   const { rerender } = render(<FindingsOverview findings={data} />);
-  expect(screen.getByText(/Requirement coverage is unavailable/)).toBeVisible();
+  expect(
+    screen.getByText(/Analyze CV Match to see saved assessment coverage/),
+  ).toBeVisible();
   rerender(
     <FindingsOverview
       findings={data}
@@ -202,8 +228,82 @@ test('reports unavailable coverage when the requirement data cannot be trusted',
   );
   expect(screen.getByText(/Requirement coverage is unavailable/)).toBeVisible();
   expect(
-    screen.queryByRole('region', { name: 'Requirement evidence coverage' }),
+    screen.queryByRole('region', { name: 'Saved assessment coverage' }),
   ).toBeNull();
+});
+
+test.each(['NOT_EVIDENCED', 'UNDECOMPOSED'] as const)(
+  'preliminary Spring Boot evidence stays secondary to %s in the saved assessment',
+  async (status) => {
+    const user = userEvent.setup();
+    const original = 'Spring Boot hoặc framework tương đương.';
+    const saved = 'Spring Boot OR framework tương đương';
+    const span = {
+      field: 'description',
+      start: 0,
+      end: original.length,
+      quote: original,
+    };
+    render(
+      <FindingsOverview
+        findings={[
+          {
+            ...finding('skill', 'Spring Boot'),
+            sources: [{ ...span, end: 11, quote: 'Spring Boot' }],
+          },
+          { ...finding('clause', original), sources: [span] },
+        ]}
+        requirements={[requirement(saved, status)]}
+      />,
+    );
+    const coverage = screen.getByRole('region', {
+      name: 'Saved assessment coverage',
+    });
+    const label =
+      status === 'UNDECOMPOSED'
+        ? 'Unable to assess'
+        : 'Not evidenced in reviewed CV';
+    expect(
+      [...coverage.querySelectorAll('dd')].map((el) => el.textContent),
+    ).toEqual(
+      status === 'UNDECOMPOSED'
+        ? ['0', '0', '0', '0', '1']
+        : ['0', '0', '1', '0', '0'],
+    );
+    await user.click(
+      within(coverage).getByRole('button', { name: `${label} (1)` }),
+    );
+    await user.click(
+      within(coverage).getByRole('button', { name: `${label}: ${original}` }),
+    );
+    expect(screen.getByText('Preliminary skill evidence')).toBeVisible();
+    expect(
+      screen.getByText('No evidence passages were saved for this requirement.'),
+    ).toBeVisible();
+    expect(
+      screen.getByText('No further assessment rationale was saved.'),
+    ).toBeVisible();
+  },
+);
+
+test('assessment buckets and rows are labelled in Vietnamese', async () => {
+  setLocale('vi-VN');
+  const user = userEvent.setup();
+  render(
+    <FindingsOverview
+      findings={[]}
+      requirements={[requirement('Java', 'UNDECOMPOSED')]}
+    />,
+  );
+  expect(
+    screen.getByRole('heading', { name: 'Yêu cầu theo kết quả đánh giá' }),
+  ).toBeVisible();
+  await user.click(
+    screen.getByRole('button', { name: 'Không thể đánh giá (1)' }),
+  );
+  expect(
+    screen.getByRole('button', { name: 'Không thể đánh giá: Java' }),
+  ).toBeVisible();
 });
 
 test('shows an all-unassessed inventory with four zero-count categories', () => {
@@ -220,7 +320,7 @@ test('shows an all-unassessed inventory with four zero-count categories', () => 
     />,
   );
   const coverage = screen.getByRole('region', {
-    name: 'Requirement evidence coverage',
+    name: 'Saved assessment coverage',
   });
   expect(within(coverage).getByText('2 JD requirements')).toBeVisible();
   expect(
@@ -331,4 +431,61 @@ test('ignores a saved skill mirror while keeping independent source occurrences'
   expect(fallback).toHaveTextContent('From reviewed source');
   expect(fallback).not.toHaveTextContent('Confirmed project using VueJS');
   expect(screen.queryByText(/characters|postText/)).toBeNull();
+});
+
+test('a Partial row exposes its verified CV passage and unresolved sibling in the same accordion', async () => {
+  const user = userEvent.setup();
+  const title = 'Campaign planning and conversion attribution';
+  const quote = 'Planned marketing campaigns.';
+  render(
+    <FindingsOverview
+      findings={[]}
+      requirements={[
+        {
+          ...requirement(title, 'PARTIAL'),
+          cvQuote: quote,
+          coverage: {
+            mode: 'AND',
+            status: 'PARTIAL',
+            credit: 0.5,
+            reason: 'Conversion attribution remains unconfirmed.',
+            components: [
+              {
+                id: 'c1',
+                label: 'Campaign planning',
+                jdQuote: 'Campaign planning',
+                status: 'EVIDENCED',
+                cvQuote: quote,
+                cvOrigin: 'source',
+                conflictingQuotes: [],
+              },
+              {
+                id: 'c2',
+                label: 'conversion attribution',
+                jdQuote: 'conversion attribution',
+                status: 'UNDECOMPOSED',
+                cvQuote: '',
+                conflictingQuotes: [],
+                qualificationReason:
+                  'This component’s evidence could not be verified.',
+              },
+            ],
+          },
+        },
+      ]}
+    />,
+  );
+  await user.click(screen.getByRole('button', { name: 'Partial (1)' }));
+  const bucket = screen.getByRole('region', { name: 'Partial (1)' });
+  await user.click(
+    within(bucket).getByRole('button', { name: `Partial: ${title}` }),
+  );
+  expect(
+    within(bucket).getByText(
+      'This component’s evidence could not be verified.',
+    ),
+  ).toBeVisible();
+  expect(within(bucket).getByText('Next step')).toBeVisible();
+  await user.click(within(bucket).getByText('Original CV evidence'));
+  expect(within(bucket).getByText(quote)).toBeVisible();
 });

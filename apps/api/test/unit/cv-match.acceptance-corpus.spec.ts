@@ -5,7 +5,10 @@ import type { Repository } from 'typeorm';
 import { AiError } from '../../src/ai/ai.errors.js';
 import { AiService } from '../../src/ai/ai.service.js';
 import type { ExtractionService } from '../../src/extraction/extraction.service.js';
-import { requirementGroup } from '../../src/matching/cv-match.coverage.js';
+import {
+  evaluateCoverage,
+  requirementGroup,
+} from '../../src/matching/cv-match.coverage.js';
 import {
   clearDecompositionCache,
   needsDecomposition,
@@ -398,6 +401,55 @@ describe('13: exact quote provenance', () => {
 });
 
 describe('14: AI decomposition — validation, cache, and provider failures', () => {
+  const frameworkRequirement =
+    'Có kinh nghiệm với Spring/Spring Boot OR các Java framework tương đương';
+  const springWork = '- Developed Spring Boot services for a retail platform.';
+
+  test('a validated named framework alternative receives credit for documented work', () => {
+    const parent = canonicalRequirements(job([frameworkRequirement]))[0]!;
+    expect(groupOf(parent)).toMatchObject({
+      mode: 'UNKNOWN',
+      openAlternative: 'các Java framework tương đương',
+    });
+    expect(needsDecomposition(parent)).toBe(true);
+    const group = validateDecomposition(parent, {
+      mode: 'OR',
+      components: ['Spring', 'Spring Boot'],
+    });
+    expect(group).toMatchObject({
+      mode: 'OR',
+      context: 'experience',
+      openAlternative: 'các Java framework tương đương',
+      components: [
+        { label: 'Spring', jdQuote: 'Spring' },
+        { label: 'Spring Boot', jdQuote: 'Spring Boot' },
+      ],
+    });
+    if (typeof group === 'string') throw new Error(group);
+    const genericJava = '- Developed enterprise applications in Java.';
+    expect(evaluateCoverage(group, [genericJava], genericJava).credit).toBe(0);
+    expect(
+      validateDecomposition(parent, {
+        mode: 'OR',
+        components: ['Spring', 'Spring Boot', 'các Java framework tương đương'],
+      }),
+    ).toBe('UNSUPPORTED_TAIL');
+  });
+
+  test('non-technical alternatives and compound requirements preserve their credit rules', () => {
+    const campaign = '- Developed email marketing campaigns for a retailer.';
+    const alternatives = requirementGroup(
+      'Experience with email marketing or event planning',
+      'skill',
+    );
+    const compound = requirementGroup(
+      'Experience with email marketing and event planning',
+      'skill',
+    );
+    expect(evaluateCoverage(alternatives, [campaign], campaign).credit).toBe(1);
+    expect(evaluateCoverage(compound, [campaign], campaign).credit).toBe(0.5);
+  });
+
   const row14 = {
     parentId: 'p1',
     requirement: REQ.cloudIncluding,
@@ -665,9 +717,11 @@ describe('14: AI decomposition — validation, cache, and provider failures', ()
   function harness(
     decompose: () => Promise<string>,
     savedJob: Opportunity = saved,
+    evidence = cvText,
+    supportedComponent = 'AWS',
   ) {
     const cvRow = {
-      text: cvText,
+      text: evidence,
       updatedAt: savedJob.updatedAt,
       fileName: 'synthetic.pdf',
     };
@@ -684,7 +738,7 @@ describe('14: AI decomposition — validation, cache, and provider failures', ()
           components: group.components.map((c) => ({
             componentId: c.id,
             jdQuote: c.jdQuote,
-            cvQuote: c.jdQuote === 'AWS' ? cvText : '',
+            cvQuote: c.jdQuote === supportedComponent ? evidence : '',
           })),
         })),
       });
@@ -861,6 +915,35 @@ describe('14: AI decomposition — validation, cache, and provider failures', ()
     );
     await edited.service.analyze(LOCAL_OWNER_ID, 'synthetic-job');
     expect(edited.calls()).toBe(1);
+  });
+
+  test('the analyzer sends the named alternatives and fallback, then saves Spring Boot evidence', async () => {
+    const { service, provider } = harness(
+      reply('OR', ['Spring', 'Spring Boot']),
+      job([frameworkRequirement]),
+      springWork,
+      'Spring Boot',
+    );
+    const result = await service.analyze(LOCAL_OWNER_ID, 'synthetic-job');
+    expect(provider.generate).toHaveBeenCalledTimes(2);
+    expect(provider.generate.mock.calls[1]?.[0].prompt).toContain(
+      '"openAlternative":"các Java framework tương đương"',
+    );
+    expect(result.requirements[0]).toMatchObject({
+      jdQuote: frameworkRequirement,
+      status: 'EVIDENCED',
+      coverage: {
+        mode: 'OR',
+        credit: 1,
+        components: expect.arrayContaining([
+          expect.objectContaining({
+            label: 'Spring Boot',
+            status: 'EVIDENCED',
+            cvQuote: springWork,
+          }),
+        ]),
+      },
+    });
   });
 
   test('large requirement set with cached decomposition: Match-only output budget; MAX_TOKENS fails once, without a score', async () => {
