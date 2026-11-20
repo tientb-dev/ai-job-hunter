@@ -269,7 +269,7 @@ export function CvMatchSection({
                       </Typography>
                       <Typography variant="body1" color="text.secondary">
                         {tr(
-                          'Analyze your CV against this job to see requirement-by-requirement results and unlock CV suggestions and Tailored CV.',
+                          'Analyze your CV against this job to see requirement-by-requirement results and get personalized suggestions for Tailored CV.',
                         )}
                       </Typography>
                       {analysisAction}

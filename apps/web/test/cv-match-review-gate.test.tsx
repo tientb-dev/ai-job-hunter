@@ -136,6 +136,7 @@ test.each([
     'en-US',
     'Your CV Match assessment is not ready yet',
     'Analyze CV Match',
+    'Analyze your CV against this job to see requirement-by-requirement results and get personalized suggestions for Tailored CV.',
     'Quick skill preview',
     'Preview only',
     'A quick keyword-based comparison of the job requirements and your reviewed CV. This is not a full assessment.',
@@ -146,6 +147,7 @@ test.each([
     'vi-VN',
     'Chưa có kết quả đánh giá độ phù hợp của CV',
     'Phân tích Đối chiếu CV',
+    'Phân tích CV theo từng yêu cầu tuyển dụng để xem mức độ phù hợp và nhận gợi ý cá nhân hóa cho Tailored CV.',
     'Xem trước kỹ năng',
     'Chỉ xem trước',
     'Đối chiếu nhanh từ khóa trong yêu cầu công việc và CV đã rà soát. Đây không phải là đánh giá đầy đủ.',
@@ -158,6 +160,7 @@ test.each([
     locale,
     heading,
     action,
+    heroDescription,
     label,
     badge,
     description,
@@ -191,11 +194,7 @@ test.each([
     const intro = screen.getByRole('region', { name: heading });
     const analyze = within(intro).getByRole('button', { name: action });
     await waitFor(() => expect(analyze).toBeEnabled());
-    if (locale === 'en-US') {
-      expect(intro).toHaveTextContent(
-        'Analyze your CV against this job to see requirement-by-requirement results and unlock CV suggestions and Tailored CV.',
-      );
-    }
+    expect(within(intro).getByText(heroDescription)).toBeVisible();
     const preview = screen.getByRole('button', { name: label });
     expect(preview).toHaveAccessibleDescription(description);
     expect(within(preview).getByText(badge)).toBeVisible();

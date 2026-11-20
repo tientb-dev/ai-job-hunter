@@ -168,8 +168,8 @@ export const VI_TEXT: Record<string, string> = {
   'Original CV evidence': 'Xem bằng chứng gốc trong CV',
   'Your CV Match assessment is not ready yet':
     'Chưa có kết quả đánh giá độ phù hợp của CV',
-  'Analyze your CV against this job to see requirement-by-requirement results and unlock CV suggestions and Tailored CV.':
-    'Phân tích CV theo vị trí này để xem kết quả cho từng yêu cầu và mở khóa gợi ý chỉnh sửa CV cùng tính năng CV tùy chỉnh.',
+  'Analyze your CV against this job to see requirement-by-requirement results and get personalized suggestions for Tailored CV.':
+    'Phân tích CV theo từng yêu cầu tuyển dụng để xem mức độ phù hợp và nhận gợi ý cá nhân hóa cho Tailored CV.',
   'Quick skill preview': 'Xem trước kỹ năng',
   'Preview only': 'Chỉ xem trước',
   'A quick keyword-based comparison of the job requirements and your reviewed CV. This is not a full assessment.':
