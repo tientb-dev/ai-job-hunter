@@ -57,6 +57,8 @@ buttons. This is per task group, not one filled button per screen. Theme button
 minimum heights are 32px small and 36px medium from `sm` up, and 44px for every
 button and icon button below `sm`; allow growth for wrapping and zoom. Buttons
 have no raised shadow and keep ripple plus a visible keyboard focus outline.
+Use `variant="outlined" color="secondary"` for blue secondary actions on white
+cards. Default outlined buttons retain the neutral treatment.
 
 Dialog actions follow intent and risk rather than a fixed order. Keep the safe
 choice as the default focus and Escape behaviour. Destructive or negative choices

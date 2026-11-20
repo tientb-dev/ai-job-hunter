@@ -118,6 +118,9 @@ export function CvMatchSection({
                     variant={
                       preferSecondary || savedHandoff ? 'outlined' : 'contained'
                     }
+                    color={
+                      preferSecondary || savedHandoff ? 'secondary' : 'primary'
+                    }
                     disableElevation
                     loading={busy}
                     loadingPosition="start"
@@ -1845,6 +1848,7 @@ export function MatchGate({
               <Button
                 startIcon={<AutoAwesomeIcon />}
                 variant="outlined"
+                color="secondary"
                 disabled={analyzeBlocked || !cv}
                 loading={match.busy}
                 loadingPosition="start"
@@ -1941,6 +1945,7 @@ export function MatchGate({
             <Button
               startIcon={<AutoAwesomeIcon />}
               variant={current || preferSecondary ? 'outlined' : 'contained'}
+              color={current || preferSecondary ? 'secondary' : 'primary'}
               disableElevation
               disabled={
                 busy ||

@@ -61,6 +61,7 @@ export function JobCvPicker({
       )}
       <Button
         variant="outlined"
+        color="secondary"
         startIcon={<UploadIcon />}
         onClick={() => uploadInput.current?.click()}
         size="small"

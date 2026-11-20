@@ -861,6 +861,7 @@ export function SourceCvReview({
         <Button
           startIcon={<EditIcon />}
           variant={wizardEntry ? 'contained' : 'outlined'}
+          color={wizardEntry || myCv ? 'primary' : 'secondary'}
           sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
           disabled={blocked || !cv}
           onClick={() => void run(openReview, tr('Preparing source review…'))}
