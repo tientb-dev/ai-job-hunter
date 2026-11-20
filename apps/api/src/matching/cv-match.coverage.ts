@@ -57,6 +57,7 @@ export interface ComponentEvidence {
   componentId: string;
   jdQuote: string;
   cvQuote: string;
+  passageId?: string;
   correspondence?: Correspondence;
 }
 export interface ComponentCoverage extends RequirementComponent {

@@ -15,6 +15,7 @@ import {
 } from './match-context.js';
 import type { ConditionAssessment } from './cv-match.conditions.js';
 import { CvMatchRecord } from './cv-match.entity.js';
+import { matchPassages } from './cv-match.passages.js';
 import { evidenceSummary } from './cv-match.summary.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { AiError } from '../ai/ai.errors.js';
@@ -753,13 +754,24 @@ export class JobMatchService {
       const hosted =
         this.aiConfig?.provider === 'gemini' ||
         this.aiConfig?.provider === 'openai';
-      // Hosted providers use the same prompt and bounded wire schema. The
-      // server still enforces the complete passage set after generation.
+      const allowed = hosted
+        ? new Set(matchQuoteChoices(cv.text, canonical))
+        : undefined;
+      let passages = allowed
+        ? matchPassages(review.reviewed, review.profileRevisionId, allowed)
+        : undefined;
+      // The exact quote path remains available for older provider responses.
       const quoteRule = (text: string) =>
         hosted
-          ? `For every cvQuote, copy one complete CV line, or up to three consecutive lines, exactly; never a fragment. Keep surrounding negations and qualifiers.\n${text}`
+          ? `Use passageId when a reference is available. If returning cvQuote, copy one complete CV line, or up to three consecutive lines, exactly; never a fragment. Keep surrounding negations and qualifiers.\n${text}`
           : text;
-      const prompt = quoteRule(matchPrompt(cv.text, jd, canonical));
+      let prompt = quoteRule(
+        matchPrompt(cv.text, jd, canonical, passages?.input),
+      );
+      if (passages && Buffer.byteLength(prompt) > 64 * 1024) {
+        passages = undefined;
+        prompt = quoteRule(matchPrompt(cv.text, jd, canonical));
+      }
       if (Buffer.byteLength(prompt) > 64 * 1024) {
         trace.reason = 'PROMPT_BUDGET_EXCEEDED';
         throw new BadRequestException(
@@ -830,7 +842,9 @@ export class JobMatchService {
         let returned = 0;
         try {
           const items = await generate('COMPLETION', {
-            prompt: quoteRule(completionPrompt(cv.text, jd, missing)),
+            prompt: quoteRule(
+              completionPrompt(cv.text, jd, missing, passages?.input),
+            ),
             schema: withoutQuoteEnums(completionOutputSchema(cv.text, missing)),
           });
           returned = items.length;
@@ -855,16 +869,13 @@ export class JobMatchService {
         }
       }
       trace.stage = 'VALIDATION';
-      // Hosted wire schemas omit passage enums; enforce the same passages here.
-      const allowed = hosted
-        ? new Set(matchQuoteChoices(cv.text, canonical))
-        : undefined;
       const verified = validateMatchAssessment(
         proposals,
         cv.text,
         jd,
         canonical,
         allowed,
+        passages?.quotes,
       );
       trace.stage = 'SOURCE_VERIFICATION';
       const latestCv = await this.jobCv(ownerId, id);

@@ -1,3 +1,4 @@
+import { matchPassages } from '../../src/matching/cv-match.passages.js';
 import { reviewedAsIs } from '../support/reviewed-cv.stub.js';
 import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js';
 import { asLocalOwner } from '../support/as-local-owner.js';
@@ -19,6 +20,7 @@ import { MatchingService } from '../../src/matching/matching.service.js';
 import { SavedCv } from '../../src/matching/saved-cv.entity.js';
 import {
   canonicalRequirements,
+  matchQuoteChoices,
   type MatchRequirement,
 } from '../../src/matching/cv-match.js';
 import type { Opportunity } from '../../src/opportunities/opportunity.entity.js';
@@ -767,6 +769,16 @@ test('semantic assessments preserve documented correspondence and incomplete sco
       );
       expect(payload.cv).toContain(listed);
       expect(payload.cv).toContain(postgres);
+      const select = (quote: string) => {
+        if (!quote) return { cvQuote: '' };
+        const line = payload.evidenceLines.indexOf(quote) + 1;
+        const passage = payload.passages.find(
+          ([, first, last]: [string, number, number]) =>
+            first === line && last === line,
+        );
+        expect(passage).toBeDefined();
+        return { cvQuote: '', passageId: passage[0] };
+      };
       return JSON.stringify({
         requirements: payload.canonicalRequirements.map(
           ({
@@ -800,13 +812,15 @@ test('semantic assessments preserve documented correspondence and incomplete sco
                 missingQualifier:
                   'Build automation is documented. Git and SVN use remain unconfirmed.',
               }),
-              cvQuote: parent.requirement === cases[7][0] ? '' : cvQuote,
+              ...select(parent.requirement === cases[7][0] ? '' : cvQuote),
               components: group.components.map((component, index) => {
                 const selected = selectedQuotes[index] ?? '';
                 return {
                   componentId: component.id,
                   jdQuote: component.jdQuote,
-                  cvQuote: selected,
+                  ...select(selected),
+                  ...(parent.requirement === cases[2][0] &&
+                    index === 0 && { passageId: 'unknown-estimation-passage' }),
                   correspondence: !selected
                     ? 'NOT_FOUND'
                     : selected === sqlServer
@@ -821,6 +835,10 @@ test('semantic assessments preserve documented correspondence and incomplete sco
     },
     cv,
     synthetic,
+    cvMatchAiConfig(aiConfig({}), {
+      CV_MATCH_AI_PROVIDER: 'openai',
+      OPENAI_API_KEY: 'synthetic-key-for-mocked-provider',
+    }),
   );
   const result = await service.analyze(LOCAL_OWNER_ID, synthetic.id);
   expect(result.requirements.map(({ status }) => status)).toEqual(
@@ -841,7 +859,7 @@ test('semantic assessments preserve documented correspondence and incomplete sco
   ).toBe(false);
   expect(
     result.requirements[2]?.coverage.components.map(({ status }) => status),
-  ).toEqual(['NOT_EVIDENCED', 'EVIDENCED']);
+  ).toEqual(['UNDECOMPOSED', 'EVIDENCED']);
   expect(
     result.requirements[3]?.coverage.components.map(({ status, cvQuote }) => [
       status,
@@ -938,6 +956,108 @@ test.each([
         status: 'UNDECOMPOSED',
         qualificationReason: 'This component’s evidence could not be verified.',
       });
+    }
+  },
+);
+
+test.each([
+  'unknown',
+  'altered',
+  'other revision',
+  'unapproved',
+  'parent only',
+])(
+  'hosted analysis isolates %s evidence without borrowing the parent passage',
+  async (kind) => {
+    const requirement =
+      'Experience with campaign planning and conversion attribution';
+    const savedJob = {
+      ...job,
+      skills: requirement,
+      description: requirement,
+      preferredSkills: '',
+      experience: '',
+      domain: '',
+    };
+    const cv = '- Planned marketing campaigns.';
+    const reviewed = {
+      text: cv,
+      lines: [
+        {
+          factId: 'planning',
+          sectionKind: 'additional' as const,
+          entryId: 'entry',
+          origin: 'source' as const,
+          start: 0,
+          end: cv.length,
+        },
+      ],
+    };
+    const eligible = new Set(
+      matchQuoteChoices(cv, canonicalRequirements(savedJob)),
+    );
+    const source = matchPassages(
+      reviewed,
+      'another-reviewed-revision',
+      eligible,
+    );
+    const otherRevision = source.input.passages[0]![0];
+    expect(
+      matchPassages(reviewed, 'another-reviewed-revision', eligible).input,
+    ).toEqual(source.input);
+    expect(
+      matchPassages(reviewed, 'another-reviewed-revision', new Set()).input
+        .passages,
+    ).toEqual([]);
+    const { service } = setup(
+      async ({ prompt }) => {
+        const payload = JSON.parse(prompt.slice(prompt.lastIndexOf('\n') + 1));
+        const id = payload.passages[0][0] as string;
+        expect(id).not.toBe(otherRevision);
+        const selection = {
+          unknown: { passageId: 'unknown', cvQuote: '' },
+          altered: { passageId: id, cvQuote: '- Led all marketing campaigns.' },
+          'other revision': { passageId: otherRevision, cvQuote: '' },
+          unapproved: { cvQuote: '- Owned conversion attribution.' },
+          'parent only': { cvQuote: '' },
+        }[kind]!;
+        return JSON.stringify({
+          requirements: canonicalRequirements(savedJob).map((parent) => ({
+            ...parent,
+            correspondence: 'RELATED',
+            passageId: id,
+            cvQuote: '',
+            components: [
+              {
+                componentId: 'c1',
+                jdQuote: 'campaign planning',
+                correspondence: 'SUPPORTED',
+                ...selection,
+              },
+              {
+                componentId: 'c2',
+                jdQuote: 'conversion attribution',
+                correspondence: 'NOT_FOUND',
+                cvQuote: '',
+              },
+            ],
+          })),
+        });
+      },
+      cv,
+      savedJob,
+      cvMatchAiConfig(aiConfig({}), {
+        CV_MATCH_AI_PROVIDER: 'openai',
+        OPENAI_API_KEY: 'synthetic-key-for-mocked-provider',
+      }),
+    );
+    const result = await service.analyze(LOCAL_OWNER_ID, savedJob.id);
+    const parent = result.requirements[0]!;
+    expect(parent.cvQuote).toBe('');
+    expect(parent.status).toBe('UNDECOMPOSED');
+    for (const component of parent.coverage.components) {
+      expect(component.status).not.toBe('EVIDENCED');
+      expect(component.cvQuote || '').toBe('');
     }
   },
 );
