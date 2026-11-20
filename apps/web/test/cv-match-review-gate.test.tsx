@@ -98,12 +98,19 @@ test('uploading a CV in Job Detail saves it for this job, then opens its review'
   expect(
     await screen.findByText(/A new CV opens Source CV Review first/),
   ).toBeVisible();
-  await userEvent
-    .setup()
-    .upload(
-      await screen.findByLabelText('Save CV for matching'),
-      new File(['synthetic'], 'new.pdf', { type: 'application/pdf' }),
-    );
+  const input = await screen.findByLabelText('Save CV for matching');
+  const upload = screen.getByRole('button', { name: 'Upload new CV' });
+  expect(upload).toHaveClass('MuiButton-outlined', 'MuiButton-sizeSmall');
+  const user = userEvent.setup();
+  const openChooser = vi.spyOn(input, 'click');
+  upload.focus();
+  await user.keyboard('{Enter}');
+  expect(openChooser).toHaveBeenCalledOnce();
+  openChooser.mockRestore();
+  await user.upload(
+    input,
+    new File(['synthetic'], 'new.pdf', { type: 'application/pdf' }),
+  );
   expect(
     await screen.findByText(`Review page /cv/${added.id}/review${returnTo}`),
   ).toBeVisible();

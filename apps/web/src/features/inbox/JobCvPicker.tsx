@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { Box, Button, MenuItem, Stack, TextField } from '@mui/material';
 import { tr } from '../../app/i18n';
 import { UploadIcon } from '../../components/icons';
@@ -22,6 +23,7 @@ export function JobCvPicker({
   inputLabel?: string;
 }) {
   const { cv, select, upload } = match;
+  const uploadInput = useRef<HTMLInputElement>(null);
   // The job's CV is always listed, even if the list failed to load.
   const cvs =
     cv && !match.cvs.some((row) => row.id === cv.id)
@@ -58,27 +60,28 @@ export function JobCvPicker({
         </TextField>
       )}
       <Button
-        variant={analysisAction ? 'outlined' : 'text'}
+        variant="outlined"
         startIcon={<UploadIcon />}
-        component="label"
+        onClick={() => uploadInput.current?.click()}
         size="small"
         disabled={disabled}
         sx={{ textTransform: 'none', flexShrink: 0, minHeight: 44 }}
       >
         {cvs.length ? tr('Upload new CV') : emptyLabel}
-        <input
-          disabled={disabled}
-          hidden
-          type="file"
-          accept=".pdf,.docx"
-          aria-label={inputLabel}
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            event.target.value = '';
-            if (file) void upload(file).then((id) => id && onUploaded?.(id));
-          }}
-        />
       </Button>
+      <input
+        ref={uploadInput}
+        disabled={disabled}
+        hidden
+        type="file"
+        accept=".pdf,.docx"
+        aria-label={inputLabel}
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = '';
+          if (file) void upload(file).then((id) => id && onUploaded?.(id));
+        }}
+      />
       {analysisAction && (
         <Box
           sx={{

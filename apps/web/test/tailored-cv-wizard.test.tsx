@@ -209,9 +209,26 @@ test('resume bypasses completed source work, preserves draft pins and explains e
   const confirm = screen.getByRole('checkbox', {
     name: /I reviewed the complete saved CV/,
   });
-  expect(
-    preview.compareDocumentPosition(confirm) & Node.DOCUMENT_POSITION_FOLLOWING,
-  ).toBeTruthy();
+  const reviewInstruction = screen.getByText(
+    'Review the complete CV below, then confirm and approve it at the bottom.',
+  );
+  const approve = screen.getByRole('button', { name: 'Approve saved draft' });
+  const pdf = screen.getByRole('button', { name: 'Download PDF' });
+  const ordered = [
+    screen.getByRole('region', { name: 'Current draft' }),
+    screen.getByRole('combobox', { name: 'CV template' }),
+    reviewInstruction,
+    within(preview).getByText('Assisted a team prototype only.'),
+    confirm,
+    approve,
+    pdf,
+  ];
+  ordered.slice(1).forEach((element, index) => {
+    expect(
+      ordered[index]!.compareDocumentPosition(element) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
   expect(screen.queryByRole('status', { name: 'Next step' })).toBeNull();
   expect(screen.queryByText('To approve:')).toBeNull();
   expect(screen.getByRole('button', { name: 'Download DOCX' })).toBeDisabled();
@@ -222,5 +239,12 @@ test('resume bypasses completed source work, preserves draft pins and explains e
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'Download PDF' })).toBeEnabled(),
   );
+  expect(
+    preview.compareDocumentPosition(pdf) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  expect(
+    screen.queryByRole('button', { name: 'Approve saved draft' }),
+  ).toBeNull();
+  expect(reviewInstruction).not.toBeInTheDocument();
   expect(screen.getAllByRole('tab', { name: /Complete/ })).toHaveLength(3);
 });

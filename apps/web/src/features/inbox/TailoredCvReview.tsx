@@ -630,7 +630,6 @@ export function TailoredCvReview({
       <Typography id="final-preview-title" variant="h6" component="h3">
         {tr('Final preview')}
       </Typography>
-      {!approvedUnchanged && templatePicker}
       {approvedUnchanged ? (
         <>
           {pdfError && (
@@ -697,7 +696,7 @@ export function TailoredCvReview({
         <>
           <Typography variant="body2" color="text.secondary">
             {tr(
-              'Content preview for the selected template. Approval unlocks the print-ready PDF.',
+              'Review the complete CV below, then confirm and approve it at the bottom.',
             )}
           </Typography>
           <TailoredCvPreview document={document} template={template} />
@@ -2111,7 +2110,43 @@ export function TailoredCvReview({
               )}
             </Alert>
           )}
-          {!approvedUnchanged && finalPreview}
+          {wizardStep === 3 &&
+            !approvedUnchanged &&
+            (dirty ||
+              pending > 0 ||
+              issuesRemaining ||
+              openPlaceholders > 0) && (
+              <Alert
+                severity="info"
+                action={
+                  onContinueDraft && (
+                    <Button onClick={onContinueDraft}>
+                      {tr('Finish review in Tailor & Review')}
+                    </Button>
+                  )
+                }
+              >
+                {dirty
+                  ? tr('Save draft.')
+                  : pending > 0
+                    ? tr(
+                        'Approval is blocked: {pending} of {length} suggestions still need a decision in Tailor & Review. Accept or Keep original both count.',
+                        {
+                          pending,
+                          length: proposalCards.length,
+                        },
+                      )
+                    : issuesRemaining
+                      ? tr(
+                          'Finish Tailor & Review first: confirm any conflicting facts and save.',
+                        )
+                      : tr(
+                          'Replace every [placeholder] in your adopted wording with your own facts.',
+                        )}
+              </Alert>
+            )}
+          {wizardStep === 3 && templatePicker}
+          {finalPreview}
           <Paper
             variant="outlined"
             component="section"
@@ -2120,54 +2155,21 @@ export function TailoredCvReview({
             sx={{ p: { xs: 2, sm: 2.5 } }}
           >
             <Stack spacing={1.5}>
-              {approvedUnchanged ? (
-                <Alert severity="success" role="status">
-                  {tr('Revision')} {saved.revision}{' '}
-                  {tr('is approved and ready to download.')}
-                </Alert>
-              ) : isWizard ? (
-                (dirty ||
-                  pending > 0 ||
-                  issuesRemaining ||
-                  openPlaceholders > 0) && (
-                  <Alert
-                    severity="info"
-                    action={
-                      onContinueDraft && (
-                        <Button onClick={onContinueDraft}>
-                          {tr('Finish review in Tailor & Review')}
-                        </Button>
-                      )
-                    }
-                  >
-                    {dirty
-                      ? tr('Save draft.')
-                      : pending > 0
-                        ? tr(
-                            'Approval is blocked: {pending} of {length} suggestions still need a decision in Tailor & Review. Accept or Keep original both count.',
-                            {
-                              pending,
-                              length: proposalCards.length,
-                            },
-                          )
-                        : issuesRemaining
-                          ? tr(
-                              'Finish Tailor & Review first: confirm any conflicting facts and save.',
-                            )
-                          : tr(
-                              'Replace every [placeholder] in your adopted wording with your own facts.',
-                            )}
+              {!isWizard &&
+                (approvedUnchanged ? (
+                  <Alert severity="success" role="status">
+                    {tr('Revision')} {saved.revision}{' '}
+                    {tr('is approved and ready to download.')}
                   </Alert>
-                )
-              ) : (
-                <Alert severity="info">
-                  {tr(
-                    'Downloads unlock after you decide every suggestion, confirm any conflicting facts, save, and approve this draft.',
-                  )}
-                </Alert>
-              )}
+                ) : (
+                  <Alert severity="info">
+                    {tr(
+                      'Downloads unlock after you decide every suggestion, confirm any conflicting facts, save, and approve this draft.',
+                    )}
+                  </Alert>
+                ))}
               {isWizard && renderApproval(document, saved)}
-              {(!isWizard || approvedUnchanged) && templatePicker}
+              {!isWizard && templatePicker}
               <Stack
                 direction={{ xs: 'column', sm: 'row' }}
                 spacing={1}
@@ -2225,7 +2227,6 @@ export function TailoredCvReview({
               </Typography>
             </Stack>
           </Paper>
-          {approvedUnchanged && finalPreview}
           {approvedUnchanged && (wizardStep === 3 || !isWizard) && (
             <SourceCvUpdate
               key={`${saved.id}:${saved.revision}`}

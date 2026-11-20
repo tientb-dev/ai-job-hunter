@@ -2796,6 +2796,6 @@ step navigation to export until the user saves or discards them.
 
 The saved-assessment handoff is the primary CV Match action, with reanalysis
 available as a secondary action. Tailor & Review labels factual clarifications
-separately from wording decisions. Approve & Export puts the content preview
-before confirmation on an unapproved draft and keeps the download controls
-easy to reach for approved revisions.
+separately from wording decisions. Approve & Export shows the saved draft and
+template before the full preview, then places confirmation and download actions
+below it. Approved revisions show the PDF preview in the same position.

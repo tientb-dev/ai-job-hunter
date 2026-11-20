@@ -254,6 +254,11 @@ test('reviewed source and authoritative valid match enter Step 3 without analysi
   expect(
     screen.getByRole('tab', { name: /Approve & Export.*Locked/ }),
   ).toBeDisabled();
+  fireEvent.click(screen.getByRole('tab', { name: /Source CV/ }));
+  expect(screen.getByRole('button', { name: 'Upload new CV' })).toHaveClass(
+    'MuiButton-outlined',
+    'MuiButton-sizeSmall',
+  );
 });
 
 test.each(['MISSING', 'EXPIRED', 'STALE_CV', 'STALE_JOB'])(

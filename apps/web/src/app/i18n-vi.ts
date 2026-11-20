@@ -627,8 +627,8 @@ export const VI_TEXT: Record<string, string> = {
   'Checking…': 'Đang kiểm tra…',
   Locked: 'Chưa mở khóa',
   Ready: 'Sẵn sàng',
-  'Content preview for the selected template. Approval unlocks the print-ready PDF.':
-    'Bản xem trước nội dung theo mẫu đã chọn. Duyệt để tải PDF sẵn sàng in.',
+  'Review the complete CV below, then confirm and approve it at the bottom.':
+    'Xem toàn bộ CV bên dưới, sau đó xác nhận và duyệt ở cuối bản xem trước.',
   'Add factual details': 'Bổ sung thông tin thực tế',
   'Add details you can confirm from your own experience.':
     'Bổ sung những chi tiết bạn có thể xác nhận từ kinh nghiệm của mình.',
