@@ -93,6 +93,7 @@ function answer(
   init: RequestInit | undefined,
   quotes: Record<string, string>,
   omit?: string,
+  override?: { jdQuote: string } | { missingQualifier: string },
 ) {
   const { input } = JSON.parse(String(init?.body)) as { input: string };
   const data = JSON.parse(input.split('\n').at(-1)!) as {
@@ -118,6 +119,7 @@ function answer(
                   cvQuote: quotes[c.label] ?? '',
                 }))
               : null,
+          ...override,
         })),
     }),
   );
@@ -323,3 +325,88 @@ test('OpenAI uses the existing hosted completion path for an omitted requirement
     },
   });
 });
+
+test.each(['INITIAL', 'COMPLETION'] as const)(
+  'OpenAI enforces wire and local string boundaries in %s without replacing a saved match',
+  async (stage) => {
+    const java = '- Developed services with Java.';
+    const f = fixture(java, ['Java', 'Kafka']);
+    let override: { jdQuote: string } | { missingQualifier: string } = {
+      missingQualifier: 'a'.repeat(240),
+    };
+    const transport = jest
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (_url, init) => {
+        const { input } = JSON.parse(String(init?.body)) as { input: string };
+        const completing = input.includes('\nCompletion request:');
+        return answer(
+          init,
+          { Java: java },
+          stage === 'COMPLETION' && !completing ? 'Kafka' : undefined,
+          completing || stage === 'INITIAL' ? override : undefined,
+        );
+      });
+    const logged = jest
+      .spyOn(process.stderr, 'write')
+      .mockImplementation(() => true);
+    const saved = await f.analyze();
+    const record = await f.rows.findOneBy({ matchId: saved.matchId });
+    expect(record).not.toBeNull();
+    expect(
+      JSON.parse(String(transport.mock.calls.at(-1)?.[1]?.body)),
+    ).toMatchObject({
+      text: {
+        format: {
+          schema: {
+            properties: {
+              requirements: {
+                items: {
+                  properties: {
+                    jdQuote: { minLength: 1, maxLength: 2000 },
+                    missingQualifier: {
+                      anyOf: [
+                        { type: 'string', maxLength: 240 },
+                        { type: 'null' },
+                      ],
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    logged.mockClear();
+    override =
+      stage === 'INITIAL'
+        ? { jdQuote: '' }
+        : { missingQualifier: 'private-qualifier'.padEnd(241, 'a') };
+    await expect(f.analyze()).rejects.toMatchObject({
+      errorCode: 'CV_MATCH_INVALID_OUTPUT',
+    });
+    expect(await f.rows.findOneBy({ matchId: saved.matchId })).toEqual(record);
+    const log = logged.mock.calls.map(([line]) => String(line)).join('');
+    const events = log
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line)) as {
+      event: string;
+      attempt: string;
+    }[];
+    const failure = events.find(({ event }) => event === 'CV_MATCH_FAILURE');
+    expect(
+      events.find(({ event }) => event === 'CV_MATCH_SCHEMA_FAILURE'),
+    ).toEqual({
+      event: 'CV_MATCH_SCHEMA_FAILURE',
+      attempt: failure?.attempt,
+      stage,
+      schemaPath: `#/properties/requirements/items/properties/${stage === 'INITIAL' ? 'jdQuote' : 'missingQualifier'}`,
+      keyword: stage === 'INITIAL' ? 'minLength' : 'maxLength',
+      limit: stage === 'INITIAL' ? 1 : 240,
+    });
+    expect(failure?.attempt).toMatch(/^[a-f0-9-]{36}$/u);
+    for (const value of [java, 'Synthetic role', 'private-qualifier', apiKey])
+      expect(log).not.toContain(value);
+  },
+);

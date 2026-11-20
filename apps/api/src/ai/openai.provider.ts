@@ -16,11 +16,17 @@ const MAX_OUTPUT_TOKENS = 4096;
 
 // Strict output requires all properties. Optional values use null on the wire;
 // the original schema remains the authority for decoded application values.
-function strictSchema(schema: OutputSchema): OutputSchema {
+function strictSchema(
+  schema: OutputSchema,
+  keepStringLimits: boolean,
+): OutputSchema {
   const wire = { ...schema };
-  delete wire.minLength;
-  delete wire.maxLength;
-  if (record(schema.items)) wire.items = strictSchema(schema.items);
+  if (!keepStringLimits) {
+    delete wire.minLength;
+    delete wire.maxLength;
+  }
+  if (record(schema.items))
+    wire.items = strictSchema(schema.items, keepStringLimits);
   if (record(schema.properties)) {
     const required = new Set(
       Array.isArray(schema.required) ? schema.required : [],
@@ -28,7 +34,7 @@ function strictSchema(schema: OutputSchema): OutputSchema {
     wire.properties = Object.fromEntries(
       Object.entries(schema.properties).map(([key, child]) => {
         if (!record(child)) throw new AiError('INVALID_SCHEMA');
-        const converted = strictSchema(child);
+        const converted = strictSchema(child, keepStringLimits);
         return [
           key,
           required.has(key)
@@ -204,7 +210,10 @@ export class OpenAiProvider implements AiProvider {
             type: 'json_schema',
             name: 'structured_output',
             strict: true,
-            schema: strictSchema(request.schema),
+            schema: strictSchema(
+              request.schema,
+              request.workflow === 'cv-match',
+            ),
           },
         },
       });

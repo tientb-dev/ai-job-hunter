@@ -31,6 +31,12 @@ export type AiDiagnostic =
       readonly field: 'output';
     };
 
+export interface AiSchemaIssue {
+  readonly schemaPath: string;
+  readonly keyword: string;
+  readonly limit?: number;
+}
+
 export class AiError extends Error {
   readonly diagnostic?: AiDiagnostic;
   constructor(
@@ -41,6 +47,7 @@ export class AiError extends Error {
     readonly attempts?: number,
     // Provider token counts (integers only), e.g. on OUTPUT_LIMIT_EXCEEDED.
     readonly usage?: Readonly<Record<string, number>>,
+    readonly schemaIssue?: AiSchemaIssue,
   ) {
     super(messages[code]);
     this.name = 'AiError';

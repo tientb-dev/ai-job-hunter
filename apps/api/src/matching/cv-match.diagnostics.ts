@@ -4,6 +4,7 @@ import {
   type AiSettings,
 } from '../ai/ai.config.js';
 import type { ProviderTiming } from '../ai/ai-provider.js';
+import { AiError } from '../ai/ai.errors.js';
 import type { DecompositionRejection } from './cv-match.decomposition.js';
 import type { MatchRequirement } from './cv-match.js';
 import { cvQuoteOccurrences, resolveCvQuote } from './cv-match.evidence.js';
@@ -293,6 +294,28 @@ export function emitMatchFailure(
     );
   } catch {
     // Logging must never replace or alter the original failure.
+  }
+}
+
+export function emitMatchSchemaFailure(
+  stage: 'DECOMPOSITION' | 'INITIAL' | 'COMPLETION',
+  error: unknown,
+): void {
+  if (!(error instanceof AiError) || !error.schemaIssue) return;
+  const { schemaPath, keyword, limit } = error.schemaIssue;
+  try {
+    process.stderr.write(
+      `${JSON.stringify({
+        event: 'CV_MATCH_SCHEMA_FAILURE',
+        ...attempt(),
+        stage,
+        schemaPath,
+        keyword,
+        limit,
+      })}\n`,
+    );
+  } catch {
+    // Diagnostics must not change request behavior.
   }
 }
 
