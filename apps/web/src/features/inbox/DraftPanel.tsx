@@ -90,11 +90,11 @@ export function DraftPanel({
               />
               {onNewDraft && (
                 <Button
-                  size="small"
                   variant="outlined"
                   startIcon={<AddIcon />}
                   disabled={disabled}
                   onClick={onNewDraft}
+                  sx={{ '&&&': { minHeight: { xs: 44, sm: 36 } } }}
                 >
                   {tr('New draft')}
                 </Button>
