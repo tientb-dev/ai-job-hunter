@@ -105,6 +105,13 @@ const tab = (name: string) =>
         }),
   );
 
+const analyzeButton = () =>
+  waitFor(() => {
+    const button = screen.getByRole('button', { name: 'Analyze CV Match' });
+    expect(button).toBeEnabled();
+    return button;
+  });
+
 test('CV Match opens Tailored CV for the same job and selected CV with no additional AI call', async () => {
   const { fetch } = setup(true);
   await screen.findByRole('heading', { name: 'Synthetic engineer' });
@@ -152,7 +159,7 @@ test('unsaved JD text does not become the Skill Match source', async () => {
     target: { value: 'Synthetic changed JD' },
   });
   tab('CV Match');
-  fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
+  fireEvent.click(await analyzeButton());
   fireEvent.click(
     await screen.findByRole('button', { name: 'View skill sources' }),
   );
@@ -178,10 +185,10 @@ test('a saved Skill Match remains visible after 15 minutes', async () => {
   setup();
   await screen.findByRole('heading', { name: 'Synthetic engineer' });
   tab('CV Match');
-  await screen.findByRole('combobox', { name: 'CV for this job' });
+  const analyze = await analyzeButton();
   vi.useFakeTimers();
   try {
-    fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
+    fireEvent.click(analyze);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1);
     });
