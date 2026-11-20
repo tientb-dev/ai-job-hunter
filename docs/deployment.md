@@ -29,9 +29,9 @@ Copy `.env.production.example` to `.env.production` on the server and
 | `DB_PASSWORD`                    | PostgreSQL password (long and random)                                                                              |
 | `GEMINI_API_KEY`                 | Server-side Gemini key; never sent to browsers                                                                     |
 | `AI_REQUEST_TIMEOUT_MS`          | Optional, default 120000                                                                                           |
-| `AI_DAILY_USER_LIMIT`            | Gemini requests per account per day, default 100                                                                   |
-| `AI_DAILY_GLOBAL_LIMIT`          | Gemini requests for the whole beta per day, default 500                                                            |
-| `AI_MAX_CONCURRENT`              | Gemini requests in flight at once, default 4                                                                       |
+| `AI_DAILY_USER_LIMIT`            | Hosted AI requests per account per day, default 100                                                                |
+| `AI_DAILY_GLOBAL_LIMIT`          | Hosted AI requests for the whole beta per day, default 500                                                         |
+| `AI_MAX_CONCURRENT`              | Hosted AI requests in flight at once, default 4                                                                    |
 | `JOB_URL_FETCH_TOPCV`            | `1` lets users import TopCV job links; default `0` (off). See [job link sources](architecture.md#job-link-sources) |
 | `JOB_URL_FETCH_VIETNAMWORKS`     | `1` lets users import VietnamWorks job links; default `0` (off)                                                    |
 | `PUBLISH_HTTP` / `PUBLISH_HTTPS` | Optional host ports, default 80 / 443                                                                              |
@@ -42,6 +42,12 @@ The API refuses to start in production with plain-HTTP origins (except
 `http://localhost`), Ollama, or any `*_DIAGNOSTICS` flag set (those logs can
 contain CV/JD text). Session cookies are `__Host-`, `Secure`, `HttpOnly`,
 `SameSite=Lax`.
+
+To use OpenAI for CV Match and Tailored CV, set `CV_MATCH_AI_PROVIDER=openai`
+and `TAILORED_CV_AI_PROVIDER=openai` in the server's `.env.production`, and
+supply `OPENAI_API_KEY`. Leave an unused selector unset so that workflow
+inherits Gemini. Keep `GEMINI_API_KEY` for the global provider. The API pins
+the OpenAI model in source.
 
 ## Deploy or update
 
@@ -115,7 +121,7 @@ Replacing the live database is a deliberate, manual operation: stop `api` and
   import, paste or upload.
 - One API instance: login rate limits and the one-at-a-time CV Match/discovery
   runs are in memory.
-- Gemini limits count requests, not tokens or money: keep a Google Cloud budget
-  alert on the API key as the backstop. Today's usage:
+- Hosted AI limits count requests across Gemini and OpenAI. Configure budget
+  alerts with the providers you use. Today's usage:
   `$C exec -T postgres psql -U ai_job_hunter -d ai_job_hunter -c 'select * from ai_job_hunter.ai_usage order by day desc, requests desc'`
   (the `00000000-…` row is the beta-wide total).
