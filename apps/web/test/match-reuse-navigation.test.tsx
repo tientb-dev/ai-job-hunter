@@ -164,18 +164,11 @@ function setup(
   vi.stubGlobal('fetch', fetch);
   function Job() {
     const { id } = useParams();
-    const [view, setView] = useState<'match' | 'improve'>('match');
     return (
       <>
-        <button onClick={() => setView('improve')}>Improve CV tab</button>
         {/* Stand-in for the workspace Tailored CV tab link. */}
         <Link to={`/jobs/${id}/tailored-cv`}>Continue tailored CV</Link>
-        <CvMatchPanel
-          jobId={id!}
-          revision="1"
-          jobUpdatedAt={draft.updatedAt}
-          view={view}
-        />
+        <CvMatchPanel jobId={id!} revision="1" jobUpdatedAt={draft.updatedAt} />
       </>
     );
   }
@@ -197,7 +190,6 @@ function setup(
           jobId={id!}
           revision={draft.updatedAt}
           jobUpdatedAt={draft.updatedAt}
-          view="improve"
           wizard
           onReviewDirtyChange={setDirty}
         />
@@ -258,7 +250,7 @@ test('reviewed source and authoritative valid match enter Step 3 without analysi
     screen.getByText(/Saved match.*No new analysis is needed/),
   ).toBeEnabled();
   expect(
-    screen.getByRole('tab', { name: /Approve & Export.*Unavailable/ }),
+    screen.getByRole('tab', { name: /Approve & Export.*Locked/ }),
   ).toBeDisabled();
 });
 
@@ -289,7 +281,6 @@ test('Job Detail analysis is reused by wizard and wizard analysis is reflected o
   );
   fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
   await screen.findByText(/Saved match.*No new analysis is needed/);
-  fireEvent.click(screen.getByRole('button', { name: 'Improve CV tab' }));
   fireEvent.click(screen.getByRole('link', { name: /tailored CV$/ }));
   await screen.findByRole('heading', { name: 'Step 2 of 3 · Tailor & Review' });
   expect(state.analyses()).toBe(1);
@@ -499,7 +490,6 @@ test('manual step selection during automatic draft loading is not overridden by 
 
 test('approved current draft opens Approve & Export from Job Detail; review stays one step back', async () => {
   setup({ draft: true, approved: true, start: `/jobs/${draftJobId}` });
-  fireEvent.click(screen.getByRole('button', { name: 'Improve CV tab' }));
   fireEvent.click(screen.getByRole('link', { name: /tailored CV$/ }));
   await screen.findByRole('heading', {
     name: 'Step 3 of 3 · Approve & Export',
@@ -507,6 +497,7 @@ test('approved current draft opens Approve & Export from Job Detail; review stay
   expect(
     await screen.findByRole('button', { name: 'Download PDF' }),
   ).toBeEnabled();
+  expect(screen.getAllByRole('tab', { name: /Complete/ })).toHaveLength(3);
   // A current draft shows no older-job-snapshot warning.
   expect(screen.queryByText(/older saved job snapshot/)).toBeNull();
   fireEvent.click(screen.getByRole('tab', { name: /Tailor & Review/ }));
@@ -695,8 +686,7 @@ test('returning from Job Detail restores the saved draft without analysis', asyn
   const state = setup({ draft: true, status: 'EXPIRED' });
   await screen.findByRole('heading', { name: 'Step 2 of 3 · Tailor & Review' });
   fireEvent.click(screen.getByRole('link', { name: /Back to job/ }));
-  await screen.findByRole('button', { name: 'Improve CV tab' });
-  fireEvent.click(screen.getByRole('button', { name: 'Improve CV tab' }));
+  await screen.findByRole('link', { name: /tailored CV$/ });
   fireEvent.click(screen.getByRole('link', { name: /tailored CV$/ }));
   await screen.findByRole('heading', { name: 'Step 2 of 3 · Tailor & Review' });
   // The merged step's match gate shows the match is not current.
@@ -868,7 +858,7 @@ test('an earlier draft does not skip an incomplete source review for the current
   expect(state.analyses()).toBe(0);
   expect(
     screen.getByRole('tab', { name: /Tailor & Review/ }),
-  ).toHaveTextContent('Earlier draft available');
+  ).toHaveTextContent('To do');
   fireEvent.click(screen.getByRole('tab', { name: /Tailor & Review/ }));
   await screen.findByRole('heading', { name: 'Step 2 of 3 · Tailor & Review' });
   expect(

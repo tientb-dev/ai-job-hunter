@@ -120,7 +120,6 @@ test('completed six-section review and fresh match enable P8 independently of P7
         jobId={jobId}
         revision="1"
         jobUpdatedAt={syntheticMatch.jobUpdatedAt}
-        view="improve"
         wizard
       />
     </MemoryRouter>,
@@ -234,7 +233,6 @@ test('expired server context refreshes in place without repeating source review 
         jobId={jobId}
         revision="1"
         jobUpdatedAt={syntheticMatch.jobUpdatedAt}
-        view="improve"
         wizard
       />
     </MemoryRouter>,
@@ -381,7 +379,6 @@ test('completing source review without a saved match opens CV Match instead of s
         jobId={jobId}
         revision="1"
         jobUpdatedAt={syntheticMatch.jobUpdatedAt}
-        view="improve"
         wizard
       />
     </MemoryRouter>,

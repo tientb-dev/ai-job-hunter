@@ -2781,3 +2781,15 @@ the exact permitted passages and the scorer retains its existing evidence
 rules. Legacy CV suggestions use the global provider. Per-stage diagnostics
 record provider, model, elapsed time, attempts and reported tokens, with the
 same anonymous attempt identifier as the existing failure events.
+
+### CV Match to Tailored CV handoff
+
+The CV Match action and legacy Improve links open the same job's Tailored CV
+workspace. The workspace reads the job's saved CV selection, persisted match and
+source-review readiness on entry. Analysis and draft generation remain explicit
+actions.
+
+The stepper uses the review editor's existing saved-draft readiness check to
+mark Tailor & Review complete at Approve & Export. Approval and export still use
+the saved revision's approval record. Local edits suspend approval and block
+step navigation to export until the user saves or discards them.

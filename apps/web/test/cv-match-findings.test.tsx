@@ -184,6 +184,14 @@ test('marketing requirements follow source spans and refreshed findings close th
       name: 'Matched: Google Ads or equivalent channels',
     }),
   ).toBeVisible();
+  await user.click(
+    screen.getByRole('button', { name: 'Unable to assess: Forecasting' }),
+  );
+  expect(
+    screen.getByText(
+      'An assessment passage was rejected during evidence verification.',
+    ),
+  ).toBeVisible();
   rerender(<FindingsOverview key="new-review" findings={[...data]} />);
   expect(document.querySelector('[aria-expanded="true"]')).toBeNull();
   rerender(<FindingsOverview findings={[]} />);

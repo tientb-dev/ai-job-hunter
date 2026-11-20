@@ -1,11 +1,18 @@
 import { MemoryRouter } from 'react-router-dom';
 import { expect, test, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from './render';
+import {
+  closeSuccess,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from './render';
 import { CvMatchPanel } from '../src/features/inbox/CvMatchPanel';
 import { tailoredDraftFixture, draftJobId } from './fixtures/tailored-cv';
 
 test('resume bypasses completed source work, preserves draft pins and explains export blockers', async () => {
-  const draft = tailoredDraftFixture();
+  let draft = tailoredDraftFixture();
   const fetch = vi.fn(async (url: string, init?: RequestInit) => {
     if (url.endsWith('/match') && init?.method === 'POST')
       throw Error('Resume must not analyze');
@@ -34,6 +41,23 @@ test('resume bypasses completed source work, preserves draft pins and explains e
         ],
         nextCursor: null,
       });
+    if (url.endsWith('/review')) {
+      draft = structuredClone(draft);
+      draft.revision += 1;
+      draft.document.review.factReviews.description!.proposal = 'rejected';
+      return Response.json(draft);
+    }
+    if (url.endsWith('/approve')) {
+      expect(JSON.parse(init!.body as string).expectedRevision).toBe(
+        draft.revision,
+      );
+      draft = structuredClone(draft);
+      draft.document.review.approval = {
+        revision: draft.revision,
+        approvedAt: draft.updatedAt,
+      };
+      return Response.json(draft);
+    }
     if (url.endsWith(`/drafts/${draft.id}`)) return Response.json(draft);
     throw Error(`Unexpected request: ${url}`);
   });
@@ -44,7 +68,6 @@ test('resume bypasses completed source work, preserves draft pins and explains e
         jobId={draftJobId}
         revision="1"
         jobUpdatedAt={draft.updatedAt}
-        view="improve"
         wizard
       />
     </MemoryRouter>,
@@ -146,24 +169,32 @@ test('resume bypasses completed source work, preserves draft pins and explains e
   expect(fetch.mock.calls.some(([url]) => url.endsWith('/sources'))).toBe(
     false,
   );
-});
-
-test('Improve CV advice stays separate from the Tailored CV tab', async () => {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async () => Response.json(null)),
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  await closeSuccess();
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Continue to Approve & Export' }),
   );
-  render(
-    <MemoryRouter>
-      <CvMatchPanel jobId={draftJobId} revision="1" view="improve" />
-    </MemoryRouter>,
-  );
-  // Tailored CV is a workspace tab now; the advice panel no longer links to it.
-  expect(screen.queryByRole('link', { name: /tailored CV$/ })).toBeNull();
   expect(
-    await screen.findByRole('region', { name: 'Improve your CV' }),
+    screen.getByRole('tab', { name: /Source CV.*Complete/ }),
   ).toBeVisible();
   expect(
-    screen.queryByRole('button', { name: 'Review source CV' }),
-  ).not.toBeInTheDocument();
+    screen.getByRole('tab', { name: /Tailor & Review.*Complete.*Draft saved/ }),
+  ).toBeVisible();
+  expect(
+    screen.getByRole('tab', {
+      name: /Approve & Export.*Current.*Needs approval/,
+    }),
+  ).toHaveAttribute('aria-current', 'step');
+  expect(screen.getByRole('button', { name: 'Download PDF' })).toBeDisabled();
+  expect(
+    screen.getByRole('button', { name: 'Approve saved draft' }),
+  ).toBeDisabled();
+  fireEvent.click(
+    screen.getByRole('checkbox', { name: /I reviewed the complete saved CV/ }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Approve saved draft' }));
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Download PDF' })).toBeEnabled(),
+  );
+  expect(screen.getAllByRole('tab', { name: /Complete/ })).toHaveLength(3);
 });

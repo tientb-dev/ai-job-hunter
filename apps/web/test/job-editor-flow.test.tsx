@@ -522,7 +522,6 @@ test('narrow tab strip supports all workspace tabs and keyboard selection withou
     'Tailored CV',
     'Application',
     'Interview',
-    'Review & Improve CV',
   ]);
   const strip = screen
     .getByRole('tablist', { name: 'Job sections' })
@@ -611,7 +610,7 @@ test('discovery provenance appears once between the tabs and every active panel'
   for (const name of [
     'Overview',
     'CV Match',
-    'Review & Improve CV',
+    'Tailored CV',
     'Application',
     'Edit JD',
   ]) {
@@ -673,7 +672,7 @@ test('jobs without discovery provenance have no banner on any tab', async () => 
   for (const name of [
     'Overview',
     'CV Match',
-    'Review & Improve CV',
+    'Tailored CV',
     'Application',
     'Edit JD',
   ]) {

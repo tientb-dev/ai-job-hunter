@@ -54,7 +54,7 @@ export function CvMatchSection({
   preferSecondary = false,
   analyzeBlocked = false,
   uploadBlocked = false,
-  onGoToImprove,
+  onGoToTailored,
 }: {
   match: CvMatchState;
   labelledBy: string;
@@ -63,7 +63,7 @@ export function CvMatchSection({
   preferSecondary?: boolean;
   analyzeBlocked?: boolean;
   uploadBlocked?: boolean;
-  onGoToImprove?: () => void;
+  onGoToTailored?: () => void;
 }) {
   const { cv, busy, error, result, matchStatus, matchReadError, skillMatch } =
     match;
@@ -230,11 +230,12 @@ export function CvMatchSection({
               )}
               {!busy &&
                 matchStatus === 'VALID' &&
-                result?.evidenceUncertain &&
-                !result.keptPrevious && (
-                  <Alert severity="warning">
-                    {tr('Some evidence in the saved assessment needs review.')}
-                  </Alert>
+                result?.evidenceUncertain && (
+                  <Typography variant="body2" color="text.secondary">
+                    {tr(
+                      'Some evidence passages could not be verified. Open individual requirements to see available evidence and verification details.',
+                    )}
+                  </Typography>
                 )}
               {busy && (
                 <Stack direction="row" spacing={1} role="status">
@@ -262,7 +263,7 @@ export function CvMatchSection({
           </Paper>
           {showFindings && (
             <FindingsOverview
-              onGoToImprove={onGoToImprove}
+              onGoToTailored={onGoToTailored}
               key={JSON.stringify([
                 match.jobId,
                 cv?.id,
@@ -289,13 +290,13 @@ export function CvMatchSection({
               }
             />
           )}
-          {!showFindings && onGoToImprove && (
+          {!showFindings && onGoToTailored && (
             <Button
-              variant="outlined"
-              onClick={onGoToImprove}
+              variant="contained"
+              onClick={onGoToTailored}
               sx={{ alignSelf: 'flex-start' }}
             >
-              {tr('Review & Improve CV')}
+              {tr('Open Tailored CV')}
             </Button>
           )}
           {skillMatch &&
@@ -350,7 +351,7 @@ export function FindingsOverview({
   coverageLimited,
   review,
   conditions = [],
-  onGoToImprove,
+  onGoToTailored,
 }: {
   findings: NonNullable<SkillMatch['findings']>;
   scored?: SkillMatch['rows'];
@@ -358,7 +359,7 @@ export function FindingsOverview({
   coverageLimited?: boolean;
   review?: EvidenceReview;
   conditions?: MatchCondition[];
-  onGoToImprove?: () => void;
+  onGoToTailored?: () => void;
 }) {
   const reduced = useMediaQuery('(prefers-reduced-motion: reduce)');
   const [direct, setDirect] = useState(false);
@@ -871,13 +872,13 @@ export function FindingsOverview({
       </Paper>
     );
   }
-  const improveAction = onGoToImprove && (
+  const tailoredAction = onGoToTailored && (
     <Button
       variant="contained"
-      onClick={onGoToImprove}
+      onClick={onGoToTailored}
       sx={{ alignSelf: { xs: 'stretch', sm: 'flex-end' } }}
     >
-      {tr('Review & Improve CV')}
+      {tr('Open Tailored CV')}
     </Button>
   );
   const headline = skills.length
@@ -1053,7 +1054,7 @@ export function FindingsOverview({
           ))}
         </Box>
       )}
-      {improveAction}
+      {tailoredAction}
     </Stack>
   );
 }

@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { expect, test, vi } from 'vitest';
@@ -28,11 +27,8 @@ const added = {
 };
 
 function JobMatch() {
-  const [view, setView] = useState<'match' | 'improve'>('match');
   return (
     <CvMatchPanel
-      view={view}
-      onGoToImprove={() => setView('improve')}
       jobId={job}
       revision="1"
       jobUpdatedAt="2026-11-02T00:00:00.000Z"
@@ -88,14 +84,6 @@ test('an unreviewed CV blocks Match with a Review CV action back to this job', a
   expect(
     screen.getByRole('button', { name: 'Analyze CV Match' }),
   ).toBeDisabled();
-  fireEvent.click(screen.getByRole('button', { name: 'Review & Improve CV' }));
-  // Improve your CV names the real prerequisite, not a generic "Outdated".
-  expect(
-    screen.getByText(/Review this CV first. Suggestions need a completed/),
-  ).toBeVisible();
-  expect(
-    screen.queryByText(/Outdated. This match is no longer current/),
-  ).toBeNull();
   expect(
     fetch.mock.calls.some(
       ([url, init]) =>

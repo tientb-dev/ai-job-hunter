@@ -12,12 +12,32 @@ import {
 import { theme } from '../src/app/theme';
 import { JobEditor } from '../src/features/inbox/JobEditor';
 import { emptyOpportunity } from '../src/features/inbox/opportunities-api';
-import {
-  syntheticMatch,
-  syntheticSuggestions,
-} from './fixtures/cv-suggestions';
+import { syntheticMatch } from './fixtures/cv-suggestions';
 const id = '00000000-0000-4000-8000-123456789012';
-function setup() {
+function setup(saved = false) {
+  const result = {
+    ...syntheticMatch,
+    analyzedAt: new Date().toISOString(),
+    skillMatch: {
+      version: 1,
+      score: 100,
+      limitation: null,
+      totalCount: 1,
+      matchedCount: 1,
+      rows: [
+        {
+          priority: 'required',
+          source: { quote: 'Synthetic saved JD' },
+          skills: [
+            {
+              name: 'Java',
+              evidence: { quote: 'Designed Java APIs.', origin: 'source' },
+            },
+          ],
+        },
+      ],
+    },
+  };
   const fetch = vi.fn(async (url: string, init?: RequestInit) => {
     if (url.endsWith('/cv/current'))
       return Response.json({
@@ -25,39 +45,35 @@ function setup() {
         fileName: 'synthetic.pdf',
         updatedAt: syntheticMatch.cvUpdatedAt,
       });
-
-    if (url.endsWith('/cv-improvement-suggestions'))
-      return Response.json(syntheticSuggestions);
-    if (url.endsWith('/match'))
+    if (url.endsWith('/drafts/list'))
+      return Response.json({ items: [], nextCursor: null });
+    if (url.endsWith('/drafts/readiness'))
       return Response.json({
-        ...syntheticMatch,
-        analyzedAt: new Date().toISOString(),
-        skillMatch: {
-          version: 1,
-          score: 100,
-          limitation: null,
-          totalCount: 1,
-          matchedCount: 1,
-          rows: [
-            {
-              priority: 'required',
-              source: { quote: 'Synthetic saved JD' },
-              skills: [
-                {
-                  name: 'Java',
-                  evidence: { quote: 'Designed Java APIs.', origin: 'source' },
-                },
-              ],
-            },
-          ],
-        },
+        contractVersion: '1',
+        ready: false,
+        reason: 'CV_DRAFT_MATCH_REQUIRED',
+        pins: null,
+        matchValidForMs: 0,
       });
-    if (init?.method === 'PUT')
+    if (url.endsWith('/match')) {
+      if (init?.method !== 'POST')
+        return Response.json(
+          saved
+            ? { status: 'VALID', result, matchValidForMs: 900000 }
+            : { status: 'MISSING' },
+        );
+      saved = true;
+      return Response.json(result);
+    }
+    if (init?.method === 'PUT') {
+      saved = false;
       return Response.json({
         ...emptyOpportunity(),
         id,
         ...JSON.parse(init.body as string),
+        updatedAt: '2026-01-02T00:00:00.000Z',
       });
+    }
     return Response.json({
       ...emptyOpportunity(),
       id,
@@ -65,6 +81,7 @@ function setup() {
       company: 'Example',
       description: 'Synthetic saved JD',
       status: 'SAVED',
+      updatedAt: syntheticMatch.jobUpdatedAt,
     });
   });
   vi.stubGlobal('fetch', fetch);
@@ -88,55 +105,38 @@ const tab = (name: string) =>
         }),
   );
 
-test('CV Match links to the existing reviewed CV and revision-bound suggestions', async () => {
-  const { fetch } = setup();
+test('CV Match opens Tailored CV for the same job and selected CV with no additional AI call', async () => {
+  const { fetch } = setup(true);
   await screen.findByRole('heading', { name: 'Synthetic engineer' });
   tab('CV Match');
   expect(
     await screen.findByRole('combobox', { name: 'CV for this job' }),
   ).toHaveTextContent('synthetic.pdf');
-  fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
-  expect(
-    await screen.findByText('100% weighted match across assessed requirements'),
-  ).toBeVisible();
-  expect(screen.queryByText('Needs review')).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: 'Review & Improve CV' }));
-  expect(
-    screen.getByRole('tab', { name: 'Review & Improve CV' }),
-  ).toHaveAttribute('aria-selected', 'true');
-  expect(screen.getByRole('link', { name: 'Review CV' })).toHaveAttribute(
-    'href',
-    `/cv/synthetic-cv/review?returnTo=${encodeURIComponent(`/jobs/${id}/match`)}`,
+  await screen.findByText('100% weighted match across assessed requirements');
+  const before = fetch.mock.calls.length;
+  fireEvent.click(screen.getByRole('button', { name: 'Open Tailored CV' }));
+  expect(screen.getByRole('tab', { name: 'Tailored CV' })).toHaveAttribute(
+    'aria-selected',
+    'true',
   );
+  expect(screen.queryByRole('tab', { name: 'Review & Improve CV' })).toBeNull();
+  await screen.findByRole('heading', { name: 'Step 2 of 3 · Tailor & Review' });
+  const calls = fetch.mock.calls.slice(before);
+  expect(calls.some(([url]) => url.endsWith(`/${id}/cv/current`))).toBe(true);
   expect(
-    fetch.mock.calls.filter(([url]) =>
-      url.endsWith('/cv-improvement-suggestions'),
+    calls.some(
+      ([url, init]) =>
+        url.endsWith(`/${id}/drafts/readiness`) &&
+        JSON.parse(init!.body as string).expectedSavedCvUpdatedAt ===
+          syntheticMatch.cvUpdatedAt,
     ),
-  ).toHaveLength(0);
-  fireEvent.click(
-    screen.getByRole('button', { name: /suggest improvements/i }),
-  );
-  const evidence = await screen.findAllByRole('button', {
-    name: 'Review evidence',
-  });
-  fireEvent.click(evidence[0]!);
+  ).toBe(true);
   expect(
-    screen.getByRole('dialog', { name: 'Requirement evidence' }),
-  ).toHaveTextContent('Designed Java APIs.');
-  fireEvent.click(screen.getByRole('button', { name: 'Close' }));
-  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-  expect(
-    fetch.mock.calls.find(([url]) =>
-      url.endsWith('/cv-improvement-suggestions'),
-    )?.[1]?.body,
-  ).toBe(JSON.stringify({ matchId: syntheticMatch.matchId }));
-  tab('CV Match');
-  expect(
-    screen.getByText('100% weighted match across assessed requirements'),
-  ).toBeVisible();
-  expect(
-    fetch.mock.calls.filter(([url]) => url.endsWith('/match')),
-  ).toHaveLength(1);
+    calls.filter(
+      ([url, init]) =>
+        init?.method === 'POST' && !/\/drafts\/(readiness|list)$/.test(url),
+    ),
+  ).toEqual([]);
 });
 
 test('unsaved JD text does not become the Skill Match source', async () => {

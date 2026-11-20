@@ -624,6 +624,10 @@ export const VI_TEXT: Record<string, string> = {
     'Tổng nguồn vượt giới hạn dán. Dữ liệu hiện có không thay đổi; hãy dán thủ công phần JD liên quan.',
   Company: 'Công ty',
   Complete: 'Hoàn tất',
+  'Checking…': 'Đang kiểm tra…',
+  Locked: 'Chưa mở khóa',
+  'Draft saved': 'Đã lưu bản nháp',
+  'Open Tailored CV': 'Mở CV tùy chỉnh',
   'Complete review': 'Hoàn tất rà soát',
   'Component coverage: {requirement}': 'Mức bao phủ thành phần: {requirement}',
   'Configured weight:': 'Trọng số cấu hình:',
@@ -2798,8 +2802,8 @@ export const VI_TEXT: Record<string, string> = {
   'Open Evidence Review for requirement-specific CV guidance.':
     'Mở Rà soát bằng chứng để xem gợi ý cho từng yêu cầu.',
   'View Evidence Review': 'Xem Rà soát bằng chứng',
-  'Some evidence in the saved assessment needs review.':
-    'Một số bằng chứng trong đánh giá đã lưu cần được xem lại.',
+  'Some evidence passages could not be verified. Open individual requirements to see available evidence and verification details.':
+    'Không thể xác minh một số đoạn minh chứng. Mở từng yêu cầu để xem minh chứng hiện có và chi tiết xác minh.',
   'Evidence Review is available. Tailored CV uses a current saved assessment.':
     'Bạn có thể rà soát bằng chứng. CV điều chỉnh sử dụng đánh giá đã lưu còn hiệu lực.',
   'Relevant documented context': 'Nội dung liên quan được ghi trong CV',

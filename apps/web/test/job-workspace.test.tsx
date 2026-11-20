@@ -40,7 +40,8 @@ function mount(entry: string) {
 
 test.each([
   [`/jobs/${id}/application`, `/jobs/${id}/application`, /^Application/],
-  [`/jobs/${id}?tab=improve`, `/jobs/${id}/improve`, /^Review & Improve CV/],
+  [`/jobs/${id}?tab=improve`, `/jobs/${id}/tailored-cv`, /^Tailored CV/],
+  [`/jobs/${id}/improve`, `/jobs/${id}/tailored-cv`, /^Tailored CV/],
   [`/jobs/${id}?tab=application`, `/jobs/${id}/application`, /^Application/],
 ])('deep link %s opens %s', async (entry, path, tab) => {
   const router = mount(entry);
@@ -81,7 +82,7 @@ test.each([
   ['MISSING', 'Not analyzed yet.'],
   ['STALE_CV', 'Outdated.'],
 ])(
-  'Match panel and advice agree when the saved match is %s',
+  'Match panel explains when the saved match is %s',
   async (status, prefix) => {
     vi.stubGlobal(
       'fetch',
@@ -109,8 +110,7 @@ test.each([
     );
     const count = (text: string) =>
       document.body.textContent!.split(text).length - 1;
-    // One message in the assessment and one in the advice prerequisite.
-    await waitFor(() => expect(count(prefix)).toBe(2));
+    await waitFor(() => expect(count(prefix)).toBe(1));
     expect(
       count(prefix === 'Outdated.' ? 'Not analyzed yet.' : 'Outdated.'),
     ).toBe(0);
