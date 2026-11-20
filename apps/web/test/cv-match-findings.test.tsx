@@ -94,7 +94,7 @@ test('Job C regression fixture uses requirement counts and opens the right evide
   expect(screen.getByText('7 JD requirements')).toBeVisible();
   expect(container.textContent).not.toContain('%');
   const left = screen.getByRole('heading', {
-    name: 'JD requirements with evidence',
+    name: 'JD requirements with preliminary evidence',
   }).parentElement!;
   expect(within(left).getAllByRole('button')).toHaveLength(2);
   const front = within(left).getByRole('button', { name: /VueJS\/NuxtJS/ });
@@ -152,7 +152,7 @@ test('marketing requirements follow source spans and refreshed findings close th
   ).toEqual(['1', '0', '1', '1', '2']);
   expect(screen.getByText('5 JD requirements')).toBeVisible();
   const left = screen.getByRole('heading', {
-    name: 'JD requirements with evidence',
+    name: 'JD requirements with preliminary evidence',
   }).parentElement!;
   await user.click(
     within(left).getByRole('button', { name: /Google Ads or equivalent/ }),
@@ -167,7 +167,7 @@ test('marketing requirements follow source spans and refreshed findings close th
     screen.getByText('No findings available for this review.'),
   ).toBeVisible();
   expect(
-    screen.queryByRole('region', { name: 'Requirement evidence coverage' }),
+    screen.queryByRole('region', { name: 'Saved assessment coverage' }),
   ).toBeNull();
 });
 
@@ -202,8 +202,31 @@ test('reports unavailable coverage when the requirement data cannot be trusted',
   );
   expect(screen.getByText(/Requirement coverage is unavailable/)).toBeVisible();
   expect(
-    screen.queryByRole('region', { name: 'Requirement evidence coverage' }),
+    screen.queryByRole('region', { name: 'Saved assessment coverage' }),
   ).toBeNull();
+});
+
+test('preliminary evidence does not affect the saved assessment buckets', () => {
+  render(
+    <FindingsOverview
+      findings={[finding('skill', 'Java')]}
+      requirements={[
+        requirement('Java', 'NOT_EVIDENCED'),
+        {
+          ...requirement('Experience with version control', 'NOT_EVIDENCED'),
+          evidence: { modelQuote: 'EMPTY', review: true },
+        },
+        requirement('Core Java proficiency', 'UNDECOMPOSED'),
+      ]}
+    />,
+  );
+  expect(screen.getByText('Preliminary skill evidence: Java')).toBeVisible();
+  const coverage = screen.getByRole('region', {
+    name: 'Saved assessment coverage',
+  });
+  expect(
+    [...coverage.querySelectorAll('dd')].map((el) => el.textContent),
+  ).toEqual(['0', '0', '1', '1', '1']);
 });
 
 test('shows an all-unassessed inventory with four zero-count categories', () => {
@@ -220,7 +243,7 @@ test('shows an all-unassessed inventory with four zero-count categories', () => 
     />,
   );
   const coverage = screen.getByRole('region', {
-    name: 'Requirement evidence coverage',
+    name: 'Saved assessment coverage',
   });
   expect(within(coverage).getByText('2 JD requirements')).toBeVisible();
   expect(

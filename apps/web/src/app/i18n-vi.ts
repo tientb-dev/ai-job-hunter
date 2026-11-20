@@ -93,12 +93,12 @@ export const VI_TEXT: Record<string, string> = {
   'View details for {requirement}': 'Xem chi tiết yêu cầu {requirement}',
   'Not evidenced in reviewed CV': 'Chưa thấy bằng chứng trong CV đã rà soát',
   'Unable to assess': 'Không thể đánh giá',
-  'Requirement evidence coverage': 'Bằng chứng cho các yêu cầu JD',
+  'Saved assessment coverage': 'Phạm vi đáp ứng trong đánh giá đã lưu',
   '{count} JD requirements': '{count} yêu cầu JD',
   'Missing CV evidence leaves real-world ability unverified.':
     'Thiếu bằng chứng trong CV chưa đủ để kết luận về năng lực thực tế.',
-  'Your reviewed CV documents relevant skills for this job.':
-    'CV đã rà soát có bằng chứng về các kỹ năng liên quan đến công việc này.',
+  'The preliminary comparison links named skills to your reviewed CV. Full requirements are evaluated in the saved assessment.':
+    'Đối chiếu sơ bộ liên kết kỹ năng trong JD với CV đã rà soát. Đánh giá đã lưu xem xét từng yêu cầu đầy đủ.',
   'Requirement coverage is unavailable. The assessment does not provide trustworthy requirement counts.':
     'Chưa có số liệu bao phủ. Kết quả đánh giá chưa cung cấp số lượng yêu cầu đáng tin cậy.',
   'Check which parts the employer requires before updating your CV.':
@@ -111,7 +111,7 @@ export const VI_TEXT: Record<string, string> = {
     'Điểm chỉ tính các yêu cầu đã được đối chiếu tại đây.',
   'Check the required scope against the experience documented in your CV.':
     'Đối chiếu phạm vi yêu cầu với kinh nghiệm đã ghi nhận trong CV.',
-  'JD requirements with evidence': 'Yêu cầu JD có bằng chứng',
+  'JD requirements with preliminary evidence': 'Yêu cầu JD có bằng chứng sơ bộ',
   'Compare individual JD requirements': 'Đối chiếu từng yêu cầu tuyển dụng',
   'Requirement supported': 'Yêu cầu có bằng chứng',
   'Experience duration needs verification':
@@ -134,7 +134,7 @@ export const VI_TEXT: Record<string, string> = {
   'Original CV evidence': 'Xem bằng chứng gốc trong CV',
   'Compare CV with JD': 'Đối chiếu CV với JD',
   'About this analysis': 'Cách sử dụng CV khi phân tích',
-  'Confirmed skill evidence: {skills}': 'Có bằng chứng về {skills}',
+  'Preliminary skill evidence: {skills}': 'Bằng chứng kỹ năng sơ bộ: {skills}',
   'CV evidence summary': 'Nhận định từ bằng chứng CV',
   'Your review documents {n} skills named in the JD.':
     'CV đã rà soát có bằng chứng cho {n} kỹ năng JD đề cập.',
@@ -142,7 +142,7 @@ export const VI_TEXT: Record<string, string> = {
   'The duration is unverified. Check dates for the relevant role or project.':
     'Chưa xác nhận được thời lượng. Hãy đối chiếu thời gian ở vị trí hoặc dự án liên quan.',
   'Requirement details and conditions': 'Chi tiết yêu cầu và điều kiện',
-  'Findings from your CV and the JD': 'Phát hiện từ CV và JD',
+  'Preliminary CV and JD comparison': 'Đối chiếu sơ bộ CV và JD',
   'Evidence-backed strengths': 'Điểm mạnh có bằng chứng',
   'Points to review': 'Ưu tiên kiểm tra',
   'Evidence to clarify: {skill}': 'Làm rõ kinh nghiệm về {skill}',
@@ -152,22 +152,22 @@ export const VI_TEXT: Record<string, string> = {
   'Check role dates and project periods against each quoted requirement before editing your CV.':
     'Đối chiếu thời gian đảm nhiệm vai trò và tham gia dự án với từng yêu cầu dưới đây trước khi cập nhật CV.',
   'Other points to review': 'Các điểm khác cần xem lại',
-  'No confirmed strengths identified in this review.':
-    'Chưa tìm thấy điểm mạnh có minh chứng trong lần rà soát này.',
-  'No attention items identified in this review.':
-    'Chưa ghi nhận điểm cần chú ý trong lần rà soát này.',
+  'No preliminary evidence found for these requirements.':
+    'Chưa tìm thấy bằng chứng sơ bộ cho các yêu cầu này.',
+  'No items flagged in this comparison.':
+    'Lần đối chiếu này chưa đánh dấu mục nào cần xem lại.',
   ' and {n} more': ' và {n} kỹ năng khác',
-  'Confirmed here: {skills}':
+  'Skills documented here: {skills}':
     'Kỹ năng có minh chứng trong yêu cầu này: {skills}',
   'Insufficient information for an overall assessment':
     'Chưa đủ thông tin để kết luận tổng quan',
-  'Assessed score and JD structure':
-    'Điểm trong phạm vi đã đánh giá và cấu trúc JD',
+  'Preliminary skill score and JD structure':
+    'Điểm kỹ năng sơ bộ và cấu trúc JD',
   'Named skill': 'Kỹ năng được nêu trong JD',
   'Full requirement': 'Toàn bộ yêu cầu',
   'Full requirement needs clarification': 'Cần làm rõ toàn bộ yêu cầu',
-  'Confirmed CV evidence supports this named skill.':
-    'CV đã rà soát có minh chứng cho kỹ năng này.',
+  'The preliminary comparison found evidence for this named skill.':
+    'Đối chiếu sơ bộ tìm thấy bằng chứng cho kỹ năng này.',
   'The reviewed CV shows related experience. The specific requirement still needs clarification.':
     'CV đã rà soát cho thấy kinh nghiệm liên quan. Cần làm rõ mức độ đáp ứng yêu cầu cụ thể.',
   'The JD groups several skills together. Individual matches leave the full requirement open.':
@@ -2762,8 +2762,8 @@ export const VI_TEXT: Record<string, string> = {
   'Open Evidence Review for requirement-specific CV guidance.':
     'Mở Rà soát bằng chứng để xem gợi ý cho từng yêu cầu.',
   'View Evidence Review': 'Xem Rà soát bằng chứng',
-  'The saved assessment may have missed some CV passages.':
-    'Đánh giá đã lưu có thể bỏ sót một số đoạn CV.',
+  'Some evidence in the saved assessment needs review.':
+    'Một số bằng chứng trong đánh giá đã lưu cần được xem lại.',
   'Evidence Review is available. Tailored CV uses a current saved assessment.':
     'Bạn có thể rà soát bằng chứng. CV điều chỉnh sử dụng đánh giá đã lưu còn hiệu lực.',
   'Relevant documented context': 'Nội dung liên quan được ghi trong CV',

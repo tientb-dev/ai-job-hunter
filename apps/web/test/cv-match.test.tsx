@@ -216,7 +216,11 @@ test('partial response with malformed component evidence is rejected rather than
 });
 
 test.each([
-  [{ evidenceUncertain: true }, /may have missed some CV passages/, false],
+  [
+    { evidenceUncertain: true },
+    /Some evidence in the saved assessment needs review/,
+    false,
+  ],
   [
     { evidenceUncertain: false, keptPrevious: true },
     /previous saved match was kept/,

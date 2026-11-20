@@ -230,9 +230,7 @@ export function CvMatchSection({
                 result?.evidenceUncertain &&
                 !result.keptPrevious && (
                   <Alert severity="warning">
-                    {tr(
-                      'The saved assessment may have missed some CV passages.',
-                    )}
+                    {tr('Some evidence in the saved assessment needs review.')}
                   </Alert>
                 )}
               {busy && (
@@ -300,7 +298,7 @@ export function CvMatchSection({
                 <AccordionSummary
                   expandIcon={<span aria-hidden="true">⌄</span>}
                 >
-                  {tr('Assessed score and JD structure')}
+                  {tr('Preliminary skill score and JD structure')}
                 </AccordionSummary>
                 <AccordionDetails>
                   <SkillMatchSummary
@@ -341,7 +339,7 @@ export function CvMatchSection({
 }
 
 const findingReasons = {
-  skill: 'Confirmed CV evidence supports this named skill.',
+  skill: 'The preliminary comparison found evidence for this named skill.',
   related:
     'The reviewed CV shows related experience. The specific requirement still needs clarification.',
   clause:
@@ -462,7 +460,7 @@ export function FindingsOverview({
         .map((f) => f.label);
       return [
         names.length &&
-          tr('Confirmed here: {skills}', { skills: names.join(', ') }),
+          tr('Skills documented here: {skills}', { skills: names.join(', ') }),
         tr(
           'The duration is unverified. Check dates for the relevant role or project.',
         ),
@@ -472,7 +470,7 @@ export function FindingsOverview({
     }
     if (c) return tr(conditionStatusLabel[c.status]);
     if (row.supported)
-      return tr('Confirmed here: {skills}', {
+      return tr('Skills documented here: {skills}', {
         skills: row.findings
           .filter((f) => f.kind === 'skill')
           .map((f) => f.label)
@@ -551,13 +549,13 @@ export function FindingsOverview({
     </Button>
   );
   const headline = skills.length
-    ? tr('Confirmed skill evidence: {skills}', {
+    ? tr('Preliminary skill evidence: {skills}', {
         skills: skills
           .slice(0, 2)
           .map((f) => f.label)
           .join(', '),
       })
-    : tr('Findings from your CV and the JD');
+    : tr('Preliminary CV and JD comparison');
   return (
     <Stack
       component="section"
@@ -580,7 +578,9 @@ export function FindingsOverview({
         </Typography>
         <Typography variant="body2" color="text.secondary">
           {skills.length > 0 &&
-            tr('Your reviewed CV documents relevant skills for this job.')}
+            tr(
+              'The preliminary comparison links named skills to your reviewed CV. Full requirements are evaluated in the saved assessment.',
+            )}
           {!findings.length &&
             !unique.length &&
             tr('No findings available for this review.')}
@@ -617,12 +617,12 @@ export function FindingsOverview({
                 mr: 1,
               }}
             />
-            {tr('JD requirements with evidence')}
+            {tr('JD requirements with preliminary evidence')}
           </Typography>
           {supported.slice(0, 4).map(summaryRow)}
           {!supported.length && (
             <Typography variant="body2">
-              {tr('No confirmed strengths identified in this review.')}
+              {tr('No preliminary evidence found for these requirements.')}
             </Typography>
           )}
         </Paper>
@@ -649,7 +649,7 @@ export function FindingsOverview({
           {important.map(summaryRow)}
           {!pending.length && (
             <Typography variant="body2">
-              {tr('No attention items identified in this review.')}
+              {tr('No items flagged in this comparison.')}
             </Typography>
           )}
         </Paper>
@@ -1160,7 +1160,7 @@ function RequirementCoverage({
   return (
     <Box
       component="section"
-      aria-label={tr('Requirement evidence coverage')}
+      aria-label={tr('Saved assessment coverage')}
       sx={{ mt: 2 }}
     >
       <Stack
@@ -1174,7 +1174,7 @@ function RequirementCoverage({
         }}
       >
         <Typography component="h4" variant="subtitle2">
-          {tr('Requirement evidence coverage')}
+          {tr('Saved assessment coverage')}
         </Typography>
         <Typography variant="body2" color="text.secondary">
           {tr('{count} JD requirements', { count: rows.length })}

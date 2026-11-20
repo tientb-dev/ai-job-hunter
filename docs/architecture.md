@@ -2382,7 +2382,10 @@ agree with the proposed AND/OR mode. An OR claim needs an explicit
 "or"/"hoặc"/"/", and a slash cannot separate AND components. Atomic forms
 such as "CI/CD" stay intact. The validator accepts only known shared lead-ins
 and the neutral "skills" suffix. Other unmatched qualifiers leave the
-requirement unresolved. "R" and "C" are recognized as standalone labels with the same
+requirement unresolved. An open-ended OR with an unresolved slash inside its
+named options also uses this request. The validator retains the exact open
+fallback and accepts only named options connected as alternatives. If the split
+cannot be validated, the row stays unresolved. "R" and "C" are recognized as standalone labels with the same
 literal span and boundary checks as other labels. Quantities, degrees and
 nested qualifications excluded by selection are never sent. The analyzer
 rejects all duplicate proposals for a parent and counts each accepted target

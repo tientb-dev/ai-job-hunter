@@ -358,6 +358,17 @@ export function requirementGroup(
     )
       return group('UNKNOWN', [text], context);
     const alt = alternativeLabels(labels, hasOr);
+    // An open alternative confirms the outer OR. A slash inside a remaining
+    // label still needs interpretation before the named options can be scored.
+    if (
+      alt.open &&
+      alt.labels.some((label) => label.replace(atomicSlash, '').includes('/'))
+    ) {
+      return withDuration({
+        ...group('UNKNOWN', [text], context),
+        openAlternative: alt.open,
+      });
+    }
     // "Strong communication skills and experience with Java": the soft part is
     // not scored; the technical part stays (its own generic prefix stripped).
     const objective = alt.labels.filter((label) => !subjectiveOnly(label));
@@ -386,6 +397,7 @@ const openAlternative =
 // "VueJS/NuxtJS" names two products; "CI/CD", "UI/UX", "TCP/IP" stay whole.
 const slashAlternatives =
   /^[\w.+#-]*\p{Ll}[\w.+#-]*(?:\/[\w.+#-]*\p{Ll}[\w.+#-]*)+$/u;
+export const atomicSlash = /\b(?:CI\/CD|UI\/UX|TCP\/IP)\b/giu;
 function alternativeLabels(
   labels: string[],
   hasOr: boolean,
