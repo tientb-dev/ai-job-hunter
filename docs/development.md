@@ -26,7 +26,7 @@ is reserved for tests. Process environment values override file settings.
 AI provider setup: [Local + Gemini](beta-local-gemini-setup.md) or
 [Local AI (Ollama)](setup-ollama.md). Ollama is the default
 (`AI_PROVIDER=ollama`); `AI_PROVIDER=gemini` accepts only
-`gemini-3.5-flash-lite` and needs `GEMINI_API_KEY`.
+`gemini-3.5-flash-lite` and needs `AI_API_KEY`.
 
 ## Running
 

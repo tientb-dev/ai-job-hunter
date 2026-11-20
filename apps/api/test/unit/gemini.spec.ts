@@ -34,7 +34,7 @@ import {
 } from '../../src/tailored-cv/tailored-draft.service.js';
 
 const KEY = 'synthetic-test-key-0123456789abcdef';
-const geminiEnv = { AI_PROVIDER: 'gemini', GEMINI_API_KEY: KEY };
+const geminiEnv = { AI_PROVIDER: 'gemini', AI_API_KEY: KEY };
 const config = aiConfig(geminiEnv);
 const schema = {
   type: 'object',
@@ -89,9 +89,9 @@ test('Gemini config pins the model and keeps the key out of serialization', () =
   });
   expect(JSON.stringify(config)).not.toContain(KEY);
   expect(Object.keys(config)).not.toContain('apiKey');
-  expect(() => aiConfig({ AI_PROVIDER: 'gemini' })).toThrow('GEMINI_API_KEY');
-  expect(() => aiConfig({ ...geminiEnv, GEMINI_API_KEY: `${KEY} ` })).toThrow(
-    'GEMINI_API_KEY',
+  expect(() => aiConfig({ AI_PROVIDER: 'gemini' })).toThrow('AI_API_KEY');
+  expect(() => aiConfig({ ...geminiEnv, AI_API_KEY: `${KEY} ` })).toThrow(
+    'AI_API_KEY',
   );
   expect(() =>
     aiConfig({ ...geminiEnv, GEMINI_MODEL: 'gemini-3.5-flash' }),

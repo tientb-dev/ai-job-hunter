@@ -1,5 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { AI_CONFIG } from './ai.config.js';
+import { Injectable } from '@nestjs/common';
 import type { AiConfig } from './ai.config.js';
 import { PARTIAL_GENERATION_MAX_MS } from './ai-provider.js';
 import type { AiProvider, GenerationRequest } from './ai-provider.js';
@@ -17,7 +16,7 @@ export const MAX_RESPONSE_BYTES = 1024 * 1024;
 
 @Injectable()
 export class OllamaProvider implements AiProvider {
-  constructor(@Inject(AI_CONFIG) private readonly config: AiConfig) {}
+  constructor(private readonly config: AiConfig) {}
 
   async generate(request: GenerationRequest): Promise<string> {
     const controller = new AbortController();

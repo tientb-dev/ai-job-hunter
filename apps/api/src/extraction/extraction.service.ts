@@ -85,6 +85,7 @@ export class ExtractionService implements OnModuleDestroy {
         throw new ExtractionError('INVALID_SOURCE');
       const output = await this.ai.generatePartialStructured(
         {
+          workflow: 'extraction',
           partial: execution ?? {
             signal: new AbortController().signal,
             deadline: performance.now() + PARTIAL_GENERATION_MAX_MS,
@@ -121,6 +122,7 @@ export class ExtractionService implements OnModuleDestroy {
       onParsed?.(freeze(source));
       const prompt = buildExtractionPrompt('cv', source);
       const output = await this.ai.generateStructured({
+        workflow: 'extraction',
         prompt,
         schema: CV_OUTPUT_SCHEMA,
       });
@@ -152,6 +154,7 @@ export class ExtractionService implements OnModuleDestroy {
       this.ensureAvailable();
       const prompt = buildExtractionPrompt('jd', source);
       const output = await this.ai.generateStructured({
+        workflow: 'extraction',
         prompt,
         schema: JD_OUTPUT_SCHEMA,
       });

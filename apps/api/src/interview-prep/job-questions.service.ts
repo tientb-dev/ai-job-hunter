@@ -162,6 +162,7 @@ export class JobQuestionsService {
       const ask = async (avoid: string[]) => {
         try {
           return await this.ai.generateStructured({
+            workflow: 'interview-job-questions',
             prompt: jobQuestionsPrompt(snapshot.text, avoid),
             schema: JOB_QUESTIONS_SCHEMA,
           });

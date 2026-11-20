@@ -17,6 +17,7 @@ export interface PartialGenerationExecution {
   readonly onProviderTiming?: (timing: ProviderTiming) => void;
 }
 export interface GenerationRequest {
+  readonly workflow?: string;
   readonly partial?: PartialGenerationExecution;
   readonly onProviderTiming?: (timing: ProviderTiming) => void;
   readonly prompt: string;

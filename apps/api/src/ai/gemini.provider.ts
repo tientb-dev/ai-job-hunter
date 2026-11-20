@@ -1,5 +1,5 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { AI_CONFIG, GEMINI_MODEL } from './ai.config.js';
+import { Injectable } from '@nestjs/common';
+import { GEMINI_MODEL } from './ai.config.js';
 import type { AiConfig } from './ai.config.js';
 import { PARTIAL_GENERATION_MAX_MS } from './ai-provider.js';
 import type {
@@ -17,7 +17,7 @@ export const GEMINI_MAX_OUTPUT_TOKENS = 4096;
 /** One generateContent request; only transient 429/503 are retried, within the deadline. */
 @Injectable()
 export class GeminiProvider implements AiProvider {
-  constructor(@Inject(AI_CONFIG) private readonly config: AiConfig) {}
+  constructor(private readonly config: AiConfig) {}
 
   async generate(request: GenerationRequest): Promise<string> {
     const config = this.config;

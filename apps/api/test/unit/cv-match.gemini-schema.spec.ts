@@ -198,7 +198,7 @@ describe('Gemini provider reports the upstream HTTP status', () => {
   const provider = new GeminiProvider(
     aiConfig({
       AI_PROVIDER: 'gemini',
-      GEMINI_API_KEY: 'synthetic-test-key-0123456789abcdef',
+      AI_API_KEY: 'synthetic-test-key-0123456789abcdef',
     }),
   );
   const request = { prompt: 'Synthetic fixture', schema: { type: 'object' } };

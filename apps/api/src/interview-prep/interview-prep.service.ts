@@ -96,10 +96,12 @@ export class InterviewPrepService {
       const output = (await this.ai.generateStructured(
         mode === 'express'
           ? {
+              workflow: 'interview-express',
               prompt: expressPrompt(question, text, answer),
               schema: EXPRESS_SCHEMA,
             }
           : {
+              workflow: 'interview-review',
               prompt: reviewPrompt(question, text, answer),
               schema: REVIEW_SCHEMA,
             },

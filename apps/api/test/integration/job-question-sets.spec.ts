@@ -15,6 +15,8 @@ import { DataSource } from 'typeorm';
 import request from 'supertest';
 import { AppModule } from '../../src/app.module.js';
 import { AiService } from '../../src/ai/ai.service.js';
+import { aiConfig, OPENAI_MODEL } from '../../src/ai/ai.config.js';
+import { OpenAiProvider } from '../../src/ai/openai.provider.js';
 import { AiError } from '../../src/ai/ai.errors.js';
 import { databaseOptions } from '../../src/database/database.config.js';
 import { JobQuestionsService } from '../../src/interview-prep/job-questions.service.js';
@@ -24,8 +26,7 @@ import { LOCAL_OWNER_ID } from '../../src/opportunities/opportunities.service.js
 let db: DataSource;
 let app: INestApplication;
 let service: JobQuestionsService;
-const generateStructured =
-  jest.fn<(r: { prompt: string }) => Promise<unknown>>();
+const generateStructured = jest.fn<AiService['generateStructured']>();
 const origin = { Host: '127.0.0.1:3000', Origin: 'http://127.0.0.1:5173' };
 const otherOwner = randomUUID();
 const jobs: string[] = [];
@@ -313,6 +314,76 @@ test('fewer than 3 valid after the retry fails without persisting', async () => 
       "The AI couldn't produce enough questions grounded in this job description. Nothing was saved — try again.",
   });
   expect(await setCount(jobId)).toBe(0);
+});
+
+test('OpenAI structured questions persist only after validation', async () => {
+  const jobId = await job();
+  const key = 'synthetic-openai-interview-key';
+  const ai = new AiService(
+    new OpenAiProvider(
+      aiConfig({
+        AI_PROVIDER: 'openai',
+        AI_API_KEY: key,
+      }),
+    ),
+  );
+  const reply = (text: string) =>
+    Response.json({
+      status: 'completed',
+      output: [
+        {
+          type: 'message',
+          role: 'assistant',
+          status: 'completed',
+          content: [{ type: 'output_text', text }],
+        },
+      ],
+    });
+  const fetch = jest
+    .spyOn(globalThis, 'fetch')
+    .mockImplementation(async () => {
+      throw new Error('Unexpected outbound request');
+    })
+    .mockImplementationOnce(async () =>
+      reply(
+        JSON.stringify({
+          family: 'it',
+          questions: [{ ...item(good[0]), kind: 'invalid' }],
+        }),
+      ),
+    )
+    .mockImplementationOnce(async () =>
+      reply(JSON.stringify({ family: 'it', ...output(6) })),
+    );
+  try {
+    generateStructured.mockImplementation(ai.generateStructured.bind(ai));
+    expect((await generate(jobId).expect(502)).body.errorCode).toBe(
+      'INTERVIEW_INVALID_OUTPUT',
+    );
+    expect(await setCount(jobId)).toBe(0);
+    const { body } = await generate(jobId).expect(201);
+    expect((await list(jobId).expect(200)).body.sets[0].questions).toEqual(
+      body.set.questions,
+    );
+    expect(await setCount(jobId)).toBe(1);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    const [url, init] = fetch.mock.calls[0]!;
+    expect(url).toBe('https://api.openai.com/v1/responses');
+    expect(init?.headers).toMatchObject({ Authorization: `Bearer ${key}` });
+    expect(JSON.parse(String(init?.body))).toMatchObject({
+      model: OPENAI_MODEL,
+      store: false,
+      text: {
+        format: {
+          type: 'json_schema',
+          strict: true,
+          schema: { required: ['family', 'questions'] },
+        },
+      },
+    });
+  } finally {
+    fetch.mockRestore();
+  }
 });
 
 test('AI timeout, unavailable and invalid output are not retried and persist nothing', async () => {

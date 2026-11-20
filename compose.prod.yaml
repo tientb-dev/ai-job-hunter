@@ -37,8 +37,8 @@ services:
       DB_USER: ai_job_hunter
       DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env.production}
       PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN in .env.production}
-      AI_PROVIDER: gemini
-      GEMINI_API_KEY: ${GEMINI_API_KEY:?Set GEMINI_API_KEY in .env.production}
+      AI_PROVIDER: ${AI_PROVIDER:?Set AI_PROVIDER in .env.production}
+      AI_API_KEY: ${AI_API_KEY:?Set AI_API_KEY in .env.production}
       AI_REQUEST_TIMEOUT_MS: ${AI_REQUEST_TIMEOUT_MS:-120000}
       AI_DAILY_USER_LIMIT: ${AI_DAILY_USER_LIMIT:-100}
       AI_DAILY_GLOBAL_LIMIT: ${AI_DAILY_GLOBAL_LIMIT:-500}
