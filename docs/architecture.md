@@ -44,6 +44,13 @@ CV quotes are selected from bounded source passages and validated against saved
 text; missing/unverified evidence must not be described as proof of missing skill.
 Browser matching results do not alter application status, dates, or notes.
 
+The job's CV Match tab uses the existing saved-assessment status to choose between
+assessment results and an introduction with an explicit Analyze action. The
+collapsed skill preview displays the existing preliminary comparison and its
+source passages with keyword labels. Opening it only changes disclosure state.
+Keeping the preview separate from the assessment avoids presenting keyword
+overlap as requirement satisfaction.
+
 Saved-CV compound matching uses shallow request-local parent/component identifiers
 inside the existing matching module (`cv-match.coverage.ts`). Contextual source
 clauses retain one required/preferred weight (3/1); only bare comma/semicolon

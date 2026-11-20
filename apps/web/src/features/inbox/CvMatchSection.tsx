@@ -4,6 +4,9 @@ import { dateLocale, tr } from '../../app/i18n';
 import {
   ArrowForwardIcon,
   AutoAwesomeIcon,
+  BoltIcon,
+  DescriptionIcon,
+  SearchIcon,
   RefreshIcon,
   CheckCircleOutlineIcon,
   ErrorOutlineIcon,
@@ -73,9 +76,86 @@ export function CvMatchSection({
   const showFindings =
     !!skillMatch?.findings || (matchStatus === 'VALID' && !!result);
   const savedHandoff = matchStatus === 'VALID' && !!result && onGoToTailored;
+  const preAnalysis = matchStatus !== 'VALID' || !result;
+  const previewId = useId();
+  const analysisAction = (
+    <Button
+      startIcon={<AutoAwesomeIcon />}
+      variant={
+        !preAnalysis && (preferSecondary || savedHandoff)
+          ? 'outlined'
+          : 'contained'
+      }
+      color={
+        !preAnalysis && (preferSecondary || savedHandoff)
+          ? 'secondary'
+          : 'primary'
+      }
+      disableElevation
+      loading={busy}
+      loadingPosition="start"
+      disabled={
+        analyzeBlocked ||
+        !cv ||
+        matchStatus === 'CHECKING' ||
+        matchStatus === 'CV_REVIEW_REQUIRED'
+      }
+      onClick={() => void analyze()}
+      sx={{
+        flexShrink: 0,
+        alignSelf: 'flex-start',
+        width: preAnalysis ? { xs: '100%', sm: 'auto' } : undefined,
+      }}
+    >
+      {result || ['EXPIRED', 'STALE_CV', 'STALE_JOB'].includes(matchStatus)
+        ? tr('Reanalyze CV Match')
+        : tr('Analyze CV Match')}
+    </Button>
+  );
+  const aboutAnalysis = (
+    <Box component="details">
+      <Box
+        component="summary"
+        sx={{ cursor: 'pointer', typography: 'caption' }}
+      >
+        {tr('About this analysis')}
+      </Box>
+      <Typography variant="caption" color="text.secondary">
+        {tr(
+          'Uses the CV selected for this job and the saved job, not unsaved edits. Files parse locally; analysis sends them to the configured AI provider.',
+        )}{' '}
+        {tr(
+          'A new CV opens Source CV Review first; you return here to start CV Match.',
+        )}
+      </Typography>
+    </Box>
+  );
   const routing = useInRouterContext();
   // A CV uploaded here opens its Source CV Review next.
   const [uploaded, setUploaded] = useState('');
+  const findingsOverview = (
+    <FindingsOverview
+      preliminary={preAnalysis}
+      onGoToTailored={savedHandoff || preAnalysis ? undefined : onGoToTailored}
+      key={JSON.stringify([
+        match.jobId,
+        cv?.id,
+        cv?.updatedAt,
+        result?.evidenceReview?.profileRevisionId,
+        result?.evidenceReview?.jobRevision,
+        match.attempt,
+        result?.analyzedAt,
+      ])}
+      scored={skillMatch?.rows}
+      requirements={matchStatus === 'VALID' ? result?.requirements : undefined}
+      coverageLimited={
+        matchStatus === 'VALID' && result?.coverageHidden === 'UNVERIFIED_JD'
+      }
+      review={matchStatus === 'VALID' ? result?.evidenceReview : undefined}
+      findings={skillMatch?.findings ?? []}
+      conditions={matchStatus === 'VALID' ? result?.conditions : undefined}
+    />
+  );
   return (
     <Box
       role="tabpanel"
@@ -97,10 +177,15 @@ export function CvMatchSection({
             </Typography>
           </Box>
           <Paper
-            variant="outlined"
-            sx={{ p: 1.5, bgcolor: 'background.default' }}
+            variant={preAnalysis ? 'elevation' : 'outlined'}
+            elevation={0}
+            sx={
+              preAnalysis
+                ? { bgcolor: 'transparent' }
+                : { p: 1.5, bgcolor: 'background.default' }
+            }
           >
-            <Stack spacing={1}>
+            <Stack spacing={preAnalysis ? 2 : 1}>
               {/* The selector shows the job's CV; text only when none exists. */}
               {!cv && (
                 <Typography
@@ -114,89 +199,125 @@ export function CvMatchSection({
               <JobCvPicker
                 match={match}
                 disabled={busy || uploadBlocked}
-                analysisAction={
-                  <Button
-                    startIcon={<AutoAwesomeIcon />}
-                    variant={
-                      preferSecondary || savedHandoff ? 'outlined' : 'contained'
-                    }
-                    color={
-                      preferSecondary || savedHandoff ? 'secondary' : 'primary'
-                    }
-                    disableElevation
-                    loading={busy}
-                    loadingPosition="start"
-                    disabled={
-                      analyzeBlocked ||
-                      !cv ||
-                      matchStatus === 'CHECKING' ||
-                      matchStatus === 'CV_REVIEW_REQUIRED'
-                    }
-                    onClick={() => void analyze()}
-                    sx={{
-                      flexShrink: 0,
-                      alignSelf: 'flex-start',
-                    }}
-                  >
-                    {result ||
-                    ['EXPIRED', 'STALE_CV', 'STALE_JOB'].includes(matchStatus)
-                      ? tr('Reanalyze CV Match')
-                      : tr('Analyze CV Match')}
-                  </Button>
-                }
+                analysisAction={preAnalysis ? undefined : analysisAction}
                 onUploaded={setUploaded}
               />
-              <Box component="details">
-                <Box
-                  component="summary"
-                  sx={{ cursor: 'pointer', typography: 'caption' }}
+              {preAnalysis && (
+                <Paper
+                  component="section"
+                  aria-labelledby={previewId + '-intro'}
+                  variant="outlined"
+                  sx={{
+                    bgcolor: surface.primaryTint,
+                    borderColor: surface.panelBorder,
+                    p: { xs: 2, sm: 3 },
+                    borderRadius: `${surface.radius}px`,
+                  }}
                 >
-                  {tr('About this analysis')}
-                </Box>
-                <Typography variant="caption" color="text.secondary">
-                  {tr(
-                    'Uses the CV selected for this job and the saved job, not unsaved edits. Files parse locally; analysis sends them to the configured AI provider.',
-                  )}{' '}
-                  {tr(
-                    'A new CV opens Source CV Review first; you return here to start CV Match.',
-                  )}
-                </Typography>
-              </Box>
+                  <Stack
+                    direction={{ xs: 'column', sm: 'row' }}
+                    spacing={{ xs: 1.5, sm: 3 }}
+                    sx={{ alignItems: { sm: 'center' } }}
+                  >
+                    <Box
+                      aria-hidden="true"
+                      sx={{
+                        position: 'relative',
+                        display: 'grid',
+                        placeItems: 'center',
+                        flexShrink: 0,
+                        width: { xs: 72, sm: 144 },
+                        height: { xs: 64, sm: 124 },
+                        color: 'primary.main',
+                        bgcolor: 'action.selected',
+                        borderRadius: '50%',
+                      }}
+                    >
+                      <DescriptionIcon
+                        sx={{
+                          fontSize: { xs: 48, sm: 96 },
+                          opacity: 0.45,
+                          transform: 'rotate(-8deg)',
+                        }}
+                      />
+                      <SearchIcon
+                        sx={{
+                          position: 'absolute',
+                          right: '12%',
+                          bottom: '6%',
+                          fontSize: { xs: 34, sm: 64 },
+                          bgcolor: 'background.paper',
+                          borderRadius: '50%',
+                        }}
+                      />
+                    </Box>
+                    <Stack
+                      spacing={1.5}
+                      sx={{
+                        minWidth: 0,
+                        borderLeft: { sm: 1 },
+                        borderColor: { sm: 'divider' },
+                        pl: { sm: 3 },
+                      }}
+                    >
+                      <Typography
+                        id={previewId + '-intro'}
+                        component="h3"
+                        variant="h4"
+                      >
+                        {tr('Your CV Match assessment is not ready yet')}
+                      </Typography>
+                      <Typography variant="body1" color="text.secondary">
+                        {tr(
+                          'Analyze your CV against this job to see requirement-by-requirement results and unlock CV suggestions and Tailored CV.',
+                        )}
+                      </Typography>
+                      <Stack
+                        direction={{ xs: 'column', sm: 'row' }}
+                        spacing={1.5}
+                        sx={{ alignItems: { sm: 'baseline' } }}
+                      >
+                        {analysisAction}
+                        {aboutAnalysis}
+                      </Stack>
+                    </Stack>
+                  </Stack>
+                </Paper>
+              )}
+              {!preAnalysis && aboutAnalysis}
               {matchStatus === 'CHECKING' && (
                 <Typography role="status">
                   {tr('Checking the saved CV Match…')}
                 </Typography>
               )}
-              {!busy && matchStatusMessages[matchStatus] && (
-                <Alert
-                  severity={
-                    matchStatus === 'CV_REVIEW_REQUIRED' ? 'warning' : 'info'
-                  }
-                  role="status"
-                  action={
-                    routing &&
-                    matchStatus === 'CV_REVIEW_REQUIRED' &&
-                    match.reviewCvId ? (
-                      <Button
-                        color="inherit"
-                        size="small"
-                        component={Link}
-                        to={reviewHref(match.reviewCvId, match.jobId)}
-                        startIcon={<VisibilityIcon />}
-                        sx={{ minHeight: 44, flexShrink: 0 }}
-                      >
-                        {tr('Review CV')}
-                      </Button>
-                    ) : undefined
-                  }
-                >
-                  {matchStatus === 'MISSING' && skillMatch
-                    ? tr(
-                        'Run an assessment to unlock CV suggestions and tailoring.',
-                      )
-                    : matchStatusMessages[matchStatus]}
-                </Alert>
-              )}
+              {!busy &&
+                (!preAnalysis || matchStatus !== 'MISSING') &&
+                matchStatusMessages[matchStatus] && (
+                  <Alert
+                    severity={
+                      matchStatus === 'CV_REVIEW_REQUIRED' ? 'warning' : 'info'
+                    }
+                    role="status"
+                    action={
+                      routing &&
+                      matchStatus === 'CV_REVIEW_REQUIRED' &&
+                      match.reviewCvId ? (
+                        <Button
+                          color="inherit"
+                          size="small"
+                          component={Link}
+                          to={reviewHref(match.reviewCvId, match.jobId)}
+                          startIcon={<VisibilityIcon />}
+                          sx={{ minHeight: 44, flexShrink: 0 }}
+                        >
+                          {tr('Review CV')}
+                        </Button>
+                      ) : undefined
+                    }
+                  >
+                    {matchStatusMessages[matchStatus]}
+                  </Alert>
+                )}
               {matchReadError && (
                 <Alert
                   severity="warning"
@@ -280,38 +401,99 @@ export function CvMatchSection({
               )}
             </Stack>
           </Paper>
-          {showFindings && (
-            <FindingsOverview
-              onGoToTailored={savedHandoff ? undefined : onGoToTailored}
-              key={JSON.stringify([
-                match.jobId,
-                cv?.id,
-                cv?.updatedAt,
-                result?.evidenceReview?.profileRevisionId,
-                result?.evidenceReview?.jobRevision,
-                match.attempt,
-                result?.analyzedAt,
-              ])}
-              scored={skillMatch?.rows}
-              requirements={
-                matchStatus === 'VALID' ? result?.requirements : undefined
-              }
-              coverageLimited={
-                matchStatus === 'VALID' &&
-                result?.coverageHidden === 'UNVERIFIED_JD'
-              }
-              review={
-                matchStatus === 'VALID' ? result?.evidenceReview : undefined
-              }
-              findings={skillMatch?.findings ?? []}
-              conditions={
-                matchStatus === 'VALID' ? result?.conditions : undefined
-              }
-            />
+          {preAnalysis ? (
+            <Accordion
+              disableGutters
+              elevation={0}
+              variant="outlined"
+              slotProps={{
+                region: { 'aria-labelledby': previewId + '-label' },
+              }}
+              sx={{
+                '&&': { borderRadius: `${surface.radius}px` },
+                '&::before': { display: 'none' },
+              }}
+            >
+              <AccordionSummary
+                id={previewId + '-summary'}
+                aria-controls={previewId + '-content'}
+                aria-labelledby={previewId + '-label'}
+                aria-describedby={previewId + '-description'}
+                expandIcon={<ExpandMoreIcon />}
+              >
+                <Stack
+                  component="span"
+                  direction="row"
+                  spacing={1.5}
+                  sx={{ alignItems: 'center', minWidth: 0, mr: 1 }}
+                >
+                  <BoltIcon color="primary" sx={{ flexShrink: 0 }} />
+                  <Box component="span" sx={{ minWidth: 0 }}>
+                    <Stack
+                      component="span"
+                      direction="row"
+                      useFlexGap
+                      spacing={1}
+                      sx={{ flexWrap: 'wrap', alignItems: 'center' }}
+                    >
+                      <Typography
+                        id={previewId + '-label'}
+                        component="span"
+                        variant="subtitle1"
+                        sx={{ fontWeight: 600 }}
+                      >
+                        {tr('Quick skill preview')}
+                      </Typography>
+                      <Chip
+                        component="span"
+                        size="small"
+                        label={tr('Preview only')}
+                        sx={{
+                          bgcolor: surface.primaryTint,
+                          color: 'primary.dark',
+                        }}
+                      />
+                    </Stack>
+                    <Typography
+                      id={previewId + '-description'}
+                      component="span"
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ display: 'block' }}
+                    >
+                      {tr(
+                        'A quick keyword-based comparison of the job requirements and your reviewed CV. This is not a full assessment.',
+                      )}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </AccordionSummary>
+              <AccordionDetails>
+                {skillMatch ? (
+                  <Stack spacing={2}>
+                    {skillMatch.findings && findingsOverview}
+                    <SkillMatchSummary
+                      preliminary
+                      match={skillMatch}
+                      jobId={match.jobId}
+                      onSaved={reload}
+                    />
+                  </Stack>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    {tr(
+                      'No keyword comparison is available for the selected CV.',
+                    )}
+                  </Typography>
+                )}
+              </AccordionDetails>
+            </Accordion>
+          ) : (
+            showFindings && findingsOverview
           )}
-          {!showFindings && onGoToTailored && (
+          {(preAnalysis || !showFindings) && onGoToTailored && (
             <Button
-              variant="contained"
+              variant={preAnalysis ? 'text' : 'contained'}
               endIcon={<ArrowForwardIcon />}
               onClick={onGoToTailored}
               sx={{ alignSelf: 'flex-start' }}
@@ -319,7 +501,8 @@ export function CvMatchSection({
               {tr('Open Tailored CV')}
             </Button>
           )}
-          {skillMatch &&
+          {!preAnalysis &&
+            skillMatch &&
             (skillMatch.findings ? (
               <Accordion disableGutters elevation={0} variant="outlined">
                 <AccordionSummary
@@ -366,6 +549,7 @@ const findingReasons = {
 } as const;
 export function FindingsOverview({
   findings,
+  preliminary = false,
   scored = [],
   requirements,
   coverageLimited,
@@ -374,6 +558,7 @@ export function FindingsOverview({
   onGoToTailored,
 }: {
   findings: NonNullable<SkillMatch['findings']>;
+  preliminary?: boolean;
   scored?: SkillMatch['rows'];
   requirements?: MatchResult['requirements'];
   coverageLimited?: boolean;
@@ -468,6 +653,16 @@ export function FindingsOverview({
     ),
   ].slice(0, 3);
   function explanation(row: Comparison) {
+    if (preliminary) {
+      return row.findings.some((f) => f.kind === 'skill')
+        ? tr('Keywords found: {skills}', {
+            skills: row.findings
+              .filter((f) => f.kind === 'skill')
+              .map((f) => f.label)
+              .join(', '),
+          })
+        : tr('Review this requirement against your CV.');
+    }
     const c =
       row.conditions.find((c) => c.status === 'NOT_MET') ??
       row.conditions.find((c) => c.status === 'UNKNOWN') ??
@@ -530,7 +725,7 @@ export function FindingsOverview({
           >
             {explanation(row)}
           </Typography>
-          {row.supported && (
+          {row.supported && !preliminary && (
             <Typography
               component="span"
               variant="caption"
@@ -573,11 +768,15 @@ export function FindingsOverview({
       (c) => c.kind === 'EXPERIENCE' && c.status === 'UNKNOWN',
     );
     const assessment = row.assessment;
-    const badge = assessment
-      ? coverageCategories[assessment.status][0]
-      : duration
-        ? 'Experience duration needs verification'
-        : row.status;
+    const badge = preliminary
+      ? directNames.length
+        ? 'Keywords found'
+        : 'Check scope'
+      : assessment
+        ? coverageCategories[assessment.status][0]
+        : duration
+          ? 'Experience duration needs verification'
+          : row.status;
     const gap = row.findings.some((f) => f.kind === 'requirement');
     const next = duration
       ? 'Check role dates and project periods against each quoted requirement before editing your CV.'
@@ -666,15 +865,17 @@ export function FindingsOverview({
                 size="small"
                 variant="outlined"
                 color={
-                  assessment
-                    ? assessmentColors[assessment.status]
-                    : duration || gap
-                      ? 'warning'
-                      : row.supported &&
-                          row.status !==
-                            'Evidence supports part of this requirement'
-                        ? 'success'
-                        : 'info'
+                  preliminary
+                    ? 'default'
+                    : assessment
+                      ? assessmentColors[assessment.status]
+                      : duration || gap
+                        ? 'warning'
+                        : row.supported &&
+                            row.status !==
+                              'Evidence supports part of this requirement'
+                          ? 'success'
+                          : 'info'
                 }
                 label={tr(badge)}
                 sx={{
@@ -759,7 +960,11 @@ export function FindingsOverview({
                     sx={{ fontWeight: 600, mb: 0.75 }}
                   >
                     {tr(
-                      assessment ? 'Preliminary skill evidence' : 'CV evidence',
+                      preliminary
+                        ? 'CV passages mentioning these skills'
+                        : assessment
+                          ? 'Preliminary skill evidence'
+                          : 'CV evidence',
                     )}
                   </Typography>
                   <Stack
@@ -773,7 +978,7 @@ export function FindingsOverview({
                         key={name}
                         label={name}
                         size="small"
-                        color="success"
+                        color={preliminary ? 'default' : 'success'}
                         variant="outlined"
                       />
                     ))}
@@ -784,18 +989,29 @@ export function FindingsOverview({
                 .filter((f) => f.kind === 'related')
                 .map((f) => (
                   <Typography key={f.label} variant="body2">
-                    {f.label} · {tr(findingReasons.related)}
+                    {f.label} ·{' '}
+                    {tr(
+                      preliminary
+                        ? 'Related terms found. Review the specific requirement.'
+                        : findingReasons.related,
+                    )}
                   </Typography>
                 ))}
               {!assessment && gap && (
                 <Typography variant="body2">
-                  {tr('The reviewed CV does not establish this requirement.')}
+                  {tr(
+                    preliminary
+                      ? 'No direct keyword match was found for this requirement.'
+                      : 'The reviewed CV does not establish this requirement.',
+                  )}
                 </Typography>
               )}
               {row.status === 'Evidence supports part of this requirement' && (
                 <Typography variant="body2">
                   {tr(
-                    'Individual skills are documented. The full requirement remains unverified.',
+                    preliminary
+                      ? 'These keyword matches do not establish that the whole requirement is met.'
+                      : 'Individual skills are documented. The full requirement remains unverified.',
                   )}
                 </Typography>
               )}
@@ -850,9 +1066,11 @@ export function FindingsOverview({
                 <details>
                   <summary>
                     {tr(
-                      assessment
-                        ? 'Preliminary and condition evidence'
-                        : 'Original CV evidence',
+                      preliminary
+                        ? 'View CV passages'
+                        : assessment
+                          ? 'Preliminary and condition evidence'
+                          : 'Original CV evidence',
                     )}
                   </summary>
                   {evidence.map((e) => (
@@ -860,8 +1078,13 @@ export function FindingsOverview({
                       key={JSON.stringify(e)}
                       source="CV evidence"
                       title={
-                        assessment ? tr('Preliminary CV evidence') : undefined
+                        preliminary
+                          ? tr('CV passage')
+                          : assessment
+                            ? tr('Preliminary CV evidence')
+                            : undefined
                       }
+                      label={preliminary ? tr('CV passage') : undefined}
                       quote={e.quote}
                       origin={e.origin}
                       detail={[
@@ -903,13 +1126,22 @@ export function FindingsOverview({
     </Button>
   );
   const headline = skills.length
-    ? tr('Preliminary skill evidence: {skills}', {
-        skills: skills
-          .slice(0, 2)
-          .map((f) => f.label)
-          .join(', '),
-      })
-    : tr('Preliminary CV and JD comparison');
+    ? tr(
+        preliminary
+          ? 'Skills mentioned in the CV: {skills}'
+          : 'Preliminary skill evidence: {skills}',
+        {
+          skills: skills
+            .slice(0, 2)
+            .map((f) => f.label)
+            .join(', '),
+        },
+      )
+    : tr(
+        preliminary
+          ? 'Compare job requirements with the CV'
+          : 'Preliminary CV and JD comparison',
+      );
   return (
     <Stack
       component="section"
@@ -932,27 +1164,34 @@ export function FindingsOverview({
             }}
           >
             <Typography variant="overline" color="text.secondary">
-              {tr('CV evidence summary')}
+              {tr(preliminary ? 'Keyword comparison' : 'CV evidence summary')}
             </Typography>
             <Typography component="h3" variant="h5" sx={{ fontWeight: 600 }}>
               {headline}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {skills.length > 0 &&
+              {!preliminary &&
+                skills.length > 0 &&
                 tr(
                   'The preliminary comparison links named skills to your reviewed CV. Full requirements are evaluated in the saved assessment.',
                 )}
               {!findings.length &&
                 !unique.length &&
-                tr('No findings available for this review.')}
+                tr(
+                  preliminary
+                    ? 'No keyword comparison is available for the selected CV.'
+                    : 'No findings available for this review.',
+                )}
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              {tr(
-                requirements || coverageLimited
-                  ? 'Requirement coverage is unavailable. The assessment does not provide trustworthy requirement counts.'
-                  : 'Analyze CV Match to see saved assessment coverage.',
-              )}
-            </Typography>
+            {!preliminary && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                {tr(
+                  requirements || coverageLimited
+                    ? 'Requirement coverage is unavailable. The assessment does not provide trustworthy requirement counts.'
+                    : 'Analyze CV Match to see saved assessment coverage.',
+                )}
+              </Typography>
+            )}
           </Box>
           <Box
             sx={{
@@ -974,20 +1213,30 @@ export function FindingsOverview({
                 variant="subtitle1"
                 sx={{ fontWeight: 600 }}
               >
-                <CheckCircleOutlineIcon
-                  sx={{
-                    fontSize: 19,
-                    color: 'success.main',
-                    verticalAlign: 'text-bottom',
-                    mr: 1,
-                  }}
-                />
-                {tr('JD requirements with preliminary evidence')}
+                {!preliminary && (
+                  <CheckCircleOutlineIcon
+                    sx={{
+                      fontSize: 19,
+                      color: 'success.main',
+                      verticalAlign: 'text-bottom',
+                      mr: 1,
+                    }}
+                  />
+                )}
+                {tr(
+                  preliminary
+                    ? 'Requirements with keywords found'
+                    : 'JD requirements with preliminary evidence',
+                )}
               </Typography>
               {supported.slice(0, 4).map(summaryRow)}
               {!supported.length && (
                 <Typography variant="body2">
-                  {tr('No preliminary evidence found for these requirements.')}
+                  {tr(
+                    preliminary
+                      ? 'No direct keywords found.'
+                      : 'No preliminary evidence found for these requirements.',
+                  )}
                 </Typography>
               )}
             </Paper>
@@ -1001,14 +1250,16 @@ export function FindingsOverview({
                 variant="subtitle1"
                 sx={{ fontWeight: 600 }}
               >
-                <ErrorOutlineIcon
-                  sx={{
-                    fontSize: 19,
-                    color: 'warning.main',
-                    verticalAlign: 'text-bottom',
-                    mr: 1,
-                  }}
-                />
+                {!preliminary && (
+                  <ErrorOutlineIcon
+                    sx={{
+                      fontSize: 19,
+                      color: 'warning.main',
+                      verticalAlign: 'text-bottom',
+                      mr: 1,
+                    }}
+                  />
+                )}
                 {tr('Points to review')}
               </Typography>
               {important.map(summaryRow)}
@@ -1042,7 +1293,11 @@ export function FindingsOverview({
       {fallback.size > 0 && (
         <Box component="details">
           <Box component="summary" sx={{ cursor: 'pointer', py: 1 }}>
-            {tr('Other relevant CV experience')}
+            {tr(
+              preliminary
+                ? 'Other related CV passages'
+                : 'Other relevant CV experience',
+            )}
           </Box>
           {[...fallback].map(([key, entries]) => (
             <Box component="details" key={key} sx={{ ml: 2, py: 0.5 }}>
@@ -1061,6 +1316,8 @@ export function FindingsOverview({
                 <EvidenceQuote
                   key={JSON.stringify(e)}
                   source="CV evidence"
+                  title={preliminary ? tr('CV passage') : undefined}
+                  label={preliminary ? tr('CV passage') : undefined}
                   quote={e.quote}
                   origin={e.origin}
                   detail={[
@@ -1421,10 +1678,12 @@ function SkillMatchSummary({
   match,
   jobId,
   onSaved,
+  preliminary = false,
 }: {
   match: SkillMatch;
   jobId: string;
   onSaved: () => void;
+  preliminary?: boolean;
 }) {
   const id = useId();
   const partial = match.partialScore != null;
@@ -1458,41 +1717,72 @@ function SkillMatchSummary({
           variant="subtitle1"
           sx={{ fontWeight: 600 }}
         >
-          {tr('JD–CV Skill Match')}
+          {tr(
+            preliminary
+              ? 'Skill group keyword comparison'
+              : 'JD–CV Skill Match',
+          )}
         </Typography>
         <Box role="status" aria-atomic="true">
           <Typography component="p" variant="h5" sx={{ fontWeight: 600 }}>
-            {tr('{matched}/{total} assessed skill groups matched', {
-              matched: match.matchedCount,
-              total: match.totalCount,
-            })}
+            {tr(
+              preliminary
+                ? 'Keywords found for {matched}/{total} skill groups'
+                : '{matched}/{total} assessed skill groups matched',
+              {
+                matched: match.matchedCount,
+                total: match.totalCount,
+              },
+            )}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             {score === null
-              ? tr('No skill score available.')
-              : tr('{score}% weighted match across assessed requirements', {
-                  score: Math.round(score),
-                })}
+              ? tr(
+                  preliminary
+                    ? 'No weighted keyword score available.'
+                    : 'No skill score available.',
+                )
+              : tr(
+                  preliminary
+                    ? '{score}% weighted keyword score'
+                    : '{score}% weighted match across assessed requirements',
+                  {
+                    score: Math.round(score),
+                  },
+                )}
           </Typography>
         </Box>
         {(partial || match.limitation === 'INCOMPLETE_INVENTORY') && (
           <Alert severity="warning">
-            {tr('The score covers only the requirements assessed here.')}
+            {tr(
+              preliminary
+                ? 'The keyword score covers only the skill groups shown here.'
+                : 'The score covers only the requirements assessed here.',
+            )}
           </Alert>
         )}
       </Stack>
       {match.fieldConflict && (
         <Alert severity="info">
           {tr(
-            'Original JD and saved skills differ. Assessed groups use the original JD priorities.',
+            preliminary
+              ? 'Original JD and saved skills differ. The comparison uses the original JD priorities.'
+              : 'Original JD and saved skills differ. Assessed groups use the original JD priorities.',
           )}
         </Alert>
       )}
       {(
         [
-          ['Matched skills', matched, true, 'No matches found.'],
           [
-            'No evidence found in CV Review',
+            preliminary ? 'Skills with keywords found' : 'Matched skills',
+            matched,
+            true,
+            preliminary ? 'No direct keywords found.' : 'No matches found.',
+          ],
+          [
+            preliminary
+              ? 'Skills without keywords found'
+              : 'No evidence found in CV Review',
             missing,
             false,
             'None among the identified requirements.',
@@ -1546,7 +1836,11 @@ function SkillMatchSummary({
         {!!(match.unresolved?.length || match.fallbackReview?.length) && (
           <Accordion disableGutters elevation={0} variant="outlined">
             <AccordionSummary expandIcon={<span aria-hidden="true">⌄</span>}>
-              {tr('View unassessed requirements')}
+              {tr(
+                preliminary
+                  ? 'View unresolved requirements'
+                  : 'View unassessed requirements',
+              )}
             </AccordionSummary>
             <AccordionDetails>
               <Stack
@@ -1561,7 +1855,9 @@ function SkillMatchSummary({
                       {tr(
                         match.mixedGroups?.includes(item)
                           ? 'The required skills and alternatives could not be separated reliably.'
-                          : 'This requirement could not be assessed reliably.',
+                          : preliminary
+                            ? 'This requirement could not be compared reliably.'
+                            : 'This requirement could not be assessed reliably.',
                       )}
                     </Typography>
                   </Box>
@@ -1606,17 +1902,27 @@ function SkillMatchSummary({
                         key={name}
                         source="CV evidence"
                         title={name}
+                        label={preliminary ? tr('CV passage') : undefined}
                         detail={[
                           evidence.sectionKind &&
                             tr(reviewedSectionLabels[evidence.sectionKind]),
                           evidence.origin === 'source' &&
                             tr('From reviewed source'),
                           evidence.relationship
-                            ? tr('Directional evidence from {skill}', {
-                                skill: evidence.relationship.from,
-                              })
+                            ? tr(
+                                preliminary
+                                  ? 'Related term from {skill}'
+                                  : 'Directional evidence from {skill}',
+                                {
+                                  skill: evidence.relationship.from,
+                                },
+                              )
                             : evidence.sectionKind &&
-                              tr('Direct or alias evidence'),
+                              tr(
+                                preliminary
+                                  ? 'Direct term or alias'
+                                  : 'Direct or alias evidence',
+                              ),
                         ]
                           .filter(Boolean)
                           .join(' · ')}
@@ -1625,9 +1931,14 @@ function SkillMatchSummary({
                       />
                     ) : (
                       <Typography key={name} variant="body2">
-                        {tr('No CV Review evidence found for {skill}.', {
-                          skill: name,
-                        })}
+                        {tr(
+                          preliminary
+                            ? 'No keyword found in the reviewed CV for {skill}.'
+                            : 'No CV Review evidence found for {skill}.',
+                          {
+                            skill: name,
+                          },
+                        )}
                       </Typography>
                     ),
                   )}

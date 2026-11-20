@@ -171,6 +171,9 @@ test('a result arriving after a saved-job revision change stays invalidated and 
   ).toHaveTextContent('synthetic.pdf');
   fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
   expect(screen.getByText('Processing locally…')).toBeVisible();
+  expect(
+    screen.getByRole('button', { name: 'Analyze CV Match' }),
+  ).toBeDisabled();
   view.rerender(<CvMatchPanel jobId="synthetic" revision="2" />);
   finish(Response.json(result));
   await waitFor(() =>
