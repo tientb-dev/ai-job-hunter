@@ -16,6 +16,7 @@ export const surface = {
   radius: 12,
   controlRadius: 8,
   controlBorder: '#c7d0dd',
+  neutralButtonBorder: '#7c8ba1',
   // Panel outline: a step darker than divider so white panels read on the blue-tinted page.
   panelBorder: '#dce3ee',
   // Pale primary for selected navigation and progress tracks.
@@ -95,8 +96,13 @@ export const theme = createTheme({
         // Explicit secondary actions use the blue outline. Default and error
         // actions keep their neutral and destructive treatments.
         outlined: ({ theme, ownerState }) => {
+          const { primary, action, text } = theme.palette;
+          const disabled = {
+            borderColor: surface.controlBorder,
+            color: text.secondary,
+            backgroundColor: action.hover,
+          };
           if (ownerState.color === 'secondary') {
-            const { primary, action, text } = theme.palette;
             return {
               borderColor: primary.main,
               color: primary.dark,
@@ -105,11 +111,7 @@ export const theme = createTheme({
                 borderColor: primary.dark,
                 backgroundColor: action.selected,
               },
-              '&.Mui-disabled': {
-                borderColor: surface.controlBorder,
-                color: text.secondary,
-                backgroundColor: action.hover,
-              },
+              '&.Mui-disabled': disabled,
             };
           }
           const error = ownerState.color === 'error';
@@ -119,15 +121,16 @@ export const theme = createTheme({
             backgroundColor: theme.palette.background.paper,
           };
           return {
-            borderColor: theme.palette.divider,
-            color: theme.palette.text.primary,
+            borderColor: surface.neutralButtonBorder,
+            color: text.primary,
             backgroundColor: theme.palette.background.paper,
             '&:hover': error
               ? danger
               : {
                   borderColor: theme.palette.text.secondary,
-                  backgroundColor: theme.palette.action.hover,
+                  backgroundColor: action.hover,
                 },
+            '&.Mui-disabled': disabled,
             ...(error && {
               '&.Mui-focusVisible': {
                 ...danger,

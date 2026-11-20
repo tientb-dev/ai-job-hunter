@@ -256,7 +256,7 @@ export function MockInterview() {
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
           <Button
             variant="contained"
-            startIcon={<PlayIcon />}
+            endIcon={<ArrowForwardIcon />}
             disabled={pending}
             onClick={() => {
               // Neutral URL: the old session's set can't be rebuilt, and the
@@ -552,7 +552,8 @@ function QuestionStep({
           </Typography>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
             <Button
-              endIcon={last ? <CheckIcon /> : <ArrowForwardIcon />}
+              startIcon={last ? <CheckIcon /> : undefined}
+              endIcon={last ? undefined : <ArrowForwardIcon />}
               variant="contained"
               disabled={!ready || pending}
               onClick={() => onNext(text, feedback)}

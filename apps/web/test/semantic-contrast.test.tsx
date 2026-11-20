@@ -141,7 +141,17 @@ test('blue secondary buttons contrast with white cards and keep neutral actions 
     contrast(disabled.color, disabled.backgroundColor),
   ).toBeGreaterThanOrEqual(4.5);
   for (const name of ['Neutral action', 'Destructive action']) {
-    expect(styles(name).backgroundColor).toBe('rgb(255, 255, 255)');
-    expect(styles(name).borderTopColor).not.toBe(secondary.borderTopColor);
+    const neutral = styles(name);
+    expect(neutral.backgroundColor).toBe('rgb(255, 255, 255)');
+    expect(neutral.borderTopColor).not.toBe(secondary.borderTopColor);
+    for (const surface of [
+      'rgb(255, 255, 255)',
+      'rgb(245, 248, 255)',
+      'rgb(239, 244, 255)',
+    ]) {
+      expect(contrast(neutral.borderTopColor, surface)).toBeGreaterThanOrEqual(
+        3,
+      );
+    }
   }
 });

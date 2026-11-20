@@ -1,9 +1,11 @@
 import { dateLocale, tr } from '../../app/i18n';
 import {
+  ArrowBackIcon,
   ArrowForwardIcon,
   AutoAwesomeIcon,
   CheckIcon,
   DownloadIcon,
+  EditIcon,
   ExpandMoreIcon,
   RefreshIcon,
   SaveIcon,
@@ -1109,6 +1111,7 @@ export function TailoredCvReview({
         <Button
           size="small"
           disabled={blocked}
+          startIcon={<EditIcon />}
           aria-label={tr('Edit wording for {where}', { where: where })}
           onClick={() => setContextEdit(fact.id)}
         >
@@ -1366,6 +1369,7 @@ export function TailoredCvReview({
       <Button
         size="small"
         variant="outlined"
+        startIcon={<ArrowBackIcon />}
         aria-label={tr('Previous suggestion')}
         onClick={() => step(-1)}
       >
@@ -1374,6 +1378,7 @@ export function TailoredCvReview({
       <Button
         size="small"
         variant="outlined"
+        endIcon={<ArrowForwardIcon />}
         aria-label={tr('Next suggestion')}
         onClick={() => step(1)}
       >
@@ -1452,6 +1457,7 @@ export function TailoredCvReview({
             </Typography>
             <Button
               size="small"
+              startIcon={<ArrowBackIcon />}
               aria-label={tr('Previous suggestion')}
               onClick={() => step(-1)}
             >
@@ -1459,6 +1465,7 @@ export function TailoredCvReview({
             </Button>
             <Button
               size="small"
+              endIcon={<ArrowForwardIcon />}
               aria-label={tr('Next suggestion')}
               onClick={() => step(1)}
             >
@@ -1593,6 +1600,7 @@ export function TailoredCvReview({
         />
         <Box>
           <Button
+            startIcon={<CheckIcon />}
             variant={isWizard ? 'contained' : 'outlined'}
             aria-describedby={
               !isWizard && approvalSteps.length ? 'approve-needs' : undefined
@@ -1775,7 +1783,6 @@ export function TailoredCvReview({
         mt: isWizard ? 0 : 3,
         minWidth: 0,
         overflowWrap: 'anywhere',
-        '& .MuiButton-root': { minHeight: 44 },
       }}
       aria-labelledby={isWizard ? 'wizard-step-title' : 'tailored-cv-title'}
     >
@@ -1885,6 +1892,7 @@ export function TailoredCvReview({
             </Button>
             <Button
               variant="contained"
+              startIcon={<AutoAwesomeIcon />}
               disabled={!readiness.ready}
               onClick={generateDraft}
             >
@@ -2436,6 +2444,7 @@ export function TailoredCvReview({
                                 size="small"
                                 variant="outlined"
                                 disabled={blocked}
+                                endIcon={<ArrowForwardIcon />}
                                 onClick={() => showSuggestion(undecidedIds[0]!)}
                               >
                                 {tr('Next undecided')}
@@ -2534,6 +2543,7 @@ export function TailoredCvReview({
                               size="small"
                               variant="outlined"
                               disabled={blocked}
+                              endIcon={<ArrowForwardIcon />}
                               onClick={() => showSuggestion(undecidedIds[0]!)}
                             >
                               {tr('Next undecided')}
@@ -2667,6 +2677,7 @@ export function TailoredCvReview({
                           size="small"
                           variant="outlined"
                           disabled={blocked}
+                          endIcon={<ArrowForwardIcon />}
                           onClick={() => showSuggestion(undecidedIds[0]!)}
                         >
                           {tr('Next undecided')}
@@ -2769,6 +2780,13 @@ export function TailoredCvReview({
                             {section.kind}
                           </Typography>
                           <Button
+                            startIcon={
+                              editing === section.id ? (
+                                <CheckIcon />
+                              ) : (
+                                <EditIcon />
+                              )
+                            }
                             disabled={blocked}
                             onClick={() =>
                               setEditing(

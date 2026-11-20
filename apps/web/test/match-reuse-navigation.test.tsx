@@ -263,7 +263,7 @@ test('reviewed source and authoritative valid match enter Step 3 without analysi
   fireEvent.click(screen.getByRole('tab', { name: /Source CV/ }));
   expect(screen.getByRole('button', { name: 'Upload new CV' })).toHaveClass(
     'MuiButton-outlined',
-    'MuiButton-sizeSmall',
+    'MuiButton-sizeMedium',
   );
 });
 

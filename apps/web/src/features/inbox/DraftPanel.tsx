@@ -95,7 +95,6 @@ export function DraftPanel({
                   startIcon={<AddIcon />}
                   disabled={disabled}
                   onClick={onNewDraft}
-                  sx={{ '&&&': { minHeight: { xs: 44, sm: 36 } } }}
                 >
                   {tr('New draft')}
                 </Button>

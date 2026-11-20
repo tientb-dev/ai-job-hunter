@@ -64,9 +64,8 @@ export function JobCvPicker({
         color="secondary"
         startIcon={<UploadIcon />}
         onClick={() => uploadInput.current?.click()}
-        size="small"
         disabled={disabled}
-        sx={{ textTransform: 'none', flexShrink: 0, minHeight: 44 }}
+        sx={{ flexShrink: 0 }}
       >
         {cvs.length ? tr('Upload new CV') : emptyLabel}
       </Button>
@@ -88,7 +87,7 @@ export function JobCvPicker({
           sx={{
             marginInlineStart: { sm: 'auto' },
             mt: { xs: 0.5, sm: 0 },
-            '& > button': { width: { xs: '100%', sm: 'auto' }, minHeight: 44 },
+            '& > button': { width: { xs: '100%', sm: 'auto' } },
           }}
         >
           {analysisAction}

@@ -302,7 +302,6 @@ export function DiscoveryQueue({
                       title: candidate.title,
                     })}
                     aria-haspopup="dialog"
-                    sx={{ minHeight: { xs: 44, sm: 36 } }}
                   >
                     {tr('Review')}
                   </Button>

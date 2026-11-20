@@ -2,11 +2,13 @@ import { surface } from '../../app/theme';
 import { JdStructureReview } from './JdStructureReview';
 import { dateLocale, tr } from '../../app/i18n';
 import {
+  ArrowForwardIcon,
   AutoAwesomeIcon,
   RefreshIcon,
   CheckCircleOutlineIcon,
   ErrorOutlineIcon,
   ExpandMoreIcon,
+  VisibilityIcon,
 } from '../../components/icons';
 import { Link, Navigate, useInRouterContext } from 'react-router-dom';
 import { validSourceDate } from './cv-suggestions.contract';
@@ -180,6 +182,7 @@ export function CvMatchSection({
                         size="small"
                         component={Link}
                         to={reviewHref(match.reviewCvId, match.jobId)}
+                        startIcon={<VisibilityIcon />}
                         sx={{ minHeight: 44, flexShrink: 0 }}
                       >
                         {tr('Review CV')}
@@ -246,6 +249,7 @@ export function CvMatchSection({
               {savedHandoff && (
                 <Button
                   variant="contained"
+                  endIcon={<ArrowForwardIcon />}
                   onClick={savedHandoff}
                   sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
                 >
@@ -308,6 +312,7 @@ export function CvMatchSection({
           {!showFindings && onGoToTailored && (
             <Button
               variant="contained"
+              endIcon={<ArrowForwardIcon />}
               onClick={onGoToTailored}
               sx={{ alignSelf: 'flex-start' }}
             >
@@ -890,6 +895,7 @@ export function FindingsOverview({
   const tailoredAction = onGoToTailored && (
     <Button
       variant="contained"
+      endIcon={<ArrowForwardIcon />}
       onClick={onGoToTailored}
       sx={{ alignSelf: { xs: 'stretch', sm: 'flex-end' } }}
     >

@@ -100,7 +100,7 @@ test('uploading a CV in Job Detail saves it for this job, then opens its review'
   ).toBeVisible();
   const input = await screen.findByLabelText('Save CV for matching');
   const upload = screen.getByRole('button', { name: 'Upload new CV' });
-  expect(upload).toHaveClass('MuiButton-outlined', 'MuiButton-sizeSmall');
+  expect(upload).toHaveClass('MuiButton-outlined', 'MuiButton-sizeMedium');
   const user = userEvent.setup();
   const openChooser = vi.spyOn(input, 'click');
   upload.focus();

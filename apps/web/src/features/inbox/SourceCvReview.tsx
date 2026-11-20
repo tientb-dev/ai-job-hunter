@@ -766,7 +766,6 @@ export function SourceCvReview({
         mt: onContinue && !page ? 3 : 0,
         minWidth: 0,
         overflowWrap: 'anywhere',
-        '& .MuiButton-root': { minHeight: 44 },
       }}
       aria-labelledby="source-cv-review-title"
     >
@@ -1256,8 +1255,7 @@ export function SourceCvReview({
                               <Button
                                 variant="outlined"
                                 size="small"
-                                // Theme small height (32px) beats the screen-wide floor; the
-                                // invisible ::after keeps a 44px tall touch target.
+                                // Keep a compact row and extend its touch target to 44px.
                                 sx={{
                                   '&&': { minHeight: 32 },
                                   '&::after': {

@@ -1396,7 +1396,6 @@ export function JobEditor() {
         form="job-editor-form"
         variant="contained"
         disabled={disabled || conflicts.length > 0}
-        sx={id ? { minHeight: { xs: 44, sm: 36 } } : undefined}
       >
         {busy
           ? tr('Saving…')
@@ -1479,8 +1478,8 @@ export function JobEditor() {
               component={Link}
               to="/jobs"
               variant="outlined"
-              startIcon={<ArrowBackIcon sx={{ fontSize: 20 }} />}
-              sx={{ alignSelf: 'flex-start', minHeight: { xs: 44, sm: 36 } }}
+              startIcon={<ArrowBackIcon />}
+              sx={{ alignSelf: 'flex-start' }}
             >
               {tr('Back to Jobs')}
             </Button>
@@ -1721,17 +1720,14 @@ export function JobEditor() {
                 startIcon={<EditIcon />}
                 component={Link}
                 to={`${base}/edit`}
-                size="small"
                 variant="outlined"
                 aria-current={view === 'edit' ? 'page' : undefined}
                 sx={{
                   flexShrink: 0,
-                  minHeight: 36,
                   alignSelf: { xs: 'flex-end', sm: 'center' },
                   // One primary per view: Save stays the only filled button.
                   '&[aria-current="page"]': {
                     bgcolor: 'action.selected',
-                    fontWeight: 600,
                   },
                 }}
               >
