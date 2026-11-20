@@ -114,7 +114,12 @@ test('CV Match opens Tailored CV for the same job and selected CV with no additi
   ).toHaveTextContent('synthetic.pdf');
   await screen.findByText('100% weighted match across assessed requirements');
   const before = fetch.mock.calls.length;
-  fireEvent.click(screen.getByRole('button', { name: 'Open Tailored CV' }));
+  const handoff = screen.getByRole('button', { name: 'Open Tailored CV' });
+  expect(handoff).toHaveClass('MuiButton-contained');
+  expect(
+    screen.getByRole('button', { name: 'Reanalyze CV Match' }),
+  ).toHaveClass('MuiButton-outlined');
+  fireEvent.click(handoff);
   expect(screen.getByRole('tab', { name: 'Tailored CV' })).toHaveAttribute(
     'aria-selected',
     'true',

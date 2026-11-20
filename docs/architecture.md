@@ -2793,3 +2793,9 @@ The stepper uses the review editor's existing saved-draft readiness check to
 mark Tailor & Review complete at Approve & Export. Approval and export still use
 the saved revision's approval record. Local edits suspend approval and block
 step navigation to export until the user saves or discards them.
+
+The saved-assessment handoff is the primary CV Match action, with reanalysis
+available as a secondary action. Tailor & Review labels factual clarifications
+separately from wording decisions. Approve & Export puts the content preview
+before confirmation on an unapproved draft and keeps the download controls
+easy to reach for approved revisions.

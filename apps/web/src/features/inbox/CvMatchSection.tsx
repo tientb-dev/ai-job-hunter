@@ -70,6 +70,7 @@ export function CvMatchSection({
   const { analyze, reload } = match;
   const showFindings =
     !!skillMatch?.findings || (matchStatus === 'VALID' && !!result);
+  const savedHandoff = matchStatus === 'VALID' && !!result && onGoToTailored;
   const routing = useInRouterContext();
   // A CV uploaded here opens its Source CV Review next.
   const [uploaded, setUploaded] = useState('');
@@ -114,7 +115,9 @@ export function CvMatchSection({
                 analysisAction={
                   <Button
                     startIcon={<AutoAwesomeIcon />}
-                    variant={preferSecondary ? 'outlined' : 'contained'}
+                    variant={
+                      preferSecondary || savedHandoff ? 'outlined' : 'contained'
+                    }
                     disableElevation
                     loading={busy}
                     loadingPosition="start"
@@ -237,6 +240,15 @@ export function CvMatchSection({
                     )}
                   </Typography>
                 )}
+              {savedHandoff && (
+                <Button
+                  variant="contained"
+                  onClick={savedHandoff}
+                  sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
+                >
+                  {tr('Open Tailored CV')}
+                </Button>
+              )}
               {busy && (
                 <Stack direction="row" spacing={1} role="status">
                   <CircularProgress size={20} />
@@ -263,7 +275,7 @@ export function CvMatchSection({
           </Paper>
           {showFindings && (
             <FindingsOverview
-              onGoToTailored={onGoToTailored}
+              onGoToTailored={savedHandoff ? undefined : onGoToTailored}
               key={JSON.stringify([
                 match.jobId,
                 cv?.id,

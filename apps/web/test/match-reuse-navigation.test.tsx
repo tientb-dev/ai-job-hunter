@@ -39,11 +39,13 @@ function setup(
   } = {},
 ) {
   const draft = tailoredDraftFixture();
-  if (options.approved)
+  if (options.approved) {
+    draft.document.review.factReviews.description!.proposal = 'rejected';
     draft.document.review.approval = {
       revision: draft.revision,
       approvedAt: draft.updatedAt,
     };
+  }
   const drafts = options.drafts ?? (options.draft ? [draft] : []);
   let releaseInitial!: () => void;
   const initialWait = new Promise<void>((resolve) => {
@@ -858,7 +860,7 @@ test('an earlier draft does not skip an incomplete source review for the current
   expect(state.analyses()).toBe(0);
   expect(
     screen.getByRole('tab', { name: /Tailor & Review/ }),
-  ).toHaveTextContent('To do');
+  ).toHaveTextContent('Ready');
   fireEvent.click(screen.getByRole('tab', { name: /Tailor & Review/ }));
   await screen.findByRole('heading', { name: 'Step 2 of 3 · Tailor & Review' });
   expect(

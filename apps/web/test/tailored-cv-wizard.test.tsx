@@ -13,6 +13,10 @@ import { tailoredDraftFixture, draftJobId } from './fixtures/tailored-cv';
 
 test('resume bypasses completed source work, preserves draft pins and explains export blockers', async () => {
   let draft = tailoredDraftFixture();
+  const fact = draft.document.sections.find(
+    (section) => section.kind === 'experience',
+  )!.entries[0]!.facts[0]!;
+  fact.clarification = { kind: 'impact', status: 'open', requirementIds: [] };
   const fetch = vi.fn(async (url: string, init?: RequestInit) => {
     if (url.endsWith('/match') && init?.method === 'POST')
       throw Error('Resume must not analyze');
@@ -91,8 +95,13 @@ test('resume bypasses completed source work, preserves draft pins and explains e
   // progress card carries it, so the duplicate Next banner is not shown.
   expect(screen.queryByRole('status', { name: 'Next step' })).toBeNull();
   expect(
+    within(
+      screen.getByRole('region', { name: 'Add factual details' }),
+    ).getByRole('button', { name: 'Provide details' }),
+  ).toBeVisible();
+  expect(
     screen.getByRole('region', { name: 'Review progress' }),
-  ).toHaveTextContent(/suggestions decided/);
+  ).toHaveTextContent('wording suggestions decided');
   expect(screen.getByText(/Pinned source/)).toHaveTextContent(
     draft.document.pins.sourceRevisionId.slice(0, 8),
   );
@@ -171,9 +180,16 @@ test('resume bypasses completed source work, preserves draft pins and explains e
   );
   fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
   await closeSuccess();
-  fireEvent.click(
-    await screen.findByRole('button', { name: 'Continue to Approve & Export' }),
-  );
+  const proceed = await screen.findByRole('button', {
+    name: 'Continue to Approve & Export',
+  });
+  expect(
+    screen.getByRole('tab', { name: /Tailor & Review.*Current/ }),
+  ).not.toHaveTextContent('Complete');
+  expect(
+    screen.getByRole('tab', { name: /Approve & Export.*Ready/ }),
+  ).toBeEnabled();
+  fireEvent.click(proceed);
   expect(
     screen.getByRole('tab', { name: /Source CV.*Complete/ }),
   ).toBeVisible();
@@ -189,6 +205,16 @@ test('resume bypasses completed source work, preserves draft pins and explains e
   expect(
     screen.getByRole('button', { name: 'Approve saved draft' }),
   ).toBeDisabled();
+  const preview = screen.getByRole('region', { name: 'Final preview' });
+  const confirm = screen.getByRole('checkbox', {
+    name: /I reviewed the complete saved CV/,
+  });
+  expect(
+    preview.compareDocumentPosition(confirm) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  expect(screen.queryByRole('status', { name: 'Next step' })).toBeNull();
+  expect(screen.queryByText('To approve:')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Download DOCX' })).toBeDisabled();
   fireEvent.click(
     screen.getByRole('checkbox', { name: /I reviewed the complete saved CV/ }),
   );
