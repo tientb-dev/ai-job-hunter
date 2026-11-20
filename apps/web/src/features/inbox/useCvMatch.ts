@@ -99,7 +99,8 @@ export function useCvMatch(
     let timer: ReturnType<typeof setTimeout> | undefined;
     // Restore only after the view has loaded its saved job revision.
     if (busy || !cvLoaded || !jobUpdatedAt) return;
-    const request = generation.current;
+    // This read is scoped to the saved job and CV by the effect dependencies.
+    // Local form edits only invalidate the results of explicit actions.
     void Promise.resolve().then(async () => {
       if (cancelled) return;
       // Background revalidation retains the last known presentation until
@@ -107,7 +108,7 @@ export function useCvMatch(
       setMatchReadError('');
       try {
         const value = await opportunityRequest<unknown>(`/${jobId}/match`);
-        if (cancelled || request !== generation.current) return;
+        if (cancelled) return;
         if (!value || typeof value !== 'object' || !('status' in value))
           throw Error();
         if (value.status === 'VALID') {
@@ -160,7 +161,7 @@ export function useCvMatch(
           setContextRejected(true);
         } else throw Error();
       } catch {
-        if (!cancelled && request === generation.current) {
+        if (!cancelled) {
           setMatchStatus('ERROR');
           setSourceSkillMatch(undefined);
           setMatchReadError(

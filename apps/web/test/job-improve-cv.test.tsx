@@ -14,7 +14,7 @@ import { JobEditor } from '../src/features/inbox/JobEditor';
 import { emptyOpportunity } from '../src/features/inbox/opportunities-api';
 import { syntheticMatch } from './fixtures/cv-suggestions';
 const id = '00000000-0000-4000-8000-123456789012';
-function setup(saved = false) {
+function setup(saved = false, initialMatchRead?: Promise<void>) {
   const result = {
     ...syntheticMatch,
     analyzedAt: new Date().toISOString(),
@@ -56,12 +56,14 @@ function setup(saved = false) {
         matchValidForMs: 0,
       });
     if (url.endsWith('/match')) {
-      if (init?.method !== 'POST')
+      if (init?.method !== 'POST') {
+        await initialMatchRead;
         return Response.json(
           saved
             ? { status: 'VALID', result, matchValidForMs: 900000 }
             : { status: 'MISSING' },
         );
+      }
       saved = true;
       return Response.json(result);
     }
@@ -152,13 +154,28 @@ test('CV Match opens Tailored CV for the same job and selected CV with no additi
 });
 
 test('unsaved JD text does not become the Skill Match source', async () => {
-  setup();
+  let finishMatchRead!: () => void;
+  const matchRead = new Promise<void>((resolve) => {
+    finishMatchRead = resolve;
+  });
+  const { fetch } = setup(false, matchRead);
   await screen.findByRole('heading', { name: 'Synthetic engineer' });
+  await waitFor(() =>
+    expect(
+      fetch.mock.calls.some(
+        ([url, init]) => url.endsWith('/match') && init?.method !== 'POST',
+      ),
+    ).toBe(true),
+  );
   tab('Edit JD');
   fireEvent.change(screen.getByLabelText('Job description'), {
     target: { value: 'Synthetic changed JD' },
   });
   tab('CV Match');
+  expect(
+    screen.getByRole('button', { name: 'Analyze CV Match' }),
+  ).toBeDisabled();
+  await act(async () => finishMatchRead());
   fireEvent.click(await analyzeButton());
   fireEvent.click(
     await screen.findByRole('button', { name: 'View skill sources' }),

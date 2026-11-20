@@ -19,7 +19,7 @@ import { TailoredCvReview } from '../src/features/inbox/TailoredCvReview';
 import { UnsavedJobGuard } from '../src/features/inbox/UnsavedJobGuard';
 import { tailoredDraftFixture, draftJobId } from './fixtures/tailored-cv';
 const noop = () => {};
-function setup(initial = tailoredDraftFixture()) {
+function setup(initial = tailoredDraftFixture(), initialStep?: number) {
   let saved = initial;
   let conflict = false;
   let exportFailure = false;
@@ -102,6 +102,7 @@ function setup(initial = tailoredDraftFixture()) {
   function Harness() {
     useI18n();
     const [dirty, setDirty] = useState(false);
+    const [step, setStep] = useState(initialStep);
     const nav = useRef(false);
     return (
       <ThemeProvider theme={theme}>
@@ -117,6 +118,8 @@ function setup(initial = tailoredDraftFixture()) {
           disabled={false}
           onDirtyChange={setDirty}
           onBusyChange={noop}
+          wizardStep={step}
+          onContinueToApproval={() => setStep(3)}
         />
         <Link to="/away">Leave</Link>
       </ThemeProvider>
@@ -154,6 +157,75 @@ async function open() {
 function openCv() {
   fireEvent.click(screen.getByText(/^Full CV:/));
 }
+test('a saved draft with no suggestions shows the complete CV and opens the final preview before approval', async () => {
+  const draft = tailoredDraftFixture();
+  const { document } = draft;
+  const [fact] = document.sections.flatMap((section) =>
+    section.entries.flatMap((entry) => entry.facts),
+  );
+  fact!.proposedWording = null;
+  document.review.factReviews[fact!.id]!.proposal = 'none';
+
+  const { fetch } = setup(draft, 2);
+  expect(await screen.findByText('No changes suggested')).toBeVisible();
+  const fullCv = screen.getByRole('region', {
+    name: 'Full CV: read your tailored CV',
+  });
+  expect(within(fullCv).getByText(fact!.acceptedText)).toBeVisible();
+
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Continue to Approve & Export' }),
+  );
+  const preview = screen.getByRole('region', { name: 'Final preview' });
+  expect(within(preview).getByText(fact!.acceptedText)).toBeVisible();
+  const approve = screen.getByRole('button', { name: 'Approve saved draft' });
+  expect(approve).toBeDisabled();
+  fireEvent.click(
+    screen.getByRole('checkbox', { name: /^I reviewed the complete saved CV/ }),
+  );
+  expect(approve).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'Download PDF' })).toBeDisabled();
+  expect(fetch.mock.calls.map(([url]) => url)).toEqual([
+    expect.stringMatching(/\/drafts\/list$/),
+    expect.stringMatching(new RegExp(`/drafts/${draft.id}$`)),
+  ]);
+});
+
+test.each([false, true])(
+  'missing CV content blocks approval and export (approved revision: %s)',
+  async (approved) => {
+    const draft = tailoredDraftFixture();
+    draft.document.sections = [];
+    draft.document.review.factReviews = {};
+    draft.document.reviewIssues = [];
+    if (approved)
+      draft.document.review.approval = {
+        revision: draft.revision,
+        approvedAt: draft.updatedAt,
+      };
+
+    const { fetch } = setup(draft, 3);
+    expect(
+      await screen.findByText(
+        'This draft has no CV content to review or export.',
+      ),
+    ).toBeVisible();
+    expect(screen.queryByText('No changes suggested')).not.toBeInTheDocument();
+    for (const name of ['Approve saved draft', 'Download PDF', 'Download DOCX'])
+      expect(screen.getByRole('button', { name })).toBeDisabled();
+    expect(
+      screen.getByRole('checkbox', {
+        name: /^I reviewed the complete saved CV/,
+      }),
+    ).toBeDisabled();
+    expect(
+      fetch.mock.calls.some(([url]) =>
+        /\/(approve|export|generate)$/.test(url),
+      ),
+    ).toBe(false);
+  },
+);
+
 test('complete CV supports explicit proposal acceptance, save, exact approval, reload and manual invalidation', async () => {
   const state = setup();
   await open();
