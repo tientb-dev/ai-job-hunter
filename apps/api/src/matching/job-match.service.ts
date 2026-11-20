@@ -67,6 +67,7 @@ import {
   emitMatchDecomposition,
   emitMatchPersistence,
   emitMatchProviderTiming,
+  emitMatchSchemaFailure,
   type MatchDecompositionTarget,
   emitMatchFailure,
   matchAttempt,
@@ -685,6 +686,7 @@ export class JobMatchService {
           ? 'COMPLETED'
           : 'PARTIAL';
       } catch (error) {
+        emitMatchSchemaFailure('DECOMPOSITION', error);
         outcome =
           error instanceof AiError && /^[A-Z_]{1,40}$/u.test(error.code)
             ? error.code
@@ -795,6 +797,7 @@ export class JobMatchService {
             }
           ).requirements;
         } catch (error) {
+          emitMatchSchemaFailure(stage, error);
           trace.stage = stage;
           trace.aiCode = error instanceof AiError ? error.code : undefined;
           trace.upstreamHttpStatus =

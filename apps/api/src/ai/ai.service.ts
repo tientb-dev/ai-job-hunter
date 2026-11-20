@@ -61,6 +61,7 @@ export class AiService {
         ...(request.onProviderTiming
           ? { onProviderTiming: request.onProviderTiming }
           : {}),
+        ...(request.workflow ? { workflow: request.workflow } : {}),
         prompt: request.prompt,
         schema,
         ...(request.seed === undefined ? {} : { seed: request.seed }),
@@ -75,7 +76,25 @@ export class AiService {
     } catch {
       throw new AiError('INVALID_JSON');
     }
-    if (!validate(result)) throw new AiError('SCHEMA_VALIDATION_FAILURE');
+    if (!validate(result)) {
+      const issue =
+        request.workflow === 'cv-match' ? validate.errors?.[0] : undefined;
+      throw new AiError(
+        'SCHEMA_VALIDATION_FAILURE',
+        undefined,
+        undefined,
+        undefined,
+        issue && {
+          // schemaPath is generated from the application schema. instancePath,
+          // messages and arbitrary params can describe untrusted output.
+          schemaPath: issue.schemaPath.slice(0, -(issue.keyword.length + 1)),
+          keyword: issue.keyword,
+          ...(Number.isFinite(issue.params.limit)
+            ? { limit: issue.params.limit as number }
+            : {}),
+        },
+      );
+    }
     return result;
   }
 }
