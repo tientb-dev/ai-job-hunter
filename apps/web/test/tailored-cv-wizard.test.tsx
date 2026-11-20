@@ -94,11 +94,27 @@ test('resume bypasses completed source work, preserves draft pins and explains e
   // An open draft drives the next action even though the match is stale: the
   // progress card carries it, so the duplicate Next banner is not shown.
   expect(screen.queryByRole('status', { name: 'Next step' })).toBeNull();
+  const details = screen.getByRole('button', {
+    name: /Add factual details.*Optional/,
+  });
+  expect(details).toHaveAttribute('aria-expanded', 'false');
+  expect(screen.queryByRole('button', { name: 'Provide details' })).toBeNull();
   expect(
-    within(
-      screen.getByRole('region', { name: 'Add factual details' }),
-    ).getByRole('button', { name: 'Provide details' }),
+    screen.getByRole('button', { name: /^Keep original for/ }),
   ).toBeVisible();
+  fireEvent.click(details);
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Provide details' }),
+  );
+  const detail = screen.getByRole('textbox', { name: 'Your factual detail' });
+  fireEvent.change(detail, { target: { value: 'Synthetic unsaved detail' } });
+  fireEvent.click(details);
+  expect(details).toHaveAttribute('aria-expanded', 'false');
+  fireEvent.click(details);
+  expect(
+    screen.getByRole('textbox', { name: 'Your factual detail' }),
+  ).toHaveValue('Synthetic unsaved detail');
+  fireEvent.click(details);
   expect(
     screen.getByRole('region', { name: 'Review progress' }),
   ).toHaveTextContent('wording suggestions decided');

@@ -84,15 +84,18 @@ function setup() {
   };
 }
 
-test('after Source CV Review the new-draft action is open; a generated draft joins the switcher and is selected', async () => {
+test('after Source CV Review the header offers a new draft; a confirmed draft joins the switcher', async () => {
   setup();
   const current = await screen.findByRole('region', { name: 'Current draft' });
   expect(within(current).getByRole('heading')).toHaveTextContent(
     'Draft 1 of 1',
   );
   // Discoverable without generating anything automatically.
-  expect(document.getElementById('generate-new-draft')).toHaveAttribute('open');
-  expect(screen.getByText(/Check readiness below, then choose/)).toBeVisible();
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(
+    screen.getByText(/Choose New draft in the draft header/),
+  ).toBeVisible();
+  fireEvent.click(within(current).getByRole('button', { name: 'New draft' }));
   const generate = screen.getByRole('button', { name: 'Generate new draft' });
   await waitFor(() => expect(generate).toBeEnabled());
   fireEvent.click(generate);
@@ -101,7 +104,7 @@ test('after Source CV Review the new-draft action is open; a generated draft joi
   expect(within(current).getByRole('heading')).toHaveTextContent(
     'Draft 2 of 2',
   );
-  expect(screen.queryByText(/Check readiness below, then choose/)).toBeNull();
+  expect(screen.queryByText(/Choose New draft in the draft header/)).toBeNull();
   fireEvent.click(screen.getByText('Switch draft (2)'));
   expect(
     screen.getByRole('button', { name: /^Draft 2 .*Open now$/ }),
@@ -111,10 +114,7 @@ test('after Source CV Review the new-draft action is open; a generated draft joi
 
 test('a focus recheck keeps the readiness text instead of flashing Checking', async () => {
   const state = setup();
-  const status = await screen.findByText(/ready/i, {
-    selector: '#generate-new-draft [role="status"] *',
-  });
-  const text = status.textContent;
+  fireEvent.click(await screen.findByRole('button', { name: 'New draft' }));
   await waitFor(() =>
     expect(
       screen.getByRole('button', { name: 'Generate new draft' }),
@@ -127,7 +127,6 @@ test('a focus recheck keeps the readiness text instead of flashing Checking', as
   // Assert while the recheck is still pending, when the flash used to occur.
   await waitFor(() => expect(state.readinessReads()).toBeGreaterThan(before));
   expect(screen.queryByText(/Checking draft generation readiness/)).toBeNull();
-  expect(status).toHaveTextContent(text!);
   expect(
     screen.getByRole('button', { name: 'Generate new draft' }),
   ).toBeEnabled();
@@ -136,7 +135,7 @@ test('a focus recheck keeps the readiness text instead of flashing Checking', as
 
 test('a changed context clears readiness and disables generation until rechecked', async () => {
   const state = setup();
-  // Re-query: the section remounts once the opened draft loads.
+  fireEvent.click(await screen.findByRole('button', { name: 'New draft' }));
   const generate = () =>
     screen.getByRole('button', { name: 'Generate new draft' });
   await waitFor(() => expect(generate()).toBeEnabled());

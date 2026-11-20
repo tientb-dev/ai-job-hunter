@@ -25,6 +25,7 @@ export function DraftPanel({
   latestReview,
   canSwitch,
   onGoToSwitch,
+  onNewDraft,
   disabled,
   dirty,
   hasMore,
@@ -38,6 +39,7 @@ export function DraftPanel({
   latestReview: boolean | null;
   canSwitch: boolean;
   onGoToSwitch?: () => void;
+  onNewDraft?: () => void;
   disabled: boolean;
   dirty: boolean;
   hasMore: boolean;
@@ -85,6 +87,17 @@ export function DraftPanel({
                       : tr('Not approved')
                 }
               />
+              {onNewDraft && (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  disabled={disabled}
+                  onClick={onNewDraft}
+                  sx={{ marginInlineStart: { sm: 'auto' } }}
+                >
+                  {tr('New draft')}
+                </Button>
+              )}
             </Stack>
             <Typography variant="body2" color="text.secondary">
               {tr('Saved version')} {saved.revision} {tr('· last saved')}{' '}

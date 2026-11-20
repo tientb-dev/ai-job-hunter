@@ -2799,3 +2799,7 @@ available as a secondary action. Tailor & Review labels factual clarifications
 separately from wording decisions. Approve & Export shows the saved draft and
 template before the full preview, then places confirmation and download actions
 below it. Approved revisions show the PDF preview in the same position.
+
+When a saved draft is open, the draft header opens a confirmation before
+generation. The confirmation uses the existing readiness and pinned request.
+Factual detail forms stay mounted when their disclosure is collapsed.

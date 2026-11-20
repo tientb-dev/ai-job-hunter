@@ -977,7 +977,12 @@ export const VI_TEXT: Record<string, string> = {
   'Generate 5–8 technical questions grounded in this job description. The AI usually takes under 30 seconds.':
     'Tạo 5–8 câu hỏi kỹ thuật dựa trên mô tả công việc này. AI thường mất dưới 30 giây.',
   'Generate a new draft': 'Tạo bản nháp mới',
-  'Generate a new draft instead': 'Tạo bản nháp mới thay thế',
+  'New draft': 'Bản nháp mới',
+  'Choose New draft in the draft header to use the saved source review.':
+    'Chọn Bản nháp mới ở đầu bản nháp để dùng bản rà soát CV gốc đã lưu.',
+  Optional: 'Không bắt buộc',
+  'AI will create a separate draft using your saved CV review and saved CV Match. Your current draft and review decisions stay intact.':
+    'AI sẽ tạo một bản nháp riêng dựa trên bản rà soát CV và kết quả đối chiếu CV đã lưu. Bản nháp hiện tại và các quyết định rà soát của bạn được giữ nguyên.',
   'Generate a new question set?': 'Tạo bộ câu hỏi mới?',
   'Generate a tailored draft from your reviewed CV.':
     'Tạo bản nháp tùy chỉnh từ CV đã rà soát của bạn.',
