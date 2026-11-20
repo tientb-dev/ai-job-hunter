@@ -2695,12 +2695,13 @@ scroll, focus and highlight it. The fallback CV experience list suppresses
 repeated finding labels with identical CV evidence and retains distinct
 quotations and provenance.
 
-### Optional OpenAI provider for Tailored CV
+### Hosted AI provider selection
 
-The Nest AI module supplies a separate Tailored CV client only when the backend
-override is selected. This keeps the trial on the saved CV Match and leaves the
-global provider selection in place. Both hosted clients share the existing
-PostgreSQL usage counters and process concurrency limit.
+The Nest AI module constructs one adapter for the selected provider and shares
+one PostgreSQL-backed usage limiter across AI workflows. The app passes the
+credential only to the selected adapter and exposes key-free settings for model
+provenance. A shared client keeps extract, match, draft and interview workflows
+on the same provider and avoids cross-provider fallback.
 
 The adapter uses the Responses API over the existing HTTP approach with strict
 structured output, no response storage, and explicit retries bounded by the
@@ -2772,13 +2773,12 @@ append path. Additions become confirmed user-entered facts. Eligible wording
 replacements link back to the original fact. Future matches use the new profile
 revision, and the approved job draft retains its historical export.
 
-#### Optional OpenAI provider for CV Match
+#### OpenAI support for CV Match
 
-CV Match analysis can opt into the shared OpenAI adapter independently of
-Tailored CV. OpenAI uses the existing hosted analysis prompt, quote schema and
+When OpenAI is selected, CV Match uses the existing hosted analysis prompt, quote schema and
 bounded completion path used by Gemini. The match validator still enforces
 the exact permitted passages and the scorer retains its existing evidence
-rules. Legacy CV suggestions use the global provider. Per-stage diagnostics
+rules. Per-stage diagnostics
 record provider, model, elapsed time, attempts and reported tokens, with the
 same anonymous attempt identifier as the existing failure events.
 

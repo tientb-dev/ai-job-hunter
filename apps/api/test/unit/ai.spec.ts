@@ -324,7 +324,7 @@ test('configuration defaults and explicit values', () => {
   });
 });
 test.each([
-  ['AI_PROVIDER', 'openai'],
+  ['AI_PROVIDER', 'unsupported'],
   ['AI_PROVIDER', ''],
   ['OLLAMA_BASE_URL', 'file:///tmp'],
   ['OLLAMA_BASE_URL', 'http://user:secret@example.com'],

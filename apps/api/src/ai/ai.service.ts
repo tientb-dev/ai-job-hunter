@@ -1,4 +1,4 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { AiUsageService } from './ai-usage.js';
 import { AI_PROVIDER } from './ai-provider.js';
 import type {
@@ -7,11 +7,13 @@ import type {
   OutputSchema,
   PartialGenerationExecution,
 } from './ai-provider.js';
+import type { AiSettings } from './ai.config.js';
 import { AiError } from './ai.errors.js';
 import { compileOutputSchema } from './ai.schema.js';
 
 @Injectable()
 export class AiService {
+  private readonly logger = new Logger(AiService.name);
   constructor(
     @Inject(AI_PROVIDER) private readonly provider: AiProvider,
     // Null for local Ollama; hosted requests always go through limits.
@@ -19,6 +21,8 @@ export class AiService {
     @Optional()
     @Inject(AiUsageService)
     private readonly usage: AiUsageService | null = null,
+    @Optional()
+    private readonly config?: Pick<AiSettings, 'provider' | 'model'>,
   ) {}
 
   async generateStructured(request: GenerationRequest): Promise<unknown> {
@@ -40,6 +44,10 @@ export class AiService {
     request: GenerationRequest,
     runtimeSchema: OutputSchema,
   ): Promise<unknown> {
+    if (request.workflow && this.config) {
+      const { provider, model } = this.config;
+      this.logger.log({ workflow: request.workflow, provider, model });
+    }
     const { schema, validate: validateModel } = compileOutputSchema(
       request.schema,
     );

@@ -8,10 +8,10 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource, type EntityManager } from 'typeorm';
 import { randomUUID } from 'node:crypto';
 import {
-  TAILORED_CV_AI_CONFIG,
+  AI_CONFIG,
   GEMINI_MODEL,
   OPENAI_MODEL,
-  type AiConfig,
+  type AiSettings,
 } from '../ai/ai.config.js';
 import { OLLAMA_CONTEXT_PROFILE } from '../ai/ollama.context.js';
 import {
@@ -115,14 +115,14 @@ LEFT JOIN LATERAL (
 WHERE o."ownerId" = $1`;
 
 /** Drafts run only on the model whose prompts and guards were verified. */
-export function draftModelSupported(config: AiConfig): boolean {
+export function draftModelSupported(config: AiSettings): boolean {
   if (config.provider === 'openai') return config.model === OPENAI_MODEL;
   return (
     config.model ===
     (config.provider === 'gemini' ? GEMINI_MODEL : OLLAMA_CONTEXT_PROFILE.model)
   );
 }
-export function draftModelProvenance(config: AiConfig) {
+export function draftModelProvenance(config: AiSettings) {
   return {
     provider: config.provider,
     model: config.model,
@@ -141,7 +141,7 @@ export class TailoredDraftService {
     private readonly jobs: OpportunitiesService,
     private readonly matches: JobMatchService,
     private readonly generator: TailoredDraftGenerator,
-    @Inject(TAILORED_CV_AI_CONFIG) private readonly config: AiConfig,
+    @Inject(AI_CONFIG) private readonly config: AiSettings,
     private readonly reviewedCvs: ReviewedCvService,
   ) {}
   // Read-only preflight. Reuse the exact generation context checks; never call AI

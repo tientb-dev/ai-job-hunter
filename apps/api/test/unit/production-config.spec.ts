@@ -18,7 +18,7 @@ const prod = {
   DB_PASSWORD: 'synthetic-production-password',
   PUBLIC_ORIGIN: 'https://beta.example.com',
   AI_PROVIDER: 'gemini',
-  GEMINI_API_KEY: 'synthetic-placeholder-key-0000',
+  AI_API_KEY: 'synthetic-placeholder-key-0000',
 };
 afterEach(() => {
   delete process.env.PUBLIC_ORIGIN;
@@ -36,6 +36,29 @@ test('accepts the production stack settings', () => {
     validateEnvironment({ ...prod, PUBLIC_ORIGIN: 'http://localhost:8080' }),
   ).not.toThrow();
 });
+
+test.each(['openai', 'gemini'])(
+  'starts with only the shared %s credential',
+  (provider) => {
+    const config = validateEnvironment({
+      ...prod,
+      AI_PROVIDER: provider,
+      CV_MATCH_AI_PROVIDER: 'openai',
+      TAILORED_CV_AI_PROVIDER: 'openai',
+    });
+    expect(config.ai.provider).toBe(provider);
+    expect(JSON.stringify(config)).not.toContain(prod.AI_API_KEY);
+    expect(() =>
+      validateEnvironment({
+        ...prod,
+        AI_PROVIDER: provider,
+        AI_API_KEY: undefined,
+        OPENAI_API_KEY: prod.AI_API_KEY,
+        GEMINI_API_KEY: prod.AI_API_KEY,
+      }),
+    ).toThrow('AI_API_KEY');
+  },
+);
 
 test.each([
   ['plain http on a real host', { PUBLIC_ORIGIN: 'http://beta.example.com' }],

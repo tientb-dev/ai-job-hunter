@@ -20,6 +20,8 @@ import { fakeStt, wav } from '../support/fake-stt.js';
 import { JD_QUESTION_ID } from '../../src/interview-prep/job-questions.js';
 import { JobQuestionsService } from '../../src/interview-prep/job-questions.service.js';
 import { AiService } from '../../src/ai/ai.service.js';
+import { aiConfig, OPENAI_MODEL } from '../../src/ai/ai.config.js';
+import { OpenAiProvider } from '../../src/ai/openai.provider.js';
 import { AiError } from '../../src/ai/ai.errors.js';
 import { TailoredDraftService } from '../../src/tailored-cv/tailored-draft.service.js';
 import { FoundationLocalGuard } from '../../src/tailored-cv/tailored-cv.http.js';
@@ -84,6 +86,70 @@ const output = (overrides: Record<string, unknown> = {}) => ({
   technicalNote: '',
   ...overrides,
 });
+
+test.each(['express', 'review'])(
+  'OpenAI decodes and validates %s feedback',
+  async (mode) => {
+    const feedback = output();
+    const { answersQuestion, mainIssue, corrections, ...express } = feedback;
+    const wire =
+      mode === 'express'
+        ? express
+        : { ...express, answersQuestion, mainIssue, corrections };
+    const transport = jest
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async () => {
+        throw new Error('Unexpected outbound request');
+      });
+    const reply = (text: string) =>
+      Response.json({
+        status: 'completed',
+        output: [
+          {
+            type: 'message',
+            role: 'assistant',
+            status: 'completed',
+            content: [{ type: 'output_text', text }],
+          },
+        ],
+      });
+    transport.mockImplementationOnce(async () => reply(JSON.stringify(wire)));
+    transport.mockImplementationOnce(async () => reply('invalid-json'));
+    const ai = new AiService(
+      new OpenAiProvider(
+        aiConfig({
+          AI_PROVIDER: 'openai',
+          AI_API_KEY: 'synthetic-openai-interview-key',
+        }),
+      ),
+    );
+    const cv = {
+      reviewedFacts: async () => null,
+    } as unknown as TailoredDraftService;
+    const service = new InterviewPrepService(ai, cv, {} as DataSource);
+    const body = {
+      questionId: 'hr-strengths-01',
+      mode,
+      answer: 'I am good at solving problems.',
+    };
+    try {
+      await expect(
+        service.feedback(LOCAL_OWNER_ID, body),
+      ).resolves.toMatchObject({ mode });
+      await expect(
+        service.feedback(LOCAL_OWNER_ID, body),
+      ).rejects.toMatchObject({ errorCode: 'INTERVIEW_INVALID_OUTPUT' });
+      const [url, init] = transport.mock.calls[0]!;
+      expect(url).toBe('https://api.openai.com/v1/responses');
+      expect(JSON.parse(String(init?.body))).toMatchObject({
+        model: OPENAI_MODEL,
+        text: { format: { type: 'json_schema', strict: true } },
+      });
+    } finally {
+      transport.mockRestore();
+    }
+  },
+);
 
 describe('question bank', () => {
   test('has stable unique ids, both topics, variants and no personal tech assumptions', () => {

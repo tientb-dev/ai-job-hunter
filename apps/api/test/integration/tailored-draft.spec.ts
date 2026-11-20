@@ -5,12 +5,7 @@ import { asLocalOwner } from '../support/as-local-owner.js';
 import { SavedCvSourceService } from '../../src/matching/saved-cv-source.service.js';
 import { OpportunitiesService } from '../../src/opportunities/opportunities.service.js';
 import { TailoredDraftGenerator } from '../../src/tailored-cv/tailored-draft.generator.js';
-import {
-  AI_CONFIG,
-  OPENAI_MODEL,
-  aiConfig,
-  tailoredCvAiConfig,
-} from '../../src/ai/ai.config.js';
+import { AI_CONFIG, OPENAI_MODEL, aiConfig } from '../../src/ai/ai.config.js';
 import { AiService } from '../../src/ai/ai.service.js';
 import { OpenAiProvider } from '../../src/ai/openai.provider.js';
 import 'reflect-metadata';
@@ -518,9 +513,9 @@ test.each(['invalid', 'reference', 'timeout'] as const)(
 );
 test('mocked OpenAI abstention goes straight to approval and refusal preserves the approved draft', async () => {
   await ready();
-  const config = tailoredCvAiConfig(aiConfig({}), {
-    TAILORED_CV_AI_PROVIDER: 'openai',
-    OPENAI_API_KEY: 'synthetic-openai-project-key',
+  const config = aiConfig({
+    AI_PROVIDER: 'openai',
+    AI_API_KEY: 'synthetic-openai-project-key',
   });
   const openAiDrafts = new TailoredDraftService(
     db,

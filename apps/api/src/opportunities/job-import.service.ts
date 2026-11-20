@@ -79,6 +79,7 @@ export class JobImportService {
       try {
         const controller = new AbortController();
         const result = await this.ai.generateStructured({
+          workflow: 'job-import',
           schema: IMPORT_SCHEMA,
           partial: {
             signal: controller.signal,

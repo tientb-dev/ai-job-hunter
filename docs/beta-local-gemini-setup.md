@@ -101,7 +101,7 @@ Open `.env` in a text editor (for example `nano .env`) and change these lines:
 ```ini
 DB_PASSWORD=choose-any-long-password
 AI_PROVIDER=gemini
-GEMINI_API_KEY=paste-your-key-here
+AI_API_KEY=paste-your-key-here
 ```
 
 `DB_PASSWORD` is used only by your local database. Leave the `GEMINI_MODEL` line
@@ -116,9 +116,9 @@ This sends one tiny request (it uses one request from your quota). It prints
 only an HTTP status code, never the key:
 
 ```bash
-GEMINI_API_KEY=$(grep '^GEMINI_API_KEY=' .env | cut -d= -f2-) \
+AI_API_KEY=$(grep '^AI_API_KEY=' .env | cut -d= -f2-) \
   sh -c 'curl -s -o /dev/null -w "%{http_code}\n" \
-    -H "x-goog-api-key: $GEMINI_API_KEY" -H "Content-Type: application/json" \
+    -H "x-goog-api-key: $AI_API_KEY" -H "Content-Type: application/json" \
     -d "{\"contents\":[{\"parts\":[{\"text\":\"Reply OK\"}]}]}" \
     https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent'
 ```
@@ -255,7 +255,7 @@ and your operating system. Do not send your `.env`, API key or real CV.
 | ----------------------------------------------- | ----------------------------------------------------------------------- |
 | `pnpm db:up` fails: cannot connect to Docker    | Start Docker Desktop; enable WSL integration for Ubuntu                 |
 | `pnpm db:up` fails: port 5432 already allocated | Another PostgreSQL is running; set `DB_PORT=5434` in `.env`             |
-| API stops with `GEMINI_API_KEY must be set...`  | Check the key line in `.env`: no quotes or spaces                       |
+| API stops with `AI_API_KEY must be set...`      | Check the key line in `.env`: no quotes or spaces                       |
 | API stops with `GEMINI_MODEL must be...`        | Comment out or delete the `GEMINI_MODEL` line                           |
 | Port 3000 or 5173 already in use                | Close the other app; these ports cannot be changed without code changes |
 | AI busy / unavailable                           | Wait a minute (rate limit); check internet connection                   |

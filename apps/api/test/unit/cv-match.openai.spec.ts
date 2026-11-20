@@ -1,11 +1,7 @@
 import 'reflect-metadata';
 import { afterEach, expect, jest, test } from '@jest/globals';
 import type { Repository } from 'typeorm';
-import {
-  aiConfig,
-  cvMatchAiConfig,
-  OPENAI_MODEL,
-} from '../../src/ai/ai.config.js';
+import { aiConfig, OPENAI_MODEL } from '../../src/ai/ai.config.js';
 import { AiService } from '../../src/ai/ai.service.js';
 import { OpenAiProvider } from '../../src/ai/openai.provider.js';
 import type { ExtractionService } from '../../src/extraction/extraction.service.js';
@@ -44,9 +40,9 @@ const response = (text: string) =>
     },
   });
 function fixture(text: string, skills: string[], timeoutMs = 2000) {
-  const config = cvMatchAiConfig(aiConfig({}), {
-    CV_MATCH_AI_PROVIDER: 'openai',
-    OPENAI_API_KEY: apiKey,
+  const config = aiConfig({
+    AI_PROVIDER: 'openai',
+    AI_API_KEY: apiKey,
   });
   Object.assign(config, { timeoutMs });
   const matchAi = new AiService(new OpenAiProvider(config));
@@ -70,18 +66,13 @@ function fixture(text: string, skills: string[], timeoutMs = 2000) {
     jdText: '',
   };
   const rows = memoryMatchRows();
-  const globalAi = {
-    generate: jest
-      .fn<() => Promise<string>>()
-      .mockRejectedValue(new Error('Unexpected global AI')),
-  };
   const service = new JobMatchService(
     {
       findOne: async () => cv,
       findOneBy: async () => cv,
     } as unknown as Repository<SavedCv>,
     {} as ExtractionService,
-    new AiService(globalAi),
+    matchAi,
     new MatchingService(),
     {
       get: async () => ({ ...job, updatedAt }) as Opportunity,
@@ -89,12 +80,10 @@ function fixture(text: string, skills: string[], timeoutMs = 2000) {
     rows,
     reviewedAsIs(),
     config,
-    matchAi,
   );
   return {
     analyze: () => service.analyze(LOCAL_OWNER_ID, jobId),
     rows,
-    globalAi,
     editJob: () => {
       updatedAt = new Date('2026-02-01');
     },
@@ -210,7 +199,6 @@ test('OpenAI keeps documented technology evidence separate from duration and SQL
       },
     },
   });
-  expect(f.globalAi.generate).not.toHaveBeenCalled();
   expect(await f.rows.findOneBy({ matchId: saved.matchId })).not.toBeNull();
   const log = logged.mock.calls.map(([line]) => String(line)).join('');
   expect(log).toContain('CV_MATCH_PROVIDER_TIMING');

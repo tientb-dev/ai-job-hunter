@@ -2,17 +2,8 @@ import 'reflect-metadata';
 import { afterEach, expect, jest, test } from '@jest/globals';
 import { Test } from '@nestjs/testing';
 import { AI_PROVIDER } from '../../src/ai/ai-provider.js';
-import {
-  aiConfig,
-  cvMatchAiConfig,
-  OPENAI_MODEL,
-  tailoredCvAiConfig,
-} from '../../src/ai/ai.config.js';
-import {
-  AiModule,
-  CV_MATCH_AI,
-  TAILORED_CV_AI,
-} from '../../src/ai/ai.module.js';
+import { AI_CONFIG, aiConfig, OPENAI_MODEL } from '../../src/ai/ai.config.js';
+import { AiModule } from '../../src/ai/ai.module.js';
 import { AiService } from '../../src/ai/ai.service.js';
 import { AiUsageService } from '../../src/ai/ai-usage.js';
 import { GeminiProvider } from '../../src/ai/gemini.provider.js';
@@ -25,12 +16,10 @@ import {
 import { draftInput } from '../support/tailored-draft-fixtures.js';
 
 const env = {
-  AI_PROVIDER: 'gemini',
-  GEMINI_API_KEY: 'synthetic-gemini-api-key',
-  TAILORED_CV_AI_PROVIDER: 'openai',
-  OPENAI_API_KEY: 'synthetic-openai-api-key',
+  AI_PROVIDER: 'openai',
+  AI_API_KEY: 'synthetic-openai-api-key',
 };
-const config = tailoredCvAiConfig(aiConfig(env), env);
+const config = aiConfig(env);
 const client = new AiService(new OpenAiProvider(config));
 const request = {
   prompt: 'Synthetic prompt',
@@ -73,61 +62,51 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-test('CV Match and Tailored CV select OpenAI independently and share hosted usage', async () => {
+test('one hosted adapter and usage limiter serve every workflow', async () => {
   const saved = process.env;
   const run = jest.fn((send: () => Promise<unknown>) => send());
   const transport = jest
     .spyOn(globalThis, 'fetch')
     .mockImplementation(async () => completed('{"text":"ok"}'));
-  process.env = { ...saved, ...env };
   try {
-    for (const [draft, match] of [
-      [true, false],
-      [false, true],
-      [true, true],
-      [false, false],
-    ]) {
-      if (draft) process.env.TAILORED_CV_AI_PROVIDER = 'openai';
-      else delete process.env.TAILORED_CV_AI_PROVIDER;
-      if (match) process.env.CV_MATCH_AI_PROVIDER = 'openai';
-      else delete process.env.CV_MATCH_AI_PROVIDER;
+    for (const [provider, adapter] of [
+      ['openai', OpenAiProvider],
+      ['gemini', GeminiProvider],
+    ] as const) {
+      process.env = { ...saved, ...env, AI_PROVIDER: provider };
       const module = await Test.createTestingModule({ imports: [AiModule] })
         .overrideProvider(AiUsageService)
         .useValue({ run })
         .compile();
       try {
-        expect(module.get(AI_PROVIDER)).toBeInstanceOf(GeminiProvider);
-        for (const [token, enabled] of [
-          [TAILORED_CV_AI, draft],
-          [CV_MATCH_AI, match],
-        ] as const) {
-          const client = module.get<AiService>(token);
-          if (enabled) {
-            await expect(client.generateStructured(request)).resolves.toEqual({
-              text: 'ok',
-            });
-          } else {
-            expect(client).toBe(module.get(AiService));
+        expect(module.get(AI_PROVIDER)).toBeInstanceOf(adapter);
+        expect(module.get(AI_CONFIG)).not.toHaveProperty('apiKey');
+        if (provider === 'openai') {
+          for (const workflow of [
+            'cv-match',
+            'tailored-cv',
+            'interview-review',
+          ]) {
+            await expect(
+              module
+                .get(AiService)
+                .generateStructured({ ...request, workflow }),
+            ).resolves.toEqual({ text: 'ok' });
           }
         }
       } finally {
         await module.close();
       }
     }
-    expect(run).toHaveBeenCalledTimes(4);
+    expect(run).toHaveBeenCalledTimes(3);
     expect(transport.mock.calls.map(([url]) => url)).toEqual(
-      Array(4).fill('https://api.openai.com/v1/responses'),
+      Array(3).fill('https://api.openai.com/v1/responses'),
     );
   } finally {
     process.env = saved;
   }
-  expect(() =>
-    cvMatchAiConfig(aiConfig(env), { CV_MATCH_AI_PROVIDER: 'openai' }),
-  ).toThrow('OPENAI_API_KEY');
-  expect(JSON.stringify(config)).not.toContain(env.OPENAI_API_KEY);
-  expect(() =>
-    tailoredCvAiConfig(aiConfig(env), { TAILORED_CV_AI_PROVIDER: 'openai' }),
-  ).toThrow('OPENAI_API_KEY');
+  expect(() => aiConfig({ AI_PROVIDER: 'openai' })).toThrow('AI_API_KEY');
+  expect(JSON.stringify(config)).not.toContain(env.AI_API_KEY);
   expect(draftModelSupported(config)).toBe(true);
   expect(draftModelProvenance(config)).toEqual({
     provider: 'openai',

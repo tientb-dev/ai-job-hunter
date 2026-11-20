@@ -27,7 +27,8 @@ Copy `.env.production.example` to `.env.production` on the server and
 | `SITE_ADDRESS`                   | Caddy site, e.g. `beta.example.com` (automatic HTTPS)                                                              |
 | `PUBLIC_ORIGIN`                  | The browser origin, e.g. `https://beta.example.com`. The API accepts only this Host/Origin                         |
 | `DB_PASSWORD`                    | PostgreSQL password (long and random)                                                                              |
-| `GEMINI_API_KEY`                 | Server-side Gemini key; never sent to browsers                                                                     |
+| `AI_PROVIDER`                    | Hosted provider, either `openai` or `gemini`                                                                       |
+| `AI_API_KEY`                     | Server-side key belonging to the selected provider                                                                 |
 | `AI_REQUEST_TIMEOUT_MS`          | Optional, default 120000                                                                                           |
 | `AI_DAILY_USER_LIMIT`            | Hosted AI requests per account per day, default 100                                                                |
 | `AI_DAILY_GLOBAL_LIMIT`          | Hosted AI requests for the whole beta per day, default 500                                                         |
@@ -36,18 +37,17 @@ Copy `.env.production.example` to `.env.production` on the server and
 | `JOB_URL_FETCH_VIETNAMWORKS`     | `1` lets users import VietnamWorks job links; default `0` (off)                                                    |
 | `PUBLISH_HTTP` / `PUBLISH_HTTPS` | Optional host ports, default 80 / 443                                                                              |
 
-Fixed in `compose.prod.yaml`: `NODE_ENV=production`, `AI_PROVIDER=gemini`, the
+Fixed in `compose.prod.yaml`: `NODE_ENV=production`, the
 `ai_job_hunter` database identity, `DB_HOST=postgres`, `TRUST_PROXY=1`.
 The API refuses to start in production with plain-HTTP origins (except
 `http://localhost`), Ollama, or any `*_DIAGNOSTICS` flag set (those logs can
 contain CV/JD text). Session cookies are `__Host-`, `Secure`, `HttpOnly`,
 `SameSite=Lax`.
 
-To use OpenAI for CV Match and Tailored CV, set `CV_MATCH_AI_PROVIDER=openai`
-and `TAILORED_CV_AI_PROVIDER=openai` in the server's `.env.production`, and
-supply `OPENAI_API_KEY`. Leave an unused selector unset so that workflow
-inherits Gemini. Keep `GEMINI_API_KEY` for the global provider. The API pins
-the OpenAI model in source.
+CV Match, Tailored CV, Interview Prep, and the other AI workflows use the same
+provider. When switching providers, update both variables together. The API
+pins the models in source. For an existing deployment, replace the previous
+provider-specific key and remove any workflow overrides from the ENV file.
 
 ## Deploy or update
 
@@ -80,7 +80,7 @@ cp .env.production.example /tmp/ajh-prodtest.env   # then edit:
 #   PUBLIC_ORIGIN=http://localhost:8080
 #   PUBLISH_HTTP=127.0.0.1:8080
 #   PUBLISH_HTTPS=127.0.0.1:8443
-#   DB_PASSWORD=<random>   GEMINI_API_KEY=<any 20+ chars; AI calls will fail>
+#   DB_PASSWORD=<random>   AI_PROVIDER=gemini AI_API_KEY=<any 20+ chars; AI calls will fail>
 C="docker compose -p ajh-prodtest -f compose.prod.yaml --env-file /tmp/ajh-prodtest.env"
 ```
 

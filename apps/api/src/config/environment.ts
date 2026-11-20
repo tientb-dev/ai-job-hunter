@@ -50,8 +50,8 @@ export function validateEnvironment(env: NodeJS.ProcessEnv = process.env) {
     throw new Error('TRUST_PROXY may only be 1, and only in production');
   if (production) {
     publicOrigin(env.PUBLIC_ORIGIN);
-    if (env.AI_PROVIDER !== 'gemini')
-      throw new Error('Production requires AI_PROVIDER=gemini');
+    if (env.AI_PROVIDER !== 'gemini' && env.AI_PROVIDER !== 'openai')
+      throw new Error('Production requires AI_PROVIDER to be openai or gemini');
     // These logs may include CV/JD text or personal data.
     for (const name of DIAGNOSTICS)
       if (env[name]) throw new Error(`${name} must be unset in production`);

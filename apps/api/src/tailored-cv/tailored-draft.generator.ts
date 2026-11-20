@@ -1,7 +1,6 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { ProviderTiming } from '../ai/ai-provider.js';
-import { TAILORED_CV_AI } from '../ai/ai.module.js';
 import { AiService } from '../ai/ai.service.js';
 import { AiError } from '../ai/ai.errors.js';
 import { assembleDraft, draftHash } from './tailored-draft.policy.js';
@@ -133,7 +132,7 @@ function validateOpportunities(
 export class TailoredDraftGenerator {
   private readonly logger = new Logger(TailoredDraftGenerator.name);
 
-  constructor(@Inject(TAILORED_CV_AI) private readonly ai: AiService) {}
+  constructor(private readonly ai: AiService) {}
   async generate(input: DraftInput, recheck: () => Promise<void>) {
     const started = performance.now();
     const requestId = randomUUID();
@@ -312,6 +311,7 @@ ${JSON.stringify({ requirements, ...(conditions?.length && { conditions }), sect
           counts.noChange = null;
           output = await this.ai.generatePartialStructured(
             {
+              workflow: 'tailored-cv',
               prompt,
               partial: {
                 signal: controller.signal,

@@ -7,7 +7,7 @@ import { ExtractionService } from '../extraction/extraction.service.js';
 import { MatchingService } from '../matching/matching.service.js';
 import { EXTRACTION_LIMITS } from '../extraction/extraction.limits.js';
 import type { ExtractionResult } from '../extraction/extraction.types.js';
-import type { AiConfig } from '../ai/ai.config.js';
+import type { AiSettings } from '../ai/ai.config.js';
 import { readAnalysisUpload, UPLOAD_LIMITS } from './analysis-upload.js';
 import type { AnalysisUpload } from './analysis-upload.js';
 import {
@@ -32,7 +32,7 @@ export interface AnalysisTiming {
   readonly uploadMs: number;
   readonly analysisMs: number;
 }
-export function analysisTiming(config: AiConfig): AnalysisTiming {
+export function analysisTiming(config: AiSettings): AnalysisTiming {
   if (
     !Number.isSafeInteger(config.timeoutMs) ||
     config.timeoutMs < 1000 ||

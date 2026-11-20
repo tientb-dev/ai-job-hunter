@@ -81,6 +81,7 @@ ${JSON.stringify({ candidates })}`;
       let output: unknown;
       try {
         output = await this.ai.generateStructured({
+          workflow: 'cv-suggestions',
           prompt,
           schema: selectionSchema(ids),
         });

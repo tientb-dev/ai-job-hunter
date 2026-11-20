@@ -1,4 +1,8 @@
-import { GEMINI_MODEL, OPENAI_MODEL, type AiConfig } from '../ai/ai.config.js';
+import {
+  GEMINI_MODEL,
+  OPENAI_MODEL,
+  type AiSettings,
+} from '../ai/ai.config.js';
 import type { ProviderTiming } from '../ai/ai-provider.js';
 import type { DecompositionRejection } from './cv-match.decomposition.js';
 import type { MatchRequirement } from './cv-match.js';
@@ -293,7 +297,7 @@ export function emitMatchFailure(
 }
 
 export function emitMatchProviderTiming(
-  config: AiConfig | undefined,
+  config: AiSettings | undefined,
   stage: 'DECOMPOSITION' | 'INITIAL' | 'COMPLETION' | 'ANALYSIS',
   timing: Partial<ProviderTiming> & Pick<ProviderTiming, 'elapsedMs'>,
 ): void {

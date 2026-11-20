@@ -73,8 +73,7 @@ import {
   emitMatchEvidenceSummary,
   type MatchFailureTrace,
 } from './cv-match.diagnostics.js';
-import { CV_MATCH_AI } from '../ai/ai.module.js';
-import { CV_MATCH_AI_CONFIG, type AiConfig } from '../ai/ai.config.js';
+import { AI_CONFIG, type AiSettings } from '../ai/ai.config.js';
 import {
   ReviewedCvService,
   type ReviewedCv,
@@ -315,9 +314,8 @@ export class JobMatchService {
     private readonly matchRows: Repository<CvMatchRecord>,
     private readonly reviewedCvs: ReviewedCvService,
     @Optional()
-    @Inject(CV_MATCH_AI_CONFIG)
-    private readonly aiConfig?: AiConfig,
-    @Optional() @Inject(CV_MATCH_AI) private readonly matchAi?: AiService,
+    @Inject(AI_CONFIG)
+    private readonly aiConfig?: AiSettings,
   ) {}
   private static dto(cv: SavedCv) {
     return {
@@ -661,7 +659,8 @@ export class JobMatchService {
       trace.stage = 'DECOMPOSITION';
       try {
         const rows = pending.map(({ row }) => row);
-        const reply = (await (this.matchAi ?? this.ai).generateStructured({
+        const reply = (await this.ai.generateStructured({
+          workflow: 'cv-match',
           prompt: decompositionPrompt(rows),
           schema: decompositionSchema(rows),
           onProviderTiming: (timing) =>
@@ -785,7 +784,8 @@ export class JobMatchService {
         trace.stage = stage;
         try {
           return (
-            (await (this.matchAi ?? this.ai).generateStructured({
+            (await this.ai.generateStructured({
+              workflow: 'cv-match',
               ...request,
               maxOutputTokens: MATCH_MAX_OUTPUT_TOKENS,
               onProviderTiming: (timing) =>

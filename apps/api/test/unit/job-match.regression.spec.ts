@@ -7,11 +7,7 @@ import { memoryMatchRows } from '../support/memory-match-rows.js';
 import { expect, jest, test } from '@jest/globals';
 import { Repository } from 'typeorm';
 import { AiError } from '../../src/ai/ai.errors.js';
-import {
-  aiConfig,
-  cvMatchAiConfig,
-  type AiConfig,
-} from '../../src/ai/ai.config.js';
+import { aiConfig, type AiConfig } from '../../src/ai/ai.config.js';
 import { AiService } from '../../src/ai/ai.service.js';
 import type { AiProvider } from '../../src/ai/ai-provider.js';
 import type { ExtractionService } from '../../src/extraction/extraction.service.js';
@@ -835,9 +831,9 @@ test('semantic assessments preserve documented correspondence and incomplete sco
     },
     cv,
     synthetic,
-    cvMatchAiConfig(aiConfig({}), {
-      CV_MATCH_AI_PROVIDER: 'openai',
-      OPENAI_API_KEY: 'synthetic-key-for-mocked-provider',
+    aiConfig({
+      AI_PROVIDER: 'openai',
+      AI_API_KEY: 'synthetic-key-for-mocked-provider',
     }),
   );
   const result = await service.analyze(LOCAL_OWNER_ID, synthetic.id);
@@ -909,9 +905,9 @@ test.each([
       experience: '',
       domain: '',
     };
-    const config = cvMatchAiConfig(aiConfig({}), {
-      CV_MATCH_AI_PROVIDER: 'openai',
-      OPENAI_API_KEY: 'synthetic-key-for-mocked-provider',
+    const config = aiConfig({
+      AI_PROVIDER: 'openai',
+      AI_API_KEY: 'synthetic-key-for-mocked-provider',
     });
     const { service } = setup(
       async () =>
@@ -1046,9 +1042,9 @@ test.each([
       },
       cv,
       savedJob,
-      cvMatchAiConfig(aiConfig({}), {
-        CV_MATCH_AI_PROVIDER: 'openai',
-        OPENAI_API_KEY: 'synthetic-key-for-mocked-provider',
+      aiConfig({
+        AI_PROVIDER: 'openai',
+        AI_API_KEY: 'synthetic-key-for-mocked-provider',
       }),
     );
     const result = await service.analyze(LOCAL_OWNER_ID, savedJob.id);
