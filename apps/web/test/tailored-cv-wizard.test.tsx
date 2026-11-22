@@ -234,7 +234,7 @@ test('resume bypasses completed source work, preserves draft pins and explains e
   const pdf = screen.getByRole('button', { name: 'Download PDF' });
   const ordered = [
     screen.getByRole('region', { name: 'Current draft' }),
-    screen.getByRole('combobox', { name: 'CV template' }),
+    screen.getByRole('group', { name: 'CV template' }),
     reviewInstruction,
     within(preview).getByText('Assisted a team prototype only.'),
     confirm,

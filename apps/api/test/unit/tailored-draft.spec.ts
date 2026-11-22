@@ -866,13 +866,13 @@ test.each([
     'projects',
     'description',
     'Owned weekly campaign reporting and presented findings to the sales team.',
-    'Owned campaign reporting and presented the findings to the sales team each week.',
+    'Owned the weekly campaign report end to end and turned its findings into a sales-team briefing.',
   ],
   [
     'summary',
     'summary',
     'Prepared campaign reports for the sales team.',
-    'Prepared sales-team reports on campaign performance.',
+    'Marketing analyst who turns campaign data into weekly performance reports for the sales team.',
   ],
   [
     'skills',
@@ -892,17 +892,13 @@ test.each([
     const proposal = opportunity(input, text);
     const generate = jest.fn(async ({ prompt }: { prompt: string }) => {
       expect(prompt).toContain(
-        'Before selecting final items, compare opportunities across the supplied entries',
+        'Compare opportunities across all supplied entries',
       );
       expect(prompt).toContain(
-        'Before returning each rewrite, compare Original versus Suggested for professional meaning',
+        'Preserve who performed the work, ownership, leadership, scope',
       );
-      expect(prompt).toContain(
-        'leadership, ownership, accountability, responsibility',
-      );
-      expect(prompt).toContain(
-        'Prefer the original if it communicates the evidence more strongly',
-      );
+      expect(prompt).toContain('qualifiers and limitations');
+      expect(prompt).toContain('prefer the original when it already works');
       expect(prompt).toContain(
         'Return outcome "no_change" with empty proposals and questions',
       );

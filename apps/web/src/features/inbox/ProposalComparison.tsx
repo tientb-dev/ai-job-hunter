@@ -4,7 +4,9 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Chip,
+  FormControlLabel,
   Paper,
   Stack,
   Typography,
@@ -66,6 +68,7 @@ export function ProposalComparison({
   disabled,
   onDecision,
   requiresConfirmation = false,
+  confirmationAssertion,
 }: {
   original: string;
   suggestion: string;
@@ -81,9 +84,14 @@ export function ProposalComparison({
   evidence?: ReactNode;
   disabled: boolean;
   requiresConfirmation?: boolean;
-  onDecision: (decision: 'accept' | 'reject') => void;
+  /** The claim the user must confirm before accepting. */
+  confirmationAssertion?: string;
+  onDecision: (decision: 'accept' | 'reject', confirmed?: boolean) => void;
 }) {
   const [changing, setChanging] = useState(false);
+  // Never preselected; a new suggestion text needs a new confirmation.
+  const [confirmed, setConfirmed] = useState<string | null>(null);
+  const isConfirmed = confirmed === suggestion && !!confirmationAssertion;
   const diff = useMemo(
     () => wordingDiff(original, suggestion),
     [original, suggestion],
@@ -94,14 +102,18 @@ export function ProposalComparison({
       ? needsCheck
         ? tr('Needs your check')
         : tr('Waiting for you')
-      : proposal === 'accepted'
-        ? 'Accepted'
-        : manuallyEdited
-          ? tr('Edited by you')
+      : manuallyEdited
+        ? tr('Edited by you')
+        : proposal === 'accepted'
+          ? tr('Accepted')
           : tr('Original kept');
   const decide = (decision: 'accept' | 'reject') => {
-    onDecision(decision);
+    onDecision(
+      decision,
+      decision === 'accept' && requiresConfirmation ? isConfirmed : undefined,
+    );
     setChanging(false);
+    setConfirmed(null);
   };
   return (
     <Paper
@@ -183,15 +195,53 @@ export function ProposalComparison({
                 {reviewNote}
               </Typography>
             )}
-            {needsCheck && (
+            {requiresConfirmation ? (
               <Alert severity="warning" variant="outlined">
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {requiresConfirmation
-                    ? tr('This suggestion needs a confirmed detail.')
-                    : tr('Check this before accepting.')}
+                  {tr(
+                    'This suggestion includes a detail your CV does not show.',
+                  )}
                 </Typography>
-                <Typography variant="body2">{needsCheck}</Typography>
+                {confirmationAssertion && (
+                  <Typography variant="body2" sx={textBox}>
+                    {tr('Detail to check: {assertion}', {
+                      assertion: confirmationAssertion,
+                    })}
+                  </Typography>
+                )}
+                <Typography variant="body2" sx={{ mt: 0.5 }}>
+                  {tr(
+                    'If it is true, confirm and accept. If it is partly true, use Edit wording to remove or correct the detail. If it is not true, keep your original.',
+                  )}
+                </Typography>
+                {confirmationAssertion && (
+                  <FormControlLabel
+                    sx={{ mt: 0.5 }}
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={isConfirmed}
+                        disabled={disabled}
+                        onChange={(event) =>
+                          setConfirmed(event.target.checked ? suggestion : null)
+                        }
+                      />
+                    }
+                    label={tr(
+                      'I confirm this information is true to my actual experience.',
+                    )}
+                  />
+                )}
               </Alert>
+            ) : (
+              needsCheck && (
+                <Alert severity="warning" variant="outlined">
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {tr('Check this before accepting.')}
+                  </Typography>
+                  <Typography variant="body2">{needsCheck}</Typography>
+                </Alert>
+              )
             )}
             <Stack
               direction={{ xs: 'column', sm: 'row' }}
@@ -200,13 +250,19 @@ export function ProposalComparison({
             >
               <Button
                 variant="outlined"
-                disabled={disabled || requiresConfirmation}
-                aria-label={tr('Accept suggestion for {where}', {
-                  where: where,
-                })}
+                disabled={disabled || (requiresConfirmation && !isConfirmed)}
+                aria-label={
+                  requiresConfirmation
+                    ? tr('Confirm and accept suggestion for {where}', {
+                        where: where,
+                      })
+                    : tr('Accept suggestion for {where}', { where: where })
+                }
                 onClick={() => decide('accept')}
               >
-                {tr('Accept suggestion')}
+                {requiresConfirmation
+                  ? tr('Confirm and accept')
+                  : tr('Accept suggestion')}
               </Button>
               <Button
                 variant="outlined"
@@ -238,12 +294,13 @@ export function ProposalComparison({
             }}
           >
             <Typography variant="body2" color="text.secondary" sx={textBox}>
-              {proposal === 'accepted'
-                ? tr('Using the suggestion: {suggestion}', {
-                    suggestion: suggestion,
-                  })
-                : manuallyEdited
-                  ? tr('Using your own edited wording.')
+              {/* Edited wording wins: it is what the draft and exports use. */}
+              {manuallyEdited
+                ? tr('Using your own edited wording.')
+                : proposal === 'accepted'
+                  ? tr('Using the suggestion: {suggestion}', {
+                      suggestion: suggestion,
+                    })
                   : tr('Using your original: {original}', {
                       original: original,
                     })}

@@ -1,6 +1,27 @@
 // Vietnamese for feature-screen text, keyed by the English source text (see tr()).
 // An empty value drops an English-only fragment such as a plural suffix.
 export const VI_TEXT: Record<string, string> = {
+  Accepted: 'Đã chấp nhận',
+  'This suggestion includes a detail your CV does not show.':
+    'Đề xuất này có một chi tiết chưa có trong CV của bạn.',
+  'Detail to check: {assertion}': 'Chi tiết cần kiểm tra: {assertion}',
+  'If it is true, confirm and accept. If it is partly true, use Edit wording to remove or correct the detail. If it is not true, keep your original.':
+    'Nếu đúng, hãy xác nhận và chấp nhận. Nếu chỉ đúng một phần, dùng Sửa cách diễn đạt để bỏ hoặc sửa chi tiết đó. Nếu không đúng, hãy giữ bản gốc.',
+  'I confirm this information is true to my actual experience.':
+    'Tôi xác nhận thông tin này đúng với kinh nghiệm thực tế của mình.',
+  'Confirm and accept': 'Xác nhận và chấp nhận',
+  'Confirm and accept suggestion for {where}':
+    'Xác nhận và chấp nhận gợi ý cho {where}',
+  'Choose a template to preview your CV. Templates apply to PDF only; DOCX always uses the Classic layout.':
+    'Chọn mẫu để xem trước CV. Mẫu chỉ áp dụng cho PDF; DOCX luôn dùng bố cục Cổ điển.',
+  'The browser preview may differ slightly from the exported PDF.':
+    'Bản xem trước trên trình duyệt có thể khác đôi chút so với tệp PDF xuất ra.',
+  'Simple single-column layout, easy to read and print.':
+    'Bố cục một cột đơn giản, dễ đọc và dễ in.',
+  'Coloured header and section headings in a side column.':
+    'Đầu trang có màu, tiêu đề mục nằm ở cột bên.',
+  'Tighter spacing and smaller text to fit more content.':
+    'Khoảng cách gọn và chữ nhỏ hơn để chứa nhiều nội dung hơn.',
   'Could not save the CV template': 'Không thể lưu mẫu CV',
   'Could not save the CV template. The previous template is kept.':
     'Không thể lưu mẫu CV. Mẫu trước đó được giữ nguyên.',
@@ -659,12 +680,6 @@ export const VI_TEXT: Record<string, string> = {
     'Kiểm tra CV đã được sắp xếp đúng và đánh dấu từng phần là đã kiểm tra. Lưu nháp giữ phần chưa xong; Hoàn tất rà soát sẽ lưu và chuyển sang CV tùy chỉnh.',
   'Check the JD’s scope, then add only verifiable details about the relevant qualification or work.':
     'Kiểm tra phạm vi của JD, rồi chỉ thêm chi tiết có thể xác minh về bằng cấp hoặc công việc liên quan.',
-  'Keep the original or edit the wording yourself.':
-    'Giữ nội dung gốc hoặc tự chỉnh sửa nội dung.',
-  'This suggestion needs a confirmed detail.':
-    'Đề xuất này cần một chi tiết được xác nhận.',
-  'Keep the original and use Evidence Enrichment to confirm and include the detail, or edit the wording yourself.':
-    'Giữ nội dung gốc và dùng mục bổ sung minh chứng để xác nhận và đưa chi tiết vào CV, hoặc tự chỉnh sửa nội dung.',
   'Compare the suggestion with the original and check that every claim is accurate before accepting.':
     'So sánh đề xuất với nội dung gốc và kiểm tra tính chính xác của từng thông tin trước khi chấp nhận.',
   'Check this before accepting.': 'Kiểm tra điều này trước khi chấp nhận.',
@@ -851,19 +866,11 @@ export const VI_TEXT: Record<string, string> = {
     'Xong hoặc Bỏ qua sẽ ẩn mục này khỏi danh sách cần theo dõi. Trạng thái ứng tuyển không thay đổi.',
   Download: 'Tải xuống',
   'CV template': 'Mẫu CV',
-  'Applies to the preview and the PDF. DOCX keeps the Classic layout.':
-    'Áp dụng cho bản xem trước và PDF. DOCX giữ bố cục Cổ điển.',
   'PDF preview': 'Xem trước PDF',
   'Open the PDF in a new tab': 'Mở PDF trong tab mới',
   'Generating PDF preview': 'Đang tạo bản xem trước PDF',
   'Approve this revision to see the exact PDF with its page breaks. Until then this is a content preview of the selected template.':
     'Duyệt phiên bản này để xem đúng tệp PDF và cách ngắt trang. Trước đó, đây là bản xem trước nội dung theo mẫu đã chọn.',
-  'Modern — header band, headings in a side column':
-    'Hiện đại — dải tiêu đề, đề mục ở cột bên',
-  'Compact — centred header, denser, fits more per page':
-    'Gọn — đầu trang căn giữa, nhiều nội dung mỗi trang',
-  'Classic — single column, simple headings':
-    'Cổ điển — một cột, tiêu đề đơn giản',
   'Download approved CV': 'Tải CV đã duyệt',
   'Download failed. Your approved draft is unchanged; check the local API and retry.':
     'Tải xuống thất bại. Bản nháp đã duyệt không thay đổi; kiểm tra API cục bộ và thử lại.',
@@ -2389,8 +2396,6 @@ export const VI_TEXT: Record<string, string> = {
     '{urgency}: mở Ứng tuyển cho {title}',
   '{v0} accepted user facts': '{v0} dữ kiện người dùng đã chấp nhận',
   '{v0} details {v1}': '{v0} chi tiết {v1}',
-  '{v0} download prepared from approved revision {revision}.':
-    'Đã chuẩn bị bản tải {v0} từ phiên bản đã duyệt {revision}.',
   '{v0} fetched · {v1} valid · {v2} invalid':
     '{v0} đã tải · {v1} hợp lệ · {v2} không hợp lệ',
   '{v0} section': 'Phần {v0}',
