@@ -12,6 +12,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Put,
   Query,
   Res,
   UseFilters,
@@ -277,6 +278,16 @@ export class TailoredCvController {
     @Body() body: unknown,
   ) {
     return this.drafts.review(owner, id, body);
+  }
+  /** Saves the PDF export template only; revision and approval are unchanged. */
+  @Put('drafts/:id/template')
+  @Header('Cache-Control', 'no-store')
+  setTemplate(
+    @CurrentOwner() owner: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: unknown,
+  ) {
+    return this.drafts.setTemplate(owner, id, body);
   }
   @Post('drafts/:id/approve')
   @Header('Cache-Control', 'no-store')

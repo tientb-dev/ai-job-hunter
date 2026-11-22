@@ -998,6 +998,99 @@ test('P8.4 proposal decisions can be revisited without relabeling evidence or ch
   expect((await drafts.get(owner, id)).document).toEqual(rejected.document);
 });
 
+test('the PDF template is saved per draft without changing content, revision or approval', async () => {
+  await ready();
+  const first = await post().expect(201);
+  const second = await post().expect(201);
+  const id = first.body.id as string;
+  const other = second.body.id as string;
+  const doc = first.body
+    .document as import('../../src/tailored-cv/tailored-draft.contract.js').TailoredDraftDocument;
+  // Drafts without a saved choice read as Classic.
+  expect(first.body.exportTemplate).toBe('classic');
+  expect((await drafts.get(owner, id)).exportTemplate).toBe('classic');
+  const facts = doc.sections.flatMap((s) => s.entries.flatMap((e) => e.facts));
+  const reviewed = await drafts.review(owner, id, {
+    ...v,
+    expectedRevision: 1,
+    operations: [
+      ...facts
+        .filter((f) => f.proposedWording)
+        .map((f) => ({ action: 'reject', factId: f.id })),
+      ...doc.reviewIssues.flatMap((issue, i) =>
+        issue.code === 'SEMANTIC_REVIEW_REQUIRED'
+          ? []
+          : [{ action: 'acknowledge', issueIndex: i }],
+      ),
+    ],
+  });
+  const approved = await drafts.review(
+    owner,
+    id,
+    { ...v, expectedRevision: reviewed.revision, reviewedFactIds: [] },
+    true,
+  );
+  const put = (draft: string, body: object) =>
+    request(app.getHttpServer())
+      .put(`${base}/drafts/${draft}/template`)
+      .set(origin)
+      .send(body);
+  await put(id, { ...v, template: 'modern' })
+    .expect(200)
+    .expect(({ body }) =>
+      expect(body).toEqual({ ...v, id, exportTemplate: 'modern' }),
+    );
+  // Reload: only the template changed; content, revision, approval, updatedAt kept.
+  const after = await drafts.get(owner, id);
+  expect(after).toEqual({ ...approved, exportTemplate: 'modern' });
+  // Each draft keeps its own choice.
+  expect((await drafts.get(owner, other)).exportTemplate).toBe('classic');
+  for (const body of [
+    { ...v, template: 'fancy' },
+    { ...v, template: null },
+    { ...v },
+    { template: 'modern' },
+    { ...v, template: 'modern', extra: true },
+  ])
+    await put(id, body).expect(400);
+  await put(randomUUID(), { ...v, template: 'modern' }).expect(404);
+  await expect(
+    drafts.setTemplate(randomUUID(), id, { ...v, template: 'compact' }),
+  ).rejects.toMatchObject({ errorCode: 'CV_DRAFT_NOT_FOUND' });
+  await request(app.getHttpServer())
+    .put(`${base}/drafts/${id}/template`)
+    .set({ Host: 'evil.example', Origin: 'http://evil.example' })
+    .send({ ...v, template: 'compact' })
+    .expect(403);
+  expect((await drafts.get(owner, id)).exportTemplate).toBe('modern');
+  // Export without a template uses the saved one; an explicit one still wins.
+  const pdf = async (extra: object, format = 'pdf') =>
+    (
+      await request(app.getHttpServer())
+        .post(`${base}/drafts/${id}/export`)
+        .set(origin)
+        .send({ ...v, expectedRevision: approved.revision, format, ...extra })
+        .buffer(true)
+        .parse((res, done) => {
+          const chunks: Buffer[] = [];
+          res.on('data', (c: Buffer) => chunks.push(c));
+          res.on('end', () => done(null, Buffer.concat(chunks)));
+        })
+        .expect(200)
+    ).body as Buffer;
+  const stable = (b: Buffer) =>
+    b
+      .toString('latin1')
+      .replace(/\/CreationDate[^\n]*/u, '')
+      .replace(/\/ID \[[^\]]*\]/u, '');
+  const saved = stable(await pdf({}));
+  expect(saved).toBe(stable(await pdf({ template: 'modern' })));
+  expect(saved).not.toBe(stable(await pdf({ template: 'classic' })));
+  // DOCX ignores the PDF template.
+  expect((await pdf({}, 'docx')).subarray(0, 2).toString()).toBe('PK');
+  expect(await drafts.get(owner, id)).toEqual(after);
+});
+
 test('P8 export requires owner, exact approved revision; downloads both formats without modifying drafts and rejects later edits', async () => {
   await ready();
   const generated = await post().expect(201);

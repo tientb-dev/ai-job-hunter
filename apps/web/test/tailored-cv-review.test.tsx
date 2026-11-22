@@ -6,6 +6,7 @@ import { createMemoryRouter, Link, RouterProvider } from 'react-router-dom';
 import { expect, test, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import {
+  acknowledge,
   act,
   closeSuccess,
   fireEvent,
@@ -1011,4 +1012,192 @@ test('before download, the export panel names the system templates and says the 
   expect(viNote).toHaveTextContent('Mẫu PDF: Cổ điển · Mẫu DOCX: Cổ điển.');
   expect(viNote).toHaveTextContent('CV gốc bạn đã tải lên không bị thay đổi.');
   act(() => setLocale('en-US'));
+});
+
+// Template persistence: PUT /drafts/:id/template, separate from review saves.
+function withTemplateApi(
+  fetch: ReturnType<typeof setup>['fetch'],
+  respond: (template: string) => Promise<Response>,
+) {
+  const base = fetch.getMockImplementation()!;
+  fetch.mockImplementation(async (url: string, init?: RequestInit) =>
+    url.endsWith('/template')
+      ? respond(JSON.parse(init!.body as string).template)
+      : base(url, init),
+  );
+}
+const templateBodies = (fetch: ReturnType<typeof setup>['fetch']) =>
+  fetch.mock.calls
+    .filter(([url]) => String(url).endsWith('/template'))
+    .map(([, init]) => JSON.parse((init as RequestInit).body as string));
+async function pickTemplate(name: RegExp) {
+  fireEvent.mouseDown(screen.getByRole('combobox', { name: 'CV template' }));
+  fireEvent.click(await screen.findByRole('option', { name }));
+}
+
+test.each([
+  ['modern', /^Modern/],
+  [undefined, /^Classic/],
+] as const)(
+  'a draft opens with its saved template (%s; missing reads as Classic)',
+  async (saved, label) => {
+    const draft = tailoredDraftFixture();
+    if (saved) draft.exportTemplate = saved;
+    else delete (draft as Partial<typeof draft>).exportTemplate;
+    setup(draft);
+    await open();
+    expect(
+      screen.getByRole('combobox', { name: 'CV template' }),
+    ).toHaveTextContent(label);
+  },
+);
+
+test('changing the template saves it once without a review save, and PDF uses it', async () => {
+  const { fetch } = setup(tailoredDraftFixture());
+  withTemplateApi(fetch, async (template) =>
+    Response.json({
+      contractVersion: '1',
+      id: tailoredDraftFixture().id,
+      exportTemplate: template,
+    }),
+  );
+  await open();
+  const reviewCalls = () =>
+    fetch.mock.calls.filter(([url]) => /\/(review|approve)$/.test(String(url)))
+      .length;
+  const before = reviewCalls();
+  await pickTemplate(/^Compact/);
+  await waitFor(() =>
+    expect(templateBodies(fetch)).toEqual([
+      { contractVersion: '1', template: 'compact' },
+    ]),
+  );
+  await waitFor(() =>
+    expect(screen.queryByText('Saving template…')).not.toBeInTheDocument(),
+  );
+  expect(
+    screen.getByRole('combobox', { name: 'CV template' }),
+  ).toHaveTextContent(/^Compact/);
+  expect(reviewCalls()).toBe(before);
+  expect(screen.getByLabelText('About the downloaded CV')).toHaveTextContent(
+    'PDF template: Compact · DOCX template: Classic.',
+  );
+});
+
+test('a failed template save returns to the saved template and says so', async () => {
+  const { fetch } = setup(tailoredDraftFixture());
+  withTemplateApi(fetch, async () =>
+    Response.json({ errorCode: 'CV_FOUNDATION_503' }, { status: 503 }),
+  );
+  await open();
+  await pickTemplate(/^Modern/);
+  expect(
+    await screen.findByText(
+      'Could not save the CV template. The previous template is kept.',
+    ),
+  ).toBeVisible();
+  await acknowledge();
+  expect(
+    screen.getByRole('combobox', { name: 'CV template' }),
+  ).toHaveTextContent(/^Classic/);
+});
+
+test('rapid template changes are saved in order and end on the latest choice', async () => {
+  const { fetch } = setup(tailoredDraftFixture());
+  const pending: (() => void)[] = [];
+  withTemplateApi(
+    fetch,
+    (template) =>
+      new Promise<Response>((resolve) =>
+        pending.push(() =>
+          resolve(
+            Response.json({
+              contractVersion: '1',
+              id: tailoredDraftFixture().id,
+              exportTemplate: template,
+            }),
+          ),
+        ),
+      ),
+  );
+  await open();
+  await pickTemplate(/^Modern/);
+  await pickTemplate(/^Compact/);
+  // Only one request in flight; the newer choice waits for it.
+  expect(templateBodies(fetch).map((b) => b.template)).toEqual(['modern']);
+  expect(screen.getByText('Saving template…')).toBeVisible();
+  act(() => pending.shift()!());
+  await waitFor(() =>
+    expect(templateBodies(fetch).map((b) => b.template)).toEqual([
+      'modern',
+      'compact',
+    ]),
+  );
+  act(() => pending.shift()!());
+  await waitFor(() =>
+    expect(screen.queryByText('Saving template…')).not.toBeInTheDocument(),
+  );
+  expect(
+    screen.getByRole('combobox', { name: 'CV template' }),
+  ).toHaveTextContent(/^Compact/);
+});
+
+test('PDF download waits for the template save; DOCX stays available; a failed save restores the saved template', async () => {
+  const state = setup();
+  let finish: (ok: boolean) => void = () => {};
+  withTemplateApi(
+    state.fetch,
+    (template) =>
+      new Promise<Response>((resolve) => {
+        finish = (ok) =>
+          resolve(
+            ok
+              ? Response.json({
+                  contractVersion: '1',
+                  id: tailoredDraftFixture().id,
+                  exportTemplate: template,
+                })
+              : Response.json(
+                  { errorCode: 'CV_FOUNDATION_503' },
+                  { status: 503 },
+                ),
+          );
+      }),
+  );
+  await open();
+  fireEvent.click(
+    screen.getByRole('button', { name: /Keep original for .*Description/ }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  await screen.findByText(/^Draft saved as revision \d+\.$/);
+  await closeSuccess();
+  fireEvent.click(
+    screen.getByRole('checkbox', { name: /I reviewed the complete saved CV/ }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Approve saved draft' }));
+  const pdf = screen.getByRole('button', { name: 'Download PDF' });
+  const docx = screen.getByRole('button', { name: 'Download DOCX' });
+  await waitFor(() => expect(pdf).toBeEnabled());
+  await closeSuccess();
+  const approved = state.saved();
+  await pickTemplate(/^Modern/);
+  expect(pdf).toBeDisabled();
+  expect(docx).toBeEnabled();
+  act(() => finish(true));
+  await waitFor(() => expect(pdf).toBeEnabled());
+  await pickTemplate(/^Compact/);
+  expect(pdf).toBeDisabled();
+  act(() => finish(false));
+  expect(
+    await screen.findByText(
+      'Could not save the CV template. The previous template is kept.',
+    ),
+  ).toBeVisible();
+  await acknowledge();
+  expect(pdf).toBeEnabled();
+  expect(
+    screen.getByRole('combobox', { name: 'CV template' }),
+  ).toHaveTextContent(/^Modern/);
+  // Template saves never touch the draft content, revision or approval.
+  expect(state.saved()).toEqual(approved);
 });

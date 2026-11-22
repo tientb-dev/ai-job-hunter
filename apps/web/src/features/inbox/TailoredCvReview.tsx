@@ -72,6 +72,7 @@ import {
   downloadDraft,
   draftRequest,
   fetchDraftFile,
+  saveDraftTemplate,
   type CvTemplate,
   issueBlocksApproval,
   type DraftOperation,
@@ -189,6 +190,15 @@ export function TailoredCvReview({
   const [reviewed, setReviewed] = useState(false);
   const [exporting, setExporting] = useState<'docx' | 'pdf' | null>(null);
   const [template, setTemplate] = useState<CvTemplate>('classic');
+  const [templateSaving, setTemplateSaving] = useState(false);
+  // Template persistence: one request at a time, always ending on the latest
+  // choice, so a slow earlier save can never overwrite a newer selection.
+  const templateSync = useRef<{
+    id: string | null;
+    confirmed: CvTemplate;
+    desired: CvTemplate;
+    busy: boolean;
+  }>({ id: null, confirmed: 'classic', desired: 'classic', busy: false });
   const [recoverable, setRecoverable] = useState<string[] | null>(null);
   const [refresh, setRefresh] = useState(0);
   // Context without the recheck counter: a focus/timer recheck keeps the last
@@ -349,6 +359,18 @@ export function TailoredCvReview({
     (value: unknown) => {
       const draft = decodeDraft(value, jobId);
       setSaved(draft);
+      // Another draft: show its saved template. The same draft (a review save)
+      // keeps the local choice, which may still be saving.
+      const sync = templateSync.current;
+      if (sync.id !== draft.id) {
+        Object.assign(sync, {
+          id: draft.id,
+          confirmed: draft.exportTemplate,
+          desired: draft.exportTemplate,
+        });
+        setTemplate(draft.exportTemplate);
+        setTemplateSaving(false);
+      }
       // Keep the switcher in sync: a generated draft joins the list (newest
       // first); a saved one updates its revision and time in place.
       const meta = {
@@ -616,16 +638,62 @@ export function TailoredCvReview({
     },
     [pdfUrl],
   );
+  async function flushTemplate(id: string) {
+    const sync = templateSync.current;
+    if (sync.busy) return;
+    sync.busy = true;
+    setTemplateSaving(true);
+    try {
+      while (sync.id === id && sync.desired !== sync.confirmed) {
+        const next = sync.desired;
+        await saveDraftTemplate(id, next);
+        if (sync.id === id) sync.confirmed = next;
+      }
+    } catch (error) {
+      if (sync.id === id) {
+        // Never show an unsaved choice as saved: return to the stored one.
+        sync.desired = sync.confirmed;
+        setTemplate(sync.confirmed);
+        notify({
+          severity: 'error',
+          title: tr('Could not save the CV template'),
+          text:
+            error instanceof Error
+              ? error.message
+              : tr(
+                  'Could not save the CV template. The previous template is kept.',
+                ),
+        });
+      }
+    } finally {
+      sync.busy = false;
+      if (sync.id === id) setTemplateSaving(false);
+      // A choice made on another draft while this request ran.
+      else if (sync.id && sync.desired !== sync.confirmed)
+        void flushTemplate(sync.id);
+    }
+  }
+  function chooseTemplate(next: CvTemplate) {
+    setTemplate(next);
+    const sync = templateSync.current;
+    if (!saved || sync.id !== saved.id) return;
+    sync.desired = next;
+    void flushTemplate(saved.id);
+  }
   const templatePicker = (
     <TextField
       select
       size="small"
       label={tr('CV template')}
       value={template}
-      onChange={(e) => setTemplate(e.target.value as CvTemplate)}
-      helperText={tr(
-        'Applies to the preview and the PDF. DOCX keeps the Classic layout.',
-      )}
+      onChange={(e) => chooseTemplate(e.target.value as CvTemplate)}
+      helperText={
+        templateSaving
+          ? tr('Saving template…')
+          : tr(
+              'Applies to the preview and the PDF. DOCX keeps the Classic layout.',
+            )
+      }
       sx={{ maxWidth: 360 }}
     >
       {CV_TEMPLATES.map((t) => (
@@ -2262,7 +2330,13 @@ export function TailoredCvReview({
                         ? 'contained'
                         : 'outlined'
                     }
-                    disabled={blocked || dirty || !approvedUnchanged}
+                    disabled={
+                      blocked ||
+                      dirty ||
+                      !approvedUnchanged ||
+                      // The PDF must match a saved template choice.
+                      (format === 'pdf' && templateSaving)
+                    }
                     onClick={() =>
                       void run(async (token) => {
                         setExporting(format);
