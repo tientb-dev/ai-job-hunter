@@ -40,6 +40,9 @@ export class TailoredCvDraft {
     ProfileDocument | TailoredDraftDocument;
   @Column({ type: 'jsonb', nullable: true, select: false })
   generationMetadata!: Record<string, unknown> | null;
+  /** PDF export template; null reads as Classic. Not part of the reviewed content. */
+  @Column({ type: 'text', nullable: true })
+  exportTemplate!: 'classic' | 'modern' | 'compact' | null;
   @CreateDateColumn({ type: 'timestamptz' }) createdAt!: Date;
   @Column('timestamptz') updatedAt!: Date;
 }

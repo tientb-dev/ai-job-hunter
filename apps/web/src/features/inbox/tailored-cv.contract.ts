@@ -94,6 +94,8 @@ export interface SavedDraft {
   jobId: string;
   revision: number;
   updatedAt: string;
+  /** Saved PDF export template; absent or unknown reads as Classic. */
+  exportTemplate: CvTemplate;
   document: DraftDocument;
 }
 export type ClarificationOperation =
@@ -272,7 +274,10 @@ export function decodeDraft(value: unknown, jobId: string): SavedDraft {
         typeof doc.review.approval.approvedAt !== 'string'))
   )
     throw new Error(tr('Invalid saved draft review state.'));
-  return structuredClone(value) as unknown as SavedDraft;
+  const draft = structuredClone(value) as unknown as SavedDraft;
+  if (!CV_TEMPLATES.includes(draft.exportTemplate))
+    draft.exportTemplate = 'classic';
+  return draft;
 }
 export async function draftRequest(
   path: string,
@@ -352,6 +357,26 @@ export async function draftRequest(
 // Mirrors CV_TEMPLATES in the API export (tailored-cv-export.ts).
 export const CV_TEMPLATES = ['classic', 'modern', 'compact'] as const;
 export type CvTemplate = (typeof CV_TEMPLATES)[number];
+
+/** Saves the draft's PDF template only; content, revision and approval are unchanged. */
+export async function saveDraftTemplate(id: string, template: CvTemplate) {
+  const response = await fetch(`/api/v1/tailored-cv/drafts/${id}/template`, {
+    method: 'PUT',
+    cache: 'no-store',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contractVersion: '1', template }),
+  }).catch(() => null);
+  const value: unknown = await response?.json().catch(() => null);
+  if (
+    !response?.ok ||
+    !object(value) ||
+    value.id !== id ||
+    value.exportTemplate !== template
+  )
+    throw new Error(
+      tr('Could not save the CV template. The previous template is kept.'),
+    );
+}
 
 export async function downloadDraft(
   id: string,

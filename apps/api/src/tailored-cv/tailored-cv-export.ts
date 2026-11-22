@@ -804,7 +804,9 @@ export async function renderPdf(
 export class TailoredCvExportService {
   constructor(private readonly db: DataSource) {}
   async export(ownerId: string, id: string, body: unknown) {
-    let expectedRevision: number, format: 'docx' | 'pdf', template: CvTemplate;
+    let expectedRevision: number,
+      format: 'docx' | 'pdf',
+      requested: CvTemplate | undefined;
     try {
       // `template` is optional so older clients keep working.
       const request = version(body, [
@@ -814,8 +816,10 @@ export class TailoredCvExportService {
           ? ['template']
           : []),
       ]);
-      template = (request.template ?? 'classic') as CvTemplate;
-      if (!CV_TEMPLATES.includes(template)) throw new Error();
+      // Omitted: the draft's saved template is used (older clients keep working).
+      requested = request.template as CvTemplate | undefined;
+      if (requested !== undefined && !CV_TEMPLATES.includes(requested))
+        throw new Error();
       expectedRevision = revision(request.expectedRevision);
       id = uuid(id);
       if (request.format !== 'docx' && request.format !== 'pdf')
@@ -827,7 +831,12 @@ export class TailoredCvExportService {
     const snapshot = await this.db.transaction(async (manager) => {
       const row = await manager.getRepository(TailoredCvDraft).findOne({
         where: { ownerId, id },
-        select: { id: true, revision: true, document: true },
+        select: {
+          id: true,
+          revision: true,
+          document: true,
+          exportTemplate: true,
+        },
         lock: { mode: 'pessimistic_read' },
       });
       if (
@@ -838,13 +847,16 @@ export class TailoredCvExportService {
         throw new TailoredDraftError('CV_DRAFT_NOT_FOUND');
       if (row.revision !== expectedRevision)
         throw new TailoredDraftError('CV_DRAFT_SAVE_CONFLICT');
-      return canonicalExport(row.document, row.revision);
+      return {
+        content: canonicalExport(row.document, row.revision),
+        template: requested ?? row.exportTemplate ?? 'classic',
+      };
     });
     try {
       const buffer =
         format === 'pdf'
-          ? await renderPdf(snapshot, template)
-          : await renderDocx(snapshot);
+          ? await renderPdf(snapshot.content, snapshot.template)
+          : await renderDocx(snapshot.content);
       const current = await this.db.getRepository(TailoredCvDraft).findOne({
         where: { ownerId, id },
         select: { revision: true, document: true },

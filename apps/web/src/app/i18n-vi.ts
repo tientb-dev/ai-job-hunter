@@ -1,6 +1,10 @@
 // Vietnamese for feature-screen text, keyed by the English source text (see tr()).
 // An empty value drops an English-only fragment such as a plural suffix.
 export const VI_TEXT: Record<string, string> = {
+  'Could not save the CV template': 'Không thể lưu mẫu CV',
+  'Could not save the CV template. The previous template is kept.':
+    'Không thể lưu mẫu CV. Mẫu trước đó được giữ nguyên.',
+  'Saving template…': 'Đang lưu mẫu…',
   'Only PDF CVs are supported. Export your Word CV to PDF and upload it again.':
     'Chỉ hỗ trợ CV dạng PDF. Hãy xuất CV Word sang PDF rồi tải lên lại.',
   'Could not save this CV. Use a text-based PDF up to 5 MiB; your other CVs are unchanged.':

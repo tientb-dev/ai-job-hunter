@@ -39,6 +39,7 @@ import {
   type DraftJobSnapshot,
 } from './tailored-draft.contract.js';
 import { TailoredDraftGenerator } from './tailored-draft.generator.js';
+import { CV_TEMPLATES, type CvTemplate } from './tailored-cv-export.js';
 import { reviewedPlan, draftHash } from './tailored-draft.policy.js';
 import { ReviewedCvService } from '../reviewed-cv/reviewed-cv.service.js';
 interface GenerateRequest {
@@ -627,6 +628,7 @@ export class TailoredDraftService {
       profileRevisionId: row.profileRevisionId,
       jobUpdatedAt: row.jobUpdatedAt.toISOString(),
       revision: row.revision,
+      exportTemplate: row.exportTemplate ?? 'classic',
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     };
@@ -665,10 +667,33 @@ export class TailoredDraftService {
         updatedAt: true,
         document: true,
         generationMetadata: true,
+        exportTemplate: true,
       },
     });
     if (!row) throw new TailoredDraftError('CV_DRAFT_NOT_FOUND');
     return this.dto(row);
+  }
+  /**
+   * Saves the PDF export template only. Content, revision, updatedAt and
+   * approval are untouched, so an approved draft stays approved.
+   */
+  async setTemplate(ownerId: string, id: string, body: unknown) {
+    let template: CvTemplate;
+    try {
+      id = uuid(id);
+      template = version(body, ['template']).template as CvTemplate;
+      if (!CV_TEMPLATES.includes(template)) throw new Error();
+    } catch {
+      throw new TailoredDraftError('CV_DRAFT_INVALID_REQUEST');
+    }
+    const [rows] = (await this.db.query(
+      `UPDATE ai_job_hunter.tailored_cv_drafts SET "exportTemplate" = $1
+        WHERE id = $2 AND "ownerId" = $3 AND document ->> 'kind' = 'tailored_cv'
+        RETURNING id`,
+      [template, id, ownerId],
+    )) as [unknown[], number];
+    if (!rows.length) throw new TailoredDraftError('CV_DRAFT_NOT_FOUND');
+    return { contractVersion: '1', id, exportTemplate: template };
   }
   async review(ownerId: string, id: string, body: unknown, approve = false) {
     const request = reviewRequest(body, approve);
@@ -690,6 +715,7 @@ export class TailoredDraftService {
           revision: true,
           document: true,
           generationMetadata: true,
+          exportTemplate: true,
           createdAt: true,
           updatedAt: true,
         },

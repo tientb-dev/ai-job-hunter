@@ -7,6 +7,7 @@ export function tailoredDraftFixture(): SavedDraft {
     jobId: draftJobId,
     revision: 1,
     updatedAt: '2026-01-01T00:00:00.000Z',
+    exportTemplate: 'classic',
     document: {
       contractVersion: '1',
       kind: 'tailored_cv',
