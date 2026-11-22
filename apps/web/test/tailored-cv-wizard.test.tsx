@@ -152,7 +152,9 @@ test('resume bypasses completed source work, preserves draft pins and explains e
   expect(
     screen.queryByRole('button', { name: 'Save draft' }),
   ).not.toBeInTheDocument();
-  expect(screen.getByRole('heading', { name: 'Final preview' })).toBeVisible();
+  expect(
+    screen.getByRole('heading', { name: 'Preview edited CV' }),
+  ).toBeVisible();
   // Decisions belong to Tailor & Review: no bulk decision control here.
   const exportPanel = screen.getByRole('region', { name: 'Download' });
   expect(
@@ -165,7 +167,7 @@ test('resume bypasses completed source work, preserves draft pins and explains e
     screen.getByRole('button', { name: 'Finish review in Tailor & Review' }),
   );
   await screen.findByRole('heading', { name: 'Step 2 of 3 · Tailor & Review' });
-  expect(screen.queryByText('Preview assembled CV')).not.toBeInTheDocument();
+  expect(screen.queryByText('Preview edited CV')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('tab', { name: /Approve & Export/ }));
   await screen.findByRole('heading', {
     name: 'Step 3 of 3 · Approve & Export',
@@ -221,7 +223,7 @@ test('resume bypasses completed source work, preserves draft pins and explains e
   expect(
     screen.getByRole('button', { name: 'Approve saved draft' }),
   ).toBeDisabled();
-  const preview = screen.getByRole('region', { name: 'Final preview' });
+  const preview = screen.getByRole('region', { name: 'Preview edited CV' });
   const confirm = screen.getByRole('checkbox', {
     name: /I reviewed the complete saved CV/,
   });

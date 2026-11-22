@@ -1,6 +1,29 @@
 // Vietnamese for feature-screen text, keyed by the English source text (see tr()).
 // An empty value drops an English-only fragment such as a plural suffix.
 export const VI_TEXT: Record<string, string> = {
+  'Only PDF CVs are supported. Export your Word CV to PDF and upload it again.':
+    'Chỉ hỗ trợ CV dạng PDF. Hãy xuất CV Word sang PDF rồi tải lên lại.',
+  'Could not save this CV. Use a text-based PDF up to 5 MiB; your other CVs are unchanged.':
+    'Không thể lưu CV này. Hãy dùng tệp PDF có văn bản, tối đa 5 MiB; các CV khác của bạn không thay đổi.',
+  'Download CV': 'Tải CV',
+  'View CV': 'Xem CV',
+  'CV preview': 'Xem trước CV',
+  'Loading CV': 'Đang tải CV',
+  'This is the file you uploaded, unchanged.':
+    'Đây là tệp bạn đã tải lên, không bị thay đổi.',
+  'Could not load this CV. Download it instead.':
+    'Không thể tải CV này để xem. Hãy tải tệp xuống.',
+  'Browser preview is available for PDF CVs only. Download the CV to open it.':
+    'Chỉ xem trước được CV dạng PDF trong trình duyệt. Hãy tải CV xuống để mở.',
+  'About the downloaded CV': 'Về CV được tải xuống',
+  'Edited CV uses a system template': 'CV đã chỉnh sửa dùng mẫu của hệ thống',
+  'PDF template': 'Mẫu PDF',
+  'DOCX template': 'Mẫu DOCX',
+  Classic: 'Cổ điển',
+  Modern: 'Hiện đại',
+  Compact: 'Gọn',
+  "Downloads are new documents generated from your reviewed content. They may not keep the original CV's layout, fonts, columns or images. Your uploaded original CV is not changed.":
+    'Tệp tải xuống là tài liệu mới được tạo từ nội dung bạn đã rà soát. Tệp có thể không giữ bố cục, phông chữ, cột hoặc hình ảnh của CV gốc. CV gốc bạn đã tải lên không bị thay đổi.',
   'Did this change the time or manual steps involved? Share what you observed, if anything.':
     'Công việc này có thay đổi thời gian hoặc các bước thủ công không? Nếu có, hãy nêu điều bạn quan sát được.',
   'What changed in the reporting process, if anything you observed?':
@@ -835,7 +858,8 @@ export const VI_TEXT: Record<string, string> = {
     'Hiện đại — dải tiêu đề, đề mục ở cột bên',
   'Compact — centred header, denser, fits more per page':
     'Gọn — đầu trang căn giữa, nhiều nội dung mỗi trang',
-  'Classic — the original layout': 'Cổ điển — bố cục ban đầu',
+  'Classic — single column, simple headings':
+    'Cổ điển — một cột, tiêu đề đơn giản',
   'Download approved CV': 'Tải CV đã duyệt',
   'Download failed. Your approved draft is unchanged; check the local API and retry.':
     'Tải xuống thất bại. Bản nháp đã duyệt không thay đổi; kiểm tra API cục bộ và thử lại.',
@@ -989,7 +1013,7 @@ export const VI_TEXT: Record<string, string> = {
   'Fill in or remove empty details': 'Điền hoặc xóa các chi tiết trống',
   'Filter questions': 'Lọc câu hỏi',
   'Filter requirements': 'Lọc yêu cầu',
-  'Final preview': 'Xem trước bản cuối',
+  'Preview edited CV': 'Xem trước CV đã chỉnh sửa',
   'Finalize answer': 'Hoàn thiện câu trả lời',
   'Finding your next step from saved source review and current match…':
     'Đang tìm bước tiếp theo từ bản rà soát nguồn đã lưu và kết quả đối chiếu hiện tại…',
@@ -1311,8 +1335,8 @@ export const VI_TEXT: Record<string, string> = {
   'Next undecided': 'Mục chưa quyết định tiếp theo',
   'Next:': 'Tiếp theo:',
   No: 'Không',
-  'No CV saved yet. Save a PDF or DOCX to review it and tailor it for jobs.':
-    'Chưa lưu CV. Hãy lưu tệp PDF hoặc DOCX để rà soát và tùy chỉnh cho từng việc làm.',
+  'No CV saved yet. Save a PDF to review it and tailor it for jobs.':
+    'Chưa lưu CV. Hãy lưu tệp PDF để rà soát và tùy chỉnh cho từng việc làm.',
   'No active jobs have a follow-up due today or earlier. Clear the filter to see all jobs.':
     'Không có việc làm đang theo nào cần theo dõi hôm nay hoặc trước đó. Bỏ lọc để xem mọi việc làm.',
   'No additional evidence-backed suggestions found. Review the requirement evidence.':
@@ -1528,7 +1552,6 @@ export const VI_TEXT: Record<string, string> = {
   'Preparing source review…': 'Đang chuẩn bị rà soát nguồn…',
   'Preserved as a qualification, separately from core skills.':
     'Được giữ như một bằng cấp, tách khỏi kỹ năng chính.',
-  'Preview assembled CV': 'Xem trước CV đã ghép',
   'Preview error': 'Lỗi xem trước',
   'Preview source JD': 'Xem trước JD nguồn',
   'Previous question set · {v0}': 'Bộ câu hỏi trước · {v0}',
@@ -2574,7 +2597,6 @@ export const VI_TEXT: Record<string, string> = {
   Format: 'Định dạng',
   Size: 'Kích thước',
   'Actions for this CV': 'Thao tác với CV này',
-  'Download original': 'Tải file gốc',
   'The original file was not kept for this CV. Upload it again to download it.':
     'File gốc của CV này không được lưu. Hãy tải lên lại để có thể tải xuống.',
   'Default CV': 'CV mặc định',

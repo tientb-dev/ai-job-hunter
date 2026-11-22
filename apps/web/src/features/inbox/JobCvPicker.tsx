@@ -74,7 +74,7 @@ export function JobCvPicker({
         disabled={disabled}
         hidden
         type="file"
-        accept=".pdf,.docx"
+        accept=".pdf,application/pdf"
         aria-label={inputLabel}
         onChange={(event) => {
           const file = event.target.files?.[0];

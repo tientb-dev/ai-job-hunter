@@ -180,6 +180,8 @@ export function withCvOrigins<
 export const MAX_SAVED_CVS = 5;
 // Match output grows with requirements x components; the model supports 65,536.
 export const MATCH_MAX_OUTPUT_TOKENS = 16_384;
+const CV_PDF_ONLY =
+  'Only PDF CVs are supported. Export your Word CV to PDF and upload it again.';
 @Injectable()
 export class JobMatchService {
   private active = false;
@@ -493,15 +495,21 @@ export class JobMatchService {
     };
   }
   async saveCv(ownerId: string, document?: JobDocument) {
-    if (!document)
-      throw new BadRequestException('Choose a CV PDF or DOCX up to 5 MiB.');
+    // Saved CVs are PDF only; JD uploads share the reader and still accept DOCX.
+    // The PDF parser below also rejects bytes without a %PDF- header.
+    if (
+      !document ||
+      !/\.pdf$/iu.test(document.fileName) ||
+      document.mediaType !== 'application/pdf'
+    )
+      throw new BadRequestException(CV_PDF_ONLY);
     let parsed: Awaited<ReturnType<ExtractionService['parseCvWithLayout']>>;
     try {
       parsed = await this.extraction.parseCvWithLayout(document);
       if (!parsed.source.text.trim()) throw new Error();
     } catch {
       throw new BadRequestException(
-        'Could not save this CV. Use a text-based PDF or DOCX up to 5 MiB; your other CVs are unchanged.',
+        'Could not save this CV. Use a text-based PDF up to 5 MiB; your other CVs are unchanged.',
       );
     }
     const { source, pdfLayout } = parsed;

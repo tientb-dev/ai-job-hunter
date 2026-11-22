@@ -343,7 +343,7 @@ test('synthetic CV upload persists and matching reuses latest CV/job without mod
 });
 // Runs before the restart test: closing a restarted context closes the
 // shared extraction owner for later tests in this file.
-test('beta sample DOCX and PDF upload over HTTP as separate CVs', async () => {
+test('beta sample PDF uploads over HTTP; DOCX CVs are refused', async () => {
   const upload = (fileName: string, contentType: string) =>
     request(app.getHttpServer())
       .post('/api/v1/opportunities/cv')
@@ -372,10 +372,35 @@ test('beta sample DOCX and PDF upload over HTTP as separate CVs', async () => {
         ]),
       );
   ownsCv = true;
-  await upload(
-    'synthetic-cv.docx',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  const server = app.getHttpServer();
+  const before = (await request(server).get('/api/v1/opportunities/cv')).body
+    .length as number;
+  // Saved CVs are PDF only: DOCX, and DOCX bytes renamed as PDF, are refused.
+  const docx = readFileSync(
+    resolve(process.cwd(), '../../docs/beta-samples', 'synthetic-cv.docx'),
   );
+  for (const [filename, contentType, message] of [
+    [
+      'synthetic-cv.docx',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'Only PDF CVs are supported. Export your Word CV to PDF and upload it again.',
+    ],
+    [
+      'renamed.pdf',
+      'application/pdf',
+      'Could not save this CV. Use a text-based PDF up to 5 MiB; your other CVs are unchanged.',
+    ],
+  ])
+    await request(server)
+      .post('/api/v1/opportunities/cv')
+      .set(origin)
+      .field('record', '{}')
+      .attach('document', docx, { filename, contentType })
+      .expect(400)
+      .expect(({ body }) => expect(body.message).toBe(message));
+  expect(
+    (await request(server).get('/api/v1/opportunities/cv')).body,
+  ).toHaveLength(before);
   await upload('synthetic-cv.pdf', 'application/pdf');
   const [stored] = await database.query(
     'SELECT "fileName", text FROM ai_job_hunter.saved_cvs WHERE "ownerId"=$1 AND "fileName"=$2',
@@ -385,6 +410,36 @@ test('beta sample DOCX and PDF upload over HTTP as separate CVs', async () => {
   expect(stored.text).toContain(
     '- Built REST APIs with Node.js, TypeScript and NestJS.',
   );
+  // A DOCX CV saved before PDF-only stays listed and downloads byte-for-byte.
+  const [{ id: legacy }] = await database.query(
+    `INSERT INTO ai_job_hunter.saved_cvs ("ownerId", name, "isDefault", "fileName", text, "originalBytes", "mediaType", "fileSize")
+      VALUES ($1, 'Legacy Word CV', false, 'legacy-cv.docx', 'Synthetic legacy CV', $2, $3, $4) RETURNING id`,
+    [
+      LOCAL_OWNER_ID,
+      docx,
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      docx.length,
+    ],
+  );
+  expect(
+    (await request(server).get('/api/v1/opportunities/cv')).body,
+  ).toContainEqual(
+    expect.objectContaining({ id: legacy, originalAvailable: true }),
+  );
+  const file = await request(server)
+    .get(`/api/v1/opportunities/cv/${legacy}/file`)
+    .buffer(true)
+    .parse((res, done) => {
+      const chunks: Buffer[] = [];
+      res.on('data', (c: Buffer) => chunks.push(c));
+      res.on('end', () => done(null, Buffer.concat(chunks)));
+    })
+    .expect(200);
+  expect(Buffer.compare(file.body as Buffer, docx)).toBe(0);
+  await request(server)
+    .delete(`/api/v1/opportunities/cv/${legacy}`)
+    .set(origin)
+    .expect(200);
 });
 
 const uploadCv = async (line: string) =>
