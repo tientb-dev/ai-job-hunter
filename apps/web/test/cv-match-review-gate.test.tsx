@@ -109,9 +109,23 @@ test('uploading a CV in Job Detail saves it for this job, then opens its review'
   await user.keyboard('{Enter}');
   expect(openChooser).toHaveBeenCalledOnce();
   openChooser.mockRestore();
+  expect(input).toHaveAttribute('accept', '.pdf,application/pdf');
+  await userEvent.setup({ applyAccept: false }).upload(
+    input,
+    new File(['PK'], 'new.docx', {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    }),
+  );
+  expect(await screen.findByText(/Only PDF CVs are supported/)).toBeVisible();
+  expect(
+    fetch.mock.calls.some(
+      ([url, init]) =>
+        String(url).endsWith('/opportunities/cv') && init?.method === 'POST',
+    ),
+  ).toBe(false);
   await user.upload(
     input,
-    new File(['synthetic'], 'new.pdf', { type: 'application/pdf' }),
+    new File(['%PDF-1.4 synthetic'], 'new.pdf', { type: 'application/pdf' }),
   );
   expect(
     await screen.findByText(`Review page /cv/${added.id}/review${returnTo}`),

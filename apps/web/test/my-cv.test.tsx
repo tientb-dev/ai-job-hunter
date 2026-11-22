@@ -191,7 +191,7 @@ test('adding a CV opens its mandatory review without replacing the default or to
   await screen.findByText(/sections reviewed/);
   await userEvent.setup().upload(
     screen.getByLabelText('Add CV'),
-    new File(['synthetic'], 'added-cv.pdf', {
+    new File(['%PDF-1.4 synthetic'], 'added-cv.pdf', {
       type: 'application/pdf',
     }),
   );
@@ -340,7 +340,7 @@ test('download links to the exact original file, or explains why it is unavailab
   const user = userEvent.setup();
   mount([savedCv, { ...otherCv, originalAvailable: false, fileSize: null }]);
   const download = await screen.findByRole('link', {
-    name: 'Download original',
+    name: 'Download CV',
   });
   expect(download).toHaveAttribute(
     'href',
@@ -350,7 +350,7 @@ test('download links to the exact original file, or explains why it is unavailab
   await user.click(screen.getByRole('button', { name: /^Data CV/ }));
   const summary = screen.getByRole('region', { name: 'Data CV' });
   expect(
-    within(summary).getByRole('button', { name: 'Download original' }),
+    within(summary).getByRole('button', { name: 'Download CV' }),
   ).toBeDisabled();
   expect(within(summary).getByText(/original file was not kept/)).toBeVisible();
   expect(within(summary).getByText('—')).toBeVisible();
@@ -381,9 +381,82 @@ test('the row menu opens that CV and offers its actions', async () => {
     within(menu)
       .getAllByRole('menuitem')
       .map((item) => item.textContent),
-  ).toEqual(['Make default', 'Rename', 'Download original', 'Delete']);
+  ).toEqual(['Make default', 'Rename', 'Download CV', 'Delete']);
   await user.click(within(menu).getByRole('menuitem', { name: 'Rename' }));
   expect(screen.getByRole('textbox', { name: 'CV name' })).toHaveValue(
     'Data CV',
   );
+});
+
+test('CV uploads are PDF only: DOCX and renamed non-PDF files never reach the API', async () => {
+  const { fetch } = mount(savedCv);
+  await screen.findByText(/sections reviewed/);
+  const input = screen.getByLabelText('Add CV');
+  expect(input).toHaveAttribute('accept', '.pdf,application/pdf');
+  const user = userEvent.setup({ applyAccept: false });
+  for (const file of [
+    new File(['PK docx'], 'cv.docx', {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    }),
+    new File(['PK docx'], 'renamed.pdf', { type: 'application/pdf' }),
+  ]) {
+    await user.upload(input, file);
+    expect(await screen.findByText(/Only PDF CVs are supported/)).toBeVisible();
+    await acknowledge();
+  }
+  expect(
+    fetch.mock.calls.some(
+      ([url, init]) =>
+        String(url).endsWith('/opportunities/cv') &&
+        (init as RequestInit | undefined)?.method === 'POST',
+    ),
+  ).toBe(false);
+});
+
+test('preview shows the selected CV original bytes; legacy DOCX explains download instead', async () => {
+  const user = userEvent.setup();
+  const docx = {
+    ...otherCv,
+    id: '00000000-0000-4000-8000-0000000000c9',
+    name: 'Word CV',
+    fileName: 'word-cv.docx',
+  };
+  const { fetch } = mount([savedCv, otherCv, docx]);
+  const pdfBytes = new TextEncoder().encode('%PDF-1.4 original');
+  const base = fetch.getMockImplementation()!;
+  fetch.mockImplementation(async (url: string, init?: RequestInit) =>
+    url.endsWith('/file') ? new Response(pdfBytes) : base(url, init),
+  );
+  const created = vi.fn<(blob: Blob) => string>(() => 'blob:original');
+  URL.createObjectURL = created;
+  URL.revokeObjectURL = vi.fn();
+  await user.click(await screen.findByRole('button', { name: /^Data CV/ }));
+  await user.click(screen.getByRole('button', { name: 'View CV' }));
+  const dialog = await screen.findByRole('dialog');
+  expect(await within(dialog).findByTitle('CV preview')).toHaveAttribute(
+    'src',
+    'blob:original',
+  );
+  expect(fetch).toHaveBeenCalledWith(
+    `/api/v1/opportunities/cv/${otherCv.id}/file`,
+    expect.anything(),
+  );
+  const blob = created.mock.calls[0]![0];
+  expect(blob.type).toBe('application/pdf');
+  expect([...new Uint8Array(await blob.arrayBuffer())]).toEqual([...pdfBytes]);
+  expect(
+    within(dialog).getByRole('link', { name: 'Download CV' }),
+  ).toHaveAttribute('href', `/api/v1/opportunities/cv/${otherCv.id}/file`);
+  await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+  await user.click(screen.getByRole('button', { name: /^Word CV/ }));
+  const summary = screen.getByRole('region', { name: 'Word CV' });
+  expect(
+    within(summary).getByRole('button', { name: 'View CV' }),
+  ).toBeDisabled();
+  expect(
+    within(summary).getByRole('link', { name: 'Download CV' }),
+  ).toHaveAttribute('href', `/api/v1/opportunities/cv/${docx.id}/file`);
+  expect(
+    within(summary).getByText(/preview is available for PDF CVs only/),
+  ).toBeVisible();
 });

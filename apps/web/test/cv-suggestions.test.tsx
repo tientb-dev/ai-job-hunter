@@ -392,7 +392,9 @@ test('CV replacement invalidates the match and suggestions', async () => {
   fireEvent.change(screen.getByLabelText('Save CV for matching'), {
     target: {
       files: [
-        new File(['Synthetic'], 'synthetic.pdf', { type: 'application/pdf' }),
+        new File(['%PDF-1.4 Synthetic'], 'synthetic.pdf', {
+          type: 'application/pdf',
+        }),
       ],
     },
   });

@@ -8,6 +8,7 @@ import {
 } from './cv-match.types';
 import { validSourceDate } from './cv-suggestions.contract';
 import { importUpload, opportunityRequest } from './opportunities-api';
+import { cvUploadError } from './cv-file';
 
 export interface SavedCv {
   id: string;
@@ -187,6 +188,11 @@ export function useCvMatch(
   }, []);
   /** Saves a CV for this job; resolves to its id so the caller can open its review. */
   async function upload(file: File): Promise<string | null> {
+    const invalid = await cvUploadError(file);
+    if (invalid) {
+      setError(invalid);
+      return null;
+    }
     const request = ++generation.current;
     setAttempt((value) => value + 1);
     setBusy(true);

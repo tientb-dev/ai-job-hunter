@@ -21,6 +21,10 @@ import {
   Box,
   Button,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   IconButton,
   LinearProgress,
   List,
@@ -38,6 +42,7 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 import { PageHeader } from '../../components/PageHeader';
 import { importUpload, opportunityRequest } from './opportunities-api';
+import { canPreviewOriginal, cvUploadError } from './cv-file';
 import { sourceCvRequest } from './source-cv-review.contract';
 import type { SavedCv } from './useCvMatch';
 
@@ -106,6 +111,7 @@ export function MyCv() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [managing, setManaging] = useState(false);
   const [menu, setMenu] = useState<{ anchor: HTMLElement; cv: SavedCv }>();
+  const [previewing, setPreviewing] = useState<SavedCv | null>(null);
   const cv =
     cvs.find((row) => row.id === selectedId) ??
     cvs.find((row) => row.isDefault) ??
@@ -151,6 +157,15 @@ export function MyCv() {
     setSelectedId(id);
   }
   async function upload(file: File) {
+    const invalid = await cvUploadError(file);
+    if (invalid) {
+      notify({
+        severity: 'error',
+        title: tr('CV upload failed.'),
+        text: invalid,
+      });
+      return;
+    }
     setUploading(true);
     setError('');
     try {
@@ -246,7 +261,7 @@ export function MyCv() {
               <input
                 hidden
                 type="file"
-                accept=".pdf,.docx"
+                accept=".pdf,application/pdf"
                 aria-label={addLabel}
                 disabled={locked || full}
                 onChange={(event) => {
@@ -285,7 +300,7 @@ export function MyCv() {
           <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, ...enter(0) }}>
             <Typography>
               {tr(
-                'No CV saved yet. Save a PDF or DOCX to review it and tailor it for jobs.',
+                'No CV saved yet. Save a PDF to review it and tailor it for jobs.',
               )}
             </Typography>
           </Paper>
@@ -708,6 +723,14 @@ export function MyCv() {
                     </Button>
                     <Button
                       variant="outlined"
+                      startIcon={<VisibilityIcon />}
+                      disabled={!canPreviewOriginal(cv)}
+                      onClick={() => setPreviewing(cv)}
+                    >
+                      {tr('View CV')}
+                    </Button>
+                    <Button
+                      variant="outlined"
                       startIcon={<DownloadIcon />}
                       disabled={!cv.originalAvailable}
                       {...(cv.originalAvailable && {
@@ -715,7 +738,7 @@ export function MyCv() {
                         download: cv.fileName,
                       })}
                     >
-                      {tr('Download original')}
+                      {tr('Download CV')}
                     </Button>
                     {/* The default CV can't become default again or be deleted. */}
                     <Button
@@ -744,6 +767,17 @@ export function MyCv() {
                     >
                       {tr(
                         'The original file was not kept for this CV. Upload it again to download it.',
+                      )}
+                    </Typography>
+                  )}
+                  {cv.originalAvailable && !canPreviewOriginal(cv) && (
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mt: 1 }}
+                    >
+                      {tr(
+                        'Browser preview is available for PDF CVs only. Download the CV to open it.',
                       )}
                     </Typography>
                   )}
@@ -807,7 +841,7 @@ export function MyCv() {
             download={menu.cv.fileName}
             onClick={() => setMenu(undefined)}
           >
-            {tr('Download original')}
+            {tr('Download CV')}
           </MenuItem>,
           !menu.cv.isDefault && (
             <MenuItem
@@ -845,6 +879,90 @@ export function MyCv() {
             );
         }}
       />
+      {previewing && (
+        <OriginalCvDialog cv={previewing} onClose={() => setPreviewing(null)} />
+      )}
     </Stack>
+  );
+}
+
+/** Shows the exact uploaded PDF bytes; the file itself is never changed. */
+function OriginalCvDialog({
+  cv,
+  onClose,
+}: {
+  cv: SavedCv;
+  onClose: () => void;
+}) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  const fileUrl = `/api/v1/opportunities/cv/${cv.id}/file`;
+  useEffect(() => {
+    let live = true,
+      objectUrl: string | null = null;
+    fetch(fileUrl, { cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) throw new Error();
+        // The API sends octet-stream attachments; type it so the viewer opens it.
+        const blob = new Blob([await response.arrayBuffer()], {
+          type: 'application/pdf',
+        });
+        if (!live) return;
+        objectUrl = URL.createObjectURL(blob);
+        setUrl(objectUrl);
+      })
+      .catch(() => live && setFailed(true));
+    return () => {
+      live = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [fileUrl]);
+  return (
+    <Dialog open onClose={onClose} fullWidth maxWidth="md">
+      <DialogTitle>{cv.fileName}</DialogTitle>
+      <DialogContent>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+          {tr('This is the file you uploaded, unchanged.')}
+        </Typography>
+        {failed ? (
+          <Alert severity="error">
+            {tr('Could not load this CV. Download it instead.')}
+          </Alert>
+        ) : (
+          <Box
+            aria-busy={!url}
+            sx={{
+              height: { xs: '65vh', sm: '75vh' },
+              border: 1,
+              borderColor: 'divider',
+              borderRadius: 1,
+              bgcolor: '#ffffff',
+              overflow: 'hidden',
+            }}
+          >
+            {url ? (
+              <Box
+                component="iframe"
+                title={tr('CV preview')}
+                src={url}
+                sx={{ width: '100%', height: '100%', border: 0 }}
+              />
+            ) : (
+              <LinearProgress aria-label={tr('Loading CV')} />
+            )}
+          </Box>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button
+          startIcon={<DownloadIcon />}
+          href={fileUrl}
+          download={cv.fileName}
+        >
+          {tr('Download CV')}
+        </Button>
+        <Button onClick={onClose}>{tr('Close')}</Button>
+      </DialogActions>
+    </Dialog>
   );
 }

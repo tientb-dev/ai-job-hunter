@@ -46,6 +46,7 @@ import {
   AccordionDetails,
   AccordionSummary,
   Alert,
+  AlertTitle,
   Box,
   Button,
   Checkbox,
@@ -84,7 +85,13 @@ const templateLabel = (t: CvTemplate) =>
     ? tr('Modern — header band, headings in a side column')
     : t === 'compact'
       ? tr('Compact — centred header, denser, fits more per page')
-      : tr('Classic — the original layout');
+      : tr('Classic — single column, simple headings');
+const templateName = (t: CvTemplate) =>
+  t === 'modern'
+    ? tr('Modern')
+    : t === 'compact'
+      ? tr('Compact')
+      : tr('Classic');
 
 export function TailoredCvReview({
   jobId,
@@ -635,7 +642,7 @@ export function TailoredCvReview({
       aria-labelledby="final-preview-title"
     >
       <Typography id="final-preview-title" variant="h6" component="h3">
-        {tr('Final preview')}
+        {tr('Preview edited CV')}
       </Typography>
       {approvedUnchanged ? (
         <>
@@ -2231,6 +2238,16 @@ export function TailoredCvReview({
                 ))}
               {isWizard && renderApproval(document, saved)}
               {!isWizard && templatePicker}
+              <Alert severity="info" aria-label={tr('About the downloaded CV')}>
+                <AlertTitle>
+                  {tr('Edited CV uses a system template')}
+                </AlertTitle>
+                {tr('PDF template')}: {templateName(template)} ·{' '}
+                {tr('DOCX template')}: {templateName('classic')}.{' '}
+                {tr(
+                  "Downloads are new documents generated from your reviewed content. They may not keep the original CV's layout, fonts, columns or images. Your uploaded original CV is not changed.",
+                )}
+              </Alert>
               <Stack
                 direction={{ xs: 'column', sm: 'row' }}
                 spacing={1}
@@ -2298,7 +2315,7 @@ export function TailoredCvReview({
               onToggle={(event) => setPreviewOpen(event.currentTarget.open)}
             >
               <Typography component="summary">
-                {tr('Preview assembled CV')}
+                {tr('Preview edited CV')}
               </Typography>
               {previewOpen && (
                 <Stack spacing={1} sx={{ mt: 2 }}>

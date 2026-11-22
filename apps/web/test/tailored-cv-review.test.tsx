@@ -209,7 +209,7 @@ test('a saved draft with no suggestions shows the complete CV and opens the fina
   fireEvent.click(
     screen.getByRole('button', { name: 'Continue to Approve & Export' }),
   );
-  const preview = screen.getByRole('region', { name: 'Final preview' });
+  const preview = screen.getByRole('region', { name: 'Preview edited CV' });
   expect(within(preview).getByText(fact!.acceptedText)).toBeVisible();
   const approve = screen.getByRole('button', { name: 'Approve saved draft' });
   expect(approve).toBeDisabled();
@@ -638,7 +638,7 @@ test('assembled preview shows default-included facts and local wording before ap
     screen.getByRole('textbox', { name: /description \(experience/ }),
     { target: { value: 'Unsaved preview wording.' } },
   );
-  const preview = screen.getByText('Preview assembled CV');
+  const preview = screen.getByText('Preview edited CV');
   fireEvent.click(preview);
   expect(
     await within(preview.parentElement!).findByText('Unsaved preview wording.'),
@@ -983,5 +983,32 @@ test('locale switching keeps historical flags and saved AI content while transla
   expect(screen.getByText('Saved rationale in English.')).toBeInTheDocument();
   expect(screen.getByText('Saved question in English?')).toBeInTheDocument();
   expect(state.fetch).toHaveBeenCalledTimes(requests);
+  act(() => setLocale('en-US'));
+});
+
+test('before download, the export panel names the system templates and says the original CV is unchanged, in both languages', async () => {
+  setup();
+  await open();
+  const note = screen.getByLabelText('About the downloaded CV');
+  expect(note).toHaveTextContent('Edited CV uses a system template');
+  expect(note).toHaveTextContent(
+    'PDF template: Classic · DOCX template: Classic.',
+  );
+  expect(note).toHaveTextContent(
+    /may not keep the original CV's layout, fonts, columns or images/,
+  );
+  expect(note).toHaveTextContent('Your uploaded original CV is not changed.');
+  // Shown ahead of the download buttons, which keep their approval gate.
+  expect(
+    note.compareDocumentPosition(
+      screen.getByRole('button', { name: 'Download PDF' }),
+    ) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Download PDF' })).toBeDisabled();
+  act(() => setLocale('vi-VN'));
+  const viNote = screen.getByLabelText('Về CV được tải xuống');
+  expect(viNote).toHaveTextContent('CV đã chỉnh sửa dùng mẫu của hệ thống');
+  expect(viNote).toHaveTextContent('Mẫu PDF: Cổ điển · Mẫu DOCX: Cổ điển.');
+  expect(viNote).toHaveTextContent('CV gốc bạn đã tải lên không bị thay đổi.');
   act(() => setLocale('en-US'));
 });
