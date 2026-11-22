@@ -61,7 +61,7 @@ test('decided card hides decision buttons until the user changes it', () => {
       name: 'Accept suggestion for Experience · Description',
     }),
   );
-  expect(onDecision).toHaveBeenCalledWith('accept');
+  expect(onDecision).toHaveBeenCalledWith('accept', undefined);
 });
 
 test('unverified rewrites show their reason before the decision', () => {
@@ -79,4 +79,76 @@ test('unverified rewrites show their reason before the decision', () => {
   );
   expect(screen.getByText('Needs your check')).toBeVisible();
   expect(screen.getByText('2M users is not in your CV.')).toBeVisible();
+});
+
+test('an accepted suggestion the user later edited reports the edited wording, which is what the CV uses', () => {
+  render(
+    <ProposalComparison
+      original="Assisted a team prototype."
+      suggestion="Assisted a 4-person team prototype."
+      proposal="accepted"
+      manuallyEdited
+      where="Experience · Description"
+      disabled={false}
+      onDecision={vi.fn()}
+    />,
+  );
+  expect(screen.getByText('Using your own edited wording.')).toBeVisible();
+  expect(screen.getByText('Edited by you')).toBeVisible();
+  expect(screen.queryByText(/Using the suggestion/)).toBeNull();
+});
+
+test('a suggestion needing confirmation: unticked by default, accept reports the confirmation, and a new suggestion text needs a new tick', () => {
+  const onDecision = vi.fn();
+  const props = {
+    original: 'Assisted a team prototype.',
+    proposal: 'pending' as const,
+    manuallyEdited: false,
+    where: 'Experience · Description',
+    disabled: false,
+    onDecision,
+    requiresConfirmation: true,
+    confirmationAssertion: 'Numbers not in your CV: 4',
+  };
+  const { rerender } = render(
+    <ProposalComparison
+      {...props}
+      suggestion="Assisted a 4-person team prototype."
+    />,
+  );
+  const accept = screen.getByRole('button', {
+    name: 'Confirm and accept suggestion for Experience · Description',
+  });
+  const box = screen.getByRole('checkbox', {
+    name: 'I confirm this information is true to my actual experience.',
+  });
+  expect(box).not.toBeChecked();
+  expect(accept).toBeDisabled();
+  fireEvent.click(box);
+  expect(accept).toBeEnabled();
+  rerender(
+    <ProposalComparison
+      {...props}
+      suggestion="Assisted a 5-person team prototype."
+    />,
+  );
+  expect(screen.getByRole('checkbox')).not.toBeChecked();
+  expect(accept).toBeDisabled();
+  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.click(accept);
+  expect(onDecision).toHaveBeenCalledWith('accept', true);
+  // Without a stated claim there is nothing to confirm: accept stays off.
+  rerender(
+    <ProposalComparison
+      {...props}
+      confirmationAssertion={undefined}
+      suggestion="Assisted a 4-person team prototype."
+    />,
+  );
+  expect(screen.queryByRole('checkbox')).toBeNull();
+  expect(
+    screen.getByRole('button', {
+      name: 'Confirm and accept suggestion for Experience · Description',
+    }),
+  ).toBeDisabled();
 });

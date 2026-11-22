@@ -14,7 +14,13 @@ export type ReviewOperation =
       factId: string;
     }
   | { action: 'edit'; factId: string; text: string }
-  | { action: 'accept' | 'reject' | 'restore'; factId: string }
+  | {
+      action: 'accept';
+      factId: string;
+      /** Required when the suggestion needs confirmation; must match it exactly. */
+      confirmed?: { assertion: string; text: string };
+    }
+  | { action: 'reject' | 'restore'; factId: string }
   | { action: 'acknowledge'; issueIndex: number }
   | { action: 'include'; factId: string; included: boolean };
 export interface DraftReview {
@@ -26,6 +32,8 @@ export interface DraftReview {
       exportIncluded?: boolean;
       wording: 'reviewed_profile' | 'user_edited' | 'ai_accepted';
       proposal: 'pending' | 'accepted' | 'rejected' | 'none';
+      /** The user confirmed this claim of the accepted suggestion as true. */
+      userConfirmed?: { assertion: string; confirmedAt: string };
     }
   >;
   acknowledgedIssues: number[];
@@ -115,10 +123,29 @@ export function reviewRequest(body: unknown, approve = false) {
             ? ['action', 'factId', 'text']
             : input.action === 'include'
               ? ['action', 'factId', 'included']
-              : ['action', 'factId'],
+              : input.action === 'accept' && 'confirmed' in input
+                ? ['action', 'factId', 'confirmed']
+                : ['action', 'factId'],
         );
         if (typeof op.factId !== 'string' || op.factId.length > 100)
           throw new Error();
+        if (op.action === 'accept' && op.confirmed !== undefined) {
+          const confirmed = record(op.confirmed, ['assertion', 'text']);
+          if (
+            typeof confirmed.assertion !== 'string' ||
+            !confirmed.assertion ||
+            confirmed.assertion.length > 2000 ||
+            typeof confirmed.text !== 'string' ||
+            !confirmed.text ||
+            confirmed.text.length > 4000
+          )
+            throw new Error();
+          return {
+            action: 'accept',
+            factId: op.factId,
+            confirmed: { assertion: confirmed.assertion, text: confirmed.text },
+          };
+        }
         if (op.action === 'include') {
           if (typeof op.included !== 'boolean') throw new Error();
           return {
@@ -225,6 +252,8 @@ export function applyReview(
       state.exportIncluded = op.included;
       continue;
     }
+    // Any wording decision replaces an earlier confirmed acceptance.
+    delete state.userConfirmed;
     const clarification = fact.clarification;
     const original = originals.get(fact.provenance.profileFactId);
     if (
@@ -289,14 +318,32 @@ export function applyReview(
       state.wording = 'reviewed_profile';
       if (fact.proposedWording) state.proposal = 'rejected';
     } else {
-      if (
-        !fact.proposedWording ||
-        (op.action === 'accept' && fact.proposedWording.requiresConfirmation)
-      )
+      if (!fact.proposedWording)
         throw new TailoredDraftError('CV_DRAFT_INVALID_REQUEST');
+      const wording = fact.proposedWording;
+      if (op.action === 'accept') {
+        // A claim needing confirmation is accepted only with an explicit,
+        // exact confirmation of this claim and this suggestion text; a stale
+        // or mismatched confirmation, or one for an ordinary suggestion, fails.
+        const needs = !!wording.requiresConfirmation;
+        if (
+          needs
+            ? !op.confirmed ||
+              !wording.confirmationAssertion ||
+              op.confirmed.assertion !== wording.confirmationAssertion ||
+              op.confirmed.text !== wording.text
+            : op.confirmed !== undefined
+        )
+          throw new TailoredDraftError('CV_DRAFT_INVALID_REQUEST');
+        if (needs)
+          state.userConfirmed = {
+            assertion: wording.confirmationAssertion!,
+            confirmedAt: new Date().toISOString(),
+          };
+      }
       state.proposal = op.action === 'accept' ? 'accepted' : 'rejected';
       if (op.action === 'accept') {
-        fact.acceptedText = fact.proposedWording.text;
+        fact.acceptedText = wording.text;
         state.wording = 'ai_accepted';
       } else {
         const original = originals.get(fact.provenance.profileFactId);

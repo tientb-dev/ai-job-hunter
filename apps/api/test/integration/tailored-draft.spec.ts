@@ -616,11 +616,110 @@ test('flagged AI wording stays visible and cannot be accepted without a user-aut
     'Led 500 production Kubernetes',
   );
   expect(flagged.acceptedText).not.toContain('Led 500 production Kubernetes');
+  // The model's note comes first; deterministic findings are added to it.
   expect(flagged.proposedWording?.confirmationAssertion).toBe(
-    'Led 500 production Kubernetes systems.',
+    'Led 500 production Kubernetes systems. Số liệu chưa có trong CV: 500. Chi tiết lấy từ dòng khác của mục này: production',
   );
   expect(flagged.clarification).toBeUndefined();
   expect(response.body.generationMetadata.locale).toBe('vi');
+});
+test('a confirmed claim reaches the saved draft, approval and both exports only after explicit confirmation', async () => {
+  await ready();
+  mode = 'unsafe';
+  const generated = await post().expect(201);
+  const id = generated.body.id as string;
+  const doc = generated.body
+    .document as import('../../src/tailored-cv/tailored-draft.contract.js').TailoredDraftDocument;
+  const facts = doc.sections.flatMap((s) => s.entries.flatMap((e) => e.facts));
+  const flagged = facts.find((f) => f.proposedWording?.requiresConfirmation)!;
+  const wording = flagged.proposedWording!;
+  const review = (operations: unknown[], owner_ = owner) =>
+    drafts.review(owner_, id, { ...v, expectedRevision: 1, operations });
+  const others = [
+    ...facts
+      .filter((f) => f.proposedWording && f.id !== flagged.id)
+      .map((f) => ({ action: 'reject', factId: f.id })),
+    ...doc.reviewIssues.flatMap((issue, i) =>
+      issue.code === 'SEMANTIC_REVIEW_REQUIRED'
+        ? []
+        : [{ action: 'acknowledge', issueIndex: i }],
+    ),
+  ];
+  // Without confirmation, or with a stale suggestion text: refused.
+  await expect(
+    review([...others, { action: 'accept', factId: flagged.id }]),
+  ).rejects.toMatchObject({ errorCode: 'CV_DRAFT_INVALID_REQUEST' });
+  const confirmed = {
+    assertion: wording.confirmationAssertion!,
+    text: wording.text,
+  };
+  await expect(
+    review([
+      ...others,
+      {
+        action: 'accept',
+        factId: flagged.id,
+        confirmed: { ...confirmed, text: `${wording.text} (edited)` },
+      },
+    ]),
+  ).rejects.toMatchObject({ errorCode: 'CV_DRAFT_INVALID_REQUEST' });
+  // Another owner cannot apply it.
+  await expect(
+    drafts.review(randomUUID(), id, {
+      ...v,
+      expectedRevision: 1,
+      operations: [{ action: 'accept', factId: flagged.id, confirmed }],
+    }),
+  ).rejects.toMatchObject({ errorCode: 'CV_DRAFT_NOT_FOUND' });
+  expect((await drafts.get(owner, id)).revision).toBe(1);
+  const saved = await review([
+    ...others,
+    { action: 'accept', factId: flagged.id, confirmed },
+  ]);
+  expect(saved.revision).toBe(2);
+  expect(saved.document.review.factReviews[flagged.id]).toMatchObject({
+    wording: 'ai_accepted',
+    proposal: 'accepted',
+    userConfirmed: { assertion: confirmed.assertion },
+  });
+  const accepted = saved.document.sections
+    .flatMap((s) => s.entries.flatMap((e) => e.facts))
+    .find((f) => f.id === flagged.id)!;
+  expect(accepted.acceptedText).toBe(wording.text);
+  // Approval must list the confirmed, AI-worded fact.
+  await expect(
+    drafts.review(
+      owner,
+      id,
+      { ...v, expectedRevision: 2, reviewedFactIds: [] },
+      true,
+    ),
+  ).rejects.toBeDefined();
+  const approved = await drafts.review(
+    owner,
+    id,
+    { ...v, expectedRevision: 2, reviewedFactIds: [flagged.id] },
+    true,
+  );
+  const { TailoredCvExportService } =
+    await import('../../src/tailored-cv/tailored-cv-export.js');
+  const exporter = app.get(TailoredCvExportService);
+  const docx = await exporter.export(owner, id, {
+    ...v,
+    expectedRevision: approved.revision,
+    format: 'docx',
+  });
+  const { default: mammoth } = await import('mammoth');
+  expect(
+    (await mammoth.extractRawText({ buffer: docx.buffer })).value,
+  ).toContain('Led 500 production Kubernetes systems.');
+  const pdf = await exporter.export(owner, id, {
+    ...v,
+    expectedRevision: approved.revision,
+    format: 'pdf',
+  });
+  expect(pdf.mime).toBe('application/pdf');
+  expect(pdf.buffer.length).toBeGreaterThan(1000);
 });
 test.each(['stale-job', 'stale-profile', 'stale-cv', 'stale-match'] as const)(
   '%s during inference rolls back without a draft',

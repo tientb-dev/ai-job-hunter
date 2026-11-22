@@ -217,6 +217,7 @@ function EntryView({ kind, facts }: { kind: string; facts: DraftFact[] }) {
     const values = facts.filter((f) => f.field !== 'skill_category');
     return (
       <Box
+        data-cv-skills
         sx={{
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', sm: '180px minmax(0, 1fr)' },
@@ -240,6 +241,7 @@ function EntryView({ kind, facts }: { kind: string; facts: DraftFact[] }) {
           row.style === 'anchor' ? (
             <Stack
               key={row.id}
+              data-cv-anchor
               direction={{ xs: 'column', sm: 'row' }}
               spacing={{ xs: 0, sm: 2 }}
               sx={{ justifyContent: 'space-between', pt: 0.5 }}
@@ -318,6 +320,9 @@ const templateSx: Record<
     contact: {},
   },
   // Header band and headings in a left column, as in the PDF.
+  // Columns follow the preview's own width (container queries), not the
+  // viewport: beside the suggestions panel the preview is narrow even on a
+  // wide screen, and fixed side columns squeezed titles to a few letters.
   modern: {
     paper: {
       ...cvPaper,
@@ -325,19 +330,38 @@ const templateSx: Record<
       bgcolor: '#ffffff',
       color: '#1e2329',
       fontFamily: '"DejaVu Sans", Roboto, Arial, sans-serif',
+      containerType: 'inline-size',
+      containerName: 'cv-modern',
+      // Title and dates share a line only while the title keeps ~12rem.
+      '& [data-cv-anchor]': { flexWrap: 'wrap', columnGap: 2 },
+      '& [data-cv-anchor] > *': { ml: '0 !important' },
+      // Row layout starts at the sm breakpoint (600px), like the Stack below.
+      '@media (min-width: 600px)': {
+        '& [data-cv-anchor] > :first-of-type': { flex: '1 1 12rem' },
+      },
+      '& [data-cv-skills]': { gridTemplateColumns: '1fr' },
+      '@container cv-modern (min-width: 760px)': {
+        '& [data-cv-skills]': {
+          gridTemplateColumns: '180px minmax(0, 1fr)',
+        },
+      },
     },
     heading: {
       color: '#1f4e79',
       textTransform: 'uppercase',
       letterSpacing: '0.04em',
-      mb: { xs: 1, sm: 0 },
+      mb: 1,
+      '@container cv-modern (min-width: 640px)': { mb: 0 },
     },
     section: {
       display: 'grid',
-      gridTemplateColumns: { xs: '1fr', sm: '150px minmax(0, 1fr)' },
+      gridTemplateColumns: '1fr',
       columnGap: 2,
       borderTop: '2px solid #1f4e79',
       pt: 1,
+      '@container cv-modern (min-width: 640px)': {
+        gridTemplateColumns: '150px minmax(0, 1fr)',
+      },
     },
     contact: {
       // Stack resets child margins, so the bleed to the paper edge needs !important.

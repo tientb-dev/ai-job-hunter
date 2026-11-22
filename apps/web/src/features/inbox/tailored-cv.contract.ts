@@ -107,7 +107,13 @@ export type ClarificationOperation =
     };
 export type DraftOperation =
   | { action: 'edit'; factId: string; text: string }
-  | { action: 'accept' | 'reject' | 'restore'; factId: string }
+  | {
+      action: 'accept';
+      factId: string;
+      /** Exact claim and suggestion the user confirmed; checked by the API. */
+      confirmed?: { assertion: string; text: string };
+    }
+  | { action: 'reject' | 'restore'; factId: string }
   | { action: 'acknowledge'; issueIndex: number }
   | { action: 'include'; factId: string; included: boolean };
 const object = (x: unknown): x is Record<string, unknown> =>

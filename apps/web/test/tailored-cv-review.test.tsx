@@ -465,10 +465,23 @@ test('downloads use exact saved approval, errors retain work, and inclusion chan
   fireEvent.click(screen.getByRole('button', { name: 'Approve saved draft' }));
   await screen.findByText('This saved draft revision is approved.');
   await closeSuccess();
+  // PDF first and primary; DOCX second and outlined.
+  const buttons = within(
+    screen.getByLabelText('Download approved CV'),
+  ).getAllByRole('button');
+  expect(buttons.map((b) => b.textContent)).toEqual([
+    'Download PDF',
+    'Download DOCX',
+  ]);
+  expect(buttons[0]).toHaveClass('MuiButton-contained');
+  expect(buttons[1]).toHaveClass('MuiButton-outlined');
   fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
-  await screen.findByText('PDF download prepared from approved revision 3.');
-  await closeSuccess();
-  expect(click).toHaveBeenCalledOnce();
+  await waitFor(() => expect(click).toHaveBeenCalledOnce());
+  // Starting a download is not reported as a success.
+  expect(
+    document.querySelector('[aria-labelledby="notification-success-title"]'),
+  ).toBeNull();
+  expect(screen.queryByText(/download prepared/)).toBeNull();
   const call = state.fetch.mock.calls.find(([url]) => url.endsWith('/export'))!;
   expect(JSON.parse(call[1]!.body as string)).toEqual({
     contractVersion: '1',
@@ -936,14 +949,26 @@ test('shows an AI question and job context while blocking verbatim acceptance of
     explanation:
       'An observed result would strengthen the performance evidence.',
   };
-  setup(draft);
+  const state = setup(draft);
   await open();
-  expect(
-    screen.getByRole('button', { name: /^Accept suggestion for/ }),
-  ).toBeDisabled();
+  // Accept needs an explicit, unticked-by-default confirmation of the claim.
+  const accept = screen.getByRole('button', {
+    name: /^Confirm and accept suggestion for/,
+  });
+  const confirm = screen.getByRole('checkbox', {
+    name: 'I confirm this information is true to my actual experience.',
+  });
+  expect(confirm).not.toBeChecked();
+  expect(accept).toBeDisabled();
   expect(
     screen.getByRole('button', { name: /^Keep original for/ }),
   ).toBeEnabled();
+  expect(
+    screen.getByText('Detail to check: Query response time improved by 50%.'),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(/use Edit wording to remove or correct/),
+  ).toBeVisible();
   expect(screen.getByText(fact.clarification.question!)).toBeInTheDocument();
   expect(
     screen.getByText(/Query response time improved by 50%/),
@@ -957,6 +982,23 @@ test('shows an AI question and job context while blocking verbatim acceptance of
   expect(
     screen.getByRole('textbox', { name: 'Your factual detail' }),
   ).toBeInTheDocument();
+  fireEvent.click(confirm);
+  expect(accept).toBeEnabled();
+  fireEvent.click(accept);
+  fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+  await waitFor(() => {
+    const review = state.fetch.mock.calls.find(([url]) =>
+      String(url).endsWith('/review'),
+    );
+    expect(JSON.parse(review![1]!.body as string).operations).toContainEqual({
+      action: 'accept',
+      factId: fact.id,
+      confirmed: {
+        assertion: 'Query response time improved by 50%.',
+        text: 'Improved prototype query response time by 50%.',
+      },
+    });
+  });
 });
 
 test('locale switching keeps historical flags and saved AI content while translating fixed labels', async () => {
@@ -974,12 +1016,15 @@ test('locale switching keeps historical flags and saved AI content while transla
   };
   const state = setup(draft);
   await open();
-  const accept = screen.getByRole('button', { name: /^Accept suggestion for/ });
+  // Flagged without a stated claim: nothing to confirm, so accept stays off.
+  const accept = screen.getByRole('button', {
+    name: /^Confirm and accept suggestion for/,
+  });
   expect(accept).toBeDisabled();
   const requests = state.fetch.mock.calls.length;
   act(() => setLocale('vi-VN'));
   expect(accept).toBeDisabled();
-  expect(accept).not.toHaveTextContent('Accept suggestion');
+  expect(accept).toHaveTextContent('Xác nhận và chấp nhận');
   expect(screen.getByText(fact.proposedWording!.text)).toBeInTheDocument();
   expect(screen.getByText('Saved rationale in English.')).toBeInTheDocument();
   expect(screen.getByText('Saved question in English?')).toBeInTheDocument();
@@ -1030,9 +1075,19 @@ const templateBodies = (fetch: ReturnType<typeof setup>['fetch']) =>
   fetch.mock.calls
     .filter(([url]) => String(url).endsWith('/template'))
     .map(([, init]) => JSON.parse((init as RequestInit).body as string));
+// The non-wizard selector sits above the shared preview, inside its disclosure.
+async function openTemplates() {
+  if (!screen.queryByRole('radio', { name: /^Classic/ }))
+    fireEvent.click(screen.getByText('Preview edited CV'));
+  await screen.findByRole('radio', { name: /^Classic/ });
+}
 async function pickTemplate(name: RegExp) {
-  fireEvent.mouseDown(screen.getByRole('combobox', { name: 'CV template' }));
-  fireEvent.click(await screen.findByRole('option', { name }));
+  await openTemplates();
+  fireEvent.click(screen.getByRole('radio', { name }));
+}
+async function selectedTemplate(name: RegExp) {
+  await openTemplates();
+  return screen.getByRole('radio', { name });
 }
 
 test.each([
@@ -1046,9 +1101,7 @@ test.each([
     else delete (draft as Partial<typeof draft>).exportTemplate;
     setup(draft);
     await open();
-    expect(
-      screen.getByRole('combobox', { name: 'CV template' }),
-    ).toHaveTextContent(label);
+    expect(await selectedTemplate(label)).toBeChecked();
   },
 );
 
@@ -1075,9 +1128,7 @@ test('changing the template saves it once without a review save, and PDF uses it
   await waitFor(() =>
     expect(screen.queryByText('Saving template…')).not.toBeInTheDocument(),
   );
-  expect(
-    screen.getByRole('combobox', { name: 'CV template' }),
-  ).toHaveTextContent(/^Compact/);
+  expect(await selectedTemplate(/^Compact/)).toBeChecked();
   expect(reviewCalls()).toBe(before);
   expect(screen.getByLabelText('About the downloaded CV')).toHaveTextContent(
     'PDF template: Compact · DOCX template: Classic.',
@@ -1097,9 +1148,7 @@ test('a failed template save returns to the saved template and says so', async (
     ),
   ).toBeVisible();
   await acknowledge();
-  expect(
-    screen.getByRole('combobox', { name: 'CV template' }),
-  ).toHaveTextContent(/^Classic/);
+  expect(await selectedTemplate(/^Classic/)).toBeChecked();
 });
 
 test('rapid template changes are saved in order and end on the latest choice', async () => {
@@ -1137,9 +1186,7 @@ test('rapid template changes are saved in order and end on the latest choice', a
   await waitFor(() =>
     expect(screen.queryByText('Saving template…')).not.toBeInTheDocument(),
   );
-  expect(
-    screen.getByRole('combobox', { name: 'CV template' }),
-  ).toHaveTextContent(/^Compact/);
+  expect(await selectedTemplate(/^Compact/)).toBeChecked();
 });
 
 test('PDF download waits for the template save; DOCX stays available; a failed save restores the saved template', async () => {
@@ -1195,9 +1242,136 @@ test('PDF download waits for the template save; DOCX stays available; a failed s
   ).toBeVisible();
   await acknowledge();
   expect(pdf).toBeEnabled();
-  expect(
-    screen.getByRole('combobox', { name: 'CV template' }),
-  ).toHaveTextContent(/^Modern/);
+  expect(await selectedTemplate(/^Modern/)).toBeChecked();
   // Template saves never touch the draft content, revision or approval.
   expect(state.saved()).toEqual(approved);
+});
+
+const okTemplate = (template: string) =>
+  Promise.resolve(
+    Response.json({
+      contractVersion: '1',
+      id: tailoredDraftFixture().id,
+      exportTemplate: template,
+    }),
+  );
+const previews = () => [...document.querySelectorAll('[data-template]')];
+
+test('non-wizard: one selector above the shared preview, which updates in place without scrolling', async () => {
+  const state = setup();
+  withTemplateApi(state.fetch, okTemplate);
+  await open();
+  const user = userEvent.setup();
+  const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  const intoView = vi.fn();
+  Element.prototype.scrollIntoView = intoView;
+  await openTemplates();
+  expect(screen.getAllByRole('group', { name: 'CV template' })).toHaveLength(1);
+  const [preview] = previews();
+  expect(preview).toHaveAttribute('data-template', 'classic');
+  // The selector comes before the preview it controls.
+  expect(
+    screen
+      .getByRole('group', { name: 'CV template' })
+      .compareDocumentPosition(preview!) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  for (const [name, value] of [
+    [/^Modern/, 'modern'],
+    [/^Compact/, 'compact'],
+    [/^Classic/, 'classic'],
+  ] as const) {
+    await user.click(screen.getByRole('radio', { name }));
+    expect(screen.getByRole('radio', { name })).toHaveFocus();
+    expect(previews()).toEqual([preview]); // same node: no remount
+    expect(preview).toHaveAttribute('data-template', value);
+  }
+  expect(scrollTo).not.toHaveBeenCalled();
+  expect(intoView).not.toHaveBeenCalled();
+  // Still the draft's content, not placeholder data.
+  expect(
+    within(preview as HTMLElement).getByText('Assisted a team prototype only.'),
+  ).toBeInTheDocument();
+  scrollTo.mockRestore();
+});
+
+test.each([2, 3])(
+  'wizard Step %i shows one selector and its preview follows the choice',
+  async (step) => {
+    const state = setup(tailoredDraftFixture(), step);
+    withTemplateApi(state.fetch, okTemplate);
+    const group = await screen.findByRole('group', { name: 'CV template' });
+    expect(screen.getAllByRole('group', { name: 'CV template' })).toHaveLength(
+      1,
+    );
+    const visible = () =>
+      previews().filter((node) => !node.closest('[hidden]'));
+    expect(visible()).toHaveLength(1);
+    fireEvent.click(within(group).getByRole('radio', { name: /^Modern/ }));
+    expect(visible()[0]).toHaveAttribute('data-template', 'modern');
+    await waitFor(() =>
+      expect(templateBodies(state.fetch)).toEqual([
+        { contractVersion: '1', template: 'modern' },
+      ]),
+    );
+  },
+);
+
+test('Step 3 PDF preview: the previous PDF stays while loading and a late response for an older choice never replaces the newer one', async () => {
+  const draft = tailoredDraftFixture();
+  draft.document.review.approval = {
+    revision: draft.revision,
+    approvedAt: draft.updatedAt,
+  };
+  const state = setup(draft, 3);
+  withTemplateApi(state.fetch, okTemplate);
+  const exports: Record<string, (r: Response) => void> = {};
+  const base = state.fetch.getMockImplementation()!;
+  state.fetch.mockImplementation(async (url: string, init?: RequestInit) => {
+    if (!url.endsWith('/export')) return base(url, init);
+    const template = JSON.parse(init!.body as string).template as string;
+    return new Promise<Response>((resolve) => {
+      exports[template] = resolve;
+    });
+  });
+  const urls = new Map<Blob, string>();
+  vi.stubGlobal(
+    'URL',
+    Object.assign(URL, {
+      createObjectURL: vi.fn((blob: Blob) => {
+        const url = `blob:${urls.size}`;
+        urls.set(blob, url);
+        return url;
+      }),
+      revokeObjectURL: vi.fn(),
+    }),
+  );
+  const pdf = (template: string) =>
+    new Response(new Blob([template], { type: 'application/pdf' }), {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${template}.pdf"`,
+      },
+    });
+  await waitFor(() => expect(exports.classic).toBeDefined());
+  act(() => exports.classic!(pdf('classic')));
+  const frame = await screen.findByTitle('PDF preview');
+  const first = frame.getAttribute('src');
+  const group = screen.getByRole('group', { name: 'CV template' });
+  fireEvent.click(within(group).getByRole('radio', { name: /^Modern/ }));
+  await waitFor(() => expect(exports.modern).toBeDefined());
+  fireEvent.click(within(group).getByRole('radio', { name: /^Compact/ }));
+  await waitFor(() => expect(exports.compact).toBeDefined());
+  // While loading, the last PDF stays in the same frame with a progress bar.
+  expect(screen.getByTitle('PDF preview')).toBe(frame);
+  expect(frame).toHaveAttribute('src', first);
+  expect(
+    screen.getByRole('progressbar', { name: 'Generating PDF preview' }),
+  ).toBeVisible();
+  act(() => exports.compact!(pdf('compact')));
+  await waitFor(() => expect(frame.getAttribute('src')).not.toBe(first));
+  const compact = frame.getAttribute('src');
+  act(() => exports.modern!(pdf('modern')));
+  await new Promise((r) => setTimeout(r, 20));
+  expect(frame).toHaveAttribute('src', compact);
+  expect(screen.getByRole('radio', { name: /^Compact/ })).toBeChecked();
 });

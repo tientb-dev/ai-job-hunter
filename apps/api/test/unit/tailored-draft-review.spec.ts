@@ -387,7 +387,7 @@ test('confirmed detail and rewrite coexist until an explicit replacement', () =>
       proposals: [
         {
           factId: 'java',
-          text: 'To simplify weekly handoffs, automated campaign reporting.',
+          text: 'Automated the weekly campaign report so the sales handoff no longer needed manual exports.',
           requirementIds: [],
         },
       ],
@@ -459,4 +459,132 @@ test('confirmed detail and rewrite coexist until an explicit replacement', () =>
   expect(() =>
     approveReview(replaced, ['java'], 5, '2026-11-20'),
   ).not.toThrow();
+});
+
+test('a suggestion needing confirmation is accepted only with an exact, current confirmation of its claim', () => {
+  const { doc, originals } = fixture();
+  const fact = doc.sections
+    .flatMap((s) => s.entries.flatMap((e) => e.facts))
+    .find((f) => f.id === 'java')!;
+  fact.proposedWording = {
+    text: 'Java (5 years), Python',
+    requirementIds: [],
+    status: 'pending',
+    requiresConfirmation: true,
+    confirmationAssertion: 'Five years of Java experience.',
+  };
+  const confirmed = {
+    assertion: 'Five years of Java experience.',
+    text: 'Java (5 years), Python',
+  };
+  const reject = (op: unknown) =>
+    expect(() =>
+      applyReview(
+        doc,
+        [op as Parameters<typeof applyReview>[1][number]],
+        originals,
+      ),
+    ).toThrow(
+      expect.objectContaining({ errorCode: 'CV_DRAFT_INVALID_REQUEST' }),
+    );
+  // No confirmation, a different claim, or stale text: still refused.
+  reject({ action: 'accept', factId: 'java' });
+  reject({
+    action: 'accept',
+    factId: 'java',
+    confirmed: { ...confirmed, assertion: 'Three years of Java experience.' },
+  });
+  reject({
+    action: 'accept',
+    factId: 'java',
+    confirmed: { ...confirmed, text: 'Java (3 years), Python' },
+  });
+  const accepted = applyReview(
+    doc,
+    [{ action: 'accept', factId: 'java', confirmed }],
+    originals,
+  );
+  const state = accepted.review!.factReviews.java!;
+  expect(state).toMatchObject({
+    wording: 'ai_accepted',
+    proposal: 'accepted',
+    userConfirmed: { assertion: 'Five years of Java experience.' },
+  });
+  expect(Date.parse(state.userConfirmed!.confirmedAt)).not.toBeNaN();
+  const get = (d: typeof doc) =>
+    d.sections
+      .flatMap((s) => s.entries.flatMap((e) => e.facts))
+      .find((f) => f.id === 'java')!;
+  expect(get(accepted).acceptedText).toBe('Java (5 years), Python');
+  // Accepted wording is user-reviewed content: approval must list it.
+  expect(() =>
+    approveReview(accepted, [], 2, new Date().toISOString()),
+  ).toThrow();
+  expect(
+    approveReview(accepted, ['java'], 2, new Date().toISOString()).review!
+      .approval,
+  ).toEqual(expect.objectContaining({ revision: 2 }));
+  // Any later wording decision drops the confirmation.
+  for (const op of [
+    { action: 'reject', factId: 'java' },
+    { action: 'edit', factId: 'java', text: 'Java, Python' },
+    { action: 'restore', factId: 'java' },
+  ] as const) {
+    const next = applyReview(accepted, [op], originals);
+    expect(next.review!.factReviews.java!.userConfirmed).toBeUndefined();
+  }
+  // Keep original and edit remain available without any confirmation.
+  expect(
+    applyReview(doc, [{ action: 'reject', factId: 'java' }], originals).review!
+      .factReviews.java!.proposal,
+  ).toBe('rejected');
+});
+
+test('an ordinary suggestion rejects a confirmation payload; malformed confirmations fail parsing', () => {
+  const { doc, originals } = fixture();
+  expect(() =>
+    applyReview(
+      doc,
+      [
+        {
+          action: 'accept',
+          factId: 'java',
+          confirmed: { assertion: 'x', text: 'Java, Python' },
+        },
+      ],
+      originals,
+    ),
+  ).toThrow(expect.objectContaining({ errorCode: 'CV_DRAFT_INVALID_REQUEST' }));
+  const body = (confirmed: unknown) => ({
+    contractVersion: '1',
+    expectedRevision: 1,
+    operations: [{ action: 'accept', factId: 'java', confirmed }],
+  });
+  expect(reviewRequest(body({ assertion: 'a', text: 'b' })).operations).toEqual(
+    [
+      {
+        action: 'accept',
+        factId: 'java',
+        confirmed: { assertion: 'a', text: 'b' },
+      },
+    ],
+  );
+  for (const bad of [
+    true,
+    { assertion: 'a' },
+    { assertion: '', text: 'b' },
+    { assertion: 'a', text: 'b', extra: 1 },
+    { assertion: 'a'.repeat(2001), text: 'b' },
+  ])
+    expect(() => reviewRequest(body(bad))).toThrow(
+      expect.objectContaining({ errorCode: 'CV_DRAFT_INVALID_REQUEST' }),
+    );
+  // Only accept carries a confirmation.
+  expect(() =>
+    reviewRequest({
+      contractVersion: '1',
+      expectedRevision: 1,
+      operations: [{ action: 'reject', factId: 'java', confirmed: {} }],
+    }),
+  ).toThrow(expect.objectContaining({ errorCode: 'CV_DRAFT_INVALID_REQUEST' }));
 });

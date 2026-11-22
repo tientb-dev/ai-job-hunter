@@ -58,7 +58,6 @@ import {
   FormControlLabel,
   LinearProgress,
   Link,
-  MenuItem,
   Paper,
   Stack,
   TextField,
@@ -68,7 +67,6 @@ import {
 } from '@mui/material';
 import {
   decodeDraft,
-  CV_TEMPLATES,
   downloadDraft,
   draftRequest,
   fetchDraftFile,
@@ -80,13 +78,8 @@ import {
   type SavedDraft,
 } from './tailored-cv.contract';
 import { decodeCvProfile, decodeCvSource } from './source-cv-review.contract';
+import { TemplateCards } from './TemplateCards';
 
-const templateLabel = (t: CvTemplate) =>
-  t === 'modern'
-    ? tr('Modern — header band, headings in a side column')
-    : t === 'compact'
-      ? tr('Compact — centred header, denser, fits more per page')
-      : tr('Classic — single column, simple headings');
 const templateName = (t: CvTemplate) =>
   t === 'modern'
     ? tr('Modern')
@@ -680,28 +673,15 @@ export function TailoredCvReview({
     sync.desired = next;
     void flushTemplate(saved.id);
   }
-  const templatePicker = (
-    <TextField
-      select
-      size="small"
-      label={tr('CV template')}
+  // One selector above the shared preview; choosing updates it in place.
+  const templatePicker = (approximatePreview: boolean) => (
+    <TemplateCards
       value={template}
-      onChange={(e) => chooseTemplate(e.target.value as CvTemplate)}
-      helperText={
-        templateSaving
-          ? tr('Saving template…')
-          : tr(
-              'Applies to the preview and the PDF. DOCX keeps the Classic layout.',
-            )
-      }
-      sx={{ maxWidth: 360 }}
-    >
-      {CV_TEMPLATES.map((t) => (
-        <MenuItem key={t} value={t}>
-          {templateLabel(t)}
-        </MenuItem>
-      ))}
-    </TextField>
+      onChange={chooseTemplate}
+      saving={templateSaving}
+      disabled={blocked}
+      approximatePreview={approximatePreview}
+    />
   );
   const finalPreview = wizardStep === 3 && document && hasCvContent && (
     <Stack
@@ -1371,20 +1351,16 @@ export function TailoredCvReview({
         manuallyEdited={state.wording === 'user_edited'}
         where={where}
         why={proposalExplanation(fact)}
-        requiresConfirmation={fact.proposedWording!.requiresConfirmation}
+        requiresConfirmation={
+          // Without a stated claim there is nothing to confirm: edit or keep.
+          !!fact.proposedWording!.requiresConfirmation
+        }
+        confirmationAssertion={
+          fact.proposedWording!.confirmationAssertion ?? undefined
+        }
         needsCheck={
           fact.proposedWording!.requiresConfirmation
-            ? [
-                fact.proposedWording!.confirmationAssertion,
-                fact.clarification &&
-                !fact.proposedWording!.confirmationAssertion
-                  ? tr(
-                      'Keep the original and use Evidence Enrichment to confirm and include the detail, or edit the wording yourself.',
-                    )
-                  : tr('Keep the original or edit the wording yourself.'),
-              ]
-                .filter(Boolean)
-                .join(' ')
+            ? fact.proposedWording!.confirmationAssertion
             : checkReasons.join(' ') || undefined
         }
         reviewNote={
@@ -1395,9 +1371,21 @@ export function TailoredCvReview({
         }
         evidence={evidenceFor(fact)}
         disabled={blocked}
-        onDecision={(action) => {
+        onDecision={(action, confirmed) => {
           const wasPending = state.proposal === 'pending';
-          queue({ action, factId: fact.id });
+          const wording = fact.proposedWording!;
+          queue(
+            action === 'accept' && confirmed && wording.confirmationAssertion
+              ? {
+                  action,
+                  factId: fact.id,
+                  confirmed: {
+                    assertion: wording.confirmationAssertion,
+                    text: wording.text,
+                  },
+                }
+              : { action, factId: fact.id },
+          );
           if (isWizard && wasPending) advanceFrom(fact.id);
         }}
       />
@@ -2281,7 +2269,7 @@ export function TailoredCvReview({
                         )}
               </Alert>
             )}
-          {wizardStep === 3 && templatePicker}
+          {wizardStep === 3 && templatePicker(!approvedUnchanged)}
           {finalPreview}
           <Paper
             variant="outlined"
@@ -2305,7 +2293,6 @@ export function TailoredCvReview({
                   </Alert>
                 ))}
               {isWizard && renderApproval(document, saved)}
-              {!isWizard && templatePicker}
               <Alert severity="info" aria-label={tr('About the downloaded CV')}>
                 <AlertTitle>
                   {tr('Edited CV uses a system template')}
@@ -2321,15 +2308,12 @@ export function TailoredCvReview({
                 spacing={1}
                 aria-label={tr('Download approved CV')}
               >
-                {(['docx', 'pdf'] as const).map((format) => (
+                {/* PDF is the primary export; DOCX is the editable secondary. */}
+                {(['pdf', 'docx'] as const).map((format) => (
                   <Button
                     startIcon={<DownloadIcon />}
                     key={format}
-                    variant={
-                      isWizard && approvedUnchanged && format === 'docx'
-                        ? 'contained'
-                        : 'outlined'
-                    }
+                    variant={format === 'pdf' ? 'contained' : 'outlined'}
                     disabled={
                       blocked ||
                       dirty ||
@@ -2348,16 +2332,8 @@ export function TailoredCvReview({
                             () => token === epoch.current,
                             template,
                           );
-                          if (token === epoch.current)
-                            setMessage(
-                              tr(
-                                '{v0} download prepared from approved revision {revision}.',
-                                {
-                                  v0: format.toUpperCase(),
-                                  revision: saved.revision,
-                                },
-                              ),
-                            );
+                          // No success popup: starting a download does not
+                          // prove the file was saved. Failures still show.
                         } finally {
                           if (token === epoch.current) setExporting(null);
                         }
@@ -2393,6 +2369,7 @@ export function TailoredCvReview({
               </Typography>
               {previewOpen && (
                 <Stack spacing={1} sx={{ mt: 2 }}>
+                  {templatePicker(true)}
                   <Typography variant="body2">
                     {tr(
                       'Content preview reflects your current wording and inclusion choices, including unsaved edits. Downloads require the saved, approved revision.',
@@ -2404,7 +2381,9 @@ export function TailoredCvReview({
             </Box>
           )}
           <Box hidden={wizardStep === 3}>
-            {wizardStep === 2 && <Box sx={{ mb: 2 }}>{templatePicker}</Box>}
+            {wizardStep === 2 && (
+              <Box sx={{ mb: 2 }}>{templatePicker(true)}</Box>
+            )}
             {docReview ? (
               <>
                 <Box
