@@ -146,9 +146,9 @@ test('initial generation needs no confirmation, shows progress, ignores double c
   fireEvent.click(button);
   fireEvent.click(button);
   expect(button).toBeDisabled();
-  expect(
+  expect(button.closest('.MuiPaper-root')).toContainElement(
     screen.getByRole('progressbar', { name: 'Generating interview questions' }),
-  ).toBeInTheDocument();
+  );
   expect(screen.queryByRole('dialog')).toBeNull();
   release({ body: { contractVersion: '1', set: created, partial: false } });
   expect(
@@ -246,6 +246,15 @@ test('regeneration requires confirmation, sends the active set, and keeps previo
   const list = screen.getByRole('list', { name: /^Questions from/u });
   expect(within(list).getAllByRole('listitem')).toHaveLength(5);
   expect(within(list).getByText('Prepared')).toBeInTheDocument();
+  // One heading per accordion (MUI's), and ids that aria-controls can resolve.
+  expect(
+    screen.getAllByRole('heading', { name: 'Previous question sets (1)' }),
+  ).toHaveLength(1);
+  const ids = [...document.querySelectorAll('[id]')].map((e) => e.id);
+  expect(ids.length).toBe(new Set(ids).size);
+  expect(
+    document.getElementById(summary.getAttribute('aria-controls')!),
+  ).toHaveAttribute('role', 'region');
 });
 
 test('JD changed since generation offers a new set but never regenerates automatically', async () => {
@@ -325,9 +334,13 @@ test('a generation failure keeps existing sets and allows a retry', async () => 
       name: 'Generate new set',
     }),
   );
-  expect(await screen.findByRole('alert')).toHaveTextContent(
-    'The AI took too long.',
-  );
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent('The AI took too long.');
+  expect(
+    screen
+      .getByRole('button', { name: 'Generate new set' })
+      .closest('.MuiPaper-root'),
+  ).toContainElement(alert);
   expect(
     screen.getByText('Set 1 question 1: how would you design it?'),
   ).toBeInTheDocument();

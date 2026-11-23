@@ -2429,7 +2429,9 @@ export function TailoredCvReview({
           )}
           <Box hidden={wizardStep === 3}>
             {wizardStep === 2 && (
-              <Box sx={{ mb: 2 }}>{templatePicker(true)}</Box>
+              <Paper variant="outlined" sx={{ mb: 2, p: { xs: 2, sm: 2.5 } }}>
+                {templatePicker(true)}
+              </Paper>
             )}
             {docReview ? (
               <>
@@ -2903,7 +2905,8 @@ export function TailoredCvReview({
                 queue({ action: 'order', entryId, decision })
               }
             />
-            <Box
+            <Paper
+              variant="outlined"
               component={noSuggestions && !docReview ? 'section' : 'details'}
               aria-labelledby="full-cv-title"
               {...(!(noSuggestions && !docReview) && {
@@ -2911,7 +2914,11 @@ export function TailoredCvReview({
                 onToggle: (event: React.ToggleEvent<HTMLDetailsElement>) =>
                   setCvOpen(event.currentTarget.open),
               })}
-              sx={{ mt: 2, '& > summary': { cursor: 'pointer', py: 1 } }}
+              sx={{
+                mt: 2,
+                p: { xs: 2, sm: 2.5 },
+                '& > summary': { cursor: 'pointer' },
+              }}
             >
               <Typography
                 id="full-cv-title"
@@ -2926,9 +2933,15 @@ export function TailoredCvReview({
                     })
                   : ''}
               </Typography>
-              <Paper
-                variant="outlined"
-                sx={{ p: { xs: 2, sm: 3 }, mt: 1, minWidth: 0 }}
+              {/* L2b inset: the CV reads as a document inside the section card. */}
+              <Box
+                sx={{
+                  p: { xs: 2, sm: 3 },
+                  mt: 1,
+                  minWidth: 0,
+                  bgcolor: 'background.default',
+                  borderRadius: 1,
+                }}
               >
                 <Stack spacing={3}>
                   {sortSections(document.sections)
@@ -3203,8 +3216,8 @@ export function TailoredCvReview({
                     </Typography>
                   )}
                 </Stack>
-              </Paper>
-            </Box>
+              </Box>
+            </Paper>
             {showEmptySuggestions && !docReview && (
               <Paper
                 component="aside"
@@ -3221,13 +3234,8 @@ export function TailoredCvReview({
               variant="outlined"
               component="section"
               aria-label={tr('Save and approve')}
-              hidden={
-                showEmptySuggestions &&
-                isWizard &&
-                !dirty &&
-                !error &&
-                !blockingIssues.length
-              }
+              // In the wizard every child below needs dirty, error or blocking issues.
+              hidden={isWizard && !dirty && !error && !blockingIssues.length}
               sx={{ p: { xs: 2, sm: 2.5 }, mt: 2 }}
             >
               <Stack spacing={1.5}>
@@ -3330,109 +3338,120 @@ export function TailoredCvReview({
                 {!isWizard && renderApproval(document, saved)}
               </Stack>
             </Paper>
-            {notes.length > 0 && (
-              <Box component="details">
-                <Typography component="summary">
-                  {tr('Review notes (')}
-                  {notes.length}
-                  {tr(') · no action needed')}
-                </Typography>
-                <Stack spacing={2} sx={{ mt: 1 }}>
-                  {(
-                    [
-                      ['handled', 'Handled by your decisions'],
-                      ['job', 'About this job match'],
-                    ] as const
-                  ).map(([kind, title]) => {
-                    const items = notes.filter((n) => n.kind === kind);
-                    if (!items.length) return null;
-                    return (
-                      <Box key={kind}>
-                        <Typography variant="subtitle2" component="h3">
-                          {tr(title)} ({items.length})
-                        </Typography>
-                        <Box
-                          component="ul"
-                          sx={{ m: 0, pl: 3, typography: 'body2' }}
-                        >
-                          {items.map((n) => (
-                            <li key={n.index}>{n.text}</li>
-                          ))}
-                        </Box>
-                      </Box>
-                    );
-                  })}
-                </Stack>
-              </Box>
-            )}
-            <Box component="details">
-              <Typography component="summary">
-                {tr('Recoverable source content')}
-              </Typography>
-              <Typography variant="body2">
-                {tr(
-                  'All unselected eligible facts remain in the CV above. Structural, superseded and excluded passages remain in the pinned source profile.',
+            <Paper
+              variant="outlined"
+              component="section"
+              aria-label={tr('Draft details')}
+              sx={{ mt: 2, p: { xs: 2, sm: 2.5 } }}
+            >
+              <Stack spacing={1.5} divider={<Divider />}>
+                {notes.length > 0 && (
+                  <Box component="details">
+                    <Typography component="summary">
+                      {tr('Review notes (')}
+                      {notes.length}
+                      {tr(') · no action needed')}
+                    </Typography>
+                    <Stack spacing={2} sx={{ mt: 1 }}>
+                      {(
+                        [
+                          ['handled', 'Handled by your decisions'],
+                          ['job', 'About this job match'],
+                        ] as const
+                      ).map(([kind, title]) => {
+                        const items = notes.filter((n) => n.kind === kind);
+                        if (!items.length) return null;
+                        return (
+                          <Box key={kind}>
+                            <Typography variant="subtitle2" component="h3">
+                              {tr(title)} ({items.length})
+                            </Typography>
+                            <Box
+                              component="ul"
+                              sx={{ m: 0, pl: 3, typography: 'body2' }}
+                            >
+                              {items.map((n) => (
+                                <li key={n.index}>{n.text}</li>
+                              ))}
+                            </Box>
+                          </Box>
+                        );
+                      })}
+                    </Stack>
+                  </Box>
                 )}
-              </Typography>
-              <Button
-                disabled={blocked}
-                onClick={() =>
-                  void run(async (token) => {
-                    const source = decodeCvSource(
-                      await draftRequest(
-                        `/sources/${document.pins.sourceRevisionId}/content`,
-                      ),
-                    );
-                    const profile = decodeCvProfile(
-                      await draftRequest(
-                        `/profile-revisions/${document.pins.profileRevisionId}`,
-                      ),
-                      source,
-                    );
-                    const retained = new Set(
-                      facts.map((f) => f.provenance.profileFactId),
-                    );
-                    const values = profile.document.sections.flatMap((s) =>
-                      s.entries.flatMap((e) =>
-                        e.facts
-                          .filter((f) => !retained.has(f.id))
-                          .map((f) => `${s.kind} · ${f.field}: ${f.value}`),
-                      ),
-                    );
-                    values.push(
-                      ...profile.document.coverage
-                        .filter((r) => r.disposition !== 'mapped')
-                        .map(
-                          (r) =>
-                            `${r.disposition}: ${source.text.slice(r.start, r.end)} — ${r.reason ?? ''}`,
-                        ),
-                    );
-                    if (token === epoch.current) setRecoverable(values);
-                  })
-                }
-              >
-                {tr('Show pinned recoverable passages')}
-              </Button>
-              {recoverable?.map((text, i) => (
-                <Typography key={i} sx={{ whiteSpace: 'pre-wrap', my: 1 }}>
-                  {text}
-                </Typography>
-              ))}
-              {recoverable?.length === 0 && (
-                <Typography>
-                  {tr('No additional passages outside accepted content.')}
-                </Typography>
-              )}
-            </Box>
-            <Box component="details">
-              <Typography component="summary">{tr('Draft details')}</Typography>
-              <Typography variant="body2" color="text.secondary">
-                {tr('Draft')} {saved.id.slice(0, 8)} {tr('· Pinned source')}{' '}
-                {document.pins.sourceRevisionId.slice(0, 8)}{' '}
-                {tr('· Profile revision')} {document.pins.profileRevision}{' '}
-                {tr('· Job snapshot')} {document.pins.jobUpdatedAt}
-              </Typography>
-            </Box>
+                <Box component="details">
+                  <Typography component="summary">
+                    {tr('Recoverable source content')}
+                  </Typography>
+                  <Typography variant="body2">
+                    {tr(
+                      'All unselected eligible facts remain in the CV above. Structural, superseded and excluded passages remain in the pinned source profile.',
+                    )}
+                  </Typography>
+                  <Button
+                    disabled={blocked}
+                    onClick={() =>
+                      void run(async (token) => {
+                        const source = decodeCvSource(
+                          await draftRequest(
+                            `/sources/${document.pins.sourceRevisionId}/content`,
+                          ),
+                        );
+                        const profile = decodeCvProfile(
+                          await draftRequest(
+                            `/profile-revisions/${document.pins.profileRevisionId}`,
+                          ),
+                          source,
+                        );
+                        const retained = new Set(
+                          facts.map((f) => f.provenance.profileFactId),
+                        );
+                        const values = profile.document.sections.flatMap((s) =>
+                          s.entries.flatMap((e) =>
+                            e.facts
+                              .filter((f) => !retained.has(f.id))
+                              .map((f) => `${s.kind} · ${f.field}: ${f.value}`),
+                          ),
+                        );
+                        values.push(
+                          ...profile.document.coverage
+                            .filter((r) => r.disposition !== 'mapped')
+                            .map(
+                              (r) =>
+                                `${r.disposition}: ${source.text.slice(r.start, r.end)} — ${r.reason ?? ''}`,
+                            ),
+                        );
+                        if (token === epoch.current) setRecoverable(values);
+                      })
+                    }
+                  >
+                    {tr('Show pinned recoverable passages')}
+                  </Button>
+                  {recoverable?.map((text, i) => (
+                    <Typography key={i} sx={{ whiteSpace: 'pre-wrap', my: 1 }}>
+                      {text}
+                    </Typography>
+                  ))}
+                  {recoverable?.length === 0 && (
+                    <Typography>
+                      {tr('No additional passages outside accepted content.')}
+                    </Typography>
+                  )}
+                </Box>
+                <Box component="details">
+                  <Typography component="summary">
+                    {tr('Draft details')}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {tr('Draft')} {saved.id.slice(0, 8)} {tr('· Pinned source')}{' '}
+                    {document.pins.sourceRevisionId.slice(0, 8)}{' '}
+                    {tr('· Profile revision')} {document.pins.profileRevision}{' '}
+                    {tr('· Job snapshot')} {document.pins.jobUpdatedAt}
+                  </Typography>
+                </Box>
+              </Stack>
+            </Paper>
           </Box>
         </>
       )}

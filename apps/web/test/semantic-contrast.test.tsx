@@ -108,13 +108,13 @@ test('server-unreachable warning keeps normal-text contrast', async () => {
   );
 });
 
-test('blue secondary buttons contrast with white cards and keep neutral actions distinct', () => {
+test('secondary buttons are neutral outlined, readable and distinct when disabled', () => {
   render(
     <ThemeProvider theme={theme}>
       <Button variant="outlined" color="secondary">
         Secondary action
       </Button>
-      <Button variant="outlined" color="secondary" disabled>
+      <Button variant="outlined" disabled>
         Unavailable action
       </Button>
       <Button variant="outlined">Neutral action</Button>
@@ -125,31 +125,29 @@ test('blue secondary buttons contrast with white cards and keep neutral actions 
   );
   const styles = (name: string) =>
     getComputedStyle(screen.getByRole('button', { name }));
+  const neutral = styles('Neutral action');
+  // Regression: outlined secondary used to render a light-blue tint and border.
   const secondary = styles('Secondary action');
+  expect(secondary.backgroundColor).toBe(neutral.backgroundColor);
+  expect(secondary.borderTopColor).toBe(neutral.borderTopColor);
+  expect(secondary.color).toBe(neutral.color);
   expect(
-    contrast(secondary.color, secondary.backgroundColor),
+    contrast(neutral.color, neutral.backgroundColor),
   ).toBeGreaterThanOrEqual(4.5);
-  expect(
-    contrast(secondary.borderTopColor, 'rgb(255, 255, 255)'),
-  ).toBeGreaterThanOrEqual(3);
-  expect(
-    contrast(secondary.borderTopColor, secondary.backgroundColor),
-  ).toBeGreaterThanOrEqual(3);
   const disabled = styles('Unavailable action');
-  expect(disabled.color).not.toBe(secondary.color);
+  expect(disabled.color).not.toBe(neutral.color);
   expect(
     contrast(disabled.color, disabled.backgroundColor),
   ).toBeGreaterThanOrEqual(4.5);
   for (const name of ['Neutral action', 'Destructive action']) {
-    const neutral = styles(name);
-    expect(neutral.backgroundColor).toBe('rgb(255, 255, 255)');
-    expect(neutral.borderTopColor).not.toBe(secondary.borderTopColor);
+    const button = styles(name);
+    expect(button.backgroundColor).toBe('rgb(255, 255, 255)');
     for (const surface of [
       'rgb(255, 255, 255)',
       'rgb(245, 248, 255)',
       'rgb(239, 244, 255)',
     ]) {
-      expect(contrast(neutral.borderTopColor, surface)).toBeGreaterThanOrEqual(
+      expect(contrast(button.borderTopColor, surface)).toBeGreaterThanOrEqual(
         3,
       );
     }

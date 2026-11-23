@@ -255,7 +255,7 @@ test('reviewed source and authoritative valid match enter Step 3 without analysi
   await screen.findByRole('heading', { name: 'Step 2 of 3 · Tailor & Review' });
   expect(state.analyses()).toBe(0);
   expect(
-    screen.getByText(/Saved match.*No new analysis is needed/),
+    screen.getByText(/Saved CV Match result.*No new analysis is needed/),
   ).toBeEnabled();
   expect(
     screen.getByRole('tab', { name: /Approve & Export.*Locked/ }),
@@ -293,17 +293,17 @@ test('Job Detail analysis is reused by wizard and wizard analysis is reflected o
     ).toBeEnabled(),
   );
   fireEvent.click(screen.getByRole('button', { name: 'Analyze CV Match' }));
-  await screen.findByText(/Saved match.*No new analysis is needed/);
+  await screen.findByText(/Saved CV Match result.*No new analysis is needed/);
   fireEvent.click(screen.getByRole('link', { name: /tailored CV$/ }));
   await screen.findByRole('heading', { name: 'Step 2 of 3 · Tailor & Review' });
   expect(state.analyses()).toBe(1);
   fireEvent.click(screen.getByRole('tab', { name: /Tailor & Review/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Reanalyze CV Match' }));
   await waitFor(() => expect(state.analyses()).toBe(2));
-  await screen.findByText(/Saved match.*No new analysis is needed/);
+  await screen.findByText(/Saved CV Match result.*No new analysis is needed/);
   await state.router.navigate(-1);
   await screen.findByRole('button', { name: 'Reanalyze CV Match' });
-  await screen.findByText(/Saved match.*No new analysis is needed/);
+  await screen.findByText(/Saved CV Match result.*No new analysis is needed/);
   expect(state.analyses()).toBe(2);
 });
 
@@ -420,7 +420,9 @@ test('a replacement from another view is adopted on focus without analysis', asy
   state.replace();
   fireEvent.focus(window);
   await screen.findByText(
-    (text) => text.startsWith('Saved match') && text.includes(replacementLabel),
+    (text) =>
+      text.startsWith('Saved CV Match result') &&
+      text.includes(replacementLabel),
   );
   expect(state.analyses()).toBe(0);
 });
@@ -436,7 +438,7 @@ test('valid match does not skip an incomplete source review', async () => {
     '/cv',
   );
   expect(
-    screen.getByText(/Saved match.*No new analysis is needed/),
+    screen.getByText(/Saved CV Match result.*No new analysis is needed/),
   ).toBeEnabled();
   expect(state.analyses()).toBe(0);
 });
@@ -456,7 +458,9 @@ test('replacement between current-match read and readiness is reread without ana
   await screen.findByRole('heading', { name: 'Step 2 of 3 · Tailor & Review' });
   fireEvent.click(screen.getByRole('tab', { name: /Tailor & Review/ }));
   await screen.findByText(
-    (text) => text.startsWith('Saved match') && text.includes(replacementLabel),
+    (text) =>
+      text.startsWith('Saved CV Match result') &&
+      text.includes(replacementLabel),
   );
   expect(state.analyses()).toBe(0);
 });
@@ -720,7 +724,7 @@ test('focus revalidation keeps saved workspace and completion labels stable whil
     name: 'Step 2 of 3 · Tailor & Review',
   });
   await screen.findByRole('tab', { name: /Source CV.*Complete/ });
-  await screen.findByText(/Saved match.*No new analysis is needed/);
+  await screen.findByText(/Saved CV Match result.*No new analysis is needed/);
   const lists = () =>
     state.fetch.mock.calls.filter(([url]) => url.endsWith('/drafts/list'))
       .length;
@@ -737,7 +741,7 @@ test('focus revalidation keeps saved workspace and completion labels stable whil
     screen.getByRole('heading', { name: 'Step 2 of 3 · Tailor & Review' }),
   ).toBe(heading);
   expect(
-    screen.getByText(/Saved match.*No new analysis is needed/),
+    screen.getByText(/Saved CV Match result.*No new analysis is needed/),
   ).toBeVisible();
   expect(
     screen.getByRole('tab', { name: /Source CV.*Complete/ }),
@@ -955,7 +959,9 @@ test('Step 2 leads with the open draft: compact match row, then draft, then the 
     within(summary).queryByLabelText(/Technical Evidence Coverage/),
   ).toBeNull();
   expect(
-    within(summary).getByText(/Saved match.*No new analysis is needed/),
+    within(summary).getByText(
+      /Saved CV Match result.*No new analysis is needed/,
+    ),
   ).toBeVisible();
   expect(
     within(summary).getByRole('link', { name: 'View full assessment' }),

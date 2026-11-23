@@ -47,11 +47,25 @@ import {
   CircularProgress,
   Chip,
   Collapse,
+  Divider,
   useMediaQuery,
   Paper,
   Stack,
   Typography,
 } from '@mui/material';
+// Disclosure headers: subtle hover and a visible keyboard ring, no resting fill.
+const disclosureSummarySx = {
+  borderRadius: 1,
+  transition: 'background-color 160ms ease-out',
+  '&:hover': { bgcolor: 'action.hover' },
+  '&.Mui-focusVisible': {
+    bgcolor: 'action.hover',
+    outline: '2px solid',
+    outlineColor: 'primary.main',
+    outlineOffset: -2,
+  },
+} as const;
+
 export function CvMatchSection({
   match,
   labelledBy,
@@ -85,11 +99,6 @@ export function CvMatchSection({
         !preAnalysis && (preferSecondary || savedHandoff)
           ? 'outlined'
           : 'contained'
-      }
-      color={
-        !preAnalysis && (preferSecondary || savedHandoff)
-          ? 'secondary'
-          : 'primary'
       }
       disableElevation
       loading={busy}
@@ -182,7 +191,8 @@ export function CvMatchSection({
             sx={
               preAnalysis
                 ? { bgcolor: 'transparent' }
-                : { p: 1.5, bgcolor: 'background.default' }
+                : // Saved state: grouped by the divider below, not a tinted box.
+                  { border: 0, bgcolor: 'transparent' }
             }
           >
             <Stack spacing={preAnalysis ? 2 : 1}>
@@ -331,7 +341,7 @@ export function CvMatchSection({
               )}
               {!busy && matchStatus === 'VALID' && (
                 <Typography role="status">
-                  {tr('Saved match')}
+                  {tr('Saved CV Match result')}
                   {result && validSourceDate(result.analyzedAt)
                     ? tr(' from {v0}', {
                         v0: new Date(result.analyzedAt).toLocaleString(
@@ -394,9 +404,10 @@ export function CvMatchSection({
               )}
             </Stack>
           </Paper>
+          {!preAnalysis && showFindings && <Divider />}
           {!showFindings && onGoToTailored && (
             <Button
-              variant="contained"
+              variant="outlined"
               endIcon={<ArrowForwardIcon />}
               onClick={onGoToTailored}
               sx={{ alignSelf: 'flex-start' }}
@@ -497,14 +508,16 @@ export function CvMatchSection({
           {!preAnalysis &&
             skillMatch &&
             (skillMatch.findings ? (
-              <Accordion disableGutters elevation={0} variant="outlined">
+              <Accordion disableGutters elevation={0}>
                 <AccordionSummary
-                  expandIcon={<span aria-hidden="true">⌄</span>}
+                  expandIcon={<ExpandMoreIcon />}
+                  sx={disclosureSummarySx}
                 >
                   {tr('Preliminary skill score and JD structure')}
                 </AccordionSummary>
                 <AccordionDetails>
                   <SkillMatchSummary
+                    embedded
                     match={skillMatch}
                     jobId={match.jobId}
                     onSaved={reload}
@@ -813,13 +826,16 @@ export function FindingsOverview({
             px: 2,
             py: 1.5,
             borderRadius: 0,
+            // White header open or closed; only the evidence-jump highlight tints it.
             bgcolor:
-              highlight === row.key
-                ? 'action.selected'
-                : open
-                  ? surface.primaryTint
-                  : 'background.default',
+              highlight === row.key ? 'action.selected' : 'background.paper',
+            borderBottom: open ? '1px solid' : 0,
+            borderColor: 'divider',
             transition: 'background-color 160ms ease-out',
+            '&:hover': {
+              bgcolor:
+                highlight === row.key ? 'action.selected' : 'action.hover',
+            },
             '&.Mui-focusVisible, &:focus-visible': {
               outline: '2px solid',
               outlineColor: 'primary.main',
@@ -842,10 +858,7 @@ export function FindingsOverview({
           }}
         >
           <Box>
-            <Typography
-              variant="subtitle1"
-              sx={{ fontWeight: open ? 700 : 600 }}
-            >
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
               {row.title}
             </Typography>
             <Stack
@@ -1110,7 +1123,7 @@ export function FindingsOverview({
   }
   const tailoredAction = onGoToTailored && (
     <Button
-      variant="contained"
+      variant="outlined"
       endIcon={<ArrowForwardIcon />}
       onClick={onGoToTailored}
       sx={{ alignSelf: { xs: 'stretch', sm: 'flex-end' } }}
@@ -1284,13 +1297,40 @@ export function FindingsOverview({
         />
       )}
       {fallback.size > 0 && (
-        <Box component="details">
-          <Box component="summary" sx={{ cursor: 'pointer', py: 1 }}>
+        <Box
+          component="details"
+          sx={{
+            borderTop: '1px solid',
+            borderColor: 'divider',
+            '&[open] > summary .chevron': { transform: 'rotate(180deg)' },
+          }}
+        >
+          <Box
+            component="summary"
+            sx={{
+              ...disclosureSummarySx,
+              cursor: 'pointer',
+              listStyle: 'none',
+              '&::-webkit-details-marker': { display: 'none' },
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 1,
+              px: 2,
+              py: 1.5,
+              '&:focus-visible': disclosureSummarySx['&.Mui-focusVisible'],
+            }}
+          >
             {tr(
               preliminary
                 ? 'Other related CV passages'
                 : 'Other relevant CV experience',
             )}
+            <ExpandMoreIcon
+              className="chevron"
+              aria-hidden="true"
+              sx={{ color: 'action.active', transition: 'transform 150ms' }}
+            />
           </Box>
           {[...fallback].map(([key, entries]) => (
             <Box component="details" key={key} sx={{ ml: 2, py: 0.5 }}>
@@ -1504,16 +1544,7 @@ function RequirementCoverage({
     return { status, label, color, count: members.length, members };
   });
   return (
-    <Box
-      component="section"
-      aria-label={tr('Saved assessment coverage')}
-      sx={{
-        p: 2,
-        border: '1px solid',
-        borderColor: 'divider',
-        borderRadius: `${surface.radius}px`,
-      }}
-    >
+    <Box component="section" aria-label={tr('Saved assessment coverage')}>
       <Stack
         direction="row"
         useFlexGap
@@ -1602,11 +1633,28 @@ function RequirementCoverage({
         {categories
           .filter(({ count }) => count > 0)
           .map(({ status, label, color, count, members }) => (
-            <Accordion key={status} disableGutters elevation={0}>
+            <Accordion
+              key={status}
+              disableGutters
+              elevation={0}
+              // Open group: header and list share one light surface.
+              sx={{
+                '&.Mui-expanded': {
+                  my: 1,
+                  bgcolor: 'background.default',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: `${surface.radius}px`,
+                  '&::before': { opacity: 0 },
+                },
+                '&.Mui-expanded + .MuiAccordion-root::before': { opacity: 0 },
+              }}
+            >
               <AccordionSummary
                 id={id + status}
                 aria-controls={id + status + '-requirements'}
                 expandIcon={<ExpandMoreIcon />}
+                sx={disclosureSummarySx}
               >
                 <Stack
                   direction="row"
@@ -1625,13 +1673,21 @@ function RequirementCoverage({
                   <Typography
                     component="span"
                     variant="subtitle1"
-                    sx={{ fontWeight: 600 }}
+                    sx={{ fontWeight: 700 }}
                   >
                     {tr(label)} ({count})
                   </Typography>
                 </Stack>
               </AccordionSummary>
-              <AccordionDetails sx={{ px: { xs: 0, sm: 1 }, pt: 0 }}>
+              <AccordionDetails
+                sx={{
+                  px: { xs: 1, sm: 1.5 },
+                  pt: 0.5,
+                  pb: 1,
+                  borderTop: '1px solid',
+                  borderColor: 'divider',
+                }}
+              >
                 {members.map((row) => renderComparison(row, rows.indexOf(row)))}
               </AccordionDetails>
             </Accordion>
@@ -1672,11 +1728,14 @@ function SkillMatchSummary({
   jobId,
   onSaved,
   preliminary = false,
+  embedded = false,
 }: {
   match: SkillMatch;
   jobId: string;
   onSaved: () => void;
   preliminary?: boolean;
+  /** Inside a disclosure: plain content, no second bordered tinted box. */
+  embedded?: boolean;
 }) {
   const id = useId();
   const partial = match.partialScore != null;
@@ -1696,13 +1755,17 @@ function SkillMatchSummary({
     >
       <Stack
         spacing={1}
-        sx={{
-          p: { xs: 2, sm: 3 },
-          border: '1px solid',
-          borderColor: 'divider',
-          borderRadius: `${surface.radius}px`,
-          bgcolor: surface.primaryTint,
-        }}
+        sx={
+          embedded
+            ? undefined
+            : {
+                p: { xs: 2, sm: 3 },
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: `${surface.radius}px`,
+                bgcolor: surface.primaryTint,
+              }
+        }
       >
         <Typography
           id={id}
@@ -1827,8 +1890,11 @@ function SkillMatchSummary({
           {tr('Unresolved JD requirements')}
         </Typography>
         {!!(match.unresolved?.length || match.fallbackReview?.length) && (
-          <Accordion disableGutters elevation={0} variant="outlined">
-            <AccordionSummary expandIcon={<span aria-hidden="true">⌄</span>}>
+          <Accordion disableGutters elevation={0}>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              sx={disclosureSummarySx}
+            >
               {tr(
                 preliminary
                   ? 'View unresolved requirements'
@@ -1877,8 +1943,11 @@ function SkillMatchSummary({
           )) && <JdStructureReview jobId={jobId} onSaved={onSaved} />}
       </Stack>
       {match.rows.length > 0 && (
-        <Accordion disableGutters elevation={0} variant="outlined">
-          <AccordionSummary expandIcon={<span aria-hidden="true">⌄</span>}>
+        <Accordion disableGutters elevation={0}>
+          <AccordionSummary
+            expandIcon={<ExpandMoreIcon />}
+            sx={disclosureSummarySx}
+          >
             {tr('View skill sources')}
           </AccordionSummary>
           <AccordionDetails>
@@ -2114,9 +2183,10 @@ export function MatchGate({
     return (
       <Box
         role="tabpanel"
-        id="job-panel-1"
+        id="tailored-match-panel"
         aria-labelledby="tailored-step-1"
         hidden={hidden}
+        sx={{ mb: 1.5 }}
       >
         <Paper
           variant="outlined"
@@ -2136,7 +2206,7 @@ export function MatchGate({
               color="text.secondary"
               sx={{ flex: 1, minWidth: 0 }}
             >
-              {tr('Saved match')}
+              {tr('Saved CV Match result')}
               {validSourceDate(result.analyzedAt)
                 ? tr(' from {v0}', {
                     v0: new Date(result.analyzedAt).toLocaleString(
@@ -2158,7 +2228,6 @@ export function MatchGate({
               <Button
                 startIcon={<AutoAwesomeIcon />}
                 variant="outlined"
-                color="secondary"
                 disabled={analyzeBlocked || !cv}
                 loading={match.busy}
                 loadingPosition="start"
@@ -2176,7 +2245,7 @@ export function MatchGate({
   return (
     <Box
       role="tabpanel"
-      id="job-panel-1"
+      id="tailored-match-panel"
       aria-labelledby="tailored-step-1"
       hidden={hidden}
     >
@@ -2207,7 +2276,7 @@ export function MatchGate({
           {!busy && current && (
             <Stack spacing={1.5}>
               <Typography role="status">
-                {tr('Saved match')}
+                {tr('Saved CV Match result')}
                 {validSourceDate(result.analyzedAt)
                   ? tr(' from {v0}', {
                       v0: new Date(result.analyzedAt).toLocaleString(
@@ -2255,7 +2324,6 @@ export function MatchGate({
             <Button
               startIcon={<AutoAwesomeIcon />}
               variant={current || preferSecondary ? 'outlined' : 'contained'}
-              color={current || preferSecondary ? 'secondary' : 'primary'}
               disableElevation
               disabled={
                 busy ||

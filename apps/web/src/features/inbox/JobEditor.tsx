@@ -1920,9 +1920,17 @@ export function JobEditor() {
               summaryRefresh={overviewVisits}
               onGoToTailored={() => {
                 setView('tailored-cv');
-                document
-                  .getElementById('job-tab-2')
-                  ?.focus({ preventScroll: true });
+                const tab = document.getElementById('job-tab-2');
+                tab?.focus({ preventScroll: true });
+                // On mobile the handoff sits far below the tabs; bring them back
+                // into view under the sticky header. Instant, so no motion.
+                const header = document
+                  .querySelector('header')
+                  ?.getBoundingClientRect().bottom;
+                if (tab && tab.getBoundingClientRect().top < (header ?? 0)) {
+                  tab.style.scrollMarginTop = (header ?? 0) + 12 + 'px';
+                  tab.scrollIntoView?.({ block: 'start', behavior: 'instant' });
+                }
               }}
             />
           )}
@@ -1976,7 +1984,7 @@ export function JobEditor() {
               <Stack
                 ref={editPanel}
                 role={id ? 'tabpanel' : undefined}
-                id="job-panel-4"
+                id="job-edit-panel"
                 aria-label={id ? tr('Edit JD') : undefined}
                 spacing={3}
                 sx={{

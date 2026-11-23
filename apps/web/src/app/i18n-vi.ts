@@ -1845,7 +1845,7 @@ export const VI_TEXT: Record<string, string> = {
   'Saved drafts': 'Bản nháp đã lưu',
   'Saved jobs': 'Việc làm đã lưu',
   'Saved jobs filter': 'Bộ lọc việc làm đã lưu',
-  'Saved match': 'Kết quả đối chiếu đã lưu',
+  'Saved CV Match result': 'Kết quả CV Match đã lưu',
   'Saved opportunities': 'Việc làm đã lưu',
   'Saved revision': 'Phiên bản đã lưu',
   'Saved revision {revision} · {v1}': 'Phiên bản đã lưu {revision} · {v1}',
