@@ -1,6 +1,9 @@
 import { expect, test } from '@jest/globals';
 import { databaseOptions } from '../../src/database/database.config.js';
-import { validateEnvironment } from '../../src/config/environment.js';
+import {
+  adminEmails,
+  validateEnvironment,
+} from '../../src/config/environment.js';
 
 const env = {
   NODE_ENV: 'test',
@@ -104,4 +107,14 @@ test('application startup validation rejects invalid AI settings', () => {
   expect(() =>
     validateEnvironment({ ...env, AI_REQUEST_TIMEOUT_MS: '0' }),
   ).toThrow('AI_REQUEST_TIMEOUT_MS');
+});
+test('ADMIN_EMAILS fails closed when unset and rejects malformed entries', () => {
+  expect(adminEmails({}).size).toBe(0);
+  expect(adminEmails({ ADMIN_EMAILS: ' ' }).size).toBe(0);
+  expect([
+    ...adminEmails({ ADMIN_EMAILS: ' Admin@Example.test , b@example.test,' }),
+  ]).toEqual(['admin@example.test', 'b@example.test']);
+  expect(() =>
+    validateEnvironment({ ...env, ADMIN_EMAILS: 'a@example.test,nope' }),
+  ).toThrow('ADMIN_EMAILS must be a comma-separated list of emails');
 });

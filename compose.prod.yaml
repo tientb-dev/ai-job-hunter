@@ -47,6 +47,8 @@ services:
       # explicitly enabled (content-use permission pending).
       JOB_URL_FETCH_TOPCV: ${JOB_URL_FETCH_TOPCV:-0}
       JOB_URL_FETCH_VIETNAMWORKS: ${JOB_URL_FETCH_VIETNAMWORKS:-0}
+      # Admin page access; empty disables it (the CLI keeps working).
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
 
   web:
     build: { context: ., target: web }

@@ -95,7 +95,7 @@ test('a valid code registers once, stores only hashes, and starts a session', as
   const cookie = cookieOf(res);
   expect(res.headers['set-cookie']?.[0]).toMatch(/HttpOnly; SameSite=Lax/);
   const me = await get('/auth/me', cookie).expect(200);
-  expect(me.body).toEqual({ email: email('valid') });
+  expect(me.body).toEqual({ email: email('valid'), isAdmin: false });
   const [user] = await db.query(
     `SELECT "passwordHash" FROM ${S}.users WHERE email = $1`,
     [email('valid')],

@@ -85,6 +85,13 @@ Codes are shown once; only their hashes are stored. The `--local-owner` account
 keeps the data created before sign-in existed; every other account starts with
 an empty workspace of its own.
 
+### Admin API
+
+Accounts listed in `ADMIN_EMAILS` (comma-separated; empty disables it) can create,
+list and revoke invites, look up a user by exact email, and issue a password reset
+code (after re-entering their own password) through `/api/v1/admin/*`. The web
+page for this is not built yet. The CLI above keeps working as the fallback.
+
 ## Beta limitations
 
 - Tested with English CVs and job descriptions for IT/software roles.
