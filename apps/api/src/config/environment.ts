@@ -1,4 +1,5 @@
 import { aiConfig } from '../ai/ai.config.js';
+import { normalizeEmail, validEmail } from '../auth/auth.crypto.js';
 import {
   databaseOptions,
   databaseTarget,
@@ -33,6 +34,19 @@ function publicOrigin(value: string | undefined): string {
   return url.origin;
 }
 
+/** Comma-separated admin emails; unset or blank means no admins (fail closed). */
+export function adminEmails(
+  env: NodeJS.ProcessEnv = process.env,
+): ReadonlySet<string> {
+  const emails = (env.ADMIN_EMAILS ?? '')
+    .split(',')
+    .map((e) => normalizeEmail(e))
+    .filter(Boolean);
+  if (!emails.every(validEmail))
+    throw new Error('ADMIN_EMAILS must be a comma-separated list of emails');
+  return new Set(emails);
+}
+
 export function validateEnvironment(env: NodeJS.ProcessEnv = process.env) {
   if (!['development', 'test', 'production'].includes(env.NODE_ENV ?? '')) {
     throw new Error('NODE_ENV must be development, test, or production');
@@ -63,6 +77,7 @@ export function validateEnvironment(env: NodeJS.ProcessEnv = process.env) {
     if (env[name] !== undefined && !['0', '1'].includes(env[name]))
       throw new Error(`${name} must be 0 or 1`);
   databaseOptions(databaseTarget(env), env);
+  adminEmails(env);
   return {
     port: Number(port),
     host,

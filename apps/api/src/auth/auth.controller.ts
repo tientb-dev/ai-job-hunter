@@ -7,25 +7,29 @@ import {
   Inject,
   Post,
   Req,
+  UseFilters,
   Res,
 } from '@nestjs/common';
 import type { ServerResponse } from 'node:http';
+import { AuthErrors } from './auth-errors.filter.js';
 import { AuthService, authError } from './auth.service.js';
 import { sessionCookie } from './auth.http.js';
 import type { AuthRequest } from './auth.http.js';
-import { AUTH_SECURE_COOKIES } from './auth.tokens.js';
+import { ADMIN_EMAILS, AUTH_SECURE_COOKIES } from './auth.tokens.js';
 
 @Controller('auth')
+@UseFilters(AuthErrors)
 export class AuthController {
   constructor(
     private readonly auth: AuthService,
     @Inject(AUTH_SECURE_COOKIES) private readonly secure: boolean,
+    @Inject(ADMIN_EMAILS) private readonly admins: ReadonlySet<string>,
   ) {}
 
   private me(req: AuthRequest) {
     const user = req.authUser;
     if (!user) throw authError('UNAUTHENTICATED');
-    return { email: user.email };
+    return { email: user.email, isAdmin: this.admins.has(user.email) };
   }
 
   @Post('register')

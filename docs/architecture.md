@@ -204,6 +204,35 @@ Real-browser acceptance and live inference quality are separate from synthetic
 checks. Archived checkpoint reports must not be interpreted as current test
 results. Apply the Fast Iteration policy in AGENTS.md when selecting checks.
 
+## Admin MVP
+
+Admins are the accounts listed in `ADMIN_EMAILS` (normalised, validated at
+startup; unset means none, so the feature fails closed). A `users.isAdmin`
+column was deferred: it needs a management UI and is not required for a
+handful of operators. `GET /auth/me` returns `isAdmin` for the UI only; the
+server checks every request.
+
+- `AdminGuard` on `/api/v1/admin/*`: signed out gets 401 from `configureAuth`;
+  signed-in non-admins get the same 404 as an unknown route.
+- `POST /admin/invites {days?}` returns the code once; `GET /admin/invites`
+  lists the newest 200 with `status` `active | used | revoked | expired`;
+  `POST /admin/invites/:id/revoke` sets `revokedAt` and `usedAt`, so the
+  unchanged redeem query (`"usedAt" IS NULL`) refuses it.
+- `GET /admin/users?email=` exact lookup; `POST /admin/users/:id/reset-code
+{password, hours?}` needs the admin's own password (403 `REAUTH_FAILED`, not
+  401, so the UI does not treat it as a lost session) and refuses the admin's
+  own account (403 `SELF_RESET_FORBIDDEN`).
+- Each action and its `admin_audit_log` row (admin id, action, target id,
+  time; never codes or emails) commit in one transaction.
+- Code responses send `Cache-Control: no-store`. `AuthErrors` on the auth and
+  admin controllers logs unexpected errors by type and driver code only,
+  because Nest's default log includes SQL parameters (password/code hashes).
+- Invite creation and reset issuing share the login rate-limit settings but
+  use a separate per-IP bucket, so admin work never blocks login. Still
+  in-memory: one API replica only.
+- The CLI (`auth invite`, `auth reset --email`) is unchanged and remains the
+  fallback; `--local-owner` stays CLI-only.
+
 ## P4.1: application details
 
 The existing Opportunity owns nullable `appliedDate` (PostgreSQL date) and

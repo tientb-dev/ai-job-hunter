@@ -59,7 +59,9 @@ function readCookie(req: IncomingMessage, name: string): string | undefined {
 
 const PUBLIC =
   /^\/api\/v1\/(?:health(?:\/|\?|$)|auth\/(?:login|register|reset-password|logout)(?:\?|$))/;
-const LIMITED = /^\/api\/v1\/auth\/(?:login|register|reset-password)(?:\?|$)/;
+// Admin code issuing is limited too (own bucket), so a stolen admin session cannot mint codes in bulk.
+const LIMITED =
+  /^\/api\/v1\/(?:auth\/(?:login|register|reset-password)|admin\/(?:invites|users\/[^/?]+\/reset-code))(?:\?|$)/;
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 function deny(res: ServerResponse, status: number, errorCode: string): void {
@@ -109,7 +111,10 @@ export function configureAuth(
             return deny(res, 403, 'ORIGIN_DENIED');
         }
         if (LIMITED.test(path) && req.method === 'POST') {
-          const key = clientAddress(req, options.trustProxy ?? false);
+          // Separate admin bucket: issuing codes never locks the same IP out of login.
+          const key =
+            (path.startsWith('/api/v1/admin/') ? 'admin:' : '') +
+            clientAddress(req, options.trustProxy ?? false);
           const now = Date.now();
           const entry = attempts.get(key);
           if (!entry || entry.resetAt <= now)

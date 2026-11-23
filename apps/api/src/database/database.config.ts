@@ -1,5 +1,6 @@
 import { JdSkillInventory1795200000000 } from './migrations/1795200000000-JdSkillInventory.js';
 import { DraftExportTemplate1795300000000 } from './migrations/1795300000000-DraftExportTemplate.js';
+import { AdminAudit1795400000000 } from './migrations/1795400000000-AdminAudit.js';
 import {
   CvSourceRevision,
   CvProfileRevision,
@@ -132,6 +133,7 @@ export function databaseOptions(
       MatchProfileRevision1795100000000,
       JdSkillInventory1795200000000,
       DraftExportTemplate1795300000000,
+      AdminAudit1795400000000,
     ],
     synchronize: false,
     migrationsRun: false,

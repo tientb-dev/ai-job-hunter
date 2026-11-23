@@ -21,7 +21,10 @@ export type AuthErrorCode =
   | 'REGISTRATION_FAILED'
   | 'INVALID_CREDENTIALS'
   | 'RESET_FAILED'
-  | 'UNAUTHENTICATED';
+  | 'UNAUTHENTICATED'
+  | 'NOT_FOUND'
+  | 'REAUTH_FAILED'
+  | 'SELF_RESET_FORBIDDEN';
 
 const STATUS: Record<AuthErrorCode, HttpStatus> = {
   INVALID_INPUT: HttpStatus.BAD_REQUEST,
@@ -29,6 +32,10 @@ const STATUS: Record<AuthErrorCode, HttpStatus> = {
   INVALID_CREDENTIALS: HttpStatus.UNAUTHORIZED,
   RESET_FAILED: HttpStatus.BAD_REQUEST,
   UNAUTHENTICATED: HttpStatus.UNAUTHORIZED,
+  NOT_FOUND: HttpStatus.NOT_FOUND,
+  // 403, not 401: a wrong confirmation password must not look like a lost session.
+  REAUTH_FAILED: HttpStatus.FORBIDDEN,
+  SELF_RESET_FORBIDDEN: HttpStatus.FORBIDDEN,
 };
 
 export const authError = (errorCode: AuthErrorCode) =>
@@ -37,6 +44,16 @@ export const authError = (errorCode: AuthErrorCode) =>
 export interface SessionUser {
   id: string;
   email: string;
+}
+
+/** DataSource or a transaction's EntityManager. */
+export type Queryable = Pick<DataSource, 'query'>;
+
+export interface IssuedCode {
+  id: string;
+  /** Plaintext; returned once and never stored or logged. */
+  code: string;
+  expiresAt: Date;
 }
 
 const text = (value: unknown): string =>
@@ -155,7 +172,7 @@ export class AuthService {
 
   /** Admin CLI: returns the plaintext code once; only its hash is stored. */
   async issueInvite(days: number, userId: string | null = null) {
-    return this.issueCode('INVITE', days * 24, userId);
+    return (await this.issueCode(this.db, 'INVITE', days * 24, userId)).code;
   }
 
   /** Admin CLI: replaces any earlier unused reset code for the account. */
@@ -165,25 +182,34 @@ export class AuthService {
       [normalizeEmail(email)],
     )) as { id: string }[];
     if (!user) return null;
-    await this.db.query(
-      `UPDATE ${S}.auth_codes SET "usedAt" = now()
-        WHERE kind = 'RESET' AND "userId" = $1 AND "usedAt" IS NULL`,
-      [user.id],
+    return this.db.transaction(
+      async (tx) => (await this.issueResetFor(tx, user.id, hours)).code,
     );
-    return this.issueCode('RESET', hours, user.id);
   }
 
-  private async issueCode(
+  /** Supersedes earlier unused reset codes; run inside the caller's transaction. */
+  async issueResetFor(q: Queryable, userId: string, hours: number) {
+    await q.query(
+      `UPDATE ${S}.auth_codes SET "usedAt" = now()
+        WHERE kind = 'RESET' AND "userId" = $1 AND "usedAt" IS NULL`,
+      [userId],
+    );
+    return this.issueCode(q, 'RESET', hours, userId);
+  }
+
+  async issueCode(
+    q: Queryable,
     kind: 'INVITE' | 'RESET',
     hours: number,
     userId: string | null,
-  ): Promise<string> {
+  ): Promise<IssuedCode> {
     const code = newCode();
-    await this.db.query(
+    const [row] = (await q.query(
       `INSERT INTO ${S}.auth_codes (kind, "codeHash", "userId", "expiresAt")
-         VALUES ($1, $2, $3, now() + make_interval(hours => $4))`,
+         VALUES ($1, $2, $3, now() + make_interval(hours => $4))
+         RETURNING id, "expiresAt"`,
       [kind, sha256(normalizeCode(code)), userId, hours],
-    );
-    return code;
+    )) as { id: string; expiresAt: Date }[];
+    return { id: row!.id, code, expiresAt: row!.expiresAt };
   }
 }

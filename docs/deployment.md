@@ -35,6 +35,7 @@ Copy `.env.production.example` to `.env.production` on the server and
 | `AI_MAX_CONCURRENT`              | Hosted AI requests in flight at once, default 4                                                                    |
 | `JOB_URL_FETCH_TOPCV`            | `1` lets users import TopCV job links; default `0` (off). See [job link sources](architecture.md#job-link-sources) |
 | `JOB_URL_FETCH_VIETNAMWORKS`     | `1` lets users import VietnamWorks job links; default `0` (off)                                                    |
+| `ADMIN_EMAILS`                   | Optional comma-separated admins for `/api/v1/admin/*`; empty = no web admin. Restart to apply                      |
 | `PUBLISH_HTTP` / `PUBLISH_HTTPS` | Optional host ports, default 80 / 443                                                                              |
 
 Fixed in `compose.prod.yaml`: `NODE_ENV=production`, the
@@ -64,6 +65,11 @@ $C exec api node dist/auth/auth-cli.js invite --local-owner   # first account on
 $C exec api node dist/auth/auth-cli.js invite --days 7        # each tester
 $C exec api node dist/auth/auth-cli.js reset --email tester@example.com
 ```
+
+The CLI is the fallback and the only way to create the `--local-owner` code.
+Admins named in `ADMIN_EMAILS` can do the routine invite and reset work over
+HTTPS instead (see [architecture](architecture.md#admin-mvp)). A malformed
+`ADMIN_EMAILS` stops the API at startup; remove it and restart to switch admin off.
 
 Point the domain's DNS at the VPS and open ports 80 and 443 before the first
 start so Caddy can obtain the certificate. Keep SSH key-only and close every
