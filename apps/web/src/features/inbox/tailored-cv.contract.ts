@@ -53,7 +53,12 @@ export interface DraftDocument {
   sections: {
     id: string;
     kind: string;
-    entries: { id: string; facts: DraftFact[] }[];
+    entries: {
+      id: string;
+      facts: DraftFact[];
+      /** Phase C bullet order suggestion; absent on older drafts. */
+      orderProposal?: OrderProposal;
+    }[];
   }[];
   reviewIssues: {
     code: string;
@@ -85,8 +90,15 @@ export interface DraftDocument {
       }
     >;
     acknowledgedIssues: number[];
+    /** Order decision per entry; absent on older drafts (= original order). */
+    orders?: Record<string, 'accepted' | 'rejected'>;
     approval: { revision: number; approvedAt: string } | null;
   };
+}
+export interface OrderProposal {
+  originalFactIds: string[];
+  factIds: string[];
+  reasons: Record<string, string[]>;
 }
 export interface SavedDraft {
   contractVersion: '1';
@@ -115,7 +127,61 @@ export type DraftOperation =
     }
   | { action: 'reject' | 'restore'; factId: string }
   | { action: 'acknowledge'; issueIndex: number }
-  | { action: 'include'; factId: string; included: boolean };
+  | { action: 'include'; factId: string; included: boolean }
+  | { action: 'order'; entryId: string; decision: OrderDecision };
+export type OrderDecision = 'accept' | 'reject' | 'restore';
+/** Mirrors the API: bullet fields that may move between titles and dates. */
+export const BODY = new Set(['description', 'text', 'source_passage']);
+/** Same rule as the API: same ids, and every non-bullet fact keeps its slot. */
+export function isSafeOrder(
+  facts: readonly Pick<DraftFact, 'id' | 'field'>[],
+  ids: readonly string[],
+): boolean {
+  if (ids.length !== facts.length || new Set(ids).size !== ids.length)
+    return false;
+  let run: string[] = [];
+  const flush = (end: number) => {
+    const ok = run.every((id) => ids.slice(end - run.length, end).includes(id));
+    run = [];
+    return ok;
+  };
+  for (let i = 0; i < facts.length; i++) {
+    const fact = facts[i]!;
+    if (BODY.has(fact.field)) run.push(fact.id);
+    else if (!flush(i) || ids[i] !== fact.id) return false;
+  }
+  return flush(facts.length);
+}
+/**
+ * Applies an order decision to a local copy, like the API does on save:
+ * permutes only that entry's facts. Returns false when it cannot apply.
+ */
+export function applyOrder(
+  document: DraftDocument,
+  entryId: string,
+  decision: OrderDecision,
+): boolean {
+  const entry = document.sections
+    .flatMap((s) => s.entries)
+    .find((e) => e.id === entryId);
+  const proposal = entry?.orderProposal;
+  if (
+    !entry ||
+    !proposal ||
+    !isSafeOrder(entry.facts, proposal.factIds) ||
+    !isSafeOrder(entry.facts, proposal.originalFactIds)
+  )
+    return false;
+  const byId = new Map(entry.facts.map((f) => [f.id, f]));
+  entry.facts = (
+    decision === 'accept' ? proposal.factIds : proposal.originalFactIds
+  ).map((id) => byId.get(id)!);
+  (document.review.orders ??= {})[entryId] =
+    decision === 'accept' ? 'accepted' : 'rejected';
+  return true;
+}
+const strings = (x: unknown): x is string[] =>
+  Array.isArray(x) && x.every((v) => typeof v === 'string');
 const object = (x: unknown): x is Record<string, unknown> =>
   !!x && typeof x === 'object' && !Array.isArray(x);
 export function decodeDraft(value: unknown, jobId: string): SavedDraft {
@@ -171,7 +237,17 @@ export function decodeDraft(value: unknown, jobId: string): SavedDraft {
     )
       throw new Error(tr('Invalid draft section.'));
     for (const e of s.entries) {
-      if (!object(e) || !Array.isArray(e.facts))
+      const order = e && (e as Record<string, unknown>).orderProposal;
+      if (
+        !object(e) ||
+        !Array.isArray(e.facts) ||
+        (order !== undefined &&
+          (!object(order) ||
+            !strings(order.factIds) ||
+            !strings(order.originalFactIds) ||
+            !object(order.reasons) ||
+            !Object.values(order.reasons).every(strings)))
+      )
         throw new Error(tr('Invalid draft entry.'));
       for (const f of e.facts) {
         if (
@@ -274,6 +350,11 @@ export function decodeDraft(value: unknown, jobId: string): SavedDraft {
         (i as number) < 0 ||
         (i as number) >= issues.length,
     ) ||
+    (doc.review.orders !== undefined &&
+      (!object(doc.review.orders) ||
+        !Object.values(doc.review.orders).every(
+          (d) => d === 'accepted' || d === 'rejected',
+        ))) ||
     (doc.review.approval !== null &&
       (!object(doc.review.approval) ||
         doc.review.approval.revision !== value.revision ||

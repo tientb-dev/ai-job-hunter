@@ -5,6 +5,7 @@ import {
   type DraftFact,
   type TailoredDraftDocument,
 } from './tailored-draft.contract.js';
+import { isSafeOrder } from './experience-order.js';
 
 export type ReviewOperation =
   | { action: 'confirm_answer'; factId: string; text: string }
@@ -22,7 +23,13 @@ export type ReviewOperation =
     }
   | { action: 'reject' | 'restore'; factId: string }
   | { action: 'acknowledge'; issueIndex: number }
-  | { action: 'include'; factId: string; included: boolean };
+  | { action: 'include'; factId: string; included: boolean }
+  /** Bullet order of one entry: the stored suggestion, or back to the original. */
+  | {
+      action: 'order';
+      entryId: string;
+      decision: 'accept' | 'reject' | 'restore';
+    };
 export interface DraftReview {
   contractVersion: '1';
   factReviews: Record<
@@ -37,6 +44,8 @@ export interface DraftReview {
     }
   >;
   acknowledgedIssues: number[];
+  /** Phase C order decisions per entry; absent on older drafts (= original order). */
+  orders?: Record<string, 'accepted' | 'rejected'>;
   approval: { revision: number; approvedAt: string } | null;
 }
 /** Bracketed tokens in changed wording that the reviewed source text lacks. */
@@ -108,6 +117,23 @@ export function reviewRequest(body: unknown, approve = false) {
       (input: unknown) => {
         if (!input || typeof input !== 'object' || !('action' in input))
           throw new Error();
+        if (input.action === 'order') {
+          const op = record(input, ['action', 'entryId', 'decision']);
+          if (
+            typeof op.entryId !== 'string' ||
+            !op.entryId ||
+            op.entryId.length > 100 ||
+            (op.decision !== 'accept' &&
+              op.decision !== 'reject' &&
+              op.decision !== 'restore')
+          )
+            throw new Error();
+          return {
+            action: 'order',
+            entryId: op.entryId,
+            decision: op.decision,
+          };
+        }
         if (input.action === 'acknowledge') {
           const op = record(input, ['action', 'issueIndex']);
           if (
@@ -236,6 +262,28 @@ export function applyReview(
     ),
   );
   for (const op of operations) {
+    if (op.action === 'order') {
+      const entry = next.sections
+        .flatMap((s) => s.entries)
+        .find((e) => e.id === op.entryId);
+      const proposal = entry?.orderProposal;
+      // Only a stored suggestion can be applied, and only if it is a safe
+      // permutation of this entry's facts (no titles, dates or other entries).
+      if (
+        !entry ||
+        !proposal ||
+        !isSafeOrder(entry.facts, proposal.factIds) ||
+        !isSafeOrder(entry.facts, proposal.originalFactIds)
+      )
+        throw new TailoredDraftError('CV_DRAFT_INVALID_REQUEST');
+      const ids =
+        op.decision === 'accept' ? proposal.factIds : proposal.originalFactIds;
+      const byId = new Map(entry.facts.map((f) => [f.id, f]));
+      entry.facts = ids.map((id) => byId.get(id)!);
+      (review.orders ??= {})[entry.id] =
+        op.decision === 'accept' ? 'accepted' : 'rejected';
+      continue;
+    }
     if (op.action === 'acknowledge') {
       const issue = next.reviewIssues[op.issueIndex];
       if (!issue || issue.code === 'SEMANTIC_REVIEW_REQUIRED')

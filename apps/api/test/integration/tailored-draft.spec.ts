@@ -250,7 +250,7 @@ afterAll(async () => {
     await db.destroy();
   }
 });
-async function ready(multipleBatches = false) {
+async function ready(multipleBatches = false, javaLast = false) {
   mode = 'valid';
   // The mock can format this documented list without changing its items.
   const fixture = draftFixture(
@@ -272,6 +272,13 @@ async function ready(multipleBatches = false) {
         review: 'confirmed',
         evidence: [],
       });
+  }
+  if (javaLast) {
+    const facts = fixture.document.sections.find(
+      (s) => s.kind === 'experience',
+    )!.entries[0]!.facts;
+    const java = facts.findIndex((f) => f.id === 'java');
+    facts.push(...facts.splice(java, 1));
   }
   // A fresh CV version per scenario, as a re-upload used to give.
   const fresh = { text: fixture.text, updatedAt: new Date() };
@@ -1656,4 +1663,141 @@ test('draft confirmations and selected source diffs preserve revision and export
       .expect(200);
   }
   expect(draftCalls).toBe(callsAfterGeneration);
+});
+
+test('Phase C bullet order: proposed on generation, applied only on review, exported, and kept out of the source CV', async () => {
+  const prepared = await ready(false, true);
+  const generated = await post().expect(201);
+  const id = generated.body.id as string;
+  const doc = generated.body
+    .document as import('../../src/tailored-cv/tailored-draft.contract.js').TailoredDraftDocument;
+  const entry = doc.sections.find((s) => s.kind === 'experience')!.entries[0]!;
+  const ids = (d: typeof doc) =>
+    d.sections
+      .find((s) => s.kind === 'experience')!
+      .entries[0]!.facts.map((f) => f.id);
+  expect(entry.orderProposal?.factIds.slice(-2)).toEqual(['java', 'scope']);
+  expect(ids(doc)).toEqual(entry.orderProposal!.originalFactIds);
+  const path = `${base}/drafts/${id}/review`;
+  const send = (body: object) =>
+    request(app.getHttpServer()).post(path).set(origin).send(body);
+  await send({
+    ...v,
+    expectedRevision: 1,
+    operations: [{ action: 'order', entryId: entry.id, decision: 'move' }],
+  }).expect(400);
+  await send({
+    ...v,
+    expectedRevision: 1,
+    operations: [{ action: 'order', entryId: 'nope', decision: 'accept' }],
+  }).expect(400);
+  expect((await drafts.get(owner, id)).revision).toBe(1);
+  const settle = doc.sections
+    .flatMap((s) => s.entries.flatMap((e) => e.facts))
+    .filter((f) => f.proposedWording)
+    .map((f) => ({ action: 'reject', factId: f.id }));
+  const acks = doc.reviewIssues.flatMap((issue, i) =>
+    issue.code === 'SEMANTIC_REVIEW_REQUIRED'
+      ? []
+      : [{ action: 'acknowledge', issueIndex: i }],
+  );
+  const first = await drafts.review(owner, id, {
+    ...v,
+    expectedRevision: 1,
+    operations: [...settle, ...acks],
+  });
+  const approved = await drafts.review(
+    owner,
+    id,
+    { ...v, expectedRevision: first.revision, reviewedFactIds: [] },
+    true,
+  );
+  const reordered = await drafts.review(owner, id, {
+    ...v,
+    expectedRevision: approved.revision,
+    operations: [{ action: 'order', entryId: entry.id, decision: 'accept' }],
+  });
+  expect(reordered.revision).toBe(approved.revision + 1);
+  expect(reordered.document.review?.approval).toBeNull();
+  expect(ids(reordered.document)).toEqual(entry.orderProposal!.factIds);
+  const exportPath = `${base}/drafts/${id}/export`;
+  await request(app.getHttpServer())
+    .post(exportPath)
+    .set(origin)
+    .send({ ...v, expectedRevision: reordered.revision, format: 'pdf' })
+    .expect(409);
+  const final = await drafts.review(
+    owner,
+    id,
+    { ...v, expectedRevision: reordered.revision, reviewedFactIds: [] },
+    true,
+  );
+  const { canonicalExport } =
+    await import('../../src/tailored-cv/tailored-cv-export.js');
+  const text = JSON.stringify(canonicalExport(final.document, final.revision));
+  expect(text.indexOf('Built Java APIs')).toBeLessThan(
+    text.indexOf('Assisted a team prototype'),
+  );
+  for (const format of ['pdf', 'docx'])
+    await request(app.getHttpServer())
+      .post(exportPath)
+      .set(origin)
+      .send({ ...v, expectedRevision: final.revision, format })
+      .expect(200);
+  // The real files carry the accepted order, not just a 200.
+  const { TailoredCvExportService } =
+    await import('../../src/tailored-cv/tailored-cv-export.js');
+  const exporter = app.get(TailoredCvExportService);
+  const file = (format: 'pdf' | 'docx') =>
+    exporter.export(owner, id, {
+      ...v,
+      expectedRevision: final.revision,
+      format,
+    });
+  const { default: mammoth } = await import('mammoth');
+  const docxText = (
+    await mammoth.extractRawText({ buffer: (await file('docx')).buffer })
+  ).value;
+  const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const loading = getDocument({
+    data: new Uint8Array((await file('pdf')).buffer),
+    useSystemFonts: false,
+    verbosity: 0,
+  });
+  const loaded = await loading.promise;
+  let pdfText = '';
+  try {
+    for (let n = 1; n <= loaded.numPages; n++)
+      pdfText += (await (await loaded.getPage(n)).getTextContent()).items
+        .map((item) => ('str' in item ? item.str : ''))
+        .join(' ');
+  } finally {
+    await loading.destroy();
+  }
+  for (const out of [docxText, pdfText.replace(/\s+/gu, ' ')]) {
+    const java = out.indexOf('Built Java APIs');
+    for (const t of ['Developer', '2024', 'Assisted a team prototype'])
+      expect(out.indexOf(t)).toBeGreaterThanOrEqual(0);
+    expect(java).toBeGreaterThan(out.indexOf('Developer'));
+    expect(java).toBeGreaterThan(out.indexOf('2024'));
+    expect(java).toBeLessThan(out.indexOf('Assisted a team prototype'));
+  }
+  // Order is draft-only: the source CV update sees no changes.
+  const diff = await request(app.getHttpServer())
+    .post(`${base}/drafts/${id}/source-update/preview`)
+    .set(origin)
+    .send({ ...v, expectedDraftRevision: final.revision })
+    .expect(200);
+  expect(diff.body.changes).toEqual([]);
+  const restored = await drafts.review(owner, id, {
+    ...v,
+    expectedRevision: final.revision,
+    operations: [{ action: 'order', entryId: entry.id, decision: 'restore' }],
+  });
+  expect(ids(restored.document)).toEqual(entry.orderProposal!.originalFactIds);
+  expect(restored.document.review?.approval).toBeNull();
+  expect(
+    (await profiles.latestForSource(owner, prepared.profile.sourceRevisionId))
+      ?.document.sections,
+  ).toEqual(prepared.document.sections);
 });

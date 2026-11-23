@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { proposeEntryOrder } from './experience-order.js';
 import type { ProfileDocument } from './tailored-cv.contract.js';
 import {
   TailoredDraftError,
@@ -709,6 +710,16 @@ export function assembleDraft(
           'No reviewed source content exists for this section; nothing was invented.',
       });
     }
+  for (const section of document.sections)
+    if (section.kind === 'experience' || section.kind === 'projects')
+      for (const entry of section.entries) {
+        const proposal = proposeEntryOrder(
+          entry,
+          document.requirements,
+          document.jobSnapshot,
+        );
+        if (proposal) entry.orderProposal = proposal;
+      }
   if (Buffer.byteLength(JSON.stringify(document)) > DRAFT_BYTES)
     throw new TailoredDraftError('CV_DRAFT_CONTEXT_LIMIT');
   if (diagnostics) {

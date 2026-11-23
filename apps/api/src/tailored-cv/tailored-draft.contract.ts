@@ -211,6 +211,12 @@ export interface TailoredDraftDocument {
       originalOrder: number;
       facts: DraftFact[];
       priorityFactIds: string[];
+      /** Phase C: suggested bullet order; absent on older drafts. Never auto-applied. */
+      orderProposal?: {
+        originalFactIds: string[];
+        factIds: string[];
+        reasons: Record<string, string[]>;
+      };
     }[];
   }[];
   recoverable: {
