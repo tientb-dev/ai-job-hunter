@@ -127,6 +127,8 @@ export interface OpportunityInput {
   followUpStatus: (typeof followUpStatuses)[number];
 }
 export interface Opportunity extends OpportunityInput {
+  /** CV pinned to this job; null uses the matched or default CV. Read-only. */
+  cvId?: string | null;
   discovery?: {
     sourceName: string;
     sourceJobId: string;

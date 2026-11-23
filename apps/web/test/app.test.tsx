@@ -56,15 +56,17 @@ test.each(['/dashboard', '/jobs'])(
         name: path === '/jobs' ? new RegExp(`^${job.title}`) : job.title,
       }),
     );
+    // The preview's next step follows job-progress (MISSING match -> CV Match).
     if (path === '/jobs')
-      await user.click(screen.getByRole('link', { name: 'Open job' }));
+      await user.click(screen.getByRole('link', { name: 'Go to Match' }));
     expect(
       await screen.findByRole('heading', { name: job.title }),
     ).toBeVisible();
-    expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute(
-      'aria-selected',
-      'true',
-    );
+    expect(
+      screen.getByRole('tab', {
+        name: path === '/jobs' ? 'CV Match' : 'Overview',
+      }),
+    ).toHaveAttribute('aria-selected', 'true');
     await user.click(screen.getByRole('link', { name: 'Back to Jobs' }));
     expect(
       await screen.findByRole('button', { name: new RegExp(`^${job.title}`) }),

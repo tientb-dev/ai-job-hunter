@@ -37,7 +37,9 @@ function mount(path: string) {
   );
 }
 test('lists persisted jobs again after remount (refresh)', async () => {
-  const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify([row])));
+  const fetch = vi.fn(async (url: string) =>
+    Response.json(url === '/api/v1/opportunities' ? [row] : null),
+  );
   vi.stubGlobal('fetch', fetch);
   const first = mount('/jobs');
   expect(await screen.findByText('Synthetic engineer')).toBeVisible();
@@ -45,10 +47,11 @@ test('lists persisted jobs again after remount (refresh)', async () => {
     screen.queryByText('2026-11-02') ?? screen.getByTitle('2026-11-02'),
   ).toBeVisible();
   first.unmount();
-  fetch.mockResolvedValue(new Response(JSON.stringify([row])));
   mount('/jobs');
   expect(await screen.findByText('Synthetic engineer')).toBeVisible();
-  expect(fetch).toHaveBeenCalledTimes(2);
+  expect(
+    fetch.mock.calls.filter(([url]) => url === '/api/v1/opportunities'),
+  ).toHaveLength(2);
 });
 test('adds a job, sends persistent fields, then loads its detail', async () => {
   const fetch = vi.fn(

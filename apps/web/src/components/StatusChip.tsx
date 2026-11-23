@@ -1,7 +1,7 @@
 import { tr } from '../app/i18n';
 import { Box, Chip } from '@mui/material';
 
-type Tone = 'success' | 'primary' | 'info' | 'error' | 'neutral';
+type Tone = 'success' | 'primary' | 'info' | 'warning' | 'error' | 'neutral';
 
 const tones: Record<string, Tone> = {
   OFFER: 'success',
@@ -15,6 +15,11 @@ const tones: Record<string, Tone> = {
   DISMISSED: 'error',
   // Interview Prep reference answers (NOT_PREPARED / UNKNOWN stay neutral)
   PREPARED: 'success',
+  // Jobs preview workflow progress (NOT_STARTED stays neutral)
+  COMPLETED: 'success',
+  APPROVED: 'success',
+  IN_PROGRESS: 'primary',
+  OUTDATED: 'warning',
 };
 
 const sentence = (value: string) => {

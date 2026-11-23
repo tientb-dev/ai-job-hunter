@@ -62,6 +62,9 @@ const openCard = (title: string) =>
   fireEvent.click(
     screen.getByRole('button', { name: new RegExp(`^${title}`) }),
   );
+// The job list itself is fetched once; job-progress is a separate single call.
+const listCalls = (fetch: { mock: { calls: unknown[][] } }) =>
+  fetch.mock.calls.filter(([url]) => url === '/api/v1/opportunities').length;
 function mount(rows: ReturnType<typeof makeJob>[], path = '/jobs') {
   const fetch = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(
     async (url) => {
@@ -173,11 +176,12 @@ test('filters due items in existing order, preserves excluded dates and opens Ap
   expect(JSON.stringify(rows)).toBe(snapshot);
   expect(
     fetch.mock.calls.every(
-      // The workspace tab badge reads the draft list through a read-only POST.
+      // Draft list (tab badge) and job-progress are read-only POSTs.
       ([url, init]) =>
         !init?.method ||
         init.method === 'GET' ||
-        String(url).endsWith('/drafts/list'),
+        String(url).endsWith('/drafts/list') ||
+        String(url).endsWith('/job-progress'),
     ),
   ).toBe(true);
 });
@@ -241,7 +245,7 @@ test('paginates ten jobs, filters before slicing, resets pages, and keeps naviga
   expect(titles()).toEqual(due.slice(10).map((row) => row.title));
   fireEvent.click(screen.getByRole('button', { name: /^All jobs/ }));
   expect(screen.getByText('1–10 of 25 jobs')).toBeVisible();
-  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(listCalls(fetch)).toBe(1);
   fireEvent.click(screen.getByRole('button', { name: 'Go to next page' }));
   openCard('Job 11');
   expect(screen.getByRole('heading', { name: 'Job 11' })).toBeVisible();
@@ -277,7 +281,7 @@ test('keeps the list and filter focus when filtering to no results', async () =>
   fireEvent.click(screen.getByRole('button', { name: /^All jobs/ }));
   expect(screen.getByText('1–1 of 1 jobs')).toBeVisible();
   expect(screen.getByRole('list', { name: 'Saved opportunities' })).toBe(list);
-  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(listCalls(fetch)).toBe(1);
 });
 
 test('Inbox has no discovery panel and keeps grouped controls and bottom pagination', async () => {
@@ -303,7 +307,7 @@ test('Inbox has no discovery panel and keeps grouped controls and bottom paginat
   expect(
     list.compareDocumentPosition(pagination) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
-  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(listCalls(fetch)).toBe(1);
 });
 
 test('keeps original links accessible for manual jobs and clears an empty filter locally', async () => {
@@ -321,7 +325,7 @@ test('keeps original links accessible for manual jobs and clears an empty filter
   fireEvent.click(screen.getByRole('button', { name: /^Due follow-ups/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Clear filter' }));
   expect(screen.getByText('Manual job')).toBeVisible();
-  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(listCalls(fetch)).toBe(1);
 });
 
 test('compact rows omit missing follow-ups and discovery detail controls', async () => {
@@ -367,7 +371,7 @@ test('search covers every saved job, ignores accents, and keeps the filter', asy
   expect(screen.getByText('No jobs match your search')).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));
   expect(screen.getByText('No due follow-ups')).toBeVisible();
-  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(listCalls(fetch)).toBe(1);
 });
 
 test('preview shows complete requirements and links to the full overview', async () => {
