@@ -125,3 +125,73 @@ test.each(['MISSING', 'STALE_CV'] as const)(
     }
   },
 );
+
+test('changing the CV in CV Match restarts an already-mounted Tailored CV from fresh data', async () => {
+  // Synthetic CVs; the server's current CV flips on PUT.
+  const cv = (n: string) => ({
+    id: `synthetic-cv-${n}`,
+    name: `Synthetic CV ${n}`,
+    fileName: `synthetic-${n}.pdf`,
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  });
+  let current = cv('a');
+  const fetch = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.includes('/health/')) return Response.json({ status: 'ok' });
+    if (url.endsWith(`/opportunities/${id}`))
+      return Response.json({
+        ...emptyOpportunity(),
+        id,
+        title: 'Synthetic workspace job',
+        jdText: '',
+        documentName: null,
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      });
+    if (url.endsWith('/cv/current')) {
+      if (init?.method === 'PUT') current = cv('b');
+      return Response.json(current);
+    }
+    if (url.endsWith('/opportunities/cv'))
+      return Response.json([cv('a'), cv('b')]);
+    return Response.json(null);
+  });
+  vi.stubGlobal('fetch', fetch);
+  const router = createMemoryRouter([{ path: '*', element: <App /> }], {
+    initialEntries: [`/jobs/${id}/tailored-cv`],
+  });
+  render(
+    <ThemeProvider theme={theme}>
+      <RouterProvider router={router} />
+    </ThemeProvider>,
+  );
+  const user = userEvent.setup();
+  await screen.findByRole('heading', { name: 'Synthetic workspace job' });
+  const currentReads = () =>
+    fetch.mock.calls.filter(
+      ([u, i]) => String(u).endsWith('/cv/current') && !i?.method,
+    ).length;
+  // CV Match and Tailored CV each read the job's CV once.
+  await waitFor(() => expect(currentReads()).toBe(2));
+  await user.click(screen.getByRole('tab', { name: /^Overview/ }));
+  await user.click(screen.getByRole('tab', { name: /^Tailored CV/ }));
+  expect(currentReads()).toBe(2);
+  await user.click(screen.getByRole('tab', { name: /^CV Match/ }));
+  await user.click(
+    await screen.findByRole('combobox', { name: 'CV for this job' }),
+  );
+  await user.click(
+    await screen.findByRole('option', { name: 'Synthetic CV b' }),
+  );
+  await waitFor(() =>
+    expect(
+      fetch.mock.calls.some(
+        ([u, i]) => String(u).endsWith('/cv/current') && i?.method === 'PUT',
+      ),
+    ).toBe(true),
+  );
+  // The restarted workflow rereads the server instead of keeping CV a.
+  await waitFor(() => expect(currentReads()).toBe(3));
+  await user.click(screen.getByRole('tab', { name: /^Tailored CV/ }));
+  expect(
+    screen.getByRole('tabpanel', { name: /^Tailored CV/ }),
+  ).not.toHaveTextContent('Synthetic CV a');
+});

@@ -425,3 +425,47 @@ test('a Marketing set shows marketing category labels, not IT ones', async () =>
     expect(within(list).getByText(label)).toBeInTheDocument();
   expect(within(list).queryByText(/Technical|Architecture/u)).toBeNull();
 });
+
+test('first load shows a skeleton, never the empty state, until the server answers', async () => {
+  let answer!: (r: Reply) => void;
+  lists = [() => new Promise<Reply>((resolve) => (answer = resolve))] as never;
+  mount();
+  expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true');
+  expect(
+    screen.queryByRole('button', { name: 'Generate interview questions' }),
+  ).not.toBeInTheDocument();
+  answer({
+    body: listing({ sets: [set(1, 5, true, '2026-01-01T00:00:00Z')] }),
+  });
+  expect(
+    await screen.findByText('Set 1 question 1: how would you design it?'),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', { name: 'Generate interview questions' }),
+  ).not.toBeInTheDocument();
+});
+
+test('hiding and showing the panel keeps data without refetching or exposing controls', async () => {
+  lists = [
+    { body: listing({ sets: [set(1, 5, true, '2026-01-01T00:00:00Z')] }) },
+  ];
+  const view = (hidden: boolean) => (
+    <ThemeProvider theme={theme}>
+      <MemoryRouter>
+        <JobInterviewTab jobId={jobId} jobDirty={false} hidden={hidden} />
+      </MemoryRouter>
+    </ThemeProvider>
+  );
+  const { rerender } = render(view(false));
+  await screen.findByText('Set 1 question 1: how would you design it?');
+  const calls = fetchMock.mock.calls.length;
+  rerender(view(true));
+  expect(screen.queryByRole('tabpanel')).not.toBeInTheDocument();
+  expect(screen.queryAllByRole('link')).toHaveLength(0);
+  rerender(view(false));
+  expect(
+    screen.getByText('Set 1 question 1: how would you design it?'),
+  ).toBeVisible();
+  expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  expect(fetchMock.mock.calls.length).toBe(calls);
+});

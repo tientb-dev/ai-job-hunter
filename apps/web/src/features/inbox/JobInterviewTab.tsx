@@ -23,6 +23,7 @@ import {
   DialogTitle,
   LinearProgress,
   Paper,
+  Skeleton,
   Stack,
   Typography,
 } from '@mui/material';
@@ -213,8 +214,11 @@ const partialNote = (set: JobQuestionSet) =>
 export function JobInterviewTab({
   jobId,
   jobDirty,
+  hidden = false,
 }: {
   jobId: string;
+  /** Kept mounted while another tab is shown, so data is not refetched. */
+  hidden?: boolean;
   /** Unsaved Edit JD changes: generation would use the saved JD, so block it. */
   jobDirty: boolean;
 }) {
@@ -301,7 +305,12 @@ export function JobInterviewTab({
   };
 
   const panel = (children: ReactNode) => (
-    <Box role="tabpanel" id="job-panel-4" aria-labelledby="job-tab-4">
+    <Box
+      role="tabpanel"
+      id="job-panel-4"
+      aria-labelledby="job-tab-4"
+      hidden={hidden}
+    >
       <Stack spacing={3} sx={{ minWidth: 0 }}>
         <Box sx={{ maxWidth: 840 }}>
           <Typography variant="h6" component="h2">
@@ -336,11 +345,26 @@ export function JobInterviewTab({
           {tr('Interview questions could not be loaded.')}
         </Alert>
       ) : (
-        <Stack spacing={1} role="status">
-          <LinearProgress aria-label={tr('Loading interview questions')} />
+        // Shaped like the question-set panel and cards so loading does not jump.
+        <Stack spacing={2} role="status" aria-busy="true">
           <Typography variant="body2" color="text.secondary">
             {tr('Loading interview questions…')}
           </Typography>
+          <Skeleton variant="rounded" height={72} />
+          <Box
+            sx={{
+              display: 'grid',
+              gap: 2,
+              gridTemplateColumns: {
+                xs: '1fr',
+                lg: 'repeat(2, minmax(0, 1fr))',
+              },
+            }}
+          >
+            {[0, 1].map((card) => (
+              <Skeleton key={card} variant="rounded" height={240} />
+            ))}
+          </Box>
         </Stack>
       ),
     );

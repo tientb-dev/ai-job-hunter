@@ -2,20 +2,67 @@ import { ThemeProvider } from '@mui/material';
 import { theme } from '../src/app/theme';
 import userEvent from '@testing-library/user-event';
 import { expect, test, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from './render';
+import {
+  act,
+  closeSuccess,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from './render';
 import {
   createMemoryRouter,
   RouterProvider,
   Routes,
   Route,
 } from 'react-router-dom';
-import { JobEditor } from '../src/features/inbox/JobEditor';
+import { JobEditor, JobEditorForJob } from '../src/features/inbox/JobEditor';
 import {
   emptyOpportunity,
   importFields,
 } from '../src/features/inbox/opportunities-api';
-vi.mock('../src/features/inbox/CvMatchPanel', () => ({
-  CvMatchPanel: ({ view }: { view: string }) => (
+const wizardMounts = vi.hoisted(() => ({ count: 0 }));
+vi.mock('../src/features/inbox/CvMatchPanel', async () => {
+  const { useEffect, useState } = await import('react');
+  // Stands in for the Tailored CV workflow: local state + mount counter.
+  function Wizard({
+    jobId,
+    revision,
+    onReviewDirtyChange,
+  }: {
+    jobId: string;
+    revision: string;
+    onReviewDirtyChange?: (dirty: boolean) => void;
+  }) {
+    const [note, setNote] = useState('');
+    useEffect(() => {
+      wizardMounts.count++;
+    }, []);
+    // Only this value counts as an unsaved review edit.
+    useEffect(() => {
+      onReviewDirtyChange?.(note === 'unsaved review');
+    }, [note, onReviewDirtyChange]);
+    return (
+      <label>
+        Tailored wizard {jobId} {revision}
+        <input value={note} onChange={(e) => setNote(e.target.value)} />
+      </label>
+    );
+  }
+  return {
+    CvMatchPanel: (props: {
+      view: string;
+      wizard?: boolean;
+      jobId: string;
+      revision: string;
+      onReviewDirtyChange?: (dirty: boolean) => void;
+    }) =>
+      props.wizard ? <Wizard {...props} /> : <MatchMock view={props.view} />,
+  };
+});
+function MatchMock({ view }: { view: string }) {
+  return (
     <>
       <div
         role="tabpanel"
@@ -34,11 +81,22 @@ vi.mock('../src/features/inbox/CvMatchPanel', () => ({
         CV improvement workflow
       </div>
     </>
-  ),
-}));
+  );
+}
 vi.mock('../src/features/inbox/JobInterviewTab', () => ({
-  JobInterviewTab: ({ jobDirty }: { jobDirty: boolean }) => (
-    <div role="tabpanel" id="job-panel-4" aria-labelledby="job-tab-4">
+  JobInterviewTab: ({
+    jobDirty,
+    hidden,
+  }: {
+    jobDirty: boolean;
+    hidden?: boolean;
+  }) => (
+    <div
+      role="tabpanel"
+      id="job-panel-4"
+      aria-labelledby="job-tab-4"
+      hidden={hidden}
+    >
       Interview questions workflow{jobDirty ? ' (unsaved job edits)' : ''}
     </div>
   ),
@@ -64,7 +122,7 @@ function mount(path = '/jobs/new') {
           <Routes>
             <Route path="/jobs" element={<div>Inbox destination</div>} />
             <Route path="/jobs/new" element={<JobEditor key="new" />} />
-            <Route path="/jobs/:id/*" element={<JobEditor />} />
+            <Route path="/jobs/:id/*" element={<JobEditorForJob />} />
           </Routes>
         ),
       },
@@ -700,7 +758,7 @@ test('Edit JD contains its heading, fields and save guidance in one outlined sur
   expect(panel).toContainElement(save);
 });
 
-test('the Interview tab has its own URL and keeps the shared job editor mounted', async () => {
+test('the Interview tab has its own URL and stays mounted (hidden) after it is left', async () => {
   mockApi();
   const { router } = mount(`/jobs/${id}/interview`);
   await screen.findByRole('heading', { name: 'Synthetic engineer' });
@@ -711,15 +769,81 @@ test('the Interview tab has its own URL and keeps the shared job editor mounted'
   expect(screen.getByRole('tabpanel', { name: 'Interview' })).toHaveTextContent(
     'Interview questions workflow',
   );
+  const panel = screen.getByText('Interview questions workflow');
   tab('Overview');
+  await waitFor(() => expect(panel).not.toBeVisible());
+  expect(
+    screen.queryByRole('tabpanel', { name: 'Interview' }),
+  ).not.toBeInTheDocument();
+  tab('Interview');
+  // Same element: kept mounted, not remounted.
+  await waitFor(() => expect(panel).toBeVisible());
+  expect(screen.getAllByText('Interview questions workflow')).toHaveLength(1);
+  expect(router.state.location.pathname).toBe(`/jobs/${id}/interview`);
+});
+
+test('Tailored CV keeps wizard state across tabs, restarts after a JD save, and never leaks across jobs', async () => {
+  const fetch = mockApi();
+  const base = fetch.getMockImplementation()!;
+  let revision = 0;
+  // A real save returns a new updatedAt, the Tailored CV revision.
+  fetch.mockImplementation(async (url, init) => {
+    const body = (await (await base(url, init)).json()) as object;
+    if (init?.method === 'PUT') revision++;
+    return Response.json({
+      ...body,
+      updatedAt: `2026-11-0${revision + 1}T00:00:00Z`,
+    });
+  });
+  wizardMounts.count = 0;
+  const { router } = mount(`/jobs/${id}/tailored-cv`);
+  const wizard = await screen.findByLabelText(/^Tailored wizard/u);
+  fireEvent.change(wizard, { target: { value: 'local edit' } });
+  const calls = fetch.mock.calls.length;
+  tab('Overview');
+  await waitFor(() => expect(wizard).not.toBeVisible());
+  tab('Tailored CV');
+  expect(screen.getByLabelText(/^Tailored wizard/u)).toHaveValue('local edit');
+  expect(wizardMounts.count).toBe(1);
+  expect(fetch.mock.calls.length).toBe(calls);
+  // A saved JD revision invalidates the workflow.
+  tab('Edit JD');
+  fireEvent.change(screen.getByLabelText('Job description'), {
+    target: { value: 'Revised synthetic JD' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+  expect(await screen.findByText('Changes saved')).toBeVisible();
+  await closeSuccess();
+  await waitFor(() => expect(wizardMounts.count).toBe(2));
+  expect(screen.getByLabelText(/^Tailored wizard/u)).toHaveValue('');
+  // Another job never sees this job's panels or state.
+  const other = '00000000-0000-4000-8000-999999999999';
+  await act(() => router.navigate(`/jobs/${other}`));
+  await screen.findByRole('heading', { name: 'Synthetic engineer' });
   await waitFor(() =>
     expect(
-      screen.queryByText('Interview questions workflow'),
+      screen.queryByLabelText(/^Tailored wizard/u),
     ).not.toBeInTheDocument(),
   );
-  tab('Interview');
+  await act(() => router.navigate(`/jobs/${other}/tailored-cv`));
   expect(
-    await screen.findByText('Interview questions workflow'),
-  ).toBeInTheDocument();
-  expect(router.state.location.pathname).toBe(`/jobs/${id}/interview`);
+    await screen.findByLabelText(new RegExp(`^Tailored wizard ${other}`, 'u')),
+  ).toHaveValue('');
+});
+
+test('unsaved Tailored CV review edits allow Overview but guard CV Match and Edit JD', async () => {
+  mockApi();
+  const { router } = mount(`/jobs/${id}/tailored-cv`);
+  const wizard = await screen.findByLabelText(/^Tailored wizard/u);
+  fireEvent.change(wizard, { target: { value: 'unsaved review' } });
+  tab('Overview');
+  await waitFor(() =>
+    expect(router.state.location.pathname).toBe(`/jobs/${id}`),
+  );
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  tab('CV Match');
+  expect(
+    await screen.findByRole('dialog', { name: 'Leave unsaved changes?' }),
+  ).toBeVisible();
+  expect(router.state.location.pathname).toBe(`/jobs/${id}`);
 });
