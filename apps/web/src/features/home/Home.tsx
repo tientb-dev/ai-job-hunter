@@ -44,6 +44,7 @@ import type { Opportunity, OpportunityInput } from '../inbox/opportunities-api';
 import { sourceCvRequest } from '../inbox/source-cv-review.contract';
 import type { NextAction } from '../inbox/next-action';
 import { continueItems, cvStep, homeSections } from './home-sections';
+import { isJobProgress } from '../inbox/next-action';
 import type { HomeSections, JobProgress } from './home-sections';
 
 // All visible text in one place so it can move to a locale file later.
@@ -799,15 +800,6 @@ function Continue({
   );
 }
 
-const isProgress = (value: unknown): value is JobProgress =>
-  !!value &&
-  typeof value === 'object' &&
-  'jobs' in value &&
-  Array.isArray(value.jobs) &&
-  'cv' in value &&
-  !!value.cv &&
-  typeof value.cv === 'object';
-
 export function Home() {
   const today = useLocalCalendarDate();
   const [rows, setRows] = useState<Opportunity[] | null>(null);
@@ -830,7 +822,7 @@ export function Home() {
     let active = true;
     sourceCvRequest('/job-progress').then(
       (value) => {
-        if (active) setProgress(isProgress(value) ? value : 'error');
+        if (active) setProgress(isJobProgress(value) ? value : 'error');
       },
       () => active && setProgress('error'),
     );

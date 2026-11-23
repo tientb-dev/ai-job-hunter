@@ -49,6 +49,9 @@ import {
   opportunityRequest,
 } from './opportunities-api';
 import type { Opportunity } from './opportunities-api';
+import { sourceCvRequest } from './source-cv-review.contract';
+import { isJobProgress, progressAction, progressChips } from './next-action';
+import type { JobProgress } from './next-action';
 import { displayExperience, previewRequirements } from './job-display';
 const message = (error: unknown) =>
   error instanceof Error
@@ -112,6 +115,21 @@ export function JobInbox() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [attempt, setAttempt] = useState(0);
+  // One request for every job; null when unavailable, so the preview keeps
+  // its generic advice instead of waiting or guessing.
+  const [progress, setProgress] = useState<JobProgress | null>(null);
+  useEffect(() => {
+    let active = true;
+    sourceCvRequest('/job-progress').then(
+      (value) => {
+        if (active) setProgress(isJobProgress(value) ? value : null);
+      },
+      () => undefined,
+    );
+    return () => {
+      active = false;
+    };
+  }, [attempt]);
   const detailHeading = useRef<HTMLHeadingElement>(null);
   const returnFocus = useRef<string | null>(null);
   useEffect(() => {
@@ -573,6 +591,7 @@ export function JobInbox() {
               row={selected}
               urgency={isDue(selected)}
               headingRef={detailHeading}
+              progress={progress}
             />
           </Stack>
         )}
@@ -585,12 +604,21 @@ function JobDetail({
   row,
   urgency,
   headingRef,
+  progress,
 }: {
   row: Opportunity;
   urgency: string | null;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
+  progress: JobProgress | null;
 }) {
   const base = `/jobs/${row.id}`;
+  const fact = progress?.jobs.find((job) => job.id === row.id);
+  // A due follow-up keeps priority; without facts the advice stays generic.
+  const action =
+    !urgency && fact && progress
+      ? progressAction(row, fact, progress.cv, null)
+      : null;
+  const chips = fact && progressChips(fact);
   const date = (value: string) =>
     new Date(value.length === 10 ? `${value}T00:00` : value).toLocaleDateString(
       dateLocale(),
@@ -623,18 +651,22 @@ function JobDetail({
       Icon: DescriptionIcon,
       title: tr('CV Match'),
       text: tr('Check how well your CV fits this job'),
+      chip: chips?.match ?? null,
     },
     {
       to: 'tailored-cv',
       Icon: AutoAwesomeIcon,
       title: tr('Tailored CV'),
       text: tr('Tailor your CV to this job'),
+      chip: chips?.tailored ?? null,
     },
     {
       to: 'interview',
       Icon: ForumIcon,
       title: tr('Interview practice'),
       text: tr('Prepare and practice answers'),
+      // job-progress has no interview facts, so no status row at all.
+      chip: undefined,
     },
   ];
   const original = row.originalLink && jobUrlInfo(row.originalLink).valid;
@@ -701,7 +733,12 @@ function JobDetail({
           >
             {tr('Next step')}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          {/* Two reserved lines: specific advice arriving later does not push content down. */}
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ minHeight: '2lh' }}
+          >
             {urgency
               ? tr(
                   'Follow-up {v0}. Contact the recruiter, then update the application.',
@@ -709,7 +746,8 @@ function JobDetail({
                     v0: tr(urgency).toLowerCase(),
                   },
                 )
-              : tr('Continue working on this job in its workspace.')}
+              : (action?.text ??
+                tr('Continue working on this job in its workspace.'))}
           </Typography>
         </Box>
         {urgency ? (
@@ -728,11 +766,17 @@ function JobDetail({
         ) : (
           <Button
             component={Link}
-            to={base}
+            to={
+              !action
+                ? base
+                : action.to === '/cv'
+                  ? '/cv'
+                  : `${base}/${action.to}`
+            }
             variant="contained"
             endIcon={<ArrowForwardIcon />}
           >
-            {tr('Open job')}
+            {action?.label ?? tr('Open job')}
           </Button>
         )}
       </Stack>
@@ -785,7 +829,7 @@ function JobDetail({
             {tr('Job workspace')}
           </Typography>
           <Stack spacing={1}>
-            {steps.map(({ to, Icon, title, text }) => (
+            {steps.map(({ to, Icon, title, text, chip }) => (
               <ButtonBase
                 key={to}
                 component={Link}
@@ -810,6 +854,12 @@ function JobDetail({
                   <Typography variant="body2" sx={{ fontWeight: 600 }}>
                     {title}
                   </Typography>
+                  {/* Reserved row: a status arriving later never resizes the card. */}
+                  {chip !== undefined && (
+                    <Box sx={{ minHeight: 24, my: 0.25 }}>
+                      {chip && <StatusChip status={chip} />}
+                    </Box>
+                  )}
                   <Typography variant="caption" color="text.secondary">
                     {text}
                   </Typography>

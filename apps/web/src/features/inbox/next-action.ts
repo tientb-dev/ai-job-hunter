@@ -118,3 +118,90 @@ export function nextJobAction(input: NextActionInput): NextAction | null {
     };
   return null;
 }
+
+/** POST /tailored-cv/job-progress: workflow facts only, never decisions. */
+export interface JobProgress {
+  /** The account default CV, not necessarily the CV a job uses. */
+  cv: { saved: boolean; sourceReason: string | null };
+  jobs: JobProgressFact[];
+}
+export interface JobProgressFact {
+  id: string;
+  /** Evaluated for the job's own CV. */
+  matchStatus: string;
+  draft: {
+    pending: number | null;
+    approved: boolean;
+    jobUpdatedAt: string;
+    updatedAt: string;
+  } | null;
+}
+export const isJobProgress = (value: unknown): value is JobProgress =>
+  !!value &&
+  typeof value === 'object' &&
+  'jobs' in value &&
+  Array.isArray(value.jobs) &&
+  'cv' in value &&
+  !!value.cv &&
+  typeof value.cv === 'object';
+
+/**
+ * nextJobAction() from job-progress facts, shared by Dashboard and Jobs.
+ * CV-level advice describes the account default CV, so it is kept only when
+ * that CV is provably this job's CV (none pinned, no saved match); otherwise
+ * the job's own match status decides, or there is no reliable step.
+ */
+export function progressAction(
+  job: { status: string; updatedAt: string; cvId?: string | null },
+  fact: JobProgressFact,
+  cv: JobProgress['cv'],
+  followUp: string | null,
+): NextAction | null {
+  const { draft } = fact;
+  const input: NextActionInput = {
+    followUp,
+    status: job.status,
+    cvSaved: cv.saved,
+    sourceReason: cv.sourceReason,
+    matchStatus: fact.matchStatus,
+    // A malformed saved review has no pending count: infer nothing from it.
+    draft:
+      draft &&
+      (draft.pending === null
+        ? undefined
+        : {
+            pending: draft.pending,
+            approved: draft.approved,
+            outdated: draft.jobUpdatedAt !== job.updatedAt,
+          }),
+  };
+  const action = nextJobAction(input);
+  // Server resolves the job CV as pinned ?? matched ?? default.
+  const usesAccountCv =
+    !job.cvId &&
+    (fact.matchStatus === 'MISSING' ||
+      (fact.matchStatus === 'CV_UNAVAILABLE' && !cv.saved));
+  if (action?.to !== '/cv' || usesAccountCv) return action;
+  return nextJobAction({ ...input, cvSaved: true, sourceReason: null });
+}
+
+/** Chip statuses for the Jobs preview; null when the facts do not say. */
+export function progressChips(fact: JobProgressFact) {
+  const match =
+    fact.matchStatus === 'VALID'
+      ? 'COMPLETED'
+      : ['STALE_CV', 'STALE_JOB', 'EXPIRED'].includes(fact.matchStatus)
+        ? 'OUTDATED'
+        : fact.matchStatus === 'MISSING'
+          ? 'NOT_STARTED'
+          : null;
+  const { draft } = fact;
+  const tailored = !draft
+    ? 'NOT_STARTED'
+    : draft.approved
+      ? 'APPROVED'
+      : draft.pending === null
+        ? null
+        : 'IN_PROGRESS';
+  return { match, tailored };
+}

@@ -1,25 +1,12 @@
 import { dueFollowUp } from '../inbox/follow-ups';
 import { statuses } from '../inbox/opportunities-api';
 import type { Opportunity } from '../inbox/opportunities-api';
-import { nextJobAction } from '../inbox/next-action';
-import type { NextAction } from '../inbox/next-action';
+import { nextJobAction, progressAction } from '../inbox/next-action';
+import type { JobProgress, NextAction } from '../inbox/next-action';
 
 const CONTINUE_LIMIT = 3;
 
-/** POST /tailored-cv/job-progress: workflow facts only, never decisions. */
-export interface JobProgress {
-  cv: { saved: boolean; sourceReason: string | null };
-  jobs: {
-    id: string;
-    matchStatus: string;
-    draft: {
-      pending: number | null;
-      approved: boolean;
-      jobUpdatedAt: string;
-      updatedAt: string;
-    } | null;
-  }[];
-}
+export type { JobProgress } from '../inbox/next-action';
 
 export interface HomeSections {
   due: { job: Opportunity; label: string }[];
@@ -85,25 +72,9 @@ export function continueItems(
         dueFollowUp(job.followUpDate, job.status, today, job.followUpStatus)
       )
         return [];
-      const { draft } = fact;
-      const action = nextJobAction({
-        followUp: null,
-        status: job.status,
-        cvSaved: progress.cv.saved,
-        sourceReason: progress.cv.sourceReason,
-        matchStatus: fact.matchStatus,
-        // A malformed saved review has no pending count: infer nothing from it.
-        draft:
-          draft &&
-          (draft.pending === null
-            ? undefined
-            : {
-                pending: draft.pending,
-                approved: draft.approved,
-                outdated: draft.jobUpdatedAt !== job.updatedAt,
-              }),
-      });
+      const action = progressAction(job, fact, progress.cv, null);
       if (!action || action.to === '/cv') return [];
+      const { draft } = fact;
       const activity =
         draft && draft.updatedAt > job.updatedAt
           ? draft.updatedAt
