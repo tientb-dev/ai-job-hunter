@@ -313,49 +313,59 @@ function InvitesSection() {
       sx={{ p: { xs: 2, sm: 3 } }}
     >
       <Stack spacing={2}>
-        <Box>
-          <Typography id="admin-invites-title" variant="h6" component="h2">
-            {tr('Invitation codes')}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {tr(
-              'Each code creates one account. Send it to the tester privately.',
-            )}
-          </Typography>
-        </Box>
         <Stack
-          direction={{ xs: 'column', sm: 'row' }}
+          direction={{ xs: 'column', md: 'row' }}
           spacing={2}
-          sx={{ alignItems: { sm: 'center' } }}
+          sx={{
+            alignItems: { md: 'center' },
+            justifyContent: 'space-between',
+          }}
         >
-          <TextField
-            select
-            label={tr('Valid for')}
-            value={days}
-            onChange={(event) => setDays(Number(event.target.value))}
-            sx={{ minWidth: 160 }}
+          <Box sx={{ minWidth: 0 }}>
+            <Typography id="admin-invites-title" variant="h6" component="h2">
+              {tr('Invitation codes')}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {tr(
+                'Each code creates one account. Send it to the tester privately.',
+              )}
+            </Typography>
+          </Box>
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1.5}
+            sx={{ alignItems: { sm: 'center' }, flexShrink: 0 }}
           >
-            {INVITE_DAYS.map((n) => (
-              <MenuItem key={n} value={n}>
-                {tr('{n} days', { n })}
-              </MenuItem>
-            ))}
-          </TextField>
-          <Button
-            variant="contained"
-            startIcon={
-              creating ? (
-                <CircularProgress size={16} color="inherit" />
-              ) : (
-                <AddIcon />
-              )
-            }
-            // aria-disabled, not disabled: keeps focus so the code dialog can return it here.
-            aria-disabled={creating}
-            onClick={() => !creating && void create()}
-          >
-            {tr('Create invite')}
-          </Button>
+            <TextField
+              select
+              size="small"
+              label={tr('Valid for')}
+              value={days}
+              onChange={(event) => setDays(Number(event.target.value))}
+              sx={{ minWidth: 140 }}
+            >
+              {INVITE_DAYS.map((n) => (
+                <MenuItem key={n} value={n}>
+                  {tr('{n} days', { n })}
+                </MenuItem>
+              ))}
+            </TextField>
+            <Button
+              variant="contained"
+              startIcon={
+                creating ? (
+                  <CircularProgress size={16} color="inherit" />
+                ) : (
+                  <AddIcon />
+                )
+              }
+              // aria-disabled, not disabled: keeps focus so the code dialog can return it here.
+              aria-disabled={creating}
+              onClick={() => !creating && void create()}
+            >
+              {tr('Create invite')}
+            </Button>
+          </Stack>
         </Stack>
         {loadError && (
           <Alert
@@ -425,18 +435,28 @@ function InvitesSection() {
           </Box>
         ) : (
           <Box sx={{ overflowX: 'auto' }} aria-busy={loading}>
-            <Table size="small" aria-labelledby="admin-invites-title">
+            <Table
+              size="small"
+              aria-labelledby="admin-invites-title"
+              // Fixed widths keep Revoke next to Status instead of the far edge.
+              sx={{
+                tableLayout: 'fixed',
+                minWidth: 600,
+                '& th': { fontWeight: 600, color: 'text.secondary' },
+              }}
+            >
+              <colgroup>
+                <col style={{ width: '28%' }} />
+                <col style={{ width: '28%' }} />
+                <col style={{ width: '22%' }} />
+                <col style={{ width: '22%' }} />
+              </colgroup>
               <TableHead>
                 <TableRow>
                   <TableCell>{tr('Created')}</TableCell>
                   <TableCell>{tr('Expires')}</TableCell>
                   <TableCell>{tr('Status')}</TableCell>
-                  {/* relative: keeps the hidden label inside the scroll box */}
-                  <TableCell sx={{ position: 'relative' }}>
-                    <Box component="span" sx={visuallyHidden}>
-                      {tr('Actions')}
-                    </Box>
-                  </TableCell>
+                  <TableCell>{tr('Actions')}</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -453,7 +473,17 @@ function InvitesSection() {
                     <TableCell>
                       <StatusChip status={invite.status.toUpperCase()} />
                     </TableCell>
-                    <TableCell align="right">{revokeButton(invite)}</TableCell>
+                    <TableCell sx={{ py: 0.5 }}>
+                      {revokeButton(invite) || (
+                        <Box
+                          component="span"
+                          aria-hidden="true"
+                          sx={{ color: 'text.disabled' }}
+                        >
+                          —
+                        </Box>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -487,15 +517,18 @@ function InvitesSection() {
   );
 }
 
-// Strings: in sx a bare 1 means 100%.
-const visuallyHidden = {
-  position: 'absolute',
-  width: '1px',
-  height: '1px',
-  overflow: 'hidden',
-  clip: 'rect(0 0 0 0)',
-  whiteSpace: 'nowrap',
-} as const;
+/** Numbered step caption for the reset flow; the text carries the order, not colour. */
+function Step({ n, label }: { n: number; label: string }) {
+  return (
+    <Typography
+      component="h3"
+      variant="subtitle2"
+      sx={{ mb: 1.5, color: 'text.secondary', fontWeight: 600 }}
+    >
+      {tr('Step {n}', { n })} · {label}
+    </Typography>
+  );
+}
 
 function ResetSection() {
   const notify = useNotify();
@@ -593,49 +626,58 @@ function ResetSection() {
             )}
           </Typography>
         </Box>
-        <Stack
-          component="form"
-          method="post"
-          noValidate
-          onSubmit={(event) => void search(event)}
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={2}
-          sx={{ alignItems: { sm: 'flex-start' } }}
-        >
-          <TextField
-            label={tr('Account email')}
-            type="email"
-            autoComplete="off"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            error={Boolean(emailError)}
-            helperText={emailError || ' '}
-            sx={{ flex: 1, maxWidth: { sm: 420 } }}
-          />
-          <Button
-            type="submit"
-            variant="outlined"
-            disabled={searching}
-            startIcon={
-              searching ? (
-                <CircularProgress size={16} color="inherit" />
-              ) : (
-                <SearchIcon />
-              )
-            }
-            sx={{ mt: { sm: 1 } }}
+        <Box>
+          <Step n={1} label={tr('Find the account')} />
+          <Stack
+            component="form"
+            method="post"
+            noValidate
+            onSubmit={(event) => void search(event)}
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={2}
+            sx={{ alignItems: { sm: 'flex-start' } }}
           >
-            {tr('Find account')}
-          </Button>
-        </Stack>
+            <TextField
+              label={tr('Account email')}
+              type="email"
+              autoComplete="off"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              error={Boolean(emailError)}
+              helperText={emailError || undefined}
+              sx={{ flex: 1, maxWidth: { sm: 420 } }}
+            />
+            <Button
+              type="submit"
+              variant="outlined"
+              disabled={searching}
+              startIcon={
+                searching ? (
+                  <CircularProgress size={16} color="inherit" />
+                ) : (
+                  <SearchIcon />
+                )
+              }
+              sx={{ mt: { sm: 1 } }}
+            >
+              {tr('Find account')}
+            </Button>
+          </Stack>
+        </Box>
         {user && (
-          <Box sx={{ borderTop: 1, borderColor: 'divider', pt: 2 }}>
-            <Typography sx={{ fontWeight: 600, overflowWrap: 'anywhere' }}>
-              {user.email}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              {tr('Account created {date}', { date: when(user.createdAt) })}
-            </Typography>
+          <Stack
+            spacing={2}
+            sx={{ borderTop: 1, borderColor: 'divider', pt: 2 }}
+          >
+            <Box>
+              <Step n={2} label={tr('Check the account')} />
+              <Typography sx={{ fontWeight: 600, overflowWrap: 'anywhere' }}>
+                {user.email}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {tr('Account created {date}', { date: when(user.createdAt) })}
+              </Typography>
+            </Box>
             {ownAccount ? (
               <Alert severity="info">
                 {tr(
@@ -643,58 +685,60 @@ function ResetSection() {
                 )}
               </Alert>
             ) : (
-              <Stack
-                component="form"
-                method="post"
-                noValidate
-                onSubmit={(event) => void issue(event)}
-                direction={{ xs: 'column', sm: 'row' }}
-                spacing={2}
-                sx={{ alignItems: { sm: 'flex-start' } }}
-              >
-                <TextField
-                  select
-                  label={tr('Valid for')}
-                  value={hours}
-                  onChange={(event) => setHours(Number(event.target.value))}
-                  helperText=" "
-                  sx={{ minWidth: 160 }}
+              <Box>
+                <Step n={3} label={tr('Issue a reset code')} />
+                <Stack
+                  component="form"
+                  method="post"
+                  noValidate
+                  onSubmit={(event) => void issue(event)}
+                  direction={{ xs: 'column', sm: 'row' }}
+                  spacing={2}
+                  sx={{ alignItems: { sm: 'flex-start' } }}
                 >
-                  {RESET_HOURS.map((n) => (
-                    <MenuItem key={n} value={n}>
-                      {tr('{n} hours', { n })}
-                    </MenuItem>
-                  ))}
-                </TextField>
-                <TextField
-                  label={tr('Your admin password')}
-                  type="password"
-                  autoComplete="current-password"
-                  inputRef={passwordInput}
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  error={Boolean(passwordError)}
-                  helperText={
-                    passwordError || tr('Required to confirm it is you.')
-                  }
-                  sx={{ flex: 1, maxWidth: { sm: 320 } }}
-                />
-                <Button
-                  type="submit"
-                  variant="contained"
-                  aria-disabled={issuing}
-                  startIcon={
-                    issuing ? (
-                      <CircularProgress size={16} color="inherit" />
-                    ) : undefined
-                  }
-                  sx={{ mt: { sm: 1 } }}
-                >
-                  {tr('Issue reset code')}
-                </Button>
-              </Stack>
+                  <TextField
+                    select
+                    label={tr('Valid for')}
+                    value={hours}
+                    onChange={(event) => setHours(Number(event.target.value))}
+                    sx={{ minWidth: 160 }}
+                  >
+                    {RESET_HOURS.map((n) => (
+                      <MenuItem key={n} value={n}>
+                        {tr('{n} hours', { n })}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                  <TextField
+                    label={tr('Your admin password')}
+                    type="password"
+                    autoComplete="current-password"
+                    inputRef={passwordInput}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    error={Boolean(passwordError)}
+                    helperText={
+                      passwordError || tr('Required to confirm it is you.')
+                    }
+                    sx={{ flex: 1, maxWidth: { sm: 320 } }}
+                  />
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    aria-disabled={issuing}
+                    startIcon={
+                      issuing ? (
+                        <CircularProgress size={16} color="inherit" />
+                      ) : undefined
+                    }
+                    sx={{ mt: { sm: 1 } }}
+                  >
+                    {tr('Issue reset code')}
+                  </Button>
+                </Stack>
+              </Box>
             )}
-          </Box>
+          </Stack>
         )}
       </Stack>
       <CodeDialog

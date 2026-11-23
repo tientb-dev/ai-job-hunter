@@ -1,6 +1,10 @@
 // Vietnamese for feature-screen text, keyed by the English source text (see tr()).
 // An empty value drops an English-only fragment such as a plural suffix.
 export const VI_TEXT: Record<string, string> = {
+  'Step {n}': 'Bước {n}',
+  'Find the account': 'Tìm email',
+  'Check the account': 'Kiểm tra tài khoản',
+  'Issue a reset code': 'Cấp mã đặt lại mật khẩu',
   'Could not reach the server. Check your connection and try again.':
     'Không kết nối được máy chủ. Kiểm tra kết nối mạng rồi thử lại.',
   'Too many attempts. Wait a few minutes and try again.':
