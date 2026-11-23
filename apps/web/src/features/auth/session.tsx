@@ -1,91 +1,100 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import {
   Avatar,
   Box,
   Button,
   Divider,
-  IconButton,
   Menu,
   MenuItem,
-  Stack,
   Typography,
 } from '@mui/material';
-import { LogoutIcon } from '../../components/icons';
+import { Link } from 'react-router-dom';
+import { AdminIcon, ExpandMoreIcon, LogoutIcon } from '../../components/icons';
 import { useSession } from './session-context';
 import { useI18n } from '../../app/i18n';
 
 /**
- * Signed-in account with a greeting and sign-out. Accounts only store an
- * email, so the email is the display name. `compact` (phones) collapses it
- * into an avatar button whose menu holds the details and sign-out.
+ * Account trigger (avatar, name from the email prefix, chevron) opening a menu
+ * with the full email, the admin role and links, and sign-out. Accounts only
+ * store an email, so its prefix is the display name.
  */
-export function AccountMenu({ compact = false }: { compact?: boolean }) {
+export function AccountMenu() {
   const session = useSession();
   const { t } = useI18n();
+  const menuId = useId();
   const [pending, setPending] = useState(false);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   if (!session) return null;
-  const name = session.user.email;
-  const greeting = t('account.greeting', { name });
+  const { email, isAdmin } = session.user;
+  const name = email.split('@')[0] || email;
+  const close = () => setAnchor(null);
   const signOut = () => {
     setPending(true);
+    close();
     void session.signOut();
   };
-  if (!compact)
-    return (
-      <Stack
-        direction="row"
-        spacing={1}
-        sx={{ alignItems: 'center', minWidth: 0 }}
+  return (
+    <>
+      <Button
+        // Visible name included in the accessible name (label in name).
+        aria-label={`${t('account.menu')}: ${name}`}
+        aria-haspopup="menu"
+        aria-expanded={!!anchor}
+        aria-controls={anchor ? menuId : undefined}
+        onClick={(event) => setAnchor(event.currentTarget)}
+        endIcon={<ExpandMoreIcon />}
+        sx={{ color: 'text.primary', minWidth: 0, px: 1, gap: 0.5 }}
       >
-        <Typography
-          variant="body2"
-          title={name}
+        <Avatar
+          aria-hidden="true"
+          sx={{ width: 28, height: 28, fontSize: '0.8125rem' }}
+        >
+          {name.charAt(0).toUpperCase()}
+        </Avatar>
+        <Box
+          component="span"
+          // Phones keep the header on one row: avatar and chevron only; the menu shows the email.
           sx={{
-            maxWidth: 260,
+            display: { xs: 'none', sm: 'block' },
+            maxWidth: 180,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
           }}
         >
-          {greeting}
-        </Typography>
-        <Button
-          startIcon={<LogoutIcon />}
-          disabled={pending}
-          onClick={signOut}
-          sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}
-        >
-          {t('common.signOut')}
-        </Button>
-      </Stack>
-    );
-  return (
-    <>
-      <IconButton
-        aria-label={t('account.menu')}
-        aria-haspopup="menu"
-        aria-expanded={!!anchor}
-        onClick={(event) => setAnchor(event.currentTarget)}
-        sx={{ width: 44, height: 44 }}
-      >
-        <Avatar sx={{ width: 30, height: 30, fontSize: '0.875rem' }}>
-          {name.charAt(0).toUpperCase()}
-        </Avatar>
-      </IconButton>
+          {name}
+        </Box>
+      </Button>
       <Menu
+        id={menuId}
         anchorEl={anchor}
         open={!!anchor}
-        onClose={() => setAnchor(null)}
+        onClose={close}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
         <Box sx={{ px: 2, py: 1, maxWidth: 280 }}>
           <Typography variant="subtitle2" sx={{ overflowWrap: 'anywhere' }}>
-            {greeting}
+            {email}
           </Typography>
+          {isAdmin && (
+            <Typography variant="body2" color="text.secondary">
+              {t('account.administrator')}
+            </Typography>
+          )}
         </Box>
         <Divider />
+        {isAdmin && (
+          <MenuItem
+            component={Link}
+            to="/admin"
+            onClick={close}
+            sx={{ minHeight: 44 }}
+          >
+            <AdminIcon sx={{ fontSize: 20, mr: 1.5 }} />
+            {t('nav.admin')}
+          </MenuItem>
+        )}
         <MenuItem disabled={pending} onClick={signOut} sx={{ minHeight: 44 }}>
           <LogoutIcon sx={{ fontSize: 20, mr: 1.5 }} />
           {t('common.signOut')}

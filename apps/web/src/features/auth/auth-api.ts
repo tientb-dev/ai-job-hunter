@@ -1,5 +1,7 @@
 export interface CurrentUser {
   email: string;
+  /** UI hint only; the server authorizes every admin request. */
+  isAdmin?: boolean;
 }
 
 export const PASSWORD_MIN = 10;

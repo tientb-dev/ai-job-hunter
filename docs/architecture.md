@@ -232,6 +232,10 @@ server checks every request.
   in-memory: one API replica only.
 - The CLI (`auth invite`, `auth reset --email`) is unchanged and remains the
   fallback; `--local-owner` stays CLI-only.
+- Web: `/admin` and its navigation/account-menu entries exist only when
+  `isAdmin`; others get the normal Not Found page. Codes live in component
+  state until their dialog closes (never URL, storage or notifications).
+  `REAUTH_FAILED` is a field error, not a sign-out.
 
 ## P4.1: application details
 

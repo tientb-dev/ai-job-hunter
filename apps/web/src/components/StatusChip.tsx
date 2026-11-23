@@ -20,6 +20,10 @@ const tones: Record<string, Tone> = {
   APPROVED: 'success',
   IN_PROGRESS: 'primary',
   OUTDATED: 'warning',
+  // Admin invites (USED stays neutral)
+  ACTIVE: 'success',
+  REVOKED: 'error',
+  EXPIRED: 'warning',
 };
 
 const sentence = (value: string) => {
