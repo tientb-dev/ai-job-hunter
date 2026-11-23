@@ -37,18 +37,19 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
-import { Link } from 'react-router-dom';
+import {
+  Link,
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from 'react-router-dom';
 import {
   fieldLabels,
   jobUrlInfo,
   opportunityRequest,
 } from './opportunities-api';
 import type { Opportunity } from './opportunities-api';
-import {
-  displayExperience,
-  previewRequirements,
-  requirementItems,
-} from './job-display';
+import { displayExperience, previewRequirements } from './job-display';
 const message = (error: unknown) =>
   error instanceof Error
     ? error.message
@@ -87,11 +88,25 @@ export function JobInbox() {
   const [dueOnly, setDueOnly] = useState(false);
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  // Mobile shows either the list or the selected job.
-  const [mobileDetail, setMobileDetail] = useState(false);
-  // The entrance plays once per page visit, not on each mobile list/detail switch.
+  // ?job=<id> is the selection, so mobile Back/Forward moves between list and detail.
+  const [params, setParams] = useSearchParams();
+  const selectedId = params.get('job');
+  const navigate = useNavigate();
+  const location = useLocation();
+  const select = (id: string | null, push = false) =>
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        if (id) next.set('job', id);
+        else next.delete('job');
+        return next;
+      },
+      { replace: !push, state: push ? { jobFromList: true } : undefined },
+    );
+  // The entrance plays once per page visit, not on each list/detail switch.
+  const [initialJob] = useState(selectedId);
   const [switched, setSwitched] = useState(false);
+  if (!switched && selectedId !== initialJob) setSwitched(true);
   const entrance = (step: number) => (switched ? undefined : enter(step));
   const [rows, setRows] = useState<Opportunity[]>([]);
   const [error, setError] = useState('');
@@ -135,13 +150,35 @@ export function JobInbox() {
     Math.max(0, Math.ceil(visibleRows.length / 10) - 1),
   );
   const pageRows = visibleRows.slice(currentPage * 10, currentPage * 10 + 10);
-  const selected =
-    visibleRows.find((row) => row.id === selectedId) ?? pageRows[0];
-  const showDetail = wide || (mobileDetail && Boolean(selected));
+  const chosen = visibleRows.find((row) => row.id === selectedId);
+  const selected = chosen ?? (wide ? pageRows[0] : undefined);
+  // Mobile shows either the list or the job named in the URL.
+  const mobileDetail = !wide && Boolean(chosen);
+  const showDetail = wide || mobileDetail;
   const showList = wide || !showDetail;
+  // Drop a link to a deleted or unknown job instead of keeping a dead ?job.
+  const unknownJob =
+    !loading &&
+    !error &&
+    selectedId !== null &&
+    !rows.some((r) => r.id === selectedId);
   useEffect(() => {
-    if (!wide && mobileDetail) detailHeading.current?.focus();
-  }, [wide, mobileDetail]);
+    if (unknownJob)
+      setParams(
+        (current) => {
+          const next = new URLSearchParams(current);
+          next.delete('job');
+          return next;
+        },
+        { replace: true },
+      );
+  }, [unknownJob, setParams]);
+  useEffect(() => {
+    if (mobileDetail) {
+      returnFocus.current = selectedId;
+      detailHeading.current?.focus();
+    }
+  }, [mobileDetail, selectedId]);
   useEffect(() => {
     if (showList && returnFocus.current) {
       document.getElementById(`job-card-${returnFocus.current}`)?.focus();
@@ -291,9 +328,7 @@ export function JobInbox() {
                       id={`job-card-${row.id}`}
                       aria-current={active ? 'true' : undefined}
                       onClick={() => {
-                        setSelectedId(row.id);
-                        setMobileDetail(true);
-                        setSwitched(true);
+                        if (row.id !== selectedId) select(row.id, !wide);
                       }}
                       sx={{
                         width: '100%',
@@ -307,13 +342,16 @@ export function JobInbox() {
                         border: 1,
                         borderColor: active ? 'primary.main' : 'transparent',
                         bgcolor: active ? surface.primaryTint : undefined,
+                        // Inset accent: selected stays distinct from the hover tint.
+                        boxShadow: active
+                          ? (theme) =>
+                              `inset 3px 0 0 ${theme.palette.primary.main}`
+                          : undefined,
                         transition:
                           'background-color 160ms, border-color 160ms',
-                        '&:hover': {
-                          bgcolor: active
-                            ? surface.primaryTint
-                            : 'action.hover',
-                        },
+                        '&:hover': active
+                          ? undefined
+                          : { borderColor: 'divider' },
                         '&.Mui-focusVisible': focusRing,
                       }}
                     >
@@ -502,7 +540,7 @@ export function JobInbox() {
       />
       <Box
         sx={{
-          flex: { md: '1 1 auto' },
+          flex: { xs: '0 0 auto', md: '1 1 auto' },
           minHeight: 0,
           display: 'grid',
           gap: 3,
@@ -517,9 +555,13 @@ export function JobInbox() {
                 <Button
                   startIcon={<ArrowBackIcon />}
                   onClick={() => {
-                    returnFocus.current = selected.id;
-                    setMobileDetail(false);
-                    setSwitched(true);
+                    // Undo our own push so Back/Forward stay in step; never leave /jobs.
+                    if (
+                      (location.state as { jobFromList?: boolean } | null)
+                        ?.jobFromList
+                    )
+                      navigate(-1);
+                    else select(null);
                   }}
                 >
                   {tr('Back to jobs')}
@@ -690,7 +732,7 @@ function JobDetail({
             variant="contained"
             endIcon={<ArrowForwardIcon />}
           >
-            {tr('Open application')}
+            {tr('Open job')}
           </Button>
         )}
       </Stack>
@@ -812,10 +854,6 @@ function Requirements({
   overview: string;
 }) {
   const items = previewRequirements([row.skills, row.preferredSkills]);
-  const total = [row.skills, row.preferredSkills].flatMap((text) =>
-    requirementItems(text),
-  ).length;
-  const more = total > items.length;
   return (
     <Box sx={{ mt: 3, pt: 2, borderTop: 1, borderColor: 'divider' }}>
       <Stack
@@ -881,15 +919,6 @@ function Requirements({
             {tr('No requirements found yet.')}
           </Typography>
         )
-      )}
-      {more && (
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ display: 'block', mt: 1 }}
-        >
-          {tr('More in Job Overview')}
-        </Typography>
       )}
     </Box>
   );

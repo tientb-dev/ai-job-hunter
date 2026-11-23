@@ -1365,7 +1365,7 @@ export const VI_TEXT: Record<string, string> = {
   'No CV saved yet. Save a PDF to review it and tailor it for jobs.':
     'Chưa lưu CV. Hãy lưu tệp PDF để rà soát và tùy chỉnh cho từng việc làm.',
   'No active jobs have a follow-up due today or earlier. Clear the filter to see all jobs.':
-    'Không có việc làm đang theo nào cần theo dõi hôm nay hoặc trước đó. Bỏ lọc để xem mọi việc làm.',
+    'Không có việc làm đang mở nào cần theo dõi hôm nay hoặc trước đó. Bỏ lọc để xem mọi việc làm.',
   'No additional evidence-backed suggestions found. Review the requirement evidence.':
     'Không tìm thấy thêm gợi ý có bằng chứng. Hãy xem bằng chứng của yêu cầu.',
   'No additional passages outside accepted content.':
@@ -2667,7 +2667,7 @@ export const VI_TEXT: Record<string, string> = {
   'Requirements & skills': 'Yêu cầu & kỹ năng',
   'View full requirements': 'Xem đầy đủ yêu cầu',
   'No requirements found yet.': 'Chưa có yêu cầu nào.',
-  'More in Job Overview': 'Xem thêm trong Tổng quan việc làm',
+  'Open job': 'Mở việc làm',
   'CV saved.': 'Đã lưu CV.',
   'CV renamed.': 'Đã đổi tên CV.',
   'CV deleted.': 'Đã xóa CV.',
