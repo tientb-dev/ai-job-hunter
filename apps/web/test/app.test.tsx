@@ -57,7 +57,7 @@ test.each(['/dashboard', '/jobs'])(
       }),
     );
     if (path === '/jobs')
-      await user.click(screen.getByRole('link', { name: 'Open application' }));
+      await user.click(screen.getByRole('link', { name: 'Open job' }));
     expect(
       await screen.findByRole('heading', { name: job.title }),
     ).toBeVisible();

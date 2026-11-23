@@ -1,6 +1,12 @@
 import { expect, test, vi } from 'vitest';
 import { act, fireEvent, render, screen, within } from './render';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import {
+  MemoryRouter,
+  Route,
+  RouterProvider,
+  Routes,
+  createMemoryRouter,
+} from 'react-router-dom';
 import { JobInbox } from '../src/features/inbox/JobInbox';
 import { JobEditor } from '../src/features/inbox/JobEditor';
 import { emptyOpportunity } from '../src/features/inbox/opportunities-api';
@@ -376,7 +382,7 @@ test('preview shows complete requirements and links to the full overview', async
       .getAllByRole('listitem')
       .map((li) => li.textContent),
   ).toEqual(SAMPLE_PREVIEW);
-  expect(within(section).getByText('More in Job Overview')).toBeVisible();
+  expect(within(section).queryByText('More in Job Overview')).toBeNull();
   expect(
     within(section).getByRole('link', { name: 'View full requirements' }),
   ).toHaveAttribute('href', '/jobs/Skilled job');
@@ -397,4 +403,98 @@ test('preview handles jobs without requirements', async () => {
   await screen.findByText('Bare job');
   openCard('Bare job');
   expect(screen.getByText('No requirements found yet.')).toBeVisible();
+});
+
+function mountRouter(rows: ReturnType<typeof makeJob>[], path = '/jobs') {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string) =>
+      Response.json(url === '/api/v1/opportunities' ? rows : null),
+    ),
+  );
+  const router = createMemoryRouter(
+    [
+      { path: '/', element: <p>Previous page</p> },
+      { path: '/jobs', element: <JobInbox /> },
+      { path: '/jobs/:id/*', element: <p>Job page</p> },
+    ],
+    { initialEntries: ['/', path], initialIndex: 1 },
+  );
+  render(<RouterProvider router={router} />);
+  const at = () =>
+    router.state.location.pathname + router.state.location.search;
+  return { router, at };
+}
+const twoJobs = () => [makeJob('First job', null), makeJob('Second job', null)];
+
+test('mobile selection lives in ?job so Back and Forward switch list and detail without leaving Jobs', async () => {
+  const { router, at } = mountRouter(twoJobs());
+  await screen.findByText('Second job');
+  openCard('Second job');
+  expect(at()).toBe('/jobs?job=Second+job');
+  expect(
+    await screen.findByRole('heading', { level: 2, name: 'Second job' }),
+  ).toHaveFocus();
+  await act(() => router.navigate(-1));
+  expect(at()).toBe('/jobs');
+  expect(
+    screen.getByRole('list', { name: 'Saved opportunities' }),
+  ).toBeVisible();
+  expect(screen.getByRole('button', { name: /^Second job/ })).toHaveFocus();
+  await act(() => router.navigate(1));
+  expect(
+    screen.getByRole('heading', { level: 2, name: 'Second job' }),
+  ).toBeVisible();
+  // In-page Back pops our own entry instead of stacking a new one.
+  fireEvent.click(screen.getByRole('button', { name: 'Back to jobs' }));
+  await screen.findByRole('list', { name: 'Saved opportunities' });
+  expect(at()).toBe('/jobs');
+  await act(() => router.navigate(-1));
+  expect(at()).toBe('/');
+});
+
+test('a direct ?job link opens that job and in-page Back stays on Jobs', async () => {
+  const { at } = mountRouter(twoJobs(), '/jobs?job=First+job');
+  expect(
+    await screen.findByRole('heading', { level: 2, name: 'First job' }),
+  ).toBeVisible();
+  expect(screen.getByRole('link', { name: 'Open job' })).toHaveAttribute(
+    'href',
+    '/jobs/First job',
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Back to jobs' }));
+  await screen.findByRole('list', { name: 'Saved opportunities' });
+  expect(at()).toBe('/jobs');
+});
+
+test.each(['Deleted job', ''])(
+  'an unknown or empty ?job (%j) shows the list and is dropped from the URL',
+  async (job) => {
+    const { at } = mountRouter(twoJobs(), `/jobs?job=${job}`);
+    await screen.findByRole('list', { name: 'Saved opportunities' });
+    expect(screen.queryByRole('button', { name: 'Back to jobs' })).toBeNull();
+    await vi.waitFor(() => expect(at()).toBe('/jobs'));
+  },
+);
+
+test('desktop selection replaces the URL entry instead of adding history', async () => {
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn((query: string) => ({
+      matches: true,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })),
+  );
+  const { router, at } = mountRouter(twoJobs());
+  await screen.findByRole('heading', { level: 2, name: 'First job' });
+  openCard('Second job');
+  expect(at()).toBe('/jobs?job=Second+job');
+  expect(
+    screen.getByRole('heading', { level: 2, name: 'Second job' }),
+  ).toBeVisible();
+  await act(() => router.navigate(-1));
+  expect(at()).toBe('/');
 });
