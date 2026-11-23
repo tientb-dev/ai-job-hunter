@@ -160,6 +160,13 @@ async function open() {
 function openCv() {
   fireEvent.click(screen.getByText(/^Full CV:/));
 }
+test('a clean wizard draft with suggestions shows no empty save panel', async () => {
+  setup(tailoredDraftFixture(), 2);
+  await screen.findByText(/^Full CV:/);
+  expect(
+    screen.queryByRole('region', { name: 'Save and approve' }),
+  ).not.toBeInTheDocument();
+});
 test('a saved draft with no suggestions shows the complete CV and opens the final preview before approval', async () => {
   const draft = tailoredDraftFixture();
   const { document } = draft;

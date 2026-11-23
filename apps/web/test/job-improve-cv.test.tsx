@@ -167,17 +167,30 @@ test.each([false, true])(
       ).toBeVisible();
     }
     const handoff = screen.getByRole('button', { name: 'Open Tailored CV' });
-    expect(handoff).toHaveClass('MuiButton-contained');
+    expect(handoff).toHaveClass('MuiButton-outlined');
     if (!withFindings) {
       expect(
         handoff.compareDocumentPosition(preview) &
           Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy();
     }
+    // Mobile: the tab bar has scrolled above the viewport.
+    const tailoredTab = screen.getByRole('tab', { name: 'Tailored CV' });
+    const scroll = vi.fn();
+    tailoredTab.scrollIntoView = scroll;
+    vi.spyOn(tailoredTab, 'getBoundingClientRect').mockReturnValue({
+      top: -151,
+    } as DOMRect);
     fireEvent.click(handoff);
     const tailored = screen.getByRole('tab', { name: 'Tailored CV' });
     expect(tailored).toHaveAttribute('aria-selected', 'true');
     expect(tailored).toHaveFocus();
+    expect(scroll).toHaveBeenCalledWith({
+      block: 'start',
+      behavior: 'instant',
+    });
+    const ids = [...document.querySelectorAll('[id]')].map((e) => e.id);
+    expect(ids.filter((v, i) => ids.indexOf(v) !== i)).toEqual([]);
     expect(
       fetch.mock.calls.some(
         ([url, init]) => url.endsWith('/match') && init?.method === 'POST',
@@ -197,7 +210,9 @@ test('CV Match opens Tailored CV for the same job and selected CV with no additi
   const before = fetch.mock.calls.length;
   const handoff = screen.getByRole('button', { name: 'Open Tailored CV' });
   expect(handoff).toHaveClass('MuiButton-contained');
-  expect(handoff.closest('.MuiPaper-root')).toHaveTextContent('Saved match');
+  expect(handoff.closest('.MuiPaper-root')).toHaveTextContent(
+    'Saved CV Match result',
+  );
   expect(
     screen.queryByRole('button', { name: 'Quick skill preview' }),
   ).toBeNull();

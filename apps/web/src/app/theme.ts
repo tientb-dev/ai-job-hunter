@@ -93,27 +93,14 @@ export const theme = createTheme({
             outlineOffset: 2,
           },
         }),
-        // Explicit secondary actions use the blue outline. Default and error
-        // actions keep their neutral and destructive treatments.
+        // Secondary actions are neutral outlined; error keeps its destructive treatment.
         outlined: ({ theme, ownerState }) => {
-          const { primary, action, text } = theme.palette;
+          const { action, text } = theme.palette;
           const disabled = {
             borderColor: surface.controlBorder,
             color: text.secondary,
             backgroundColor: action.hover,
           };
-          if (ownerState.color === 'secondary') {
-            return {
-              borderColor: primary.main,
-              color: primary.dark,
-              backgroundColor: surface.primaryTint,
-              '&:hover': {
-                borderColor: primary.dark,
-                backgroundColor: action.selected,
-              },
-              '&.Mui-disabled': disabled,
-            };
-          }
           const error = ownerState.color === 'error';
           const danger = {
             borderColor: theme.palette.error.main,

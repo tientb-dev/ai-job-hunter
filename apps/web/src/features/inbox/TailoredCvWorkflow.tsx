@@ -452,7 +452,7 @@ export function TailoredCvWorkflow({
         hasDraft={draftLoaded}
         analyzeBlocked={reviewBusy}
       />
-      <Box id="job-panel-2" hidden={!entryResolved}>
+      <Box hidden={!entryResolved}>
         <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, minWidth: 0 }}>
           <Box
             id="source-wizard-panel"

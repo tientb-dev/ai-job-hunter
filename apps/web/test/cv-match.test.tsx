@@ -261,7 +261,7 @@ test.each([
   expect(disclosure).toBeVisible();
   if (!upToDate) expect(disclosure.closest('[role="alert"]')).toBeNull();
   // An unreliable result must not claim that no new analysis is needed.
-  expect(screen.getByText(/^Saved match/)).toBeVisible();
+  expect(screen.getByText(/^Saved CV Match result/)).toBeVisible();
   expect(screen.queryAllByText(/No new analysis is needed/).length > 0).toBe(
     upToDate,
   );

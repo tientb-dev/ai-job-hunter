@@ -1,4 +1,12 @@
-import { Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
+import {
+  Box,
+  Button,
+  Chip,
+  Divider,
+  Paper,
+  Stack,
+  Typography,
+} from '@mui/material';
 import { tr } from '../../app/i18n';
 import {
   BODY,
@@ -44,10 +52,11 @@ export function OrderSuggestions({
     );
   if (!entries.length) return null;
   return (
-    <Box
+    <Paper
+      variant="outlined"
       component="section"
       aria-labelledby="order-suggestions-title"
-      sx={{ mt: 2 }}
+      sx={{ mt: 2, p: { xs: 2, sm: 2.5 } }}
     >
       <Typography id="order-suggestions-title" variant="h6" component="h3">
         {tr('Suggested bullet order')}
@@ -57,7 +66,7 @@ export function OrderSuggestions({
           'Optional. Moves your most job-relevant bullets up within a role. Wording, roles and dates stay the same.',
         )}
       </Typography>
-      <Stack spacing={2}>
+      <Stack spacing={2} divider={<Divider />}>
         {entries.map((entry, index) => (
           <OrderCard
             key={entry.id}
@@ -69,7 +78,7 @@ export function OrderSuggestions({
           />
         ))}
       </Stack>
-    </Box>
+    </Paper>
   );
 }
 
@@ -149,12 +158,7 @@ function OrderCard({
     </Box>
   );
   return (
-    <Paper
-      variant="outlined"
-      component="article"
-      aria-labelledby={`${id}-title`}
-      sx={{ p: { xs: 2, sm: 2.5 } }}
-    >
+    <Box component="article" aria-labelledby={`${id}-title`}>
       <Typography
         id={`${id}-title`}
         variant="subtitle1"
@@ -190,13 +194,13 @@ function OrderCard({
           </Button>
         )}
         <Button
-          variant="text"
+          variant="outlined"
           disabled={disabled || decision !== undefined}
           onClick={() => onDecide('reject')}
         >
           {tr('Keep original order')}
         </Button>
       </Stack>
-    </Paper>
+    </Box>
   );
 }

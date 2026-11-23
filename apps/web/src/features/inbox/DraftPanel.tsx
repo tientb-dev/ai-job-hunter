@@ -91,7 +91,6 @@ export function DraftPanel({
               {onNewDraft && (
                 <Button
                   variant="outlined"
-                  color="secondary"
                   startIcon={<AddIcon />}
                   disabled={disabled}
                   onClick={onNewDraft}

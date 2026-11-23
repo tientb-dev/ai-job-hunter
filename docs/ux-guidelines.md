@@ -51,14 +51,17 @@ by default; Dismiss uses the X glyph); Close, Cancel, Stay and Keep stay text-on
 
 ## Buttons and forms
 
-Use sentence case. Give each task group one clear primary (contained) action;
-secondary actions are outlined and tertiary or repeated per-row actions are text
-buttons. This is per task group, not one filled button per screen. Theme button
+Use sentence case. Give each task group one clear primary action: solid blue
+(contained) for the main action in the current workflow state. Secondary actions
+are neutral outlined (white background, neutral border, dark text). Tertiary,
+low-priority and repeated per-row actions are text buttons. Primary priority may
+change with workflow state (for example Analyze is primary before a result,
+Reanalyze is secondary after). This is per task group, not one filled button per
+screen; do not show two primary buttons for the same action in one view. Theme button
 minimum heights are 32px small and 36px medium from `sm` up, and 44px for every
 button and icon button below `sm`; allow growth for wrapping and zoom. Buttons
 have no raised shadow and keep ripple plus a visible keyboard focus outline.
-Use `variant="outlined" color="secondary"` for blue secondary actions on white
-cards. Default outlined buttons use the shared neutral border. Use the default
+Use plain `variant="outlined"` for secondary actions; do not add a colour. Use the default
 medium size for ordinary actions and reserve the small size for dense controls.
 Use the shared action icons before the label. Put forward arrows after
 Continue and Next labels. Simple choices can use text alone.
@@ -84,9 +87,21 @@ Retain entered values on failure. Do not replace explicit Save with autosave.
 ## Surfaces, tables, filters and pagination
 
 Prefer outlined Paper and subtle dividers. Avoid nested borders and decorative
-shadows without a grouping purpose. Use semantic palette colors and text labels;
-color alone must not communicate status. No global Paper, Chip or Accordion
-styling overrides are required.
+shadows without a grouping purpose. Surfaces follow one hierarchy:
+
+- L0 page: `background.default`; page headers and tabs sit directly on it.
+- L1 section: white outlined Paper (theme border, shadow and radius), one per
+  task section.
+- L2 inside a section: headings, spacing and `Divider`; no further bordered cards.
+- L2b inset: `background.default` fill without border, only for CV/document
+  previews and before/after comparisons.
+- `action.hover`, `action.selected` and `surface.primaryTint` are for hover,
+  selection and active navigation, not decorative section fills. Semantic
+  info/warning/success/error surfaces (Alerts, status chips) and selected choice
+  cards keep their meaningful backgrounds.
+
+Use semantic palette colors and text labels; color alone must not communicate
+status. No global Paper, Chip or Accordion styling overrides are required.
 
 Keep table structure and domain metadata local. Emphasize the primary identifier,
 mute supporting metadata, and align dates and statuses consistently. If text is

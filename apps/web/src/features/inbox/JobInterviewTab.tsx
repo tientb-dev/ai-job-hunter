@@ -361,6 +361,25 @@ export function JobInterviewTab({
     </Button>
   );
 
+  // Generation progress and results stay inside the panel that started them.
+  const generationStatus = (
+    <>
+      {generating && (
+        <Stack spacing={1} role="status">
+          <LinearProgress aria-label={tr('Generating interview questions')} />
+          <Typography variant="body2" color="text.secondary">
+            {tr('Generating questions from this job description with the AI…')}
+          </Typography>
+        </Stack>
+      )}
+      {message && (
+        <Alert severity={message.severity} onClose={() => setMessage(null)}>
+          {message.text}
+        </Alert>
+      )}
+    </>
+  );
+
   return panel(
     <>
       {loadFailed && (
@@ -422,101 +441,100 @@ export function JobInterviewTab({
       )}
 
       {!active ? (
-        <Stack spacing={2} sx={{ alignItems: 'flex-start' }}>
-          <Typography variant="body2" color="text.secondary">
-            {tr(
-              'Generate 5–8 technical questions grounded in this job description. The AI usually takes under 30 seconds.',
-            )}
-          </Typography>
-          <Button
-            startIcon={<AutoAwesomeIcon />}
-            variant="contained"
-            onClick={() => void generate()}
-            disabled={blocked}
-            loading={generating}
-            loadingPosition="start"
-            sx={{ width: { xs: '100%', sm: 'auto' } }}
-          >
-            {generating
-              ? tr('Generating questions…')
-              : tr('Generate interview questions')}
-          </Button>
-        </Stack>
-      ) : (
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={1.5}
-          sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
-        >
-          <Box sx={{ minWidth: 0 }}>
-            <Typography
-              variant="subtitle1"
-              component="h3"
-              sx={{ fontWeight: 600 }}
-            >
-              {tr('Current set')}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {when(active.createdAt)} ·{' '}
-              {preparedText(activePrepared, active.questions.length)}
-            </Typography>
-            <Typography
-              id="regenerate-note"
-              component="p"
-              variant="caption"
-              color="text.secondary"
-            >
-              {tr(
-                'New question sets may revisit the same job requirements from different angles.',
-              )}
-            </Typography>
-          </Box>
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={1}
-            sx={{ flexShrink: 0 }}
-          >
-            {/* Reads the saved set only, so unsaved JD edits don't block it. An
-                interview already in progress is resumed instead (existing mock behavior). */}
-            <Button
-              startIcon={<PlayIcon />}
-              component={Link}
-              to={`/interview-prep/mock?jobId=${jobId}&setId=${active.id}`}
-              variant="outlined"
-              sx={{ width: { xs: '100%', sm: 'auto' } }}
-            >
-              {tr('Mock interview')}
-            </Button>
-            <Button
-              startIcon={<AutoAwesomeIcon />}
-              variant="outlined"
-              onClick={() => setConfirmOpen(true)}
-              disabled={blocked}
-              loading={generating}
-              loadingPosition="start"
-              aria-describedby="regenerate-note"
-              sx={{ width: { xs: '100%', sm: 'auto' } }}
-            >
-              {generating
-                ? tr('Generating questions…')
-                : tr('Generate new set')}
-            </Button>
+        <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
+          <Stack spacing={2}>
+            <Stack spacing={2} sx={{ alignItems: 'flex-start' }}>
+              <Typography variant="body2" color="text.secondary">
+                {tr(
+                  'Generate 5–8 technical questions grounded in this job description. The AI usually takes under 30 seconds.',
+                )}
+              </Typography>
+              <Button
+                startIcon={<AutoAwesomeIcon />}
+                variant="contained"
+                onClick={() => void generate()}
+                disabled={blocked}
+                loading={generating}
+                loadingPosition="start"
+                sx={{ width: { xs: '100%', sm: 'auto' } }}
+              >
+                {generating
+                  ? tr('Generating questions…')
+                  : tr('Generate interview questions')}
+              </Button>
+            </Stack>
+            {generationStatus}
           </Stack>
-        </Stack>
-      )}
-
-      {generating && (
-        <Stack spacing={1} role="status">
-          <LinearProgress aria-label={tr('Generating interview questions')} />
-          <Typography variant="body2" color="text.secondary">
-            {tr('Generating questions from this job description with the AI…')}
-          </Typography>
-        </Stack>
-      )}
-      {message && (
-        <Alert severity={message.severity} onClose={() => setMessage(null)}>
-          {message.text}
-        </Alert>
+        </Paper>
+      ) : (
+        <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 } }}>
+          <Stack spacing={2}>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1.5}
+              sx={{
+                alignItems: { sm: 'center' },
+                justifyContent: 'space-between',
+              }}
+            >
+              <Box sx={{ minWidth: 0 }}>
+                <Typography
+                  variant="subtitle1"
+                  component="h3"
+                  sx={{ fontWeight: 600 }}
+                >
+                  {tr('Current set')}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {when(active.createdAt)} ·{' '}
+                  {preparedText(activePrepared, active.questions.length)}
+                </Typography>
+                <Typography
+                  id="regenerate-note"
+                  component="p"
+                  variant="caption"
+                  color="text.secondary"
+                >
+                  {tr(
+                    'New question sets may revisit the same job requirements from different angles.',
+                  )}
+                </Typography>
+              </Box>
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={1}
+                sx={{ flexShrink: 0 }}
+              >
+                {/* Reads the saved set only, so unsaved JD edits don't block it. An
+                interview already in progress is resumed instead (existing mock behavior). */}
+                <Button
+                  startIcon={<PlayIcon />}
+                  component={Link}
+                  to={`/interview-prep/mock?jobId=${jobId}&setId=${active.id}`}
+                  variant="outlined"
+                  sx={{ width: { xs: '100%', sm: 'auto' } }}
+                >
+                  {tr('Mock interview')}
+                </Button>
+                <Button
+                  startIcon={<AutoAwesomeIcon />}
+                  variant="outlined"
+                  onClick={() => setConfirmOpen(true)}
+                  disabled={blocked}
+                  loading={generating}
+                  loadingPosition="start"
+                  aria-describedby="regenerate-note"
+                  sx={{ width: { xs: '100%', sm: 'auto' } }}
+                >
+                  {generating
+                    ? tr('Generating questions…')
+                    : tr('Generate new set')}
+                </Button>
+              </Stack>
+            </Stack>
+            {generationStatus}
+          </Stack>
+        </Paper>
       )}
 
       {active && (
@@ -545,14 +563,14 @@ export function JobInterviewTab({
           >
             <Typography
               variant="subtitle1"
-              component="h3"
+              component="span"
               sx={{ fontWeight: 600 }}
             >
               {tr('Previous question sets (')}
               {previous.length})
             </Typography>
           </AccordionSummary>
-          <AccordionDetails id="previous-sets">
+          <AccordionDetails>
             <Stack spacing={1.5}>
               <Typography variant="body2" color="text.secondary">
                 {tr('Earlier sets and their saved answers stay available.')}
@@ -575,7 +593,7 @@ export function JobInterviewTab({
                       )}
                     </Typography>
                   </AccordionSummary>
-                  <AccordionDetails id={`set-${set.id}`}>
+                  <AccordionDetails>
                     <Stack spacing={1.5}>
                       {partialNote(set) && (
                         <Typography variant="body2" color="text.secondary">
