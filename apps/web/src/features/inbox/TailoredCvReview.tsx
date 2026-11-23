@@ -21,6 +21,8 @@ import {
   TailoredCvPreview,
   type FactAnchorState,
 } from './TailoredCvPreview';
+import { OrderSuggestions } from './OrderSuggestions';
+import { shortReason } from './short-reason';
 import {
   displayEntries,
   includedEntries,
@@ -74,6 +76,7 @@ import {
   type CvTemplate,
   issueBlocksApproval,
   type DraftOperation,
+  applyOrder,
   type ClarificationOperation,
   type SavedDraft,
 } from './tailored-cv.contract';
@@ -484,6 +487,10 @@ export function TailoredCvReview({
   const document = saved ? structuredClone(saved.document) : null;
   if (document)
     for (const op of operations) {
+      if (op.action === 'order') {
+        applyOrder(document, op.entryId, op.decision);
+        continue;
+      }
       if (op.action === 'acknowledge') {
         if (!document.review.acknowledgedIssues.includes(op.issueIndex))
           document.review.acknowledgedIssues.push(op.issueIndex);
@@ -523,11 +530,16 @@ export function TailoredCvReview({
   function queue(op: DraftOperation) {
     setOperations((old) => [
       ...old.filter((x) =>
-        op.action === 'acknowledge'
-          ? x.action !== 'acknowledge' || x.issueIndex !== op.issueIndex
-          : x.action === 'acknowledge' ||
-            x.factId !== op.factId ||
-            (op.action === 'include') !== (x.action === 'include'),
+        op.action === 'order' || x.action === 'order'
+          ? // The latest order decision for an entry replaces the earlier one.
+            op.action !== 'order' ||
+            x.action !== 'order' ||
+            x.entryId !== op.entryId
+          : op.action === 'acknowledge'
+            ? x.action !== 'acknowledge' || x.issueIndex !== op.issueIndex
+            : x.action === 'acknowledge' ||
+              x.factId !== op.factId ||
+              (op.action === 'include') !== (x.action === 'include'),
       ),
       op,
     ]);
@@ -1295,6 +1307,10 @@ export function TailoredCvReview({
       </Stack>
     </Alert>
   );
+  // Shown once per list, not repeated in every suggestion card.
+  const compareNote = tr(
+    'Compare the suggestion with the original and check that every claim is accurate before accepting.',
+  );
   const proposalExplanation = (fact: (typeof facts)[number]) => {
     const proposal = fact.proposedWording!;
     const benefits = {
@@ -1305,22 +1321,53 @@ export function TailoredCvReview({
         'Makes the relevant documented experience easier to find.',
       ),
     };
-    const benefit = proposal.benefit
+    const reason = proposal.benefit
       ? benefits[proposal.benefit]
       : proposal.explanation;
-    const linked = document?.requirements
-      ?.filter((row) => proposal.requirementIds.includes(row.id))
-      .map((row) => row.text);
-    const relevance = linked?.length
-      ? tr('Related job requirement: {requirement}', {
-          requirement: linked.join(' · '),
-        })
-      : proposal.benefit
-        ? tr(
-            'Clarity-only improvement. No specific job requirement could be linked.',
+    const why = reason ? shortReason(reason) : undefined;
+    const linked =
+      document?.requirements
+        ?.filter((row) => proposal.requirementIds.includes(row.id))
+        .map((row) => row.text) ?? [];
+    // Long or secondary detail goes to the evidence disclosure, never the main line.
+    const details = (
+      <Stack spacing={1}>
+        {proposal.benefit && proposal.explanation && (
+          <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+            {proposal.explanation}
+          </Typography>
+        )}
+        {!proposal.benefit && reason && why !== reason && (
+          <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+            {reason}
+          </Typography>
+        )}
+        {linked.length > 0 ? (
+          <>
+            <Typography variant="subtitle2">
+              {tr('Related job requirements')}
+            </Typography>
+            <Box component="ul" sx={{ m: 0, pl: 3 }}>
+              {linked.map((text) => (
+                <Typography component="li" variant="body2" key={text}>
+                  {text}
+                </Typography>
+              ))}
+            </Box>
+          </>
+        ) : (
+          proposal.benefit && (
+            <Typography variant="body2" color="text.secondary">
+              {tr(
+                'Clarity-only improvement. No specific job requirement could be linked.',
+              )}
+            </Typography>
           )
-        : undefined;
-    return [benefit, relevance].filter(Boolean).join(' ');
+        )}
+        {evidenceFor(fact)}
+      </Stack>
+    );
+    return { why, details };
   };
   const renderProposal = ({
     fact,
@@ -1350,7 +1397,7 @@ export function TailoredCvReview({
         proposal={state.proposal}
         manuallyEdited={state.wording === 'user_edited'}
         where={where}
-        why={proposalExplanation(fact)}
+        why={proposalExplanation(fact).why}
         requiresConfirmation={
           // Without a stated claim there is nothing to confirm: edit or keep.
           !!fact.proposedWording!.requiresConfirmation
@@ -1363,13 +1410,8 @@ export function TailoredCvReview({
             ? fact.proposedWording!.confirmationAssertion
             : checkReasons.join(' ') || undefined
         }
-        reviewNote={
-          reviewNotes.join(' ') ||
-          tr(
-            'Compare the suggestion with the original and check that every claim is accurate before accepting.',
-          )
-        }
-        evidence={evidenceFor(fact)}
+        reviewNote={reviewNotes.join(' ') || undefined}
+        evidence={proposalExplanation(fact).details}
         disabled={blocked}
         onDecision={(action, confirmed) => {
           const wasPending = state.proposal === 'pending';
@@ -1552,6 +1594,11 @@ export function TailoredCvReview({
               {tr('Close')}
             </Button>
           </Stack>
+          {activeProposal && (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              {compareNote}
+            </Typography>
+          )}
           {activeProposal
             ? renderProposal(activeProposal)
             : activeCheck
@@ -2467,6 +2514,9 @@ export function TailoredCvReview({
                         <>
                           {reviewNav}
                           {unanchoredNote}
+                          <Typography variant="body2" color="text.secondary">
+                            {compareNote}
+                          </Typography>
                           <Stack spacing={3} sx={{ mb: 2, mt: 2 }}>
                             {groups.map((group) => {
                               const proposals = proposalCards.filter(
@@ -2707,6 +2757,15 @@ export function TailoredCvReview({
               </>
             ) : (
               <>
+                {!noSuggestions && (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 1 }}
+                  >
+                    {compareNote}
+                  </Typography>
+                )}
                 {(!noSuggestions || verificationCards.length > 0) && (
                   <Stack spacing={3} sx={{ mb: 2 }}>
                     {groups.map((group) => {
@@ -2837,6 +2896,13 @@ export function TailoredCvReview({
                 )}
               </>
             )}
+            <OrderSuggestions
+              document={document}
+              disabled={blocked}
+              onDecide={(entryId, decision) =>
+                queue({ action: 'order', entryId, decision })
+              }
+            />
             <Box
               component={noSuggestions && !docReview ? 'section' : 'details'}
               aria-labelledby="full-cv-title"

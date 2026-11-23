@@ -670,9 +670,46 @@ test('a proposal explanation is shown beside its comparison; older drafts withou
     'Leads with Docker, which the job names (p15). Same items; only the order changes.';
   setup(initial);
   await open();
+  // Main line: first sentence only; the full reason stays in the details.
+  const why = screen.getByText('Why:').parentElement!;
+  expect(why).toHaveTextContent(
+    'Why: Leads with Docker, which the job names (p15).',
+  );
+  expect(why).not.toHaveTextContent('Same items');
   expect(
-    screen.getByText(/Leads with Docker, which the job names \(p15\)/u),
-  ).toBeVisible();
+    screen.getByText(/Same items; only the order changes/u),
+  ).toBeInTheDocument();
+});
+
+test('long reasons are cut to 25 words; JD requirements and the compare note move out of the card', async () => {
+  const initial = tailoredDraftFixture();
+  const fact = initial.document.sections
+    .flatMap((s) => s.entries.flatMap((e) => e.facts))
+    .find((f) => f.proposedWording)!;
+  const long = Array.from({ length: 40 }, (_, i) => `word${i}`).join(' ');
+  fact.proposedWording!.explanation = long;
+  fact.proposedWording!.requirementIds = ['r1', 'r2'];
+  initial.document.requirements = [
+    { id: 'r1', text: 'Design and operate highly available backend services' },
+    { id: 'r2', text: 'Mentor engineers and lead technical decisions' },
+  ];
+  setup(initial);
+  await open();
+  const why = screen.getByText('Why:').parentElement!;
+  expect(why.textContent!.replace('Why: ', '').split(' ')).toHaveLength(25);
+  expect(why).toHaveTextContent(/word24…$/u);
+  expect(why).not.toHaveTextContent('Design and operate');
+  // Requirements and the full reason sit inside the collapsed evidence section.
+  const req = screen.getByText(
+    'Design and operate highly available backend services',
+  );
+  expect(req.closest('details')).not.toBeNull();
+  expect(screen.getByText(long).closest('details')).not.toBeNull();
+  // The compare reminder is not repeated inside the card.
+  const card = screen.getByRole('article', { name: /^Suggestion for/u });
+  expect(card).not.toHaveTextContent(
+    'Compare the suggestion with the original',
+  );
 });
 
 test('verification suggestions are labelled, not applied, and adopting one opens it as the user’s own editable wording', async () => {

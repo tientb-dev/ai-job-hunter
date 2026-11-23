@@ -1,6 +1,22 @@
 // Vietnamese for feature-screen text, keyed by the English source text (see tr()).
 // An empty value drops an English-only fragment such as a plural suffix.
 export const VI_TEXT: Record<string, string> = {
+  'Related job requirements': 'Yêu cầu công việc liên quan',
+  'Suggested bullet order': 'Thứ tự gạch đầu dòng gợi ý',
+  'Optional. Moves your most job-relevant bullets up within a role. Wording, roles and dates stay the same.':
+    'Không bắt buộc. Đưa các gạch đầu dòng liên quan nhất tới công việc lên trước trong từng vai trò. Câu chữ, vai trò và ngày tháng giữ nguyên.',
+  'Entry {n}': 'Mục {n}',
+  'Suggested order applied.': 'Đã áp dụng thứ tự gợi ý.',
+  'Original order kept.': 'Đã giữ thứ tự gốc.',
+  'Not decided. The original order is used until you choose.':
+    'Chưa quyết định. Thứ tự gốc được dùng cho tới khi bạn chọn.',
+  'Original order': 'Thứ tự gốc',
+  'Suggested order': 'Thứ tự gợi ý',
+  'Moved up': 'Được đưa lên',
+  'Matches: {reasons}': 'Khớp: {reasons}',
+  'Restore original order': 'Khôi phục thứ tự gốc',
+  'Apply suggested order': 'Áp dụng thứ tự gợi ý',
+  'Keep original order': 'Giữ thứ tự gốc',
   Accepted: 'Đã chấp nhận',
   'This suggestion includes a detail your CV does not show.':
     'Đề xuất này có một chi tiết chưa có trong CV của bạn.',
