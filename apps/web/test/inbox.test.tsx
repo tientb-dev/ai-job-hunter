@@ -558,6 +558,26 @@ test('empty Inbox keeps primary Add and outlined task navigation alternatives', 
   expect(add).toHaveLength(2);
   expect(add[0]).toHaveClass('MuiButton-contained');
   expect(add[1]).toHaveClass('MuiButton-outlined');
+  // Zero jobs: no search, filter or pagination.
+  expect(screen.queryByRole('searchbox')).toBeNull();
+  expect(screen.queryByRole('group', { name: 'Saved jobs filter' })).toBeNull();
+  expect(screen.queryByLabelText('Jobs pagination')).toBeNull();
+});
+
+test('search with no results keeps the workspace and offers Clear search, not first-job actions', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (url: string) =>
+      Response.json(url === '/api/v1/opportunities' ? [row] : null),
+    ),
+  );
+  mount('/jobs');
+  await screen.findByText('Synthetic engineer');
+  await userEvent.type(screen.getByRole('searchbox'), 'zzz');
+  expect(screen.getByText('No jobs match your search')).toBeVisible();
+  expect(screen.queryByText('No saved opportunities yet')).toBeNull();
+  expect(screen.queryByRole('link', { name: 'Discover jobs' })).toBeNull();
+  expect(screen.getByRole('button', { name: 'Clear search' })).toBeVisible();
 });
 
 test('Add job shows the unsaved badge only after a user edit, not on load', async () => {

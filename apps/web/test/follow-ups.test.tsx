@@ -285,20 +285,13 @@ test('keeps the list and filter focus when filtering to no results', async () =>
 });
 
 test('Inbox has no discovery panel and keeps grouped controls and bottom pagination', async () => {
-  const { fetch } = mount([]);
-  await screen.findByText('No saved opportunities yet');
+  const { fetch } = mount([makeJob('Job A', null)]);
+  await screen.findByText('Job A');
   expect(
     screen.queryByRole('button', { name: 'Toggle Discover Jobs' }),
   ).not.toBeInTheDocument();
   expect(screen.queryByLabelText('Discovery location')).not.toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'Discover jobs' })).toHaveAttribute(
-    'href',
-    '/discover',
-  );
-  const section = screen.getByRole('region', { name: 'Saved jobs (0)' });
-  expect(
-    within(section).getByRole('link', { name: 'Add job' }),
-  ).toHaveAttribute('href', '/jobs/new');
+  const section = screen.getByRole('region', { name: 'Saved jobs (1)' });
   expect(
     within(section).getByRole('button', { name: /^All jobs/ }),
   ).toHaveAttribute('aria-pressed', 'true');
