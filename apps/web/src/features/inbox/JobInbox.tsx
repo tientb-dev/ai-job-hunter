@@ -204,11 +204,80 @@ export function JobInbox() {
     }
   }, [showList]);
   const resetPage = () => setPage(0);
+  // Zero saved jobs gets a full-width page state; the list only covers search/filter misses.
+  const noJobs = !loading && !error && rows.length === 0;
   const emptyTitle = needle
     ? tr('No jobs match your search')
-    : dueOnly
-      ? tr('No due follow-ups')
-      : tr('No saved opportunities yet');
+    : tr('No due follow-ups');
+  const firstJob = (
+    <Paper
+      component="section"
+      aria-labelledby="no-jobs-heading"
+      variant="outlined"
+      sx={{
+        flex: { md: '1 1 auto' },
+        display: 'grid',
+        placeItems: 'center',
+        textAlign: 'center',
+        px: 3,
+        py: { xs: 6, md: 8 },
+        ...entrance(0),
+      }}
+    >
+      <Stack spacing={1.5} sx={{ alignItems: 'center', maxWidth: '52ch' }}>
+        <Box
+          aria-hidden
+          sx={{
+            width: 56,
+            height: 56,
+            borderRadius: '50%',
+            bgcolor: surface.primaryTint,
+            color: 'primary.main',
+            display: 'grid',
+            placeItems: 'center',
+          }}
+        >
+          <WorkIcon />
+        </Box>
+        <Typography
+          id="no-jobs-heading"
+          variant="h6"
+          component="h2"
+          sx={{ fontWeight: 600 }}
+        >
+          {tr('No saved opportunities yet')}
+        </Typography>
+        <Typography color="text.secondary">
+          {tr(
+            'Add a job from a website, recruiter conversation, or email to start tracking it.',
+          )}
+        </Typography>
+        <Stack
+          direction="row"
+          spacing={1}
+          useFlexGap
+          sx={{ flexWrap: 'wrap', justifyContent: 'center', pt: 1 }}
+        >
+          <Button
+            startIcon={<ExploreIcon />}
+            component={Link}
+            to="/discover"
+            variant="outlined"
+          >
+            {tr('Discover jobs')}
+          </Button>
+          <Button
+            startIcon={<AddIcon />}
+            component={Link}
+            to="/jobs/new"
+            variant="outlined"
+          >
+            {tr('Add job')}
+          </Button>
+        </Stack>
+      </Stack>
+    </Paper>
+  );
   const list = (
     <Paper
       component="section"
@@ -449,19 +518,15 @@ export function JobInbox() {
                 >
                   {needle
                     ? tr('Try another job title or company name.')
-                    : dueOnly
-                      ? tr(
-                          'No active jobs have a follow-up due today or earlier. Clear the filter to see all jobs.',
-                        )
-                      : tr(
-                          'Add a job from a website, recruiter conversation, or email to start tracking it.',
-                        )}
+                    : tr(
+                        'No active jobs have a follow-up due today or earlier. Clear the filter to see all jobs.',
+                      )}
                 </Typography>
                 {needle ? (
                   <Button onClick={() => setQuery('')}>
                     {tr('Clear search')}
                   </Button>
-                ) : dueOnly ? (
+                ) : (
                   <Button
                     onClick={() => {
                       setDueOnly(false);
@@ -470,30 +535,6 @@ export function JobInbox() {
                   >
                     {tr('Clear filter')}
                   </Button>
-                ) : (
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    useFlexGap
-                    sx={{ flexWrap: 'wrap' }}
-                  >
-                    <Button
-                      startIcon={<ExploreIcon />}
-                      component={Link}
-                      to="/discover"
-                      variant="outlined"
-                    >
-                      {tr('Discover jobs')}
-                    </Button>
-                    <Button
-                      startIcon={<AddIcon />}
-                      component={Link}
-                      to="/jobs/new"
-                      variant="outlined"
-                    >
-                      {tr('Add job')}
-                    </Button>
-                  </Stack>
                 )}
               </Box>
             )}
@@ -556,46 +597,53 @@ export function JobInbox() {
           </Button>
         }
       />
-      <Box
-        sx={{
-          flex: { xs: '0 0 auto', md: '1 1 auto' },
-          minHeight: 0,
-          display: 'grid',
-          gap: 3,
-          gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: '2fr 3fr' },
-        }}
-      >
-        {showList && list}
-        {showDetail && selected && (
-          <Stack spacing={1} sx={{ minHeight: 0, minWidth: 0, ...entrance(1) }}>
-            {!wide && (
-              <Box>
-                <Button
-                  startIcon={<ArrowBackIcon />}
-                  onClick={() => {
-                    // Undo our own push so Back/Forward stay in step; never leave /jobs.
-                    if (
-                      (location.state as { jobFromList?: boolean } | null)
-                        ?.jobFromList
-                    )
-                      navigate(-1);
-                    else select(null);
-                  }}
-                >
-                  {tr('Back to jobs')}
-                </Button>
-              </Box>
-            )}
-            <JobDetail
-              key={selected.id}
-              row={selected}
-              urgency={isDue(selected)}
-              headingRef={detailHeading}
-              progress={progress}
-            />
-          </Stack>
-        )}
-      </Box>
+      {noJobs ? (
+        firstJob
+      ) : (
+        <Box
+          sx={{
+            flex: { xs: '0 0 auto', md: '1 1 auto' },
+            minHeight: 0,
+            display: 'grid',
+            gap: 3,
+            gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: '2fr 3fr' },
+          }}
+        >
+          {showList && list}
+          {showDetail && selected && (
+            <Stack
+              spacing={1}
+              sx={{ minHeight: 0, minWidth: 0, ...entrance(1) }}
+            >
+              {!wide && (
+                <Box>
+                  <Button
+                    startIcon={<ArrowBackIcon />}
+                    onClick={() => {
+                      // Undo our own push so Back/Forward stay in step; never leave /jobs.
+                      if (
+                        (location.state as { jobFromList?: boolean } | null)
+                          ?.jobFromList
+                      )
+                        navigate(-1);
+                      else select(null);
+                    }}
+                  >
+                    {tr('Back to jobs')}
+                  </Button>
+                </Box>
+              )}
+              <JobDetail
+                key={selected.id}
+                row={selected}
+                urgency={isDue(selected)}
+                headingRef={detailHeading}
+                progress={progress}
+              />
+            </Stack>
+          )}
+        </Box>
+      )}
     </Stack>
   );
 }
