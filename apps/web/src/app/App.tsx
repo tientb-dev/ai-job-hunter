@@ -1,5 +1,6 @@
 import { surface, theme } from './theme';
 import {
+  AdminIcon,
   ArrowBackIcon,
   CloseIcon,
   DashboardIcon,
@@ -40,6 +41,8 @@ import { JobPractice } from '../features/interview-prep/JobPractice';
 import { MockInterview } from '../features/interview-prep/MockInterview';
 import { ApiReadiness } from '../features/health/ApiReadiness';
 import { AccountMenu } from '../features/auth/session';
+import { useSession } from '../features/auth/session-context';
+import { AdminPage } from '../features/admin/AdminPage';
 import { useI18n, type MessageKey } from './i18n';
 import { LanguageSwitcher } from './LanguageSwitcher';
 
@@ -63,6 +66,14 @@ const SHELL_MAX_WIDTH = 1920;
 
 export function App() {
   const { t } = useI18n();
+  // UI only: the API answers non-admins with 404 regardless.
+  const isAdmin = useSession()?.user.isAdmin === true;
+  const items = isAdmin
+    ? [
+        ...navigation,
+        { label: 'nav.admin' as const, path: '/admin', Icon: AdminIcon },
+      ]
+    : navigation;
   const [navigationOpen, setNavigationOpen] = useState(false);
   const desktop = useMediaQuery(theme.breakpoints.up('md'), {
     defaultMatches: true,
@@ -100,7 +111,7 @@ export function App() {
         aria-label={t('nav.main')}
         spacing={0.5}
       >
-        {navigation.map(({ label, path, Icon }) => (
+        {items.map(({ label, path, Icon }) => (
           <Button
             key={path}
             component={NavLink}
@@ -261,7 +272,7 @@ export function App() {
               sx={{ alignItems: 'center', ml: 'auto' }}
             >
               <LanguageSwitcher />
-              <AccountMenu compact={!desktop} />
+              <AccountMenu />
             </Stack>
           </Stack>
         </Container>
@@ -302,6 +313,7 @@ export function App() {
             />
             <Route path="/cv/analyze" element={<Dashboard />} />
             <Route path="/jobs" element={<JobInbox />} />
+            {isAdmin && <Route path="/admin" element={<AdminPage />} />}
             <Route path="/jobs/new" element={<JobEditor key="new" />} />
             <Route path="/jobs/:id/*" element={<JobEditorForJob />} />
             {UiAcceptancePreview && (

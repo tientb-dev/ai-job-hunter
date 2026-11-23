@@ -1,6 +1,84 @@
 // Vietnamese for feature-screen text, keyed by the English source text (see tr()).
 // An empty value drops an English-only fragment such as a plural suffix.
 export const VI_TEXT: Record<string, string> = {
+  'Step {n}': 'Bước {n}',
+  'Find the account': 'Tìm email',
+  'Check the account': 'Kiểm tra tài khoản',
+  'Issue a reset code': 'Cấp mã đặt lại mật khẩu',
+  'Could not reach the server. Check your connection and try again.':
+    'Không kết nối được máy chủ. Kiểm tra kết nối mạng rồi thử lại.',
+  'Too many attempts. Wait a few minutes and try again.':
+    'Bạn đã thử quá nhiều lần. Vui lòng đợi vài phút rồi thử lại.',
+  'Your session has ended. Sign in again to continue.':
+    'Phiên đăng nhập đã kết thúc. Vui lòng đăng nhập lại để tiếp tục.',
+  'This account no longer has admin access.':
+    'Tài khoản này không còn quyền quản trị.',
+  'Check the entered values and try again.':
+    'Vui lòng kiểm tra lại thông tin đã nhập.',
+  'You cannot issue a reset code for your own account here. Use the CLI instead.':
+    'Bạn không thể tự cấp mã đặt lại mật khẩu cho tài khoản của mình tại đây. Hãy dùng CLI.',
+  'Valid until {date}.': 'Hiệu lực đến {date}.',
+  'This code is shown only once. Copy it before closing.':
+    'Mã chỉ hiển thị một lần. Hãy sao chép trước khi đóng.',
+  'Code copied.': 'Đã sao chép mã.',
+  'Could not copy. Select the code and copy it manually.':
+    'Không sao chép được. Hãy chọn mã và sao chép thủ công.',
+  Copy: 'Sao chép',
+  'Could not create invite': 'Không tạo được mã mời',
+  'Invite revoked.': 'Đã thu hồi mã mời.',
+  'Could not revoke invite': 'Không thu hồi được mã mời',
+  'This invite was already used or revoked. The list has been refreshed.':
+    'Mã mời này đã được sử dụng hoặc đã bị thu hồi. Danh sách đã được làm mới.',
+  'Invitation codes': 'Mã mời',
+  'Each code creates one account. Send it to the tester privately.':
+    'Mỗi mã tạo được một tài khoản. Hãy gửi riêng cho người dùng thử.',
+  'Valid for': 'Hiệu lực',
+  '{n} days': '{n} ngày',
+  '{n} hours': '{n} giờ',
+  'Create invite': 'Tạo mã mời',
+  'Could not load invites.': 'Không tải được danh sách mã mời.',
+  'Loading invites': 'Đang tải mã mời',
+  'No invites yet.': 'Chưa có mã mời nào.',
+  Created: 'Ngày tạo',
+  Expires: 'Hết hạn',
+  Status: 'Trạng thái',
+  Actions: 'Thao tác',
+  'Revoke invite created {date}': 'Thu hồi mã mời tạo lúc {date}',
+  Revoke: 'Thu hồi',
+  'Revoke this invite?': 'Thu hồi mã mời này?',
+  'Nobody will be able to register with this code. This cannot be undone.':
+    'Sẽ không ai đăng ký được bằng mã này. Không thể hoàn tác.',
+  'Keep invite': 'Giữ mã mời',
+  'Revoking…': 'Đang thu hồi…',
+  'Invitation code created': 'Đã tạo mã mời',
+  'Send this code to the tester privately. They enter it at registration.':
+    'Gửi riêng mã này cho người dùng thử. Họ nhập mã khi đăng ký.',
+  'Enter a valid email address.': 'Nhập địa chỉ email hợp lệ.',
+  'No account uses this email.': 'Không có tài khoản nào dùng email này.',
+  'Could not find account': 'Không tìm được tài khoản',
+  'Enter your password.': 'Nhập mật khẩu của bạn.',
+  'Your password is incorrect.': 'Mật khẩu của bạn không đúng.',
+  'Could not issue reset code': 'Không cấp được mã đặt lại mật khẩu',
+  'This account no longer exists.': 'Tài khoản này không còn tồn tại.',
+  'Password reset': 'Đặt lại mật khẩu',
+  'Find the account by its exact email, then issue a one-time reset code.':
+    'Tìm tài khoản theo đúng email, sau đó cấp mã đặt lại mật khẩu dùng một lần.',
+  'Account email': 'Email tài khoản',
+  'Find account': 'Tìm tài khoản',
+  'Account created {date}': 'Tạo tài khoản lúc {date}',
+  'Your admin password': 'Mật khẩu quản trị của bạn',
+  'Required to confirm it is you.': 'Bắt buộc để xác nhận đúng là bạn.',
+  'Issue reset code': 'Cấp mã đặt lại',
+  'Reset code issued': 'Đã cấp mã đặt lại mật khẩu',
+  'Send this code to the user privately. They enter it at the password reset page. Earlier unused reset codes no longer work.':
+    'Gửi riêng mã này cho người dùng. Họ nhập mã ở trang đặt lại mật khẩu. Các mã đặt lại cũ chưa dùng sẽ không còn hiệu lực.',
+  Admin: 'Quản trị',
+  'Invite testers and help users reset their password. Codes are shown only once.':
+    'Mời người dùng thử và hỗ trợ đặt lại mật khẩu. Mã chỉ hiển thị một lần.',
+  Active: 'Còn hiệu lực',
+  Used: 'Đã dùng',
+  Revoked: 'Đã thu hồi',
+  Expired: 'Đã hết hạn',
   'Related job requirements': 'Yêu cầu công việc liên quan',
   'Suggested bullet order': 'Thứ tự gạch đầu dòng gợi ý',
   'Optional. Moves your most job-relevant bullets up within a role. Wording, roles and dates stay the same.':
