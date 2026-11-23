@@ -16,6 +16,8 @@ interface CvMatchPanelProps {
   onSummary?: (summary: MatchPanelSummary) => void;
   /** Changing it re-reads the summary's draft and source state. */
   summaryRefresh?: number;
+  /** Called after this panel changes the job's CV or match on the server. */
+  onSourceChange?: () => void;
 }
 export interface MatchPanelSummary {
   matchStatus: string;
@@ -55,8 +57,26 @@ function JobMatchPanel({
   onGoToTailored,
   onSummary,
   summaryRefresh = 0,
+  onSourceChange,
 }: Omit<CvMatchPanelProps, 'wizard'>) {
-  const match = useCvMatch(jobId, revision, jobUpdatedAt);
+  const loaded = useCvMatch(jobId, revision, jobUpdatedAt);
+  // A kept-mounted Tailored CV reads its own copy, so report server changes.
+  const match = {
+    ...loaded,
+    select: async (cvId: string) => {
+      await loaded.select(cvId);
+      onSourceChange?.();
+    },
+    upload: async (file: File) => {
+      const added = await loaded.upload(file);
+      if (added) onSourceChange?.();
+      return added;
+    },
+    analyze: async () => {
+      await loaded.analyze();
+      onSourceChange?.();
+    },
+  };
   const { cv } = match;
   // Loaded once per job for the workspace tab badge; no review state is implied.
   const latestDraft = useLatestDraft(jobId, Boolean(onSummary), summaryRefresh);

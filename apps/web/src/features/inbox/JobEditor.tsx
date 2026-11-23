@@ -198,6 +198,12 @@ const legacyTabs: Record<string, WorkspaceView> = {
   application: 'application',
 };
 
+/** One editor instance per job: switching jobs never reuses another job's state. */
+export function JobEditorForJob() {
+  const { id } = useParams();
+  return <JobEditor key={id} />;
+}
+
 export function JobEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -217,9 +223,17 @@ export function JobEditor() {
   const setView = (next: WorkspaceView) => {
     if (next !== view) navigate(next === 'overview' ? base : `${base}/${next}`);
   };
+  // Tabs opened for this job: mounted on first visit, then kept (hidden) so
+  // returning shows loaded data and wizard state without refetching. A new
+  // job remounts the editor (JobEditorForJob), so nothing carries over.
+  const [visited, setVisited] = useState<WorkspaceView[]>([view]);
+  if (!visited.includes(view)) setVisited([...visited, view]);
+  const opened = (tab: WorkspaceView) => visited.includes(tab);
   const [savedRevision, setSavedRevision] = useState(0);
   const [savedJobUpdatedAt, setSavedJobUpdatedAt] = useState('');
   const [tailoredDirty, setTailoredDirty] = useState(false);
+  // Bumped when CV Match changes the job's CV or match; restarts Tailored CV.
+  const [sourceEpoch, setSourceEpoch] = useState(0);
   const [summary, setSummary] = useState<MatchPanelSummary | null>(null);
   // Re-read draft and source state each time Overview is shown.
   const [overviewVisits, setOverviewVisits] = useState(0);
@@ -741,8 +755,8 @@ export function JobEditor() {
     Boolean(file) ||
     contactDate !== latestContactDate(form.contactDates);
   const disabled = busy || extracting || parsing || loadFailed;
-  // The Tailored CV review only exists while its tab is mounted.
-  const reviewDirty = view === 'tailored-cv' && tailoredDirty;
+  // The Tailored CV review stays mounted once opened, so its edits count everywhere.
+  const reviewDirty = tailoredDirty;
   const saved = JSON.parse(baseline.current) as OpportunityInput;
   const nextAction =
     id && summary
@@ -1422,11 +1436,14 @@ export function JobEditor() {
         sourceCvDirty={reviewDirty}
         savedNavigation={savedNavigation}
         allowPath={(path) =>
-          // Sections share one mounted editor; only the Tailored CV review
-          // unmounts when its tab is left.
+          // Sections stay mounted; Edit JD and CV Match can restart the
+          // Tailored CV review, so unsaved review edits block those paths.
           id !== undefined &&
           (path === base || path.startsWith(`${base}/`)) &&
-          !(reviewDirty && path !== `${base}/tailored-cv`)
+          !(
+            reviewDirty &&
+            (path === `${base}/edit` || path === `${base}/match`)
+          )
         }
       />
       <JobActionLayout
@@ -1918,6 +1935,7 @@ export function JobEditor() {
               view={view === 'match' ? 'match' : 'hidden'}
               onSummary={setSummary}
               summaryRefresh={overviewVisits}
+              onSourceChange={() => setSourceEpoch((n) => n + 1)}
               onGoToTailored={() => {
                 setView('tailored-cv');
                 const tab = document.getElementById('job-tab-2');
@@ -1934,31 +1952,40 @@ export function JobEditor() {
               }}
             />
           )}
-          {id && !loading && !loadFailed && view === 'tailored-cv' && (
-            <Box role="tabpanel" id="job-panel-2" aria-labelledby="job-tab-2">
-              {dirty ? (
+          {id && !loading && !loadFailed && opened('tailored-cv') && (
+            <Box
+              role="tabpanel"
+              id="job-panel-2"
+              aria-labelledby="job-tab-2"
+              hidden={view !== 'tailored-cv'}
+            >
+              {dirty && (
                 <Alert severity="info">
                   {tr(
                     'Save job changes in Edit JD before opening Tailored CV.',
                   )}
                 </Alert>
-              ) : (
+              )}
+              <Box hidden={dirty}>
                 <CvMatchPanel
-                  key={id}
+                  // A saved JD revision or a CV/match change in CV Match
+                  // restarts the workflow from fresh data.
+                  key={`${id}:${savedJobUpdatedAt}:${sourceEpoch}`}
                   jobId={id}
                   revision={savedJobUpdatedAt}
                   jobUpdatedAt={savedJobUpdatedAt}
                   wizard
                   onReviewDirtyChange={setTailoredDirty}
                 />
-              )}
+              </Box>
             </Box>
           )}
-          {id && !loading && !loadFailed && view === 'interview' && (
+          {id && !loading && !loadFailed && opened('interview') && (
             <JobInterviewTab
               key={`interview-${id}`}
               jobId={id}
               jobDirty={dirty}
+              hidden={view !== 'interview'}
             />
           )}
           <Box

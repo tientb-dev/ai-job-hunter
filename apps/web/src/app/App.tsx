@@ -11,7 +11,7 @@ import {
 } from '../components/icons';
 import { DiscoverJobsPage } from '../features/inbox/DiscoverJobsPage';
 import { JobInbox } from '../features/inbox/JobInbox';
-import { JobEditor } from '../features/inbox/JobEditor';
+import { JobEditor, JobEditorForJob } from '../features/inbox/JobEditor';
 import { lazy, Suspense, useState } from 'react';
 import {
   Box,
@@ -303,7 +303,7 @@ export function App() {
             <Route path="/cv/analyze" element={<Dashboard />} />
             <Route path="/jobs" element={<JobInbox />} />
             <Route path="/jobs/new" element={<JobEditor key="new" />} />
-            <Route path="/jobs/:id/*" element={<JobEditor />} />
+            <Route path="/jobs/:id/*" element={<JobEditorForJob />} />
             {UiAcceptancePreview && (
               <Route
                 path="/dashboard/ui-check"

@@ -8,6 +8,7 @@ import {
   Button,
   Link as MuiLink,
   Paper,
+  Skeleton,
   Stack,
   Step,
   StepButton,
@@ -359,13 +360,15 @@ export function TailoredCvWorkflow({
           </Alert>
         )}
         {!entryResolved && (
-          <Box role="status" sx={{ minHeight: 240 }}>
+          <Stack role="status" spacing={1.5} sx={{ minHeight: 240 }}>
             <Typography>
               {tr(
                 'Finding your next step from saved source review and current match…',
               )}
             </Typography>
-          </Box>
+            <Skeleton variant="rounded" height={48} />
+            <Skeleton variant="rounded" height={160} />
+          </Stack>
         )}
         {entryResolved && (
           <>
