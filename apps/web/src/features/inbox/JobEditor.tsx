@@ -204,6 +204,11 @@ const legacyTabs: Record<string, WorkspaceView> = {
 };
 
 /** One editor instance per job: switching jobs never reuses another job's state. */
+// Link and bookmark share one draft; Paste and Upload each keep their own.
+type DraftKey = 'url' | 'paste' | 'upload';
+const draftKey = (method: ImportMethod): DraftKey =>
+  method === 'bookmarklet' ? 'url' : method;
+
 export function JobEditorForJob() {
   const { id } = useParams();
   return <JobEditor key={id} />;
@@ -306,6 +311,44 @@ export function JobEditor() {
   const sourceGeneration = useRef(0);
   const fetchedJob = useRef<UrlJobPreview | null>(null);
   const editedFields = useRef(new Set<keyof OpportunityInput>());
+  // Paste/Upload source last taken to Review or AI, per draft.
+  const reviewedSource = useRef<Partial<Record<DraftKey, string>>>({});
+  // Each import method keeps its own source, fields and edits so jobs never mix.
+  const drafts = useRef<
+    Partial<
+      Record<
+        DraftKey,
+        {
+          form: OpportunityInput;
+          edited: Set<keyof OpportunityInput>;
+          fetched: UrlJobPreview | null;
+        }
+      >
+    >
+  >({});
+  const methodRef = useRef(importMethod);
+  methodRef.current = importMethod;
+  const enterDraft = (method: ImportMethod) => {
+    const from = draftKey(methodRef.current);
+    const to = draftKey(method);
+    methodRef.current = method;
+    setImportMethod(method);
+    if (from === to) return;
+    drafts.current[from] = {
+      form: formSnapshot.current,
+      edited: editedFields.current,
+      fetched: fetchedJob.current,
+    };
+    const next = drafts.current[to] ?? {
+      form: emptyOpportunity(),
+      edited: new Set<keyof OpportunityInput>(),
+      fetched: null,
+    };
+    editedFields.current = next.edited;
+    fetchedJob.current = next.fetched;
+    formSnapshot.current = next.form;
+    setForm(next.form);
+  };
   const [loading, setLoading] = useState(Boolean(id));
   const [touched, setTouched] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -424,14 +467,28 @@ export function JobEditor() {
         })
           .then((result) => {
             if (generation !== sourceGeneration.current) return;
+            enterDraft('bookmarklet');
+            // Replacing means a different job was already loaded in this draft.
+            const fresh =
+              !!fetchedJob.current &&
+              fetchedJob.current.originalLink !== result.originalLink;
+            if (
+              fresh &&
+              editedFields.current.size &&
+              !window.confirm(
+                tr(
+                  'Replace the current job with this one? Manual edits to the current job will be discarded.',
+                ),
+              )
+            )
+              return;
+            if (fresh) editedFields.current = new Set();
             const next = applyUrlJobPreview(
-              formSnapshot.current,
+              fresh ? emptyOpportunity() : formSnapshot.current,
               result,
               editedFields.current,
-              fetchedJob.current,
             );
             fetchedJob.current = result;
-            setImportMethod('bookmarklet');
             setForm(next);
             setUrlNotice(
               tr('{v0}JD loaded from {platform}. {v2}', {
@@ -470,7 +527,11 @@ export function JobEditor() {
       setSourceErrors((errors) => ({ ...errors, url: '' }));
     }
     if (key === 'source') sourceEdited.current = true;
-    if (importFields.includes(key as ImportFieldName) || key === 'description')
+    // The link input is the URL draft's source, not a manual field edit.
+    if (
+      key !== 'postText' &&
+      !(key === 'originalLink' && draftKey(importMethod) === 'url')
+    )
       editedFields.current.add(key);
     setTouched(true);
     setForm((row) => ({ ...row, [key]: value }));
@@ -483,7 +544,15 @@ export function JobEditor() {
           'The content changed. Fill in with AI again, or check the details yourself before saving.',
         ),
       );
-    setForm((row) => ({ ...row, importReview: [] }));
+    // Drop late AI/fetch results and fields derived from the previous source.
+    sourceGeneration.current++;
+    setForm((row) => {
+      const next = { ...row, importReview: [] };
+      if (!id)
+        for (const field of [...importFields, 'description'] as const)
+          if (!editedFields.current.has(field)) next[field] = '';
+      return next;
+    });
   };
   const unavailable = (error: unknown) =>
     error instanceof TypeError ||
@@ -502,7 +571,9 @@ export function JobEditor() {
       )
     )
       return;
+    confirmSourceEdits();
     extractRunning.current = true;
+    const generation = sourceGeneration.current;
     setExtracting(true);
     setError('');
     setNotice('');
@@ -511,7 +582,9 @@ export function JobEditor() {
         method: 'POST',
         body: importUpload({ postText: form.postText }, activeFile),
       });
-      setJdText(result.jdText);
+      // The source changed (method switch, new text/link/file) while AI ran.
+      if (generation !== sourceGeneration.current) return;
+      if (activeFile) setJdText(result.jdText);
       if (result.error) {
         setError(result.error);
         setForm((row) => ({
@@ -602,6 +675,7 @@ export function JobEditor() {
           ),
         );
     } catch (error) {
+      if (generation !== sourceGeneration.current) return;
       setError(
         unavailable(error)
           ? tr(
@@ -622,12 +696,16 @@ export function JobEditor() {
       !canFetchJobUrl(form.originalLink)
     )
       return;
+    // Replacing means a different job was already loaded in this draft.
+    const fresh =
+      !!fetchedJob.current &&
+      fetchedJob.current.originalLink !== form.originalLink;
     if (
-      fetchedJob.current &&
-      fetchedJob.current.originalLink !== form.originalLink &&
+      fresh &&
+      editedFields.current.size &&
       !window.confirm(
         tr(
-          'Replace the previously fetched job with this URL? Manually edited fields and separately entered text will be kept.',
+          'Replace the current job with this one? Manual edits to the current job will be discarded.',
         ),
       )
     )
@@ -650,11 +728,11 @@ export function JobEditor() {
         formSnapshot.current.originalLink !== requestedUrl
       )
         return;
+      if (fresh) editedFields.current = new Set();
       const next = applyUrlJobPreview(
-        formSnapshot.current,
+        fresh ? emptyOpportunity() : formSnapshot.current,
         result,
         editedFields.current,
-        fetchedJob.current,
       );
       fetchedJob.current = result;
       setForm(next);
@@ -840,6 +918,9 @@ export function JobEditor() {
   }
   const dirty =
     JSON.stringify(form) !== baseline.current ||
+    Object.values(drafts.current).some(
+      (draft) => JSON.stringify(draft.form) !== baseline.current,
+    ) ||
     Boolean(file) ||
     contactDate !== latestContactDate(form.contactDates);
   const disabled = busy || extracting || parsing || loadFailed;
@@ -1124,14 +1205,72 @@ export function JobEditor() {
     parseGeneration.current++;
     parseRequest.current?.abort();
     setParsing(false);
-    // The document is kept but only counts while Upload is selected.
-    if (file && (importMethod === 'upload' || method === 'upload'))
-      sourcesChanged();
     setError('');
     setNotice('');
-    setImportMethod(method);
+    enterDraft(method);
   };
-  const hasSource = Boolean(form.postText.trim() || activeFile);
+  // A link typed after a fetch has no content yet; never pair it with the old job.
+  const linkStale =
+    draftKey(importMethod) === 'url' &&
+    !!fetchedJob.current &&
+    fetchedJob.current.originalLink !== form.originalLink;
+  const hasSource = !linkStale && Boolean(form.postText.trim() || activeFile);
+  // Paste/Upload: edits made while reviewing one content must not silently
+  // follow a replaced content. Ask once when the source changed since Review.
+  const sourceId = () =>
+    importMethod === 'upload'
+      ? file
+        ? `${file.name}:${file.size}:${file.lastModified}`
+        : ''
+      : form.postText;
+  const confirmSourceEdits = () => {
+    const key = draftKey(importMethod);
+    if (key === 'url') return;
+    const previous = reviewedSource.current[key];
+    reviewedSource.current[key] = sourceId();
+    if (
+      previous === undefined ||
+      previous === reviewedSource.current[key] ||
+      !editedFields.current.size ||
+      !window.confirm(
+        tr(
+          'The job content changed after you edited details. Discard your manual edits from the previous content? Choose Cancel to keep them.',
+        ),
+      )
+    )
+      return;
+    const defaults = emptyOpportunity();
+    const discarded = [...editedFields.current];
+    editedFields.current = new Set();
+    setForm((row) => ({
+      ...row,
+      ...Object.fromEntries(discarded.map((field) => [field, defaults[field]])),
+      postText: row.postText,
+    }));
+  };
+  // Explicit only: a link is never attached to pasted content silently.
+  const attachLinkToPaste = (link: string) => {
+    if (!link || !jobUrlInfo(link).valid) return;
+    editedFields.current.add('originalLink');
+    setForm((row) => (row.originalLink ? row : { ...row, originalLink: link }));
+  };
+  const linkDraft = drafts.current.url;
+  const enteredLink =
+    importMethod === 'paste' &&
+    !form.originalLink &&
+    linkDraft?.form.originalLink &&
+    linkDraft.fetched?.originalLink !== linkDraft.form.originalLink &&
+    jobUrlInfo(linkDraft.form.originalLink).valid
+      ? linkDraft.form.originalLink
+      : '';
+  // Without AI, Review shows (and Save stores) the active source as the description.
+  const continueWithoutAi = () => {
+    confirmSourceEdits();
+    const text = importMethod === 'upload' ? jdText : form.postText;
+    if (!editedFields.current.has('description'))
+      setForm((row) => (row.description ? row : { ...row, description: text }));
+    setStep(1);
+  };
   const linkPanel = importMethod === 'url' || importMethod === 'bookmarklet';
   const importSources = (
     <Box hidden={!id && step !== 0}>
@@ -1256,7 +1395,10 @@ export function JobEditor() {
                             variant="contained"
                             onClick={() => {
                               focusPaste.current = true;
+                              const link = form.originalLink;
                               switchMethod('paste');
+                              // Same job: the user is pasting the page this link failed to load.
+                              attachLinkToPaste(link);
                             }}
                           >
                             {tr('Paste JD')}
@@ -1326,54 +1468,142 @@ export function JobEditor() {
                 </Stack>
               )}
               {importMethod === 'paste' && (
-                <TextField
-                  fullWidth
-                  inputRef={pasteField}
-                  label={tr('Job posting content')}
-                  placeholder={tr(
-                    'Paste the whole job post: job title, company, responsibilities, requirements, benefits and how to apply.',
-                  )}
-                  multiline
-                  // Fixed rows (about 220px on desktop) so users can resize vertically.
-                  rows={phoneTabs ? 7 : 10}
-                  value={form.postText}
-                  onChange={(e) => {
-                    change('postText', e.target.value);
-                    sourcesChanged();
-                  }}
-                  sx={{ '& textarea': { resize: 'vertical' } }}
-                  slotProps={{
-                    htmlInput: {
-                      maxLength: POST_LIMIT,
-                      'aria-describedby': 'post-text-count',
-                    },
-                  }}
-                  helperText={
-                    <Box
-                      component="span"
-                      sx={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        gap: 2,
-                      }}
+                <Stack spacing={1.5}>
+                  <Box
+                    component="section"
+                    aria-labelledby="paste-guide-title"
+                    sx={{
+                      px: { xs: 1.5, sm: 2 },
+                      py: 1.5,
+                      borderRadius: 1,
+                      bgcolor: 'action.hover',
+                      color: 'text.secondary',
+                    }}
+                  >
+                    <Typography
+                      id="paste-guide-title"
+                      variant="subtitle2"
+                      component="h3"
+                      color="text.primary"
                     >
-                      <span>
-                        {tr('Copy it from the job website and paste it here.')}
-                      </span>
+                      {tr('What should you copy?')}
+                    </Typography>
+                    <Typography variant="body2" sx={{ mt: 0.5 }}>
+                      {tr('From the job posting page, copy:')}
+                    </Typography>
+                    <Box
+                      component="ul"
+                      sx={{ typography: 'body2', my: 0.5, pl: 2.5 }}
+                    >
+                      <li>{tr('The job title and company name.')}</li>
+                      <li>{tr('The job description.')}</li>
+                      <li>
+                        {tr('Candidate requirements, skills and experience.')}
+                      </li>
+                      <li>
+                        {tr('Salary, location and benefits (if available).')}
+                      </li>
+                    </Box>
+                    <Typography variant="body2">
+                      {tr(
+                        'The more complete the information, the better AI can assess how well your CV fits. No need to edit or reformat the content before pasting.',
+                      )}
+                    </Typography>
+                  </Box>
+                  {form.originalLink ? (
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      sx={{ alignItems: 'center', minWidth: 0 }}
+                    >
+                      <Typography
+                        variant="body2"
+                        sx={{ minWidth: 0, overflowWrap: 'anywhere' }}
+                      >
+                        {tr('Original link: {link}', {
+                          link: form.originalLink,
+                        })}
+                      </Typography>
+                      <Button
+                        size="small"
+                        onClick={() => change('originalLink', '')}
+                      >
+                        {tr('Remove link')}
+                      </Button>
+                    </Stack>
+                  ) : (
+                    enteredLink && (
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        sx={{ alignItems: 'center', minWidth: 0 }}
+                      >
+                        <Typography
+                          variant="body2"
+                          sx={{ minWidth: 0, overflowWrap: 'anywhere' }}
+                        >
+                          {tr('Link entered earlier: {link}', {
+                            link: enteredLink,
+                          })}
+                        </Typography>
+                        <Button
+                          size="small"
+                          onClick={() => attachLinkToPaste(enteredLink)}
+                        >
+                          {tr('Use for this job')}
+                        </Button>
+                      </Stack>
+                    )
+                  )}
+                  <TextField
+                    fullWidth
+                    inputRef={pasteField}
+                    label={tr('Job posting content')}
+                    placeholder={tr('Paste the copied job posting here...')}
+                    multiline
+                    // Fixed rows (about 220px on desktop) so users can resize vertically.
+                    rows={phoneTabs ? 7 : 10}
+                    value={form.postText}
+                    onChange={(e) => {
+                      change('postText', e.target.value);
+                      sourcesChanged();
+                    }}
+                    sx={{ '& textarea': { resize: 'vertical' } }}
+                    slotProps={{
+                      htmlInput: {
+                        maxLength: POST_LIMIT,
+                        'aria-describedby': 'post-text-count',
+                      },
+                    }}
+                    helperText={
                       <Box
                         component="span"
-                        id="post-text-count"
-                        sx={{ flexShrink: 0 }}
+                        sx={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          gap: 2,
+                        }}
                       >
-                        {tr('{count} / {max} characters', {
-                          count:
-                            form.postText.length.toLocaleString(dateLocale()),
-                          max: POST_LIMIT.toLocaleString(dateLocale()),
-                        })}
+                        <span>
+                          {tr(
+                            'Copy it from the job website and paste it here.',
+                          )}
+                        </span>
+                        <Box
+                          component="span"
+                          id="post-text-count"
+                          sx={{ flexShrink: 0 }}
+                        >
+                          {tr('{count} / {max} characters', {
+                            count:
+                              form.postText.length.toLocaleString(dateLocale()),
+                            max: POST_LIMIT.toLocaleString(dateLocale()),
+                          })}
+                        </Box>
                       </Box>
-                    </Box>
-                  }
-                />
+                    }
+                  />
+                </Stack>
               )}
               {importMethod === 'upload' && (
                 <Stack spacing={1.5}>
@@ -1548,7 +1778,7 @@ export function JobEditor() {
                   type="button"
                   variant="text"
                   disabled={disabled || !hasSource}
-                  onClick={() => setStep(1)}
+                  onClick={continueWithoutAi}
                 >
                   {tr('Continue without AI')}
                 </Button>

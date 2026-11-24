@@ -2,7 +2,6 @@ import { tr } from '../../app/i18n';
 import {
   importFields,
   type ImportField,
-  type ImportFieldName,
   type OpportunityInput,
 } from './opportunities-api';
 
@@ -161,36 +160,17 @@ export interface UrlJobPreview {
     payPeriod: string | null;
   } | null;
 }
-// Reuse the paste/extract/review path; no AI call and no save happens here.
+// The link draft holds exactly one fetched job: its source text replaces the
+// previous one (never concatenated) and every field the user did not edit is
+// re-derived from it. No AI call and no save happens here.
 export function applyUrlJobPreview(
   form: OpportunityInput,
   preview: UrlJobPreview,
   edited: ReadonlySet<keyof OpportunityInput>,
-  previous?: UrlJobPreview | null,
 ): OpportunityInput {
-  let retainedText = form.postText;
-  if (previous) {
-    if (!retainedText.includes(previous.sourceText))
-      throw new Error(
-        tr(
-          'The imported source text was edited. Keep your edits, or restore the previous source text before fetching again.',
-        ),
-      );
-    retainedText = retainedText.replace(previous.sourceText, '').trim();
-  }
-  const postText = [retainedText, preview.sourceText]
-    .filter(Boolean)
-    .join('\n\n');
-  if (postText.length > 12000)
-    throw new Error(
-      tr(
-        'Combined sources exceed the paste limit. Your existing inputs are unchanged; paste the relevant JD content manually.',
-      ),
-    );
-  const next = { ...form, postText, importReview: [] };
-  const replacing = previous && previous.originalLink !== preview.originalLink;
-  if (replacing)
-    for (const field of importFields) if (!edited.has(field)) next[field] = '';
+  const next = { ...form, postText: preview.sourceText, importReview: [] };
+  for (const field of [...importFields, 'description'] as const)
+    if (!edited.has(field)) next[field] = '';
   for (const field of [
     'title',
     'company',
@@ -202,30 +182,20 @@ export function applyUrlJobPreview(
     'workMode',
     'domain',
   ] as const)
-    if (
-      !edited.has(field) &&
-      (!form[field] ||
-        replacing ||
-        (previous && form[field] === previous[field]))
-    )
-      next[field] = preview[field] ?? '';
+    if (!edited.has(field)) next[field] = preview[field] ?? '';
   // Fill the remaining blanks from source-quoted parser suggestions. Domain is
   // left to AI/manual entry: its heuristic can pick up company-profile text.
-  const suggested = (row: UrlJobPreview | null | undefined, field: string) =>
-    row?.fields?.find(
-      (item) => item.field === field && item.status === 'SUPPORTED',
-    )?.value ?? '';
-  for (const field of importFields) {
-    const value = suggested(preview, field);
+  for (const row of preview.fields ?? []) {
+    const field = row.field;
     if (
+      row.status !== 'SUPPORTED' ||
       field === 'domain' ||
       field === 'originalLink' ||
-      !value ||
       edited.has(field) ||
-      (next[field] && !(previous && next[field] === suggested(previous, field)))
+      next[field]
     )
       continue;
-    next[field as ImportFieldName] = value;
+    next[field] = row.value;
   }
   return next;
 }

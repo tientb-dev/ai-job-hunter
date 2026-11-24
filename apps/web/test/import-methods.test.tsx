@@ -197,9 +197,8 @@ test('ITviec fetch loads once without AI, extraction remains explicit, and manua
   expect(await screen.findByText(/loaded from ITviec/)).toBeVisible();
   expect(fetch).toHaveBeenCalledTimes(1);
   select('Paste content');
-  expect(screen.getByLabelText('Job posting content')).toHaveValue(
-    preview.sourceText,
-  );
+  // Paste is an independent draft: fetched text is not copied into it.
+  expect(screen.getByLabelText('Job posting content')).toHaveValue('');
   showLinkImport();
   fireEvent.click(screen.getByRole('button', { name: 'Continue without AI' }));
   fireEvent.change(screen.getByLabelText(/Job title/), {
@@ -244,9 +243,8 @@ test('validated bookmark transfer selects Bookmarklet and keeps the original URL
   expect(screen.getByRole('region', { name: 'Job summary' })).toBeVisible();
   expect(screen.getByRole('button', { name: 'Fill in with AI' })).toBeEnabled();
   select('Paste content');
-  expect(screen.getByLabelText('Job posting content')).toHaveValue(
-    preview.sourceText,
-  );
+  // Paste is an independent draft: fetched text is not copied into it.
+  expect(screen.getByLabelText('Job posting content')).toHaveValue('');
   showLinkImport();
   expect(screen.getByLabelText('Job posting link')).toHaveValue(
     payload.sourceUrl,

@@ -55,14 +55,13 @@ test('ITviec preview shows full actual extraction source before AI, survives swi
   expect(
     screen.queryByRole('button', { name: /Preview source JD/ }),
   ).not.toBeInTheDocument();
-  expect(screen.getByLabelText('Job posting content')).toHaveValue(raw);
+  // Paste is an independent draft; the fetched source is never copied or merged.
+  expect(screen.getByLabelText('Job posting content')).toHaveValue('');
   fireEvent.change(screen.getByLabelText('Job posting content'), {
-    target: { value: `${raw}\nManual source correction` },
+    target: { value: 'Unrelated pasted JD' },
   });
   showLinkImport();
-  expect(screen.getByLabelText('Source JD text (read-only)')).toHaveValue(
-    `${raw}\nManual source correction`,
-  );
+  expect(screen.getByLabelText('Source JD text (read-only)')).toHaveValue(raw);
   expect(fetch).toHaveBeenCalledTimes(1);
 });
 

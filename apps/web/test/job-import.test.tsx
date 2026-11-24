@@ -340,7 +340,8 @@ test('maps the captured single Ollama result, requires conflict review and saves
     salary: '',
     seniority: '',
     contactNotes: 'Alex Example, synthetic.recruiter@example.com',
-    postText: result.postText,
+    // Upload is active: only the document is a source, never the pasted text.
+    postText: '',
   });
   expect(
     saved.importReview.find(
@@ -669,6 +670,8 @@ test('manual URL survives extraction, save and reopen without fetching the URL',
   });
   expect(screen.getByText(/Platform: ITviec/)).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: /Paste content/ }));
+  // Attaching the entered link to pasted content is an explicit choice.
+  fireEvent.click(screen.getByRole('button', { name: 'Use for this job' }));
   fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: post },
   });
@@ -693,16 +696,15 @@ test('manual URL survives extraction, save and reopen without fetching the URL',
 test('invalid job URL blocks save with actionable feedback and retains inputs', async () => {
   const fetch = mock(preview({}));
   mount();
-  showLinkImport();
-  fireEvent.change(screen.getByLabelText('Job posting link'), {
-    target: { value: 'javascript:alert(1)' },
-  });
   // Continue requires JD content (PR87).
   fireEvent.click(screen.getByRole('button', { name: /Paste content/ }));
   fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: 'Synthetic JD' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Continue without AI' }));
+  fireEvent.change(screen.getByLabelText('Original link'), {
+    target: { value: 'javascript:alert(1)' },
+  });
   fireEvent.change(screen.getByLabelText(/Job title/), {
     target: { value: 'Synthetic role' },
   });

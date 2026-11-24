@@ -51,7 +51,11 @@ test('preserves user fields, contacts, tracker and original sources, including i
     status: 'INTERVIEW' as const,
     contactDates: ['2026-10-30'],
   };
-  const next = applyUrlJobPreview(form, preview, new Set(['company']));
+  const next = applyUrlJobPreview(
+    form,
+    preview,
+    new Set(['company', 'title', 'contactNotes']),
+  );
   expect(next).toMatchObject({
     title: form.title,
     company: '',
@@ -60,15 +64,7 @@ test('preserves user fields, contacts, tracker and original sources, including i
     status: 'INTERVIEW',
     contactDates: form.contactDates,
   });
-  expect(next.postText).toBe(`Original post\n\n${preview.sourceText}`);
-});
-test('rejects oversized combined sources without mutating existing inputs', () => {
-  const form = { ...emptyOpportunity(), postText: 'x'.repeat(12000) };
-  const before = structuredClone(form);
-  expect(() => applyUrlJobPreview(form, preview, new Set())).toThrow(
-    'paste limit',
-  );
-  expect(form).toEqual(before);
+  expect(next.postText).toBe(preview.sourceText);
 });
 test('fetch enables only for single-job URLs on supported sites, never on paste', async () => {
   const fetch = vi.fn();
@@ -157,11 +153,11 @@ test('click imports fixture content into review, preserves edits, warns about ex
   expect(screen.getByLabelText('Job description')).toHaveValue(
     result.description,
   );
-  fireEvent.click(screen.getByRole('button', { name: /Paste content/ }));
-  expect(screen.getByLabelText('Job posting content')).toHaveValue(
-    result.sourceText,
-  );
   expect(screen.getByRole('button', { name: 'Fill in with AI' })).toBeEnabled();
+  // Paste is an independent draft: the fetched text is not copied into it.
+  fireEvent.click(screen.getByRole('button', { name: /Paste content/ }));
+  expect(screen.getByLabelText('Job posting content')).toHaveValue('');
+  showLinkImport();
   expect(fetch).toHaveBeenCalledTimes(1);
   expect(JSON.parse(fetch.mock.calls[0]![1]!.body as string)).toEqual({
     url: link,
@@ -245,14 +241,18 @@ test('busy fetch prevents overlap and blocked response preserves manual inputs',
   expect(screen.getByRole('button', { name: 'Get content' })).toBeEnabled();
 });
 
-test('repeat preview replaces tracked source without duplication; replacement preserves manual fields and separate text', () => {
-  const original = { ...emptyOpportunity(), postText: 'Separate post' };
-  const first = applyUrlJobPreview(original, preview, new Set());
-  expect(applyUrlJobPreview(first, preview, new Set(), preview)).toEqual(first);
+test('repeat preview is idempotent; a new preview replaces the source and every unedited field', () => {
+  const first = applyUrlJobPreview(
+    { ...emptyOpportunity(), skills: 'Stale Java' },
+    preview,
+    new Set(),
+  );
+  expect(first.skills).toBe('');
+  expect(applyUrlJobPreview(first, preview, new Set())).toEqual(first);
   const second = {
     ...preview,
     title: 'Job B',
-    company: 'Company B',
+    company: '',
     description: 'Description B',
     sourceText: 'Source B',
     originalLink: 'https://itviec.com/it-jobs/b',
@@ -261,25 +261,15 @@ test('repeat preview replaces tracked source without duplication; replacement pr
     { ...first, title: 'Manual title' },
     second,
     new Set(['title']),
-    preview,
   );
   expect(next).toMatchObject({
     title: 'Manual title',
-    company: 'Company B',
+    company: '',
     description: 'Description B',
-    postText: 'Separate post\n\nSource B',
+    postText: 'Source B',
     originalLink: second.originalLink,
   });
-  expect(() =>
-    applyUrlJobPreview(
-      { ...first, postText: 'Manually rewritten source' },
-      second,
-      new Set(),
-      preview,
-    ),
-  ).toThrow('source text was edited');
 });
-
 test('failed fetch retains draft and retry is idempotent; different URL requires replacement approval', async () => {
   const first = {
     ...preview,
@@ -333,12 +323,13 @@ test('failed fetch retains draft and retry is idempotent; different URL requires
   expect(screen.getByLabelText('Domain')).toHaveValue('Manual domain');
   confirm.mockReturnValue(true);
   await run();
-  expect(screen.getByLabelText('Domain')).toHaveValue('Manual domain');
+  // Approved replacement discards job A's manual edits instead of carrying them.
+  expect(screen.getByLabelText('Domain')).toHaveValue(second.domain);
   expect(screen.getByLabelText('Job description')).toHaveValue(
     second.description,
   );
   fireEvent.click(screen.getByRole('button', { name: /Paste content/ }));
-  expect(screen.getByLabelText('Job posting content')).toHaveValue('Source B');
+  expect(screen.getByLabelText('Job posting content')).toHaveValue('');
 });
 
 test.each(['method', 'url'])(
@@ -456,25 +447,17 @@ test('domain taxonomy maps atomically, protects manual edits and clears obsolete
   expect(form.preferredSkills).toBe('');
   expect(form).not.toHaveProperty('sourceMetadata');
   const same = { ...first, domain: 'Banking', sourceText: 'Updated source' };
-  expect(applyUrlJobPreview(form, same, new Set(), first).domain).toBe(
-    'Banking',
-  );
+  expect(applyUrlJobPreview(form, same, new Set()).domain).toBe('Banking');
   for (const manual of ['Manual domain', ''])
     expect(
-      applyUrlJobPreview(
-        { ...form, domain: manual },
-        same,
-        new Set(['domain']),
-        first,
-      ).domain,
+      applyUrlJobPreview({ ...form, domain: manual }, same, new Set(['domain']))
+        .domain,
     ).toBe(manual);
   const replacement = {
     ...preview,
     originalLink: 'https://itviec.com/it-jobs/other',
   };
-  expect(applyUrlJobPreview(form, replacement, new Set(), first).domain).toBe(
-    '',
-  );
+  expect(applyUrlJobPreview(form, replacement, new Set()).domain).toBe('');
 });
 
 test('a source turned off on the server shows localised bookmark/paste guidance and keeps the form', async () => {
