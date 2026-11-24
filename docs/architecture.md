@@ -2371,6 +2371,38 @@ Grounding decisions:
 - Accepted paths: ITviec `/it-jobs/…`, TopCV `/viec-lam/<slug>/<id>.html`, VietnamWorks `/<slug>-<id>-jv`. Query strings are dropped for TopCV/VietnamWorks.
 - **Content-use flags:** TopCV and VietnamWorks terms prohibit copying or exploiting their content and give no explicit permission for third-party fetching (reviewed 2026-11-16). Fetching for those sources is therefore off unless `JOB_URL_FETCH_TOPCV=1` / `JOB_URL_FETCH_VIETNAMWORKS=1`. Keep them off in hosted production until permission is obtained. When off, the API returns 403 and the UI points to the page-import bookmark or manual paste.
 
+## Add Job source isolation
+
+Add Job keeps one independent draft per import method: Link (including the
+page-import bookmark), Paste and Upload. Each draft owns its source, form
+fields, manual-edit set and fetched preview. Switching methods restores the
+target draft and never copies text or fields between drafts. AI extraction,
+Review and Save use only the active draft: Upload sends the document with an
+empty `postText`, and Paste and Link never send a document. Combined
+post + document extraction is intentionally not offered from Add Job.
+
+- **Replacement, not concatenation.** A URL fetch or bookmark import replaces
+  the Link draft's source text and re-derives every field the user did not
+  edit. Loading a different job while edits exist asks before discarding them;
+  an approved replacement starts from an empty draft.
+- **Stale derived data.** Changing pasted text or the document clears AI
+  suggestions and unedited source-derived fields. If the source changed after
+  it was taken to Review or AI and manual edits exist, Continue / Fill in with
+  AI asks whether to discard them (Cancel keeps them).
+- **Links.** A link typed after a fetch disables Continue and AI until it is
+  fetched. An unfetched link is attached to Paste only explicitly (the
+  failed-fetch "Paste JD" fallback or "Use for this job"), stays visible in the
+  Paste panel and can be removed.
+- **Late responses.** URL fetch, bookmark import and AI extraction results are
+  dropped when the source generation changed while they ran; document parsing
+  uses its own generation and abort.
+- **Continue without AI.** If the description is empty and not edited, Review
+  shows the active source (pasted text, parsed document or fetched page) as
+  the description, so Review matches what is saved.
+
+Drafts live only while Add Job is mounted; the unsaved-changes guard covers
+every draft. Edit Job and Edit JD do not use the import drafts.
+
 ## Multi-CV management and per-job CV selection (PR #90)
 
 - `saved_cvs` is keyed by `id`, with `name` and `isDefault` (partial unique index:

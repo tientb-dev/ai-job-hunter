@@ -131,6 +131,7 @@ test('Add Job warns before review, stays editable and preserves save-time 409 pr
   );
   // Continue requires JD content (PR87).
   fireEvent.click(screen.getByRole('button', { name: /Paste content/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Use for this job' }));
   fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: 'Synthetic JD' },
   });

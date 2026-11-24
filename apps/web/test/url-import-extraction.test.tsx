@@ -184,7 +184,6 @@ test('manual title/location/contact/URL and tracker edits survive extraction', a
   for (const [label, value] of [
     ['Location', 'My location'],
     ['Recruiter / contact notes', 'My contact'],
-    ['Job posting link', 'https://example.com/my-link'],
     ['Next follow-up date', '2026-11-05'],
   ])
     fireEvent.change(screen.getByLabelText(label!), { target: { value } });
@@ -197,9 +196,7 @@ test('manual title/location/contact/URL and tracker edits survive extraction', a
   expect(screen.getByLabelText('Recruiter / contact notes')).toHaveValue(
     'My contact',
   );
-  expect(screen.getByLabelText('Job posting link')).toHaveValue(
-    'https://example.com/my-link',
-  );
+  expect(screen.getByLabelText('Job posting link')).toHaveValue(link);
   await userEvent.click(
     screen.getByRole('button', { name: 'Confirm and save job' }),
   );
@@ -208,7 +205,7 @@ test('manual title/location/contact/URL and tracker edits survive extraction', a
     title: 'My title',
     location: 'My location',
     contactNotes: 'My contact',
-    originalLink: 'https://example.com/my-link',
+    originalLink: link,
     followUpDate: '2026-11-05',
   });
 });

@@ -1,6 +1,24 @@
 // Vietnamese for feature-screen text, keyed by the English source text (see tr()).
 // An empty value drops an English-only fragment such as a plural suffix.
 export const VI_TEXT: Record<string, string> = {
+  'Paste the copied job posting here...':
+    'Dán nội dung tuyển dụng đã sao chép vào đây...',
+  'What should you copy?': 'Nên sao chép những nội dung nào?',
+  'From the job posting page, copy:': 'Từ trang tuyển dụng, hãy sao chép:',
+  'The job title and company name.': 'Chức danh và tên công ty.',
+  'The job description.': 'Mô tả công việc.',
+  'Candidate requirements, skills and experience.':
+    'Yêu cầu ứng viên, kỹ năng và kinh nghiệm.',
+  'Salary, location and benefits (if available).':
+    'Mức lương, địa điểm và quyền lợi (nếu có).',
+  'The more complete the information, the better AI can assess how well your CV fits. No need to edit or reformat the content before pasting.':
+    'Thông tin càng đầy đủ, AI càng có cơ sở để đánh giá mức độ phù hợp của CV. Không cần chỉnh sửa hay định dạng lại nội dung trước khi dán.',
+  'Original link: {link}': 'Link gốc: {link}',
+  'Remove link': 'Bỏ link',
+  'Link entered earlier: {link}': 'Link đã nhập trước đó: {link}',
+  'Use for this job': 'Dùng cho việc làm này',
+  'The job content changed after you edited details. Discard your manual edits from the previous content? Choose Cancel to keep them.':
+    'Nội dung việc làm đã thay đổi sau khi bạn sửa thông tin. Bỏ các chỉnh sửa thủ công của nội dung trước? Chọn Hủy để giữ lại.',
   'The content changed. Fill in with AI again, or check the details yourself before saving.':
     'Nội dung đã thay đổi. Hãy điền lại bằng AI, hoặc tự kiểm tra thông tin trước khi lưu.',
   'Add a job posting, check the details, then save.':
@@ -12,8 +30,6 @@ export const VI_TEXT: Record<string, string> = {
   'Getting content…': 'Đang lấy nội dung…',
   'Job posting content': 'Nội dung tuyển dụng',
   'Get it from a job website': 'Lấy từ trang tuyển dụng',
-  'Paste the whole job post: job title, company, responsibilities, requirements, benefits and how to apply.':
-    'Dán toàn bộ tin tuyển dụng: chức danh, công ty, mô tả công việc, yêu cầu, quyền lợi và cách ứng tuyển.',
   'Copy it from the job website and paste it here.':
     'Sao chép từ trang tuyển dụng rồi dán vào đây.',
   '{count} / {max} characters': '{count} / {max} ký tự',
@@ -869,8 +885,6 @@ export const VI_TEXT: Record<string, string> = {
   Close: 'Đóng',
   'Close review': 'Đóng rà soát',
   'Close run details': 'Đóng chi tiết lượt chạy',
-  'Combined sources exceed the paste limit. Your existing inputs are unchanged; paste the relevant JD content manually.':
-    'Tổng nguồn vượt giới hạn dán. Dữ liệu hiện có không thay đổi; hãy dán thủ công phần JD liên quan.',
   Company: 'Công ty',
   Complete: 'Hoàn tất',
   'Checking…': 'Đang kiểm tra…',
@@ -1836,8 +1850,8 @@ export const VI_TEXT: Record<string, string> = {
   'Replace every [placeholder] in your adopted wording with your own facts.':
     'Thay mọi [chỗ trống] trong cách diễn đạt bạn dùng bằng dữ kiện của chính bạn.',
   'Replace source CV': 'Thay CV gốc',
-  'Replace the previously fetched job with this URL? Manually edited fields and separately entered text will be kept.':
-    'Thay việc làm đã tải trước đó bằng URL này? Các trường đã sửa thủ công và văn bản nhập riêng sẽ được giữ.',
+  'Replace the current job with this one? Manual edits to the current job will be discarded.':
+    'Thay việc làm hiện tại bằng việc làm này? Các chỉnh sửa thủ công của việc làm hiện tại sẽ bị bỏ.',
   'Replace your edited transcript with a new transcription?':
     'Thay bản ghi lời nói đã sửa bằng bản chuyển văn bản mới?',
   'Request ID:': 'Mã yêu cầu:',
@@ -2174,8 +2188,6 @@ export const VI_TEXT: Record<string, string> = {
     'Không thể xóa câu trả lời. Hãy thử lại.',
   'The current CV changed. This review still uses its captured source. Save or discard edits before reopening the current CV.':
     'CV hiện tại đã thay đổi. Bản rà soát này vẫn dùng nguồn đã ghi nhận. Hãy lưu hoặc bỏ chỉnh sửa trước khi mở lại CV hiện tại.',
-  'The imported source text was edited. Keep your edits, or restore the previous source text before fetching again.':
-    'Văn bản nguồn đã nhập đã bị sửa. Hãy giữ chỉnh sửa, hoặc khôi phục văn bản nguồn trước đó trước khi tải lại.',
   'The job changed. Save it and reanalyze CV Match.':
     'Việc làm đã thay đổi. Hãy lưu và phân tích lại Đối chiếu CV.',
   'The job description changed after these questions were generated.':

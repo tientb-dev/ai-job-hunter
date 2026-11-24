@@ -90,6 +90,7 @@ test('Source moves to Review, is prefilled from a job-board link and stays edita
     target: { value: 'https://itviec.com/it-jobs/synthetic' },
   });
   fireEvent.click(card(/^Paste content/));
+  fireEvent.click(screen.getByRole('button', { name: 'Use for this job' }));
   fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: 'Synthetic post' },
   });
