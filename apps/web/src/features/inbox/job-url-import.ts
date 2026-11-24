@@ -50,6 +50,86 @@ export function urlImportError(message: string): string {
       )
     : message;
 }
+// Transient failures where a manual retry can help; blocks are never retried.
+const RETRYABLE = new Set([
+  'URL_IMPORT_TIMEOUT',
+  'URL_IMPORT_UNAVAILABLE',
+  'URL_IMPORT_UNREACHABLE',
+  'URL_IMPORT_BUSY',
+]);
+/** Localised, user-facing text for a failed Fetch JD request. */
+export function urlFetchFailure(
+  errorCode: string | undefined,
+  platform: string,
+): { text: string; retry: boolean } {
+  const retry = RETRYABLE.has(errorCode ?? '');
+  const values = { platform };
+  switch (errorCode) {
+    case 'URL_IMPORT_BLOCKED':
+      return {
+        retry,
+        text: tr(
+          'Could not load the job posting from {platform} automatically. You can still copy and paste its content to continue.',
+          values,
+        ),
+      };
+    case 'URL_IMPORT_NOT_FOUND':
+      return {
+        retry,
+        text: tr(
+          'This job posting is no longer available on {platform}. Paste the JD if you have it.',
+          values,
+        ),
+      };
+    case 'URL_IMPORT_TIMEOUT':
+      return {
+        retry,
+        text: tr(
+          '{platform} took too long to respond. Try again or paste the JD.',
+          values,
+        ),
+      };
+    case 'URL_IMPORT_UNAVAILABLE':
+    case 'URL_IMPORT_UNREACHABLE':
+      return {
+        retry,
+        text: tr(
+          '{platform} is temporarily unavailable. Try again later or paste the JD.',
+          values,
+        ),
+      };
+    case 'URL_IMPORT_BUSY':
+      return {
+        retry,
+        text: tr(
+          'Another job link is still loading. Wait a moment, then try again.',
+        ),
+      };
+    case 'URL_IMPORT_SOURCE_OFF':
+      return {
+        retry,
+        text: tr(
+          '{platform} link import is turned off on this server. Use the page-import bookmark or paste the JD.',
+          values,
+        ),
+      };
+    case 'URL_IMPORT_INVALID_URL':
+      return {
+        retry,
+        text: tr(
+          'This link is not a supported single job posting. Check the link or paste the JD.',
+        ),
+      };
+    default:
+      return {
+        retry,
+        text: tr(
+          'Could not read the job content from {platform}. You can copy and paste the JD to continue.',
+          values,
+        ),
+      };
+  }
+}
 export interface UrlJobPreview {
   originalLink: string;
   platform: string;

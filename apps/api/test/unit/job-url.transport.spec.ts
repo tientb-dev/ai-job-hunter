@@ -9,6 +9,7 @@ import {
   type JobHttpDependencies,
 } from '../../src/opportunities/job-url.transport.js';
 import { previewJobUrl } from '../../src/opportunities/job-url-import.js';
+import { UrlImportError } from '../../src/opportunities/job-url-errors.js';
 const url = 'https://itviec.com/it-jobs/synthetic?ref=personal';
 const html =
   '<script type="application/ld+json">{"@type":"JobPosting","title":"Synthetic engineer","description":"Build Java services"}</script>';
@@ -205,5 +206,40 @@ test('aborting during DNS prevents any later connection', async () => {
   controller.abort();
   release([{ address: '8.8.8.8', family: 4 }]);
   await expect(pending).rejects.toThrow();
+  expect(f.dependencies.open).not.toHaveBeenCalled();
+});
+test.each([
+  [403, {}, 'URL_IMPORT_BLOCKED'],
+  [429, {}, 'URL_IMPORT_BLOCKED'],
+  [
+    200,
+    { 'content-type': 'text/html', 'cf-mitigated': 'challenge' },
+    'URL_IMPORT_BLOCKED',
+  ],
+  [503, {}, 'URL_IMPORT_UNAVAILABLE'],
+  [404, {}, 'URL_IMPORT_NOT_FOUND'],
+  [302, { location: 'https://itviec.com/it-jobs/x' }, 'URL_IMPORT_REDIRECT'],
+] as [number, Record<string, string>, string][])(
+  'response %s maps to a stable error code with the upstream status',
+  async (status, headers, errorCode) => {
+    const f = fixture(status, headers);
+    const error = await new PinnedJobPageTransport(f.dependencies)
+      .get(url, options())
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(UrlImportError);
+    expect((error as UrlImportError).errorCode).toBe(errorCode);
+    expect((error as UrlImportError).upstreamStatus).toBe(status);
+    expect((error as UrlImportError).getResponse()).toEqual(
+      expect.objectContaining({ errorCode }),
+    );
+    expect(f.dependencies.open).toHaveBeenCalledTimes(1);
+  },
+);
+test('turned-off source reports URL_IMPORT_SOURCE_OFF', async () => {
+  const f = fixture();
+  const error = await new PinnedJobPageTransport(f.dependencies, new Set())
+    .get(url, options())
+    .catch((e: unknown) => e);
+  expect((error as UrlImportError).errorCode).toBe('URL_IMPORT_SOURCE_OFF');
   expect(f.dependencies.open).not.toHaveBeenCalled();
 });

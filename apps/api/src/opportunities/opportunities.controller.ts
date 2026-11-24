@@ -34,6 +34,7 @@ import {
 import type { IncomingMessage } from 'node:http';
 import { OpportunitiesService } from './opportunities.service.js';
 import { EXTRACTION_LIMITS } from '../extraction/extraction.limits.js';
+import { UrlImportError } from './job-url-errors.js';
 @Catch()
 export class OpportunityErrors implements ExceptionFilter {
   catch(error: unknown, host: ArgumentsHost): void {
@@ -47,7 +48,9 @@ export class OpportunityErrors implements ExceptionFilter {
     response.end(
       JSON.stringify({
         statusCode: status,
-        ...(error instanceof CvMatchError || error instanceof CvSuggestionsError
+        ...(error instanceof CvMatchError ||
+        error instanceof CvSuggestionsError ||
+        error instanceof UrlImportError
           ? { errorCode: error.errorCode }
           : {}),
         ...(error instanceof JobDocumentError

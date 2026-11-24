@@ -5,7 +5,7 @@ import type { ClientRequest, IncomingMessage } from 'node:http';
 import { BlockList, isIP } from 'node:net';
 import { Readable } from 'node:stream';
 import { checkServerIdentity } from 'node:tls';
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { UrlImportError, type UrlImportErrorCode } from './job-url-errors.js';
 import { validateJobUrl, type JobPageTransport } from './job-url-import.js';
 
 const denied = new BlockList();
@@ -72,12 +72,17 @@ export function permittedLiveJobUrl(
 ): string {
   const { url, platform } = validateJobUrl(value);
   if (!sources.has(platform))
-    throw new ForbiddenException(
+    throw new UrlImportError(
+      'URL_IMPORT_SOURCE_OFF',
       `${platform} link import is turned off on this server. Use the page-import bookmark or paste the JD.`,
+      403,
     );
   const rule = JOB_PATHS[platform]!;
   if (!rule.pattern.test(new URL(url).pathname))
-    throw new BadRequestException(`Use ${rule.hint}, or paste the JD.`);
+    throw new UrlImportError(
+      'URL_IMPORT_INVALID_URL',
+      `Use ${rule.hint}, or paste the JD.`,
+    );
   return url;
 }
 type Destination = { address: string; family: number };
@@ -114,7 +119,8 @@ export class PinnedJobPageTransport implements JobPageTransport {
           !isPublicJobAddress(row.address) || isIP(row.address) !== row.family,
       )
     )
-      throw new BadRequestException(
+      throw new UrlImportError(
+        'URL_IMPORT_INVALID_URL',
         'Job hostname did not resolve exclusively to public addresses. Paste the JD instead.',
       );
     const destination = addresses[0]!;
@@ -151,36 +157,55 @@ export class PinnedJobPageTransport implements JobPageTransport {
           },
         },
         (response) => {
-          const fail = (message: string) => {
-            response.destroy();
-            reject(new BadRequestException(message));
-          };
           const status = response.statusCode ?? 502;
+          const fail = (code: UrlImportErrorCode, message: string) => {
+            response.destroy();
+            reject(new UrlImportError(code, message, 400, status));
+          };
           if (status >= 300 && status < 400)
             return fail(
+              'URL_IMPORT_REDIRECT',
               'Redirected job pages are not supported. Use the final public job URL or paste the JD.',
             );
           if (status === 404 || status === 410)
             return fail(
+              'URL_IMPORT_NOT_FOUND',
               'This job page is no longer available. Paste the JD if you have it.',
+            );
+          // A Cloudflare challenge header marks a bot check even on a 200 response.
+          if (
+            response.headers['cf-mitigated'] ||
+            [401, 403, 429, 451].includes(status)
+          )
+            return fail(
+              'URL_IMPORT_BLOCKED',
+              'The job site blocked automated access. No retry was attempted; paste the JD instead.',
             );
           if (status !== 200)
             return fail(
-              'Job page access was blocked or unavailable. No retry was attempted; paste the JD instead.',
+              'URL_IMPORT_UNAVAILABLE',
+              'Job page is temporarily unavailable. Try again later or paste the JD.',
             );
           if (
             !/^text\/html(?:\s*;|$)/i.test(
               response.headers['content-type'] ?? '',
             )
           )
-            return fail('Expected an HTML job page. Paste the JD instead.');
+            return fail(
+              'URL_IMPORT_UNSUPPORTED_CONTENT',
+              'Expected an HTML job page. Paste the JD instead.',
+            );
           if (
             response.headers['content-encoding'] &&
             response.headers['content-encoding'] !== 'identity'
           )
-            return fail('Unsupported job page encoding. Paste the JD instead.');
+            return fail(
+              'URL_IMPORT_UNSUPPORTED_CONTENT',
+              'Unsupported job page encoding. Paste the JD instead.',
+            );
           if (Number(response.headers['content-length']) > 2 * 1024 * 1024)
             return fail(
+              'URL_IMPORT_TOO_LARGE',
               'Job page exceeds the import size limit. Paste the JD instead.',
             );
           const headers = new Headers();

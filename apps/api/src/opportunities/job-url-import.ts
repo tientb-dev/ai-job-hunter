@@ -4,7 +4,8 @@ import {
   structuredSalaryEvidence,
   type SalaryEvidence,
 } from './job-import.salary.js';
-import { BadRequestException, HttpException } from '@nestjs/common';
+import { BadRequestException, HttpException, Logger } from '@nestjs/common';
+import { isBotChallenge, UrlImportError } from './job-url-errors.js';
 import { vietnamworksJsonLd } from './vietnamworks-page.js';
 import { mergeCandidates, type ImportField } from './job-import.contract.js';
 import {
@@ -13,6 +14,9 @@ import {
 } from './job-import.evidence.js';
 
 const MAX_BYTES = 2 * 1024 * 1024;
+// Ad/analytics click identifiers; functional ITviec query parameters are kept.
+const TRACKING_PARAM =
+  /^(?:utm_.+|gclid|gbraid|wbraid|dclid|fbclid|msclkid|ttclid|yclid|twclid|li_fat_id|igshid|mc_cid|mc_eid|_ga|_gl|_hsenc|_hsmi)$/iu;
 export function validateJobUrl(value: unknown): {
   url: string;
   platform: string;
@@ -36,9 +40,17 @@ export function validateJobUrl(value: unknown): {
       !Object.hasOwn(hosts, url.hostname)
     )
       throw new Error();
-    return { url: value, platform: hosts[url.hostname]! };
+    const platform = hosts[url.hostname]!;
+    if (platform !== 'ITviec') return { url: value, platform };
+    const tracking = [...url.searchParams.keys()].filter((key) =>
+      TRACKING_PARAM.test(key),
+    );
+    if (!tracking.length) return { url: value, platform };
+    for (const key of tracking) url.searchParams.delete(key);
+    return { url: url.href, platform };
   } catch {
-    throw new BadRequestException(
+    throw new UrlImportError(
+      'URL_IMPORT_INVALID_URL',
       'Use a public HTTPS ITviec, TopCV or VietnamWorks job URL without credentials or a custom port.',
     );
   }
@@ -368,23 +380,36 @@ export async function previewJobUrl(
       (response.status >= 300 && response.status < 400) ||
       response.redirected
     )
-      throw new BadRequestException(
+      throw new UrlImportError(
+        'URL_IMPORT_REDIRECT',
         'Redirected job pages are not supported. Paste the JD instead.',
+        400,
+        response.status,
       );
     if (!response.ok)
-      throw new BadRequestException(
+      throw new UrlImportError(
+        [401, 403, 429, 451].includes(response.status)
+          ? 'URL_IMPORT_BLOCKED'
+          : 'URL_IMPORT_UNAVAILABLE',
         'Job page is unavailable or access is blocked. Paste the JD instead.',
+        400,
+        response.status,
       );
     if (
       !/^text\/html(?:\s*;|$)/i.test(response.headers.get('content-type') ?? '')
     )
-      throw new BadRequestException(
+      throw new UrlImportError(
+        'URL_IMPORT_UNSUPPORTED_CONTENT',
         'Expected an HTML job page. Paste the JD instead.',
       );
     if (Number(response.headers.get('content-length')) > MAX_BYTES)
-      throw new BadRequestException('Job page exceeds the import size limit.');
+      throw new UrlImportError(
+        'URL_IMPORT_TOO_LARGE',
+        'Job page exceeds the import size limit.',
+      );
     const reader = response.body?.getReader();
-    if (!reader) throw new BadRequestException('Job page is empty.');
+    if (!reader)
+      throw new UrlImportError('URL_IMPORT_NO_CONTENT', 'Job page is empty.');
     const cancel = () => {
       void reader.cancel().catch(() => undefined);
     };
@@ -397,7 +422,8 @@ export async function previewJobUrl(
         if (chunk.done) break;
         bytes += chunk.value.byteLength;
         if (bytes > MAX_BYTES)
-          throw new BadRequestException(
+          throw new UrlImportError(
+            'URL_IMPORT_TOO_LARGE',
             'Job page exceeds the import size limit.',
           );
         chunks.push(chunk.value);
@@ -407,10 +433,23 @@ export async function previewJobUrl(
       await reader.cancel();
     }
     const html = Buffer.concat(chunks).toString('utf8');
-    return parseJobPosting(
-      platform === 'VietnamWorks' ? vietnamworksJsonLd(html) : html,
-      url,
-    );
+    // Some bot checks answer 200 with an interstitial instead of the job page.
+    if (isBotChallenge(html))
+      throw new UrlImportError(
+        'URL_IMPORT_BLOCKED',
+        'The job site blocked automated access. No retry was attempted; paste the JD instead.',
+        400,
+        response.status,
+      );
+    try {
+      return parseJobPosting(
+        platform === 'VietnamWorks' ? vietnamworksJsonLd(html) : html,
+        url,
+      );
+    } catch (error) {
+      if (!(error instanceof BadRequestException)) throw error;
+      throw new UrlImportError('URL_IMPORT_NO_CONTENT', error.message);
+    }
   };
   try {
     return await Promise.race([
@@ -419,7 +458,8 @@ export async function previewJobUrl(
         timer = setTimeout(() => {
           controller.abort();
           reject(
-            new BadRequestException(
+            new UrlImportError(
+              'URL_IMPORT_TIMEOUT',
               'Job page request timed out. Paste the JD instead.',
             ),
           );
@@ -435,9 +475,10 @@ export class JobUrlImportService {
   private busy = false;
   constructor(private readonly transport: JobPageTransport) {}
   async preview(value: unknown): Promise<UrlJobPreview> {
-    validateJobUrl(value);
+    const { platform } = validateJobUrl(value);
     if (this.busy)
-      throw new HttpException(
+      throw new UrlImportError(
+        'URL_IMPORT_BUSY',
         'A job URL import is already running. Wait before trying again.',
         429,
       );
@@ -445,10 +486,28 @@ export class JobUrlImportService {
     try {
       return await previewJobUrl(value, this.transport);
     } catch (error) {
-      if (error instanceof HttpException) throw error;
-      throw new BadRequestException(
-        'Could not retrieve the public job page. Check the URL or paste the JD instead.',
+      const failure =
+        error instanceof HttpException
+          ? error
+          : new UrlImportError(
+              'URL_IMPORT_UNREACHABLE',
+              'Could not retrieve the public job page. Check the URL or paste the JD instead.',
+            );
+      // No URL, query string, headers, cookies or page content are logged.
+      Logger.warn(
+        {
+          event: 'JOB_URL_FETCH_FAILED',
+          platform,
+          errorCode:
+            failure instanceof UrlImportError ? failure.errorCode : null,
+          upstreamStatus:
+            failure instanceof UrlImportError
+              ? (failure.upstreamStatus ?? null)
+              : null,
+        },
+        'JobUrlImportService',
       );
+      throw failure;
     } finally {
       this.busy = false;
     }

@@ -1,6 +1,6 @@
 import { tr } from '../../app/i18n';
 import { HOSTED } from '../../app/hosted';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ExpandMoreIcon } from '../../components/icons';
 import {
   Accordion,
@@ -17,11 +17,14 @@ export function SourceJdPreview({
   source,
   loading = false,
   error = '',
+  errorActions,
 }: {
   text: string;
   source: string;
   loading?: boolean;
   error?: string;
+  /** Recovery actions shown inside the error, e.g. open source / paste JD. */
+  errorActions?: ReactNode;
 }) {
   // Collapsed by default: the job summary is the primary view; the raw text
   // stays one click away. Errors open it so the message is not hidden.
@@ -72,6 +75,16 @@ export function SourceJdPreview({
           {error && (
             <Alert severity="warning">
               {error} {tr('Your source inputs are retained.')}
+              {errorActions && (
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  useFlexGap
+                  sx={{ mt: 1, flexWrap: 'wrap' }}
+                >
+                  {errorActions}
+                </Stack>
+              )}
             </Alert>
           )}
           {text ? (
