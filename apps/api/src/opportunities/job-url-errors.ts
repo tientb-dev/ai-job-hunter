@@ -31,7 +31,8 @@ export class UrlImportError extends HttpException {
 // page-template identifiers, not words a job description would contain.
 const CHALLENGE_MARKERS = [
   /<title>\s*(?:just a moment|attention required)/iu,
-  /\/cdn-cgi\/challenge-platform\//u,
+  // Not /cdn-cgi/challenge-platform/: Cloudflare also injects that background
+  // detection script (jsd/main.js) into normal pages, e.g. real ITviec jobs.
   /window\._cf_chl_opt\b/u,
   /\bcf-browser-verification\b/u,
 ];
