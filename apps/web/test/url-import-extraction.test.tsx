@@ -10,10 +10,7 @@ import {
 
 // The link card is always shown; returning to it closes the open alternative.
 function showLinkImport() {
-  const open = screen
-    .queryAllByRole('button', { pressed: true })
-    .find((button) => /^(Paste JD|Upload JD)/.test(button.textContent ?? ''));
-  if (open) fireEvent.click(open);
+  fireEvent.click(screen.getByRole('button', { name: /^Paste link/ }));
 }
 const title = 'Java Backend Developer Java 17+, Spring Boot, English';
 const location = 'Anna Building, QTSC, Quận 12, Hồ Chí Minh, VN';
@@ -84,34 +81,34 @@ function setup(conflict = false, missing = false) {
   );
   if (conflict) {
     pasteSource();
-    fireEvent.change(screen.getByLabelText('Recruitment post'), {
+    fireEvent.change(screen.getByLabelText('Job posting content'), {
       target: { value: 'Location: Hà Nội' },
     });
   }
   return fetch;
 }
 function pasteSource() {
-  const back = screen.queryByRole('button', { name: 'Back to Import sources' });
+  const back = screen.queryByRole('button', { name: 'Back to Add content' });
   if (back) fireEvent.click(back);
   // Cards toggle; only open Paste JD when it is not already open.
-  const paste = screen.getByRole('button', { name: /Paste JD/ });
+  const paste = screen.getByRole('button', { name: /Paste content/ });
   if (paste.getAttribute('aria-pressed') !== 'true') fireEvent.click(paste);
 }
 async function fetchJob() {
   showLinkImport();
-  fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
+  fireEvent.change(screen.getByLabelText('Job posting link'), {
     target: { value: link },
   });
-  await userEvent.click(screen.getByRole('button', { name: 'Fetch JD' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Get content' }));
   await screen.findByDisplayValue(title);
 }
 async function extract() {
-  if (screen.queryByRole('button', { name: 'Back to Import sources' }))
+  if (screen.queryByRole('button', { name: 'Back to Add content' }))
     await userEvent.click(
-      screen.getByRole('button', { name: 'Back to Import sources' }),
+      screen.getByRole('button', { name: 'Back to Add content' }),
     );
   await userEvent.click(
-    screen.getByRole('button', { name: 'Extract with AI' }),
+    screen.getByRole('button', { name: 'Fill in with AI' }),
   );
   await screen.findByDisplayValue('Java');
 }
@@ -187,7 +184,7 @@ test('manual title/location/contact/URL and tracker edits survive extraction', a
   for (const [label, value] of [
     ['Location', 'My location'],
     ['Recruiter / contact notes', 'My contact'],
-    ['Original Job URL (optional)', 'https://example.com/my-link'],
+    ['Job posting link', 'https://example.com/my-link'],
     ['Next follow-up date', '2026-11-05'],
   ])
     fireEvent.change(screen.getByLabelText(label!), { target: { value } });
@@ -200,7 +197,7 @@ test('manual title/location/contact/URL and tracker edits survive extraction', a
   expect(screen.getByLabelText('Recruiter / contact notes')).toHaveValue(
     'My contact',
   );
-  expect(screen.getByLabelText('Original Job URL (optional)')).toHaveValue(
+  expect(screen.getByLabelText('Job posting link')).toHaveValue(
     'https://example.com/my-link',
   );
   await userEvent.click(
@@ -294,12 +291,12 @@ test.each(['known', 'unknown', 'manual'])(
         target: { value: 'My domain' },
       });
     }
-    if (screen.queryByRole('button', { name: 'Back to Import sources' }))
+    if (screen.queryByRole('button', { name: 'Back to Add content' }))
       await userEvent.click(
-        screen.getByRole('button', { name: 'Back to Import sources' }),
+        screen.getByRole('button', { name: 'Back to Add content' }),
       );
     await userEvent.click(
-      screen.getByRole('button', { name: 'Extract with AI' }),
+      screen.getByRole('button', { name: 'Fill in with AI' }),
     );
     await screen.findByText(/Review every suggestion before saving/);
     expect(screen.getByLabelText('Required skills')).toHaveValue(
@@ -383,18 +380,18 @@ test('manual Domain survives a genuine conflict and still requires explicit ackn
     </MemoryRouter>,
   );
   pasteSource();
-  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+  fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: post },
   });
   fireEvent.change(screen.getByLabelText('Domain'), {
     target: { value: 'My manual domain' },
   });
-  if (screen.queryByRole('button', { name: 'Back to Import sources' }))
+  if (screen.queryByRole('button', { name: 'Back to Add content' }))
     await userEvent.click(
-      screen.getByRole('button', { name: 'Back to Import sources' }),
+      screen.getByRole('button', { name: 'Back to Add content' }),
     );
   await userEvent.click(
-    screen.getByRole('button', { name: 'Extract with AI' }),
+    screen.getByRole('button', { name: 'Fill in with AI' }),
   );
   await screen.findByText('Conflicting evidence');
   expect(screen.getByLabelText('Domain')).toHaveValue('My manual domain');
@@ -454,15 +451,15 @@ test.each([false, true])(
       </MemoryRouter>,
     );
     pasteSource();
-    fireEvent.change(screen.getByLabelText('Recruitment post'), {
+    fireEvent.change(screen.getByLabelText('Job posting content'), {
       target: { value: 'Synthetic source' },
     });
-    if (screen.queryByRole('button', { name: 'Back to Import sources' }))
+    if (screen.queryByRole('button', { name: 'Back to Add content' }))
       await userEvent.click(
-        screen.getByRole('button', { name: 'Back to Import sources' }),
+        screen.getByRole('button', { name: 'Back to Add content' }),
       );
     await userEvent.click(
-      screen.getByRole('button', { name: 'Extract with AI' }),
+      screen.getByRole('button', { name: 'Fill in with AI' }),
     );
     await screen.findByDisplayValue('enterprise software architecture');
     if (manual)
@@ -470,15 +467,15 @@ test.each([false, true])(
         target: { value: 'My manual business domain' },
       });
     pasteSource();
-    fireEvent.change(screen.getByLabelText('Recruitment post'), {
+    fireEvent.change(screen.getByLabelText('Job posting content'), {
       target: { value: 'Only engineering skills, no business industry' },
     });
-    if (screen.queryByRole('button', { name: 'Back to Import sources' }))
+    if (screen.queryByRole('button', { name: 'Back to Add content' }))
       await userEvent.click(
-        screen.getByRole('button', { name: 'Back to Import sources' }),
+        screen.getByRole('button', { name: 'Back to Add content' }),
       );
     await userEvent.click(
-      screen.getByRole('button', { name: 'Extract with AI' }),
+      screen.getByRole('button', { name: 'Fill in with AI' }),
     );
     await waitFor(() =>
       expect(screen.getByLabelText('Domain')).toHaveValue(
@@ -549,30 +546,30 @@ test.each([false, true])(
       </MemoryRouter>,
     );
     pasteSource();
-    fireEvent.change(screen.getByLabelText('Recruitment post'), {
+    fireEvent.change(screen.getByLabelText('Job posting content'), {
       target: { value: postText },
     });
     if (manual)
       fireEvent.change(screen.getByLabelText('Location'), {
         target: { value: 'My manual address' },
       });
-    if (screen.queryByRole('button', { name: 'Back to Import sources' }))
+    if (screen.queryByRole('button', { name: 'Back to Add content' }))
       await userEvent.click(
-        screen.getByRole('button', { name: 'Back to Import sources' }),
+        screen.getByRole('button', { name: 'Back to Add content' }),
       );
     await userEvent.click(
-      screen.getByRole('button', { name: 'Extract with AI' }),
+      screen.getByRole('button', { name: 'Fill in with AI' }),
     );
     await screen.findByText('Conflicting evidence');
     expect(
       screen.getByRole('button', { name: 'Confirm and save job' }),
     ).toBeDisabled();
-    if (screen.queryByRole('button', { name: 'Back to Import sources' }))
+    if (screen.queryByRole('button', { name: 'Back to Add content' }))
       await userEvent.click(
-        screen.getByRole('button', { name: 'Back to Import sources' }),
+        screen.getByRole('button', { name: 'Back to Add content' }),
       );
     await userEvent.click(
-      screen.getByRole('button', { name: 'Extract with AI' }),
+      screen.getByRole('button', { name: 'Fill in with AI' }),
     );
     await waitFor(() =>
       expect(

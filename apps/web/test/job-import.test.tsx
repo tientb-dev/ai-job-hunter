@@ -11,10 +11,7 @@ import type { ImportPreview } from '../src/features/inbox/opportunities-api';
 
 // The link card is always shown; returning to it closes the open alternative.
 function showLinkImport() {
-  const open = screen
-    .queryAllByRole('button', { pressed: true })
-    .find((button) => /^(Paste JD|Upload JD)/.test(button.textContent ?? ''));
-  if (open) fireEvent.click(open);
+  fireEvent.click(screen.getByRole('button', { name: /^Paste link/ }));
 }
 const id = '00000000-0000-4000-8000-123456789012';
 const post = 'Synthetic engineer recruitment post';
@@ -77,7 +74,7 @@ function mount() {
       </Routes>
     </MemoryRouter>,
   );
-  fireEvent.click(screen.getByRole('button', { name: /Paste JD/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Paste content/ }));
   return view;
 }
 function mock(result: ImportPreview) {
@@ -114,13 +111,13 @@ test('paste-first extraction fills editable fields, leaves company optional and 
   );
   mount();
   expect(
-    screen.getByRole('button', { name: 'Extract with AI' }),
+    screen.getByRole('button', { name: 'Fill in with AI' }),
   ).toBeDisabled();
-  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+  fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: post },
   });
   await userEvent.click(
-    screen.getByRole('button', { name: 'Extract with AI' }),
+    screen.getByRole('button', { name: 'Fill in with AI' }),
   );
   expect(
     await screen.findByDisplayValue('Synthetic engineer'),
@@ -167,11 +164,11 @@ test.each([false, true])(
       type: 'application/pdf',
     });
     if (withPost) {
-      fireEvent.change(screen.getByLabelText('Recruitment post'), {
+      fireEvent.change(screen.getByLabelText('Job posting content'), {
         target: { value: post },
       });
     }
-    fireEvent.click(screen.getByRole('button', { name: /Upload JD/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Upload document/ }));
     await userEvent.upload(
       screen.getByLabelText('Upload JD document (PDF or DOCX)'),
       file,
@@ -180,7 +177,7 @@ test.each([false, true])(
       expect(screen.getByText('synthetic.pdf')).toBeVisible(),
     );
     await userEvent.click(
-      screen.getByRole('button', { name: 'Extract with AI' }),
+      screen.getByRole('button', { name: 'Fill in with AI' }),
     );
     await screen.findByDisplayValue('JD Employer');
     expect(
@@ -211,11 +208,11 @@ test('conflict is blank and saving stays blocked until an explicit review', asyn
     ),
   );
   mount();
-  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+  fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: post },
   });
   await userEvent.click(
-    screen.getByRole('button', { name: 'Extract with AI' }),
+    screen.getByRole('button', { name: 'Fill in with AI' }),
   );
   await screen.findByText('Conflicting evidence');
   expect(screen.getByLabelText('Company')).toHaveValue('');
@@ -251,14 +248,17 @@ test('AI failure retains the post and allows manual save without another extract
     preview({}, { error: 'AI unavailable. Enter fields manually.' }),
   );
   mount();
-  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+  fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: post },
   });
   await userEvent.click(
-    screen.getByRole('button', { name: 'Extract with AI' }),
+    screen.getByRole('button', { name: 'Fill in with AI' }),
   );
   await screen.findByText(/AI unavailable/);
-  expect(screen.getByLabelText('Recruitment post')).toHaveValue(post);
+  // A failed extraction stays on Import sources with the post intact.
+  expect(screen.getByLabelText('Job posting content')).toBeVisible();
+  expect(screen.getByLabelText('Job posting content')).toHaveValue(post);
+  fireEvent.click(screen.getByRole('button', { name: 'Continue without AI' }));
   fireEvent.change(screen.getByLabelText(/Job title/), {
     target: { value: 'Synthetic manual engineer' },
   });
@@ -276,10 +276,10 @@ test('maps the captured single Ollama result, requires conflict review and saves
     .default as ImportPreview;
   const fetch = mock(result);
   mount();
-  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+  fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: result.postText },
   });
-  fireEvent.click(screen.getByRole('button', { name: /Upload JD/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Upload document/ }));
   await userEvent.upload(
     screen.getByLabelText('Upload JD document (PDF or DOCX)'),
     new File(['synthetic replay attachment'], 'synthetic-jd.pdf', {
@@ -287,7 +287,7 @@ test('maps the captured single Ollama result, requires conflict review and saves
     }),
   );
   await userEvent.click(
-    screen.getByRole('button', { name: 'Extract with AI' }),
+    screen.getByRole('button', { name: 'Fill in with AI' }),
   );
   expect(await screen.findByDisplayValue('Example Labs')).toBeVisible();
   expect(screen.getByLabelText('Recruitment agency')).toHaveValue(
@@ -368,13 +368,13 @@ test('an actionable DOCX parsing failure retains post and manual fields but reje
   );
   vi.stubGlobal('fetch', fetch);
   mount();
-  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+  fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: post },
   });
   fireEvent.change(screen.getByLabelText(/Job title/), {
     target: { value: 'Synthetic manual title' },
   });
-  fireEvent.click(screen.getByRole('button', { name: /Upload JD/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Upload document/ }));
   await userEvent.upload(
     screen.getByLabelText('Upload JD document (PDF or DOCX)'),
     new File(['synthetic corrupted docx'], 'retained-synthetic.docx', {
@@ -383,11 +383,9 @@ test('an actionable DOCX parsing failure retains post and manual fields but reje
   );
   await screen.findByText(/The DOCX archive is damaged/);
   expect(screen.queryByText('retained-synthetic.docx')).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: /Paste JD/ }));
-  expect(screen.getByLabelText('Recruitment post')).toHaveValue(post);
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Continue to Review & Save' }),
-  );
+  fireEvent.click(screen.getByRole('button', { name: /Paste content/ }));
+  expect(screen.getByLabelText('Job posting content')).toHaveValue(post);
+  fireEvent.click(screen.getByRole('button', { name: 'Continue without AI' }));
   expect(screen.getByLabelText(/Job title/)).toHaveValue(
     'Synthetic manual title',
   );
@@ -403,10 +401,10 @@ test('complete synthetic extraction populates new review fields and corrections 
   ).default as ImportPreview;
   const fetch = mock(result);
   const view = mount();
-  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+  fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: result.postText },
   });
-  fireEvent.click(screen.getByRole('button', { name: /Upload JD/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Upload document/ }));
   await userEvent.upload(
     screen.getByLabelText('Upload JD document (PDF or DOCX)'),
     new File(['synthetic-only docx'], 'synthetic-vietnamese.docx', {
@@ -414,7 +412,7 @@ test('complete synthetic extraction populates new review fields and corrections 
     }),
   );
   await userEvent.click(
-    screen.getByRole('button', { name: 'Extract with AI' }),
+    screen.getByRole('button', { name: 'Fill in with AI' }),
   );
   await screen.findByDisplayValue('AI Developer');
   expect(screen.getByLabelText('Company')).toHaveValue('Tinh Vân');
@@ -471,7 +469,7 @@ test('extraction keeps manual field edits, description and tracking information'
   ).default as ImportPreview;
   mock(result);
   mount();
-  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+  fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: result.postText },
   });
   fireEvent.change(screen.getByLabelText(/Job title/), {
@@ -487,7 +485,7 @@ test('extraction keeps manual field edits, description and tracking information'
     target: { value: '2026-11-02' },
   });
   await userEvent.click(
-    screen.getByRole('button', { name: 'Extract with AI' }),
+    screen.getByRole('button', { name: 'Fill in with AI' }),
   );
   await screen.findByDisplayValue('Tinh Vân');
   expect(screen.getByLabelText(/Job title/)).toHaveValue(
@@ -534,7 +532,7 @@ test('a saved manually cleared field stays empty in manual Edit JD', async () =>
   fireEvent.click(screen.getByRole('link', { name: 'Edit JD' }));
   expect(screen.getByLabelText('Company')).toHaveValue('');
   expect(
-    screen.queryByRole('button', { name: 'Extract with AI' }),
+    screen.queryByRole('button', { name: 'Fill in with AI' }),
   ).not.toBeInTheDocument();
   expect(screen.getByLabelText('Company')).toHaveValue('');
 });
@@ -547,11 +545,11 @@ test('all contact methods display, save and reload for manual Edit JD', async ()
   });
   mock(result);
   const view = mount();
-  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+  fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: 'Email: recruiter@example.com\nZalo: 0900 123 456' },
   });
   await userEvent.click(
-    screen.getByRole('button', { name: 'Extract with AI' }),
+    screen.getByRole('button', { name: 'Fill in with AI' }),
   );
   await waitFor(() =>
     expect(screen.getByLabelText('Recruiter / contact notes')).toHaveValue(
@@ -606,10 +604,10 @@ test('JD office contacts stay in parsed source text while filtered recruiter sug
     }));
   mock(result);
   mount();
-  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+  fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: 'Email: recruiter@example.com\nZalo: 0900 123 456' },
   });
-  fireEvent.click(screen.getByRole('button', { name: /Upload JD/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Upload document/ }));
   await userEvent.upload(
     screen.getByLabelText('Upload JD document (PDF or DOCX)'),
     new File(['synthetic office-contact fixture'], 'synthetic-contacts.docx', {
@@ -618,33 +616,29 @@ test('JD office contacts stay in parsed source text while filtered recruiter sug
   );
   await waitFor(() =>
     expect(
-      screen.getByRole('button', { name: 'Extract with AI' }),
+      screen.getByRole('button', { name: 'Fill in with AI' }),
     ).toBeEnabled(),
   );
   await userEvent.click(
-    screen.getByRole('button', { name: 'Extract with AI' }),
+    screen.getByRole('button', { name: 'Fill in with AI' }),
   );
   await waitFor(() =>
     expect(screen.getByLabelText('Recruiter / contact notes')).toHaveValue(
       contacts,
     ),
   );
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Back to Import sources' }),
-  );
+  fireEvent.click(screen.getByRole('button', { name: 'Back to Add content' }));
   expect(screen.getByLabelText('Source JD text (read-only)')).toHaveValue(jd);
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Continue to Review & Save' }),
-  );
+  fireEvent.click(screen.getByRole('button', { name: 'Continue without AI' }));
   const manual = 'Manually corrected recruiter: 0900 555 444';
   fireEvent.change(screen.getByLabelText('Recruiter / contact notes'), {
     target: { value: manual },
   });
   vi.spyOn(window, 'confirm').mockReturnValue(true);
-  const back = screen.queryByRole('button', { name: 'Back to Import sources' });
+  const back = screen.queryByRole('button', { name: 'Back to Add content' });
   if (back) fireEvent.click(back);
   await userEvent.click(
-    screen.getByRole('button', { name: 'Extract with AI' }),
+    screen.getByRole('button', { name: 'Fill in with AI' }),
   );
   await waitFor(() =>
     expect(screen.getByLabelText('Recruiter / contact notes')).toHaveValue(
@@ -670,16 +664,16 @@ test('manual URL survives extraction, save and reopen without fetching the URL',
   mount();
   const url = 'https://www.itviec.com/it-jobs/synthetic-role?utm_source=manual';
   showLinkImport();
-  fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
+  fireEvent.change(screen.getByLabelText('Job posting link'), {
     target: { value: url },
   });
   expect(screen.getByText(/Platform: ITviec/)).toBeVisible();
-  fireEvent.click(screen.getByRole('button', { name: /Paste JD/ }));
-  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+  fireEvent.click(screen.getByRole('button', { name: /Paste content/ }));
+  fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: post },
   });
   await userEvent.click(
-    screen.getByRole('button', { name: 'Extract with AI' }),
+    screen.getByRole('button', { name: 'Fill in with AI' }),
   );
   await screen.findByDisplayValue('Synthetic backend role');
   expect(screen.getByLabelText('Original link')).toHaveValue(url);
@@ -700,17 +694,15 @@ test('invalid job URL blocks save with actionable feedback and retains inputs', 
   const fetch = mock(preview({}));
   mount();
   showLinkImport();
-  fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
+  fireEvent.change(screen.getByLabelText('Job posting link'), {
     target: { value: 'javascript:alert(1)' },
   });
   // Continue requires JD content (PR87).
-  fireEvent.click(screen.getByRole('button', { name: /Paste JD/ }));
-  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+  fireEvent.click(screen.getByRole('button', { name: /Paste content/ }));
+  fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: 'Synthetic JD' },
   });
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Continue to Review & Save' }),
-  );
+  fireEvent.click(screen.getByRole('button', { name: 'Continue without AI' }));
   fireEvent.change(screen.getByLabelText(/Job title/), {
     target: { value: 'Synthetic role' },
   });
@@ -748,7 +740,7 @@ test.each(['failed', 'pending', 'valid'])(
       return normal(url, init);
     });
     mount();
-    fireEvent.click(screen.getByRole('button', { name: /Upload JD/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Upload document/ }));
     await userEvent.upload(
       screen.getByLabelText('Upload JD document (PDF or DOCX)'),
       new File(['synthetic'], 'recovery.pdf', { type: 'application/pdf' }),
@@ -758,19 +750,22 @@ test.each(['failed', 'pending', 'valid'])(
       expect(screen.queryByText('recovery.pdf')).not.toBeInTheDocument();
     }
     if (state === 'valid') await screen.findByText('recovery.pdf');
-    expect(screen.getByRole('button', { name: /^Paste JD/ })).toBeEnabled();
-    await userEvent.click(screen.getByRole('button', { name: /^Paste JD/ }));
-    expect(screen.getByRole('button', { name: /^Paste JD/ })).toHaveAttribute(
-      'aria-pressed',
-      'true',
+    expect(
+      screen.getByRole('button', { name: /^Paste content/ }),
+    ).toBeEnabled();
+    await userEvent.click(
+      screen.getByRole('button', { name: /^Paste content/ }),
     );
+    expect(
+      screen.getByRole('button', { name: /^Paste content/ }),
+    ).toHaveAttribute('aria-pressed', 'true');
     if (state === 'pending')
       release(Response.json({ text: 'Stale document', warnings: [] }));
-    fireEvent.change(screen.getByLabelText('Recruitment post'), {
+    fireEvent.change(screen.getByLabelText('Job posting content'), {
       target: { value: post },
     });
     await userEvent.click(
-      screen.getByRole('button', { name: 'Extract with AI' }),
+      screen.getByRole('button', { name: 'Fill in with AI' }),
     );
     await screen.findByDisplayValue('Paste recovery');
     const extracted = fetch.mock.calls.find(([url]) =>

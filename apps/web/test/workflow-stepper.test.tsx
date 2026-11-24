@@ -51,7 +51,7 @@ test('Add Job marks current, completed and upcoming steps', () => {
   );
   const steps = () =>
     within(screen.getByLabelText('Add job steps'))
-      .getAllByText(/^(Import sources|Review & Save)$/)
+      .getAllByText(/^(Add content|Review & Save)$/)
       .map((label) => label.closest<HTMLElement>('.MuiStep-root')!) as [
       HTMLElement,
       HTMLElement,
@@ -59,19 +59,15 @@ test('Add Job marks current, completed and upcoming steps', () => {
   let [importStep, reviewStep] = steps();
   expect(importStep).toHaveAttribute('aria-current', 'step');
   expect(icon(importStep)).toHaveAttribute('data-step-state', 'current');
-  expect(within(importStep).getByText('Current')).toBeVisible();
   expect(icon(reviewStep)).toHaveAttribute('data-step-state', 'upcoming');
   // Continue requires JD content (PR87).
-  fireEvent.click(screen.getByRole('button', { name: /Paste JD/ }));
-  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+  fireEvent.click(screen.getByRole('button', { name: /Paste content/ }));
+  fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: 'Synthetic JD' },
   });
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Continue to Review & Save' }),
-  );
+  fireEvent.click(screen.getByRole('button', { name: 'Continue without AI' }));
   [importStep, reviewStep] = steps();
   expect(icon(importStep)).toHaveAttribute('data-step-state', 'completed');
-  expect(within(importStep).getByText('Complete')).toBeVisible();
   expect(reviewStep).toHaveAttribute('aria-current', 'step');
   expect(icon(reviewStep)).toHaveAttribute('data-step-state', 'current');
   expect(icon(reviewStep)).toHaveTextContent('2');

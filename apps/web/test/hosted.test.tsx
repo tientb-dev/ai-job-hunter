@@ -57,5 +57,5 @@ test('hosted build offers no bookmarklet import', () => {
     />,
   );
   expect(screen.queryByText('Bookmarklet')).toBeNull();
-  expect(screen.getByText('Paste JD')).toBeVisible();
+  expect(screen.getByText('Paste content')).toBeVisible();
 });

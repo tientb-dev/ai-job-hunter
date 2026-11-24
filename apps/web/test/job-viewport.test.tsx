@@ -34,7 +34,7 @@ function mount(path = '/jobs/new') {
     />,
   );
   if (path === '/jobs/new')
-    fireEvent.click(screen.getByRole('button', { name: /Paste JD/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Paste content/ }));
   return mounted;
 }
 function shell() {
@@ -55,15 +55,13 @@ test.each([360, 1280])(
     ).toBeNull();
     expect(shell().style.height).toBe('');
     expect(scrolled).toHaveLength(0);
-    fireEvent.change(screen.getByLabelText('Recruitment post'), {
+    fireEvent.change(screen.getByLabelText('Job posting content'), {
       target: { value: 'Unsaved synthetic source' },
     });
     fireEvent.click(
-      screen.getByRole('button', { name: 'Continue to Review & Save' }),
+      screen.getByRole('button', { name: 'Continue without AI' }),
     );
-    const stepper = screen
-      .getByText('Import sources')
-      .closest('.MuiStepper-root');
+    const stepper = screen.getByText('Add content').closest('.MuiStepper-root');
     expect(scrolled).toEqual([stepper]);
     expect(
       screen.getByRole('region', { name: 'Job save actions' }),
@@ -71,10 +69,10 @@ test.each([360, 1280])(
       screen.getByRole('button', { name: 'Confirm and save job' }),
     );
     fireEvent.click(
-      screen.getByRole('button', { name: 'Back to Import sources' }),
+      screen.getByRole('button', { name: 'Back to Add content' }),
     );
     expect(scrolled).toEqual([stepper, stepper]);
-    expect(screen.getByLabelText('Recruitment post')).toHaveValue(
+    expect(screen.getByLabelText('Job posting content')).toHaveValue(
       'Unsaved synthetic source',
     );
     expect(screen.getByText('Unsaved changes')).toBeVisible();
@@ -238,12 +236,10 @@ test.each([
 test('Confirm and Save submits the original form from the persistent action row', async () => {
   mount();
   // Continue requires JD content (PR87); mount() already opened Paste JD.
-  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+  fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: 'Synthetic JD' },
   });
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Continue to Review & Save' }),
-  );
+  fireEvent.click(screen.getByRole('button', { name: 'Continue without AI' }));
   fireEvent.change(screen.getByLabelText(/Job title/), {
     target: { value: 'Saved through bounded shell' },
   });

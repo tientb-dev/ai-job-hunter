@@ -121,7 +121,7 @@ test('Add Job warns before review, stays editable and preserves save-time 409 pr
       <JobEditor />
     </MemoryRouter>,
   );
-  fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
+  fireEvent.change(screen.getByLabelText('Job posting link'), {
     target: { value: url },
   });
   await screen.findByRole('link', { name: 'Open existing job' });
@@ -130,13 +130,11 @@ test('Add Job warns before review, stays editable and preserves save-time 409 pr
     `/api/v1/opportunities/duplicate-url?url=${encodeURIComponent(url)}`,
   );
   // Continue requires JD content (PR87).
-  fireEvent.click(screen.getByRole('button', { name: /Paste JD/ }));
-  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+  fireEvent.click(screen.getByRole('button', { name: /Paste content/ }));
+  fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: 'Synthetic JD' },
   });
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Continue to Review & Save' }),
-  );
+  fireEvent.click(screen.getByRole('button', { name: 'Continue without AI' }));
   fireEvent.change(screen.getByLabelText(/Job title/), {
     target: { value: 'Manual draft title' },
   });

@@ -87,12 +87,12 @@ test('Edit JD exposes manual fields and no import controls, even for a job with 
   expect(
     screen.queryByRole('group', { name: 'Choose an import method' }),
   ).not.toBeInTheDocument();
-  for (const name of ['Extract with AI', 'Fetch JD'])
+  for (const name of ['Fill in with AI', 'Get content'])
     expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
-  expect(screen.queryByLabelText('Recruitment post')).not.toBeInTheDocument();
   expect(
-    screen.queryByLabelText('Original Job URL (optional)'),
+    screen.queryByLabelText('Job posting content'),
   ).not.toBeInTheDocument();
+  expect(screen.queryByLabelText('Job posting link')).not.toBeInTheDocument();
   expect(document.querySelector('input[type=file]')).toBeNull();
   expect(screen.getByLabelText('Company')).toHaveValue('Saved company');
   expect(screen.getByLabelText('Source')).toBeVisible();
