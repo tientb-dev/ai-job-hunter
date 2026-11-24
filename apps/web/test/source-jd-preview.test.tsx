@@ -7,10 +7,7 @@ import * as bridge from '../src/features/inbox/topcv-bookmarklet';
 
 // The link card is always shown; returning to it closes the open alternative.
 function showLinkImport() {
-  const open = screen
-    .queryAllByRole('button', { pressed: true })
-    .find((button) => /^(Paste JD|Upload JD)/.test(button.textContent ?? ''));
-  if (open) fireEvent.click(open);
+  fireEvent.click(screen.getByRole('button', { name: /^Paste link/ }));
 }
 const raw =
   'Original source heading\nResponsibilities: system architecture\nRequirements: education, TOEIC 550 / IELTS 5.5\nEnd of full source';
@@ -40,11 +37,12 @@ test('ITviec preview shows full actual extraction source before AI, survives swi
   const fetch = vi.fn(async () => Response.json(preview));
   vi.stubGlobal('fetch', fetch);
   mount();
-  expect(screen.getByText('Empty')).toBeVisible();
-  fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
+  // No preview until there is source text.
+  expect(screen.queryByText('Preview source JD')).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Job posting link'), {
     target: { value: preview.originalLink },
   });
-  fireEvent.click(screen.getByRole('button', { name: 'Fetch JD' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Get content' }));
   const text = await screen.findByLabelText('Source JD text (read-only)');
   expect(text).toHaveValue(raw);
   expect(text).toHaveAttribute('readonly');
@@ -53,12 +51,12 @@ test('ITviec preview shows full actual extraction source before AI, survives swi
   fireEvent.click(screen.getByRole('button', { name: /Preview source JD/ }));
   await waitFor(() => expect(text).toBeVisible());
   expect(text).not.toHaveValue(preview.description);
-  select('Paste JD');
+  select('Paste content');
   expect(
     screen.queryByRole('button', { name: /Preview source JD/ }),
   ).not.toBeInTheDocument();
-  expect(screen.getByLabelText('Recruitment post')).toHaveValue(raw);
-  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+  expect(screen.getByLabelText('Job posting content')).toHaveValue(raw);
+  fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: `${raw}\nManual source correction` },
   });
   showLinkImport();
@@ -101,13 +99,13 @@ test('bookmarklet preview uses transferred source text with its known platform a
   expect(fetch.mock.calls[0]).toBeDefined();
 });
 
-test('upload calls existing parse-only endpoint once, shows real parsed text, and clears it when leaving Upload JD', async () => {
+test('upload calls existing parse-only endpoint once, shows real parsed text, and keeps it when switching methods', async () => {
   const fetch = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(
     async () => Response.json({ text: raw, warnings: [] }),
   );
   vi.stubGlobal('fetch', fetch);
   mount();
-  select('Upload JD');
+  select('Upload document');
   const file = new File(['synthetic DOCX'], 'synthetic.docx', {
     type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   });
@@ -118,20 +116,21 @@ test('upload calls existing parse-only endpoint once, shows real parsed text, an
     await screen.findByLabelText('Source JD text (read-only)'),
   ).toHaveValue(raw);
   await waitFor(() =>
-    expect(screen.getByRole('button', { name: /^Paste JD/ })).toBeEnabled(),
+    expect(
+      screen.getByRole('button', { name: /^Paste content/ }),
+    ).toBeEnabled(),
   );
   expect(fetch.mock.calls[0]![0]).toBe('/api/v1/opportunities/parse-document');
   expect(fetch.mock.calls[0]![1]!.headers).toMatchObject({
     'Content-Type': file.type,
   });
   expect(fetch.mock.calls[0]![1]!.body).toBeInstanceOf(Blob);
-  select('Paste JD');
+  select('Paste content');
   showLinkImport();
-  select('Upload JD');
-  expect(
-    screen.queryByLabelText('Source JD text (read-only)'),
-  ).not.toBeInTheDocument();
-  expect(screen.queryByText('synthetic.docx')).not.toBeInTheDocument();
+  select('Upload document');
+  // The parsed document is kept across switches and is not parsed again.
+  expect(screen.getByLabelText('Source JD text (read-only)')).toHaveValue(raw);
+  expect(screen.getByText('synthetic.docx')).toBeVisible();
   expect(fetch).toHaveBeenCalledTimes(1);
 });
 
@@ -146,7 +145,7 @@ test('parse failure shows an actionable preview error without inventing parsed c
     ),
   );
   mount();
-  select('Upload JD');
+  select('Upload document');
   fireEvent.change(screen.getByLabelText('Upload JD document (PDF or DOCX)'), {
     target: {
       files: [
@@ -154,8 +153,8 @@ test('parse failure shows an actionable preview error without inventing parsed c
       ],
     },
   });
-  expect(await screen.findByText('Preview error')).toBeVisible();
-  expect(screen.getByText(/No readable text/)).toBeVisible();
+  // Upload errors show directly below the upload control.
+  expect(await screen.findByText(/No readable text/)).toBeVisible();
   expect(
     screen.queryByLabelText('Source JD text (read-only)'),
   ).not.toBeInTheDocument();

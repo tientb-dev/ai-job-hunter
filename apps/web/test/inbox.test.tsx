@@ -61,13 +61,11 @@ test('adds a job, sends persistent fields, then loads its detail', async () => {
   vi.stubGlobal('fetch', fetch);
   mount('/jobs/new');
   // Continue requires JD content (PR87).
-  fireEvent.click(screen.getByRole('button', { name: /Paste JD/ }));
-  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+  fireEvent.click(screen.getByRole('button', { name: /Paste content/ }));
+  fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: 'Synthetic JD' },
   });
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Continue to Review & Save' }),
-  );
+  fireEvent.click(screen.getByRole('button', { name: 'Continue without AI' }));
   fireEvent.change(screen.getByLabelText(/Job title/), {
     target: { value: row.title },
   });
@@ -155,13 +153,11 @@ test('last HR contact survives create, save, reopen and replacement without chan
   vi.stubGlobal('fetch', fetch);
   let view = mount('/jobs/new');
   // Continue requires JD content (PR87).
-  fireEvent.click(screen.getByRole('button', { name: /Paste JD/ }));
-  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+  fireEvent.click(screen.getByRole('button', { name: /Paste content/ }));
+  fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: 'Synthetic JD' },
   });
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Continue to Review & Save' }),
-  );
+  fireEvent.click(screen.getByRole('button', { name: 'Continue without AI' }));
   fireEvent.change(screen.getByLabelText(/Job title/), {
     target: { value: 'Synthetic date job' },
   });
@@ -586,13 +582,13 @@ test('Add job shows the unsaved badge only after a user edit, not on load', asyn
     vi.fn(async () => Response.json([])),
   );
   mount('/jobs/new');
-  fireEvent.click(screen.getByRole('button', { name: /Paste JD/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Paste content/ }));
   expect(screen.queryByText('Unsaved changes')).toBeNull();
-  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+  fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: 'Synthetic JD' },
   });
   expect(screen.getByText('Unsaved changes')).toBeVisible();
-  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+  fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: '' },
   });
   expect(screen.queryByText('Unsaved changes')).toBeNull();

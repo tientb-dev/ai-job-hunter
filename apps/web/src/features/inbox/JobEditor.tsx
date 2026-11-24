@@ -7,6 +7,7 @@ import {
   AutoAwesomeIcon,
   DeleteIcon,
   DownloadIcon,
+  UploadIcon,
   CheckIcon,
   EditIcon,
   SaveIcon,
@@ -51,6 +52,7 @@ import {
   CircularProgress,
   Divider,
   FormControlLabel,
+  LinearProgress,
   MenuItem,
   Paper,
   Link as MuiLink,
@@ -122,6 +124,7 @@ const FIELD_GROUPS: {
     fields: ['agency', 'contactNotes', 'domain'],
   },
 ];
+const POST_LIMIT = 12000;
 const message = (error: unknown) =>
   error instanceof Error
     ? error.message
@@ -313,6 +316,15 @@ export function JobEditor() {
     Partial<Record<ImportMethod, string>>
   >({});
   const [urlRetry, setUrlRetry] = useState(false);
+  const [urlNotice, setUrlNotice] = useState('');
+  const [dragging, setDragging] = useState(false);
+  const urlFeedback = useRef<HTMLDivElement>(null);
+  const pasteField = useRef<HTMLTextAreaElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  // Set by the Paste JD fallback so the textarea gets focus once it renders.
+  const focusPaste = useRef(false);
+  const extractRunning = useRef(false);
+  const sourceEdited = useRef(false);
   const parseRequest = useRef<AbortController | null>(null);
   const parseGeneration = useRef(0);
   useEffect(
@@ -329,6 +341,35 @@ export function JobEditor() {
   const [error, setError] = useState('');
   const notify = useNotify();
   const saving = useRef(false);
+  const smoothScroll = () =>
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+      ? 'auto'
+      : 'smooth';
+  useEffect(() => {
+    if (importMethod !== 'paste' || !focusPaste.current) return;
+    focusPaste.current = false;
+    pasteField.current?.focus({ preventScroll: true });
+    pasteField.current?.scrollIntoView?.({
+      block: 'center',
+      behavior: smoothScroll(),
+    });
+  }, [importMethod]);
+  // Keep the link result in view on small screens.
+  useEffect(() => {
+    if (sourceErrors.url)
+      urlFeedback.current?.scrollIntoView?.({
+        block: 'nearest',
+        behavior: smoothScroll(),
+      });
+  }, [sourceErrors.url]);
+  // Job-board links are websites; a source the user picked is never overridden.
+  useEffect(() => {
+    if (id || sourceEdited.current || !jobUrlInfo(form.originalLink).platform)
+      return;
+    setForm((row) =>
+      row.source === 'Website' ? row : { ...row, source: 'Website' },
+    );
+  }, [id, form.originalLink]);
   const [notice, setNotice] = useState('');
   const [contactDate, setContactDate] = useState('');
   useEffect(() => {
@@ -392,7 +433,7 @@ export function JobEditor() {
             fetchedJob.current = result;
             setImportMethod('bookmarklet');
             setForm(next);
-            setNotice(
+            setUrlNotice(
               tr('{v0}JD loaded from {platform}. {v2}', {
                 v0: result.expired ? tr('This listing is expired. ') : '',
                 platform: result.platform,
@@ -419,29 +460,39 @@ export function JobEditor() {
     key: K,
     value: OpportunityInput[K],
   ) => {
-    if (key === 'originalLink' && urlFetchRunning.current) {
-      sourceGeneration.current++;
-      urlFetchRunning.current = false;
-      setBusy(false);
+    if (key === 'originalLink') {
+      if (urlFetchRunning.current) {
+        sourceGeneration.current++;
+        urlFetchRunning.current = false;
+        setBusy(false);
+      }
+      setUrlNotice('');
+      setSourceErrors((errors) => ({ ...errors, url: '' }));
     }
+    if (key === 'source') sourceEdited.current = true;
     if (importFields.includes(key as ImportFieldName) || key === 'description')
       editedFields.current.add(key);
     setTouched(true);
     setForm((row) => ({ ...row, [key]: value }));
   };
   const sourcesChanged = () => {
+    // Only warn when AI suggestions exist that the new content may contradict.
+    if (formSnapshot.current.importReview.length)
+      setNotice(
+        tr(
+          'The content changed. Fill in with AI again, or check the details yourself before saving.',
+        ),
+      );
     setForm((row) => ({ ...row, importReview: [] }));
-    setNotice(
-      tr(
-        'Sources changed. Extract again or review the current fields manually before saving.',
-      ),
-    );
   };
+  const unavailable = (error: unknown) =>
+    error instanceof TypeError ||
+    (error instanceof OpportunityRequestError && error.status >= 500);
   const conflicts = form.importReview.filter(
     (field) => field.status === 'CONFLICT' && !field.reviewed,
   );
   async function extract() {
-    if (id) return;
+    if (id || extractRunning.current) return;
     if (
       form.importReview.length &&
       !window.confirm(
@@ -451,13 +502,14 @@ export function JobEditor() {
       )
     )
       return;
+    extractRunning.current = true;
     setExtracting(true);
     setError('');
     setNotice('');
     try {
       const result = await opportunityRequest<ImportPreview>('/extract', {
         method: 'POST',
-        body: importUpload({ postText: form.postText }, file),
+        body: importUpload({ postText: form.postText }, activeFile),
       });
       setJdText(result.jdText);
       if (result.error) {
@@ -540,7 +592,8 @@ export function JobEditor() {
           ),
         );
       }
-      setStep(1);
+      // A failed extraction stays on Import sources with every input intact.
+      if (!result.error) setStep(1);
       if (result.warnings.length)
         setNotice((previous) =>
           tr(
@@ -549,8 +602,15 @@ export function JobEditor() {
           ),
         );
     } catch (error) {
-      setError(message(error));
+      setError(
+        unavailable(error)
+          ? tr(
+              'Could not fill in the details with AI right now. Try again, or continue without AI and fill them in yourself.',
+            )
+          : message(error),
+      );
     } finally {
+      extractRunning.current = false;
       setExtracting(false);
     }
   }
@@ -576,6 +636,7 @@ export function JobEditor() {
     const requestedUrl = form.originalLink;
     urlFetchRunning.current = true;
     setSourceErrors((errors) => ({ ...errors, url: '' }));
+    setUrlNotice('');
     setBusy(true);
     setError('');
     setNotice('');
@@ -597,9 +658,9 @@ export function JobEditor() {
       );
       fetchedJob.current = result;
       setForm(next);
-      setNotice(
+      setUrlNotice(
         tr(
-          '{v0}JD loaded from {platform}. Review it, then use Extract with AI when ready.',
+          '{v0}Job loaded from {platform}. Next, fill in the details with AI below.',
           {
             v0: result.expired ? tr('This listing is expired. ') : '',
             platform: result.platform,
@@ -685,7 +746,9 @@ export function JobEditor() {
       const row = await opportunityRequest<Opportunity>(id ? `/${id}` : '', {
         method: id ? 'PUT' : 'POST',
         body:
-          file || record.length > 20000 ? importUpload(payload, file) : record,
+          activeFile || record.length > 20000
+            ? importUpload(payload, activeFile)
+            : record,
       });
       if (id) {
         setSavedRevision((value) => value + 1);
@@ -703,7 +766,13 @@ export function JobEditor() {
         navigate(`/jobs/${row.id}`, { replace: true });
       }
     } catch (error) {
-      reportSaveError(message(error));
+      reportSaveError(
+        !id && unavailable(error)
+          ? tr(
+              'Could not save the job right now. Your details are kept; try again in a moment.',
+            )
+          : message(error),
+      );
     } finally {
       saving.current = false;
       setBusy(false);
@@ -718,7 +787,12 @@ export function JobEditor() {
       !document.size ||
       document.size > 5 * 1024 * 1024
     ) {
-      setError(tr('Use a PDF or DOCX up to 5 MiB, or paste text instead.'));
+      setSourceErrors((errors) => ({
+        ...errors,
+        upload: tr(
+          'Use a PDF or DOCX file up to 5 MB, or paste the text instead.',
+        ),
+      }));
       return;
     }
     setError('');
@@ -769,6 +843,8 @@ export function JobEditor() {
     Boolean(file) ||
     contactDate !== latestContactDate(form.contactDates);
   const disabled = busy || extracting || parsing || loadFailed;
+  // Never send a document the user moved away from (it stays attached in Upload).
+  const activeFile = importMethod === 'upload' ? file : undefined;
   // The Tailored CV review stays mounted once opened, so its edits count everywhere.
   const reviewDirty = tailoredDirty;
   const saved = JSON.parse(baseline.current) as OpportunityInput;
@@ -1048,373 +1124,471 @@ export function JobEditor() {
     parseGeneration.current++;
     parseRequest.current?.abort();
     setParsing(false);
-    if (importMethod === 'upload') {
-      setSourceErrors((errors) => ({ ...errors, upload: '' }));
-      setFile(undefined);
-      setJdText('');
+    // The document is kept but only counts while Upload is selected.
+    if (file && (importMethod === 'upload' || method === 'upload'))
       sourcesChanged();
-    }
     setError('');
     setNotice('');
     setImportMethod(method);
   };
+  const hasSource = Boolean(form.postText.trim() || activeFile);
+  const linkPanel = importMethod === 'url' || importMethod === 'bookmarklet';
   const importSources = (
     <Box hidden={!id && step !== 0}>
       <Stack spacing={3}>
-        {/* Primary path: one prominent card with the link input and its action. */}
         <Paper
           variant="outlined"
           component="section"
-          aria-labelledby="url-import-title"
-          sx={{
-            p: { xs: 2, sm: 3 },
-            borderColor: 'primary.main',
-            borderWidth: 2,
-          }}
-        >
-          <Stack spacing={1.5}>
-            <Box>
-              <Stack
-                direction="row"
-                spacing={1}
-                sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 0.5 }}
-              >
-                <Typography id="url-import-title" variant="h6" component="h2">
-                  {tr('Paste job URL')}
-                </Typography>
-              </Stack>
-              <Typography variant="body2" color="text.secondary">
-                {tr('Supported: {sources}', {
-                  sources: linkSources.join(' · '),
-                })}
-              </Typography>
-            </Box>
-            <Stack
-              direction={{ xs: 'column', sm: 'row' }}
-              spacing={1}
-              sx={{ alignItems: { xs: 'stretch', sm: 'flex-start' } }}
-            >
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <TextField
-                  fullWidth
-                  label={tr('Original Job URL (optional)')}
-                  type="url"
-                  value={form.originalLink}
-                  onChange={(e) => change('originalLink', e.target.value)}
-                  error={!jobUrlInfo(form.originalLink).valid}
-                  slotProps={{ htmlInput: { maxLength: 2048 } }}
-                  helperText={
-                    !jobUrlInfo(form.originalLink).valid
-                      ? tr(
-                          'Enter a full HTTP(S) URL without credentials, or leave it blank.',
-                        )
-                      : jobUrlInfo(form.originalLink).platform &&
-                        tr('Platform: {platform}.', {
-                          platform:
-                            jobUrlInfo(form.originalLink).platform ?? '',
-                        })
-                  }
-                />
-              </Box>
-              <Button
-                startIcon={<DownloadIcon />}
-                variant="contained"
-                // Match the 40px outlined input from sm up (44px stacked on phones).
-                sx={{ minHeight: { sm: 40 }, flexShrink: 0 }}
-                disabled={
-                  disabled || !canFetchJobUrl(form.originalLink) || linkOff
-                }
-                onClick={() => {
-                  if (importMethod !== 'url' && importMethod !== 'bookmarklet')
-                    switchMethod('url');
-                  void fetchFromUrl();
-                }}
-                aria-describedby="url-import-help"
-              >
-                {urlFetchRunning.current ? tr('Fetching JD…') : tr('Fetch JD')}
-              </Button>
-            </Stack>
-            <Typography
-              id="url-import-help"
-              variant="body2"
-              color="text.secondary"
-            >
-              {linkOff
-                ? urlImportError(`${linkPlatform} link import is turned off`)
-                : !form.originalLink || canFetchJobUrl(form.originalLink)
-                  ? tr(
-                      'Paste a single job posting link, then select Fetch JD. You review the JD before saving.',
-                      { sources: linkSources.join(', ') },
-                    )
-                  : urlImportHelp(linkSources)}
-            </Typography>
-            {(importMethod === 'url' || importMethod === 'bookmarklet') && (
-              <>
-                {fetchedSummary}
-                <SourceJdPreview
-                  text={form.postText}
-                  source={
-                    fetchedJob.current?.platform ??
-                    jobUrlInfo(form.originalLink).platform ??
-                    (importMethod === 'bookmarklet'
-                      ? tr('Page-import bookmark')
-                      : tr('Job URL'))
-                  }
-                  loading={urlFetchRunning.current}
-                  error={
-                    sourceErrors[importMethod] &&
-                    sourceErrors[importMethod] === error
-                      ? tr(
-                          'Loading this source failed. See the request error above, or use Paste JD.',
-                        )
-                      : sourceErrors[importMethod]
-                  }
-                  errorActions={
-                    importMethod === 'url' &&
-                    sourceErrors.url && (
-                      <>
-                        {/* Only validated HTTPS job URLs on supported sites. */}
-                        {canFetchJobUrl(form.originalLink) && (
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            href={form.originalLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            {tr('Open job posting')}
-                          </Button>
-                        )}
-                        <Button
-                          size="small"
-                          variant="contained"
-                          onClick={() => switchMethod('paste')}
-                        >
-                          {tr('Paste JD')}
-                        </Button>
-                        {urlRetry && (
-                          <Button
-                            size="small"
-                            disabled={disabled}
-                            onClick={() => void fetchFromUrl()}
-                          >
-                            {tr('Try again')}
-                          </Button>
-                        )}
-                      </>
-                    )
-                  }
-                />
-              </>
-            )}
-          </Stack>
-        </Paper>
-        <Paper
-          variant="outlined"
-          component="section"
-          aria-labelledby="other-methods-title"
+          aria-labelledby="job-source-title"
           sx={{ p: { xs: 2, sm: 3 } }}
         >
           <Stack spacing={2}>
-            <Typography
-              id="other-methods-title"
-              variant="subtitle1"
-              component="h2"
-              sx={{ fontWeight: 600 }}
-            >
-              {tr('Other methods')}
-            </Typography>
+            <Box>
+              <Typography id="job-source-title" variant="h6" component="h2">
+                {tr('Add the job posting')}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {tr('Choose one way to add the job description.')}
+              </Typography>
+            </Box>
             <ImportMethodCards
               value={importMethod}
-              // Selecting the open method again closes it and returns to the link card.
-              onChange={(method) =>
-                switchMethod(method === importMethod ? 'url' : method)
-              }
+              onChange={switchMethod}
               panelId="job-import-panel"
               disabled={extracting || loadFailed || saving.current}
             />
-            {(importMethod === 'paste' || importMethod === 'upload') && (
-              <Box
-                id="job-import-panel"
-                role="region"
-                aria-label={tr('Import method input')}
-                sx={{ minWidth: 0 }}
-              >
-                {importMethod === 'paste' && (
-                  <Stack spacing={1.5}>
-                    <TextField
-                      label={tr('Recruitment post')}
-                      multiline
-                      minRows={4}
-                      maxRows={12}
-                      value={form.postText}
-                      onChange={(e) => {
-                        change('postText', e.target.value);
-                        sourcesChanged();
-                      }}
-                      slotProps={{ htmlInput: { maxLength: 12000 } }}
-                      helperText={tr(
-                        'Paste the entire post, including contact details and links. Up to 12,000 characters. The original text is preserved when saved.',
-                      )}
-                    />
-                  </Stack>
-                )}
-                {importMethod === 'upload' && (
-                  <Stack spacing={1.5}>
-                    <Box>
-                      <Typography component="label" htmlFor="jd-document">
-                        {tr('Upload JD document (PDF or DOCX)')}
-                      </Typography>
-                      <input
-                        id="jd-document"
-                        type="file"
-                        accept=".pdf,.docx"
-                        disabled={disabled}
-                        onChange={(e) => {
-                          const selected = e.target.files?.[0];
-                          if (selected) void attach(selected);
-                          e.target.value = '';
-                        }}
+            <Box
+              id="job-import-panel"
+              role="region"
+              aria-label={tr('Import method input')}
+              sx={{ minWidth: 0 }}
+            >
+              {linkPanel && (
+                <Stack spacing={1.5}>
+                  <Stack
+                    direction={{ xs: 'column', sm: 'row' }}
+                    spacing={1}
+                    sx={{ alignItems: { xs: 'stretch', sm: 'flex-start' } }}
+                  >
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <TextField
+                        fullWidth
+                        label={tr('Job posting link')}
+                        type="url"
+                        value={form.originalLink}
+                        onChange={(e) => change('originalLink', e.target.value)}
+                        error={!jobUrlInfo(form.originalLink).valid}
+                        slotProps={{ htmlInput: { maxLength: 2048 } }}
+                        helperText={
+                          !jobUrlInfo(form.originalLink).valid
+                            ? tr(
+                                'Enter a full link starting with https://, or leave it blank.',
+                              )
+                            : jobUrlInfo(form.originalLink).platform &&
+                              tr('Platform: {platform}.', {
+                                platform:
+                                  jobUrlInfo(form.originalLink).platform ?? '',
+                              })
+                        }
                       />
-                      {file && (
-                        <Stack direction="row" spacing={1}>
-                          <Typography>{file.name}</Typography>
+                    </Box>
+                    <Button
+                      startIcon={<DownloadIcon />}
+                      variant={hasSource ? 'outlined' : 'contained'}
+                      // Match the 40px outlined input from sm up (44px stacked on phones).
+                      sx={{ minHeight: { sm: 40 }, flexShrink: 0 }}
+                      disabled={
+                        disabled ||
+                        !canFetchJobUrl(form.originalLink) ||
+                        linkOff
+                      }
+                      onClick={() => void fetchFromUrl()}
+                      aria-describedby="url-import-help"
+                    >
+                      {urlFetchRunning.current
+                        ? tr('Getting content…')
+                        : tr('Get content')}
+                    </Button>
+                  </Stack>
+                  <Typography
+                    id="url-import-help"
+                    variant="body2"
+                    color="text.secondary"
+                  >
+                    {linkOff
+                      ? urlImportError(
+                          `${linkPlatform} link import is turned off`,
+                        )
+                      : !form.originalLink || canFetchJobUrl(form.originalLink)
+                        ? tr('Supported: {sources}', {
+                            sources: linkSources.join(' · '),
+                          })
+                        : urlImportHelp(linkSources)}
+                  </Typography>
+                  {/* Fetch feedback sits right under the input so it is seen on phones. */}
+                  <Box ref={urlFeedback} sx={{ scrollMarginBlock: 96 }}>
+                    {urlFetchRunning.current && (
+                      <LinearProgress aria-label={tr('Getting content…')} />
+                    )}
+                    {importMethod === 'url' && sourceErrors.url && (
+                      <Alert severity="warning">
+                        {sourceErrors.url}
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          useFlexGap
+                          sx={{ mt: 1, flexWrap: 'wrap' }}
+                        >
+                          {/* Only validated HTTPS job URLs on supported sites. */}
+                          {canFetchJobUrl(form.originalLink) && (
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              href={form.originalLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              {tr('Open job posting')}
+                            </Button>
+                          )}
                           <Button
-                            startIcon={<DeleteIcon />}
-                            variant="outlined"
-                            type="button"
+                            size="small"
+                            variant="contained"
                             onClick={() => {
-                              parseGeneration.current++;
-                              parseRequest.current?.abort();
-                              setSourceErrors((errors) => ({
-                                ...errors,
-                                upload: '',
-                              }));
-                              setFile(undefined);
-                              setJdText('');
-                              sourcesChanged();
+                              focusPaste.current = true;
+                              switchMethod('paste');
                             }}
                           >
-                            {tr('Remove selected document')}
+                            {tr('Paste JD')}
                           </Button>
+                          {urlRetry && (
+                            <Button
+                              size="small"
+                              disabled={disabled}
+                              onClick={() => void fetchFromUrl()}
+                            >
+                              {tr('Try again')}
+                            </Button>
+                          )}
                         </Stack>
-                      )}
-                    </Box>
-                    <Typography variant="body2" color="text.secondary">
-                      {tr(
-                        'Optional PDF/DOCX up to 5 MiB and 20 PDF pages. Original document is preserved on save. Scans/OCR, images and legacy DOC are unsupported; paste text instead.',
-                      )}
-                    </Typography>
+                      </Alert>
+                    )}
+                    {urlNotice && !sourceErrors[importMethod] && (
+                      <Alert severity="success">{urlNotice}</Alert>
+                    )}
+                  </Box>
+                  {fetchedSummary}
+                  {(form.postText ||
+                    urlFetchRunning.current ||
+                    (importMethod === 'bookmarklet' &&
+                      sourceErrors.bookmarklet)) && (
                     <SourceJdPreview
-                      text={jdText}
-                      source={`Document${file?.name ? ` · ${file.name}` : ''}`}
-                      loading={parsing}
+                      text={form.postText}
+                      source={
+                        fetchedJob.current?.platform ??
+                        jobUrlInfo(form.originalLink).platform ??
+                        (importMethod === 'bookmarklet'
+                          ? tr('Page-import bookmark')
+                          : tr('Job URL'))
+                      }
+                      loading={urlFetchRunning.current}
                       error={
-                        sourceErrors[importMethod] &&
-                        sourceErrors[importMethod] === error
-                          ? tr(
-                              'Loading this source failed. See the request error above, or use Paste JD.',
-                            )
-                          : sourceErrors[importMethod]
+                        importMethod === 'bookmarklet'
+                          ? sourceErrors.bookmarklet
+                          : ''
                       }
                     />
-                  </Stack>
-                )}
-              </Box>
-            )}
-            {!HOSTED && (
-              <Box
-                component="details"
-                sx={{
-                  borderTop: 1,
-                  borderColor: 'divider',
-                  pt: 1.5,
-                  '& > summary': { cursor: 'pointer' },
-                }}
-              >
-                <Typography
-                  component="summary"
-                  variant="body2"
-                  color="text.secondary"
-                >
-                  {tr("Can't fetch the page? Use the page-import bookmark")}
-                </Typography>
-                <Box sx={{ mt: 1.5 }}>
-                  <TopcvBookmarkletInstall />
-                </Box>
-              </Box>
-            )}
+                  )}
+                  {!HOSTED && (
+                    <Box
+                      component="details"
+                      sx={{
+                        borderTop: 1,
+                        borderColor: 'divider',
+                        pt: 1.5,
+                        '& > summary': { cursor: 'pointer' },
+                      }}
+                    >
+                      <Typography
+                        component="summary"
+                        variant="body2"
+                        color="text.secondary"
+                      >
+                        {tr(
+                          "Can't fetch the page? Use the page-import bookmark",
+                        )}
+                      </Typography>
+                      <Box sx={{ mt: 1.5 }}>
+                        <TopcvBookmarkletInstall />
+                      </Box>
+                    </Box>
+                  )}
+                </Stack>
+              )}
+              {importMethod === 'paste' && (
+                <TextField
+                  fullWidth
+                  inputRef={pasteField}
+                  label={tr('Job posting content')}
+                  placeholder={tr(
+                    'Paste the whole job post: job title, company, responsibilities, requirements, benefits and how to apply.',
+                  )}
+                  multiline
+                  // Fixed rows (about 220px on desktop) so users can resize vertically.
+                  rows={phoneTabs ? 7 : 10}
+                  value={form.postText}
+                  onChange={(e) => {
+                    change('postText', e.target.value);
+                    sourcesChanged();
+                  }}
+                  sx={{ '& textarea': { resize: 'vertical' } }}
+                  slotProps={{
+                    htmlInput: {
+                      maxLength: POST_LIMIT,
+                      'aria-describedby': 'post-text-count',
+                    },
+                  }}
+                  helperText={
+                    <Box
+                      component="span"
+                      sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        gap: 2,
+                      }}
+                    >
+                      <span>
+                        {tr('Copy it from the job website and paste it here.')}
+                      </span>
+                      <Box
+                        component="span"
+                        id="post-text-count"
+                        sx={{ flexShrink: 0 }}
+                      >
+                        {tr('{count} / {max} characters', {
+                          count:
+                            form.postText.length.toLocaleString(dateLocale()),
+                          max: POST_LIMIT.toLocaleString(dateLocale()),
+                        })}
+                      </Box>
+                    </Box>
+                  }
+                />
+              )}
+              {importMethod === 'upload' && (
+                <Stack spacing={1.5}>
+                  <Box
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (!disabled) setDragging(true);
+                    }}
+                    onDragLeave={() => setDragging(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setDragging(false);
+                      const dropped = e.dataTransfer.files[0];
+                      if (dropped && !disabled) void attach(dropped);
+                    }}
+                    data-dragging={dragging || undefined}
+                    sx={{
+                      border: 2,
+                      borderStyle: 'dashed',
+                      borderColor: 'divider',
+                      borderRadius: 1,
+                      px: 2,
+                      py: { xs: 3, sm: 4 },
+                      transition: 'border-color 150ms, background-color 150ms',
+                      '&:hover': { borderColor: 'primary.main' },
+                      '&[data-dragging]': {
+                        borderColor: 'primary.main',
+                        bgcolor: 'action.selected',
+                      },
+                    }}
+                  >
+                    <Stack spacing={1.5} sx={{ alignItems: 'center' }}>
+                      <UploadIcon
+                        aria-hidden="true"
+                        color="primary"
+                        sx={{ fontSize: 40 }}
+                      />
+                      <Typography sx={{ textAlign: 'center', fontWeight: 500 }}>
+                        {dragging
+                          ? tr('Drop the file to upload it.')
+                          : tr(
+                              'Drag a file here, or choose one from your device.',
+                            )}
+                      </Typography>
+                      <Button
+                        variant="outlined"
+                        disabled={disabled}
+                        aria-describedby="jd-document-help"
+                        onClick={() => fileInput.current?.click()}
+                      >
+                        {file ? tr('Choose another file') : tr('Choose file')}
+                      </Button>
+                      <Stack
+                        id="jd-document-help"
+                        spacing={0.25}
+                        sx={{ alignItems: 'center', textAlign: 'center' }}
+                      >
+                        <Typography variant="body2" color="text.secondary">
+                          {tr('Supported formats: PDF, DOCX')}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {tr('Up to 5 MB and 20 pages')}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {tr(
+                            'Scanned documents and images cannot be read; paste the text instead.',
+                          )}
+                        </Typography>
+                      </Stack>
+                    </Stack>
+                    <input
+                      ref={fileInput}
+                      id="jd-document"
+                      type="file"
+                      accept=".pdf,.docx"
+                      hidden
+                      aria-label={tr('Upload JD document (PDF or DOCX)')}
+                      disabled={disabled}
+                      onChange={(e) => {
+                        const selected = e.target.files?.[0];
+                        if (selected) void attach(selected);
+                        e.target.value = '';
+                      }}
+                    />
+                  </Box>
+                  {parsing && (
+                    <LinearProgress aria-label={tr('Reading document…')} />
+                  )}
+                  {file && (
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 1 }}
+                    >
+                      <Typography
+                        sx={{ fontWeight: 500, overflowWrap: 'anywhere' }}
+                      >
+                        {file.name}
+                      </Typography>
+                      <Button
+                        startIcon={<DeleteIcon />}
+                        variant="outlined"
+                        type="button"
+                        onClick={() => {
+                          parseGeneration.current++;
+                          parseRequest.current?.abort();
+                          setSourceErrors((errors) => ({
+                            ...errors,
+                            upload: '',
+                          }));
+                          setFile(undefined);
+                          setJdText('');
+                          sourcesChanged();
+                        }}
+                      >
+                        {tr('Remove selected document')}
+                      </Button>
+                    </Stack>
+                  )}
+                  {sourceErrors.upload && (
+                    <Alert severity="warning">
+                      {sourceErrors.upload}{' '}
+                      {tr('Your source inputs are retained.')}
+                    </Alert>
+                  )}
+                  {(jdText || parsing) && (
+                    <SourceJdPreview
+                      text={jdText}
+                      source={`${tr('Document')}${file?.name ? ` · ${file.name}` : ''}`}
+                      loading={parsing}
+                    />
+                  )}
+                </Stack>
+              )}
+            </Box>
           </Stack>
         </Paper>
-        <Stack spacing={2}>
-          <TextField
-            select
-            label={tr('Source')}
-            value={form.source}
-            onChange={(e) =>
-              change('source', e.target.value as OpportunityInput['source'])
-            }
-            helperText={tr(
-              'Choose the platform yourself; AI does not infer it. Use Other for LinkedIn or another platform.',
-            )}
-          >
-            {sources.map((value) => (
-              <MenuItem key={value} value={value}>
-                {value}
-              </MenuItem>
-            ))}
-          </TextField>
-          {(form.postText.trim() || file) && (
-            <Typography variant="body2" color="text.secondary">
-              {tr(
-                'Source text is retained when switching methods. Leaving Upload JD removes the selected document.',
-              )}
-            </Typography>
-          )}
-          <Button
-            startIcon={<AutoAwesomeIcon />}
-            type="button"
+        {!id && (
+          <Paper
             variant="outlined"
-            sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
-            disabled={disabled || (!form.postText.trim() && !file)}
-            onClick={() => void extract()}
+            component="section"
+            aria-labelledby="job-fill-title"
+            sx={{ p: { xs: 2, sm: 3 } }}
           >
-            {extracting ? tr('Extracting…') : tr('Extract with AI')}
-          </Button>
-          <Typography variant="body2" color="text.secondary">
-            {tr(
-              'Uses the configured AI provider only when you click Extract. You can also enter fields manually and save without AI.',
-            )}
-          </Typography>
-          {extracting && (
-            <Typography role="status">
-              {tr(
-                'Reading sources and extracting suggestions… This may take up to 90 seconds after document parsing.',
+            <Stack spacing={1.5}>
+              <Box>
+                <Typography id="job-fill-title" variant="h6" component="h2">
+                  {tr('Fill in the job details')}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {tr(
+                    'AI reads the job description and fills in the title, company, requirements and more. You check everything before saving.',
+                  )}
+                </Typography>
+              </Box>
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={1}
+                sx={{ alignItems: { xs: 'stretch', sm: 'center' } }}
+              >
+                <Button
+                  startIcon={<AutoAwesomeIcon />}
+                  type="button"
+                  variant="contained"
+                  disabled={disabled || !hasSource}
+                  onClick={() => void extract()}
+                >
+                  {extracting ? tr('Filling in…') : tr('Fill in with AI')}
+                </Button>
+                <Button
+                  endIcon={<ArrowForwardIcon />}
+                  type="button"
+                  variant="text"
+                  disabled={disabled || !hasSource}
+                  onClick={() => setStep(1)}
+                >
+                  {tr('Continue without AI')}
+                </Button>
+              </Stack>
+              {extracting && (
+                <>
+                  <LinearProgress aria-hidden="true" />
+                  <Typography role="status" variant="body2">
+                    {tr(
+                      'Reading the job description… This can take up to 90 seconds.',
+                    )}
+                  </Typography>
+                </>
               )}
-            </Typography>
-          )}
-          {notice && <Alert severity="info">{notice}</Alert>}
-        </Stack>
+              {!hasSource && (
+                <Typography variant="body2" color="text.secondary">
+                  {tr('Add the job description above first.')}
+                </Typography>
+              )}
+              {error && step === 0 && (
+                <Alert severity="error">
+                  {error}{' '}
+                  {tr(
+                    'Your inputs are retained; you can edit fields manually.',
+                  )}
+                </Alert>
+              )}
+              {notice && <Alert severity="info">{notice}</Alert>}
+            </Stack>
+          </Paper>
+        )}
       </Stack>
-      {!id && (
-        <Button
-          endIcon={<ArrowForwardIcon />}
-          sx={{ mt: 2 }}
-          variant="contained"
-          disabled={!form.postText.trim() && !file}
-          onClick={() => setStep(1)}
-        >
-          {tr('Continue to Review & Save')}
-        </Button>
-      )}
-      {!id && !form.postText.trim() && !file && (
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-          {tr(
-            'Add the JD first: fetch a job link, paste the post, use the page-import bookmark or upload a document.',
-          )}
-        </Typography>
-      )}
     </Box>
+  );
+  const saveNote = (
+    <Typography variant="body2" color="text.secondary">
+      {tr(
+        'Save confirms your reviewed values. Nothing is sent to recruiters and no application is submitted. Changes across sections are saved together.',
+      )}
+    </Typography>
   );
   const saveActions = (
     <Stack
@@ -1444,7 +1618,7 @@ export function JobEditor() {
           disabled={disabled}
           onClick={() => setStep(0)}
         >
-          {tr('Back to Import sources')}
+          {tr('Back to Add content')}
         </Button>
       )}
       <Button
@@ -1561,9 +1735,7 @@ export function JobEditor() {
                   {form.location}
                 </>
               ) : (
-                tr(
-                  'Import your sources, then review and save. You can also enter a job manually.',
-                )
+                tr('Add a job posting, check the details, then save.')
               )}
             </Typography>
             {id && (
@@ -1797,12 +1969,11 @@ export function JobEditor() {
           ) : (
             <Stepper
               activeStep={step}
-              alternativeLabel
               ref={stepper}
               aria-label={tr('Add job steps')}
               sx={workflowStepperSx}
             >
-              {['Import sources', 'Review & Save'].map((label, index) => {
+              {['Add content', 'Review & Save'].map((label, index) => {
                 const state = workflowStepState(index, step, index < step);
                 return (
                   <Step
@@ -1812,15 +1983,6 @@ export function JobEditor() {
                     <StepLabel
                       icon={
                         <WorkflowStepIcon number={index + 1} state={state} />
-                      }
-                      optional={
-                        <Typography component="span" variant="caption">
-                          {state === 'current'
-                            ? tr('Current')
-                            : state === 'completed'
-                              ? tr('Complete')
-                              : tr('Next')}
-                        </Typography>
                       }
                     >
                       {tr(label)}
@@ -1963,7 +2125,7 @@ export function JobEditor() {
           )}
 
           {!id && <DuplicateJobNotice url={form.originalLink} />}
-          {error && (
+          {error && (id || step === 1) && (
             <Alert severity="error">
               {error}{' '}
               {tr('Your inputs are retained; you can edit fields manually.')}
@@ -2081,23 +2243,38 @@ export function JobEditor() {
                   {!id && importSources}
                   <Stack
                     spacing={2}
+                    component={id ? 'div' : 'section'}
+                    aria-labelledby={id ? undefined : 'job-review-title'}
                     sx={{
                       display: (id ? view === 'edit' : step === 1)
                         ? undefined
                         : 'none',
+                      // Add Job review is one white section (L1).
+                      ...(!id && {
+                        border: 1,
+                        borderColor: 'divider',
+                        borderRadius: 1,
+                        bgcolor: 'background.paper',
+                        p: { xs: 2, sm: 3 },
+                      }),
                     }}
                   >
                     <Typography
                       ref={jobDetailsHeading}
+                      id="job-review-title"
                       variant="h6"
                       component="h2"
                     >
                       {id ? tr('Job details') : tr('Review & Save')}
                     </Typography>
                     <Typography color="text.secondary">
-                      {tr(
-                        'Unknown values can stay blank. Only job title is required. Quotes show textual support; verify that each value describes this job.',
-                      )}
+                      {id
+                        ? tr(
+                            'Unknown values can stay blank. Only job title is required. Quotes show textual support; verify that each value describes this job.',
+                          )
+                        : tr(
+                            'Check the details below and fix anything that is wrong. Only the job title is required.',
+                          )}
                     </Typography>
                     {FIELD_GROUPS.map((group) => {
                       const hasConflict = (reviewed: boolean) =>
@@ -2166,7 +2343,7 @@ export function JobEditor() {
                               {group.fields.map(renderField)}
                             </Box>
                           )}
-                          {group.key === 'overview' && id && (
+                          {group.key === 'overview' && (
                             <TextField
                               select
                               label={tr('Source')}
@@ -2177,9 +2354,14 @@ export function JobEditor() {
                                   e.target.value as OpportunityInput['source'],
                                 )
                               }
-                              helperText={tr(
-                                'Where this job was originally found.',
-                              )}
+                              helperText={
+                                !id && linkPlatform
+                                  ? tr(
+                                      'Detected from the link: {platform}. Change it if you found the job elsewhere.',
+                                      { platform: linkPlatform },
+                                    )
+                                  : tr('Where this job was originally found.')
+                              }
                             >
                               {sources.map((value) => (
                                 <MenuItem key={value} value={value}>
@@ -2287,6 +2469,7 @@ export function JobEditor() {
                         </Stack>
                       );
                     })}
+                    {!id && saveNote}
                   </Stack>
                   <Stack
                     spacing={2}
@@ -2314,11 +2497,7 @@ export function JobEditor() {
                         )}
                       </Alert>
                     )}
-                    <Typography variant="body2" color="text.secondary">
-                      {tr(
-                        'Save confirms your reviewed values. Nothing is sent to recruiters and no application is submitted. Changes across sections are saved together.',
-                      )}
-                    </Typography>
+                    {id && saveNote}
                   </Stack>
                 </JobActionLayout>
               </Stack>

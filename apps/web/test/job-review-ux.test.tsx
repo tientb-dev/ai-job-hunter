@@ -66,38 +66,38 @@ test('URL is the primary method (no badge) and lists the sources the server enab
   vi.mocked(loadLinkSources).mockResolvedValueOnce(['ITviec', 'TopCV']);
   vi.stubGlobal('fetch', vi.fn());
   mount();
-  // One prominent link card holds the input and the primary Fetch JD action,
-  // above "Other methods"; the bookmark is a collapsed fallback, not a card.
-  const card = screen.getByRole('region', { name: 'Paste job URL' });
-  expect(within(card).queryByText('Recommended')).toBeNull();
+  // Three equal method cards; the selected link panel holds the input and
+  // Fetch JD. The bookmark is a collapsed fallback, not a card.
+  const source = screen.getByRole('region', { name: 'Add the job posting' });
+  expect(within(source).getAllByRole('button', { pressed: true })).toHaveLength(
+    1,
+  );
+  const card = screen.getByRole('region', { name: 'Import method input' });
+  expect(screen.queryByText('Recommended')).toBeNull();
   expect(
     await within(card).findByText('Supported: ITviec · TopCV'),
   ).toBeVisible();
-  const fetchButton = within(card).getByRole('button', { name: 'Fetch JD' });
+  const fetchButton = within(card).getByRole('button', { name: 'Get content' });
   expect(fetchButton).toHaveClass('MuiButton-contained');
-  const other = screen.getByRole('region', { name: 'Other methods' });
   expect(
-    card.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING,
-  ).toBeTruthy();
-  expect(
-    within(other).queryByRole('button', { name: /^Page-import bookmark/ }),
+    within(source).queryByRole('button', { name: /^Page-import bookmark/ }),
   ).not.toBeInTheDocument();
-  const fallback = within(other)
+  const fallback = within(source)
     .getByText("Can't fetch the page? Use the page-import bookmark")
     .closest('details')!;
   expect(fallback).not.toHaveAttribute('open');
   // VietnamWorks is off on this server: Fetch stays disabled with guidance.
-  fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
+  fireEvent.change(screen.getByLabelText('Job posting link'), {
     target: {
       value: 'https://www.vietnamworks.com/synthetic-marketing-1-42-jv',
     },
   });
-  expect(screen.getByRole('button', { name: 'Fetch JD' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Get content' })).toBeDisabled();
   expect(
     screen.getByText(/VietnamWorks link import is turned off/),
   ).toBeVisible();
-  for (const name of [/^Paste JD/, /^Upload JD/])
-    expect(within(other).getByRole('button', { name })).toBeEnabled();
+  for (const name of [/^Paste content/, /^Upload document/])
+    expect(within(source).getByRole('button', { name })).toBeEnabled();
 });
 
 test('fetch shows a compact summary, then Review groups fields and saves unchanged values', async () => {
@@ -113,19 +113,17 @@ test('fetch shows a compact summary, then Review groups fields and saves unchang
   );
   vi.stubGlobal('fetch', fetch);
   mount();
-  fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
+  fireEvent.change(screen.getByLabelText('Job posting link'), {
     target: { value: link },
   });
-  await userEvent.click(screen.getByRole('button', { name: 'Fetch JD' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Get content' }));
   const summary = await screen.findByRole('region', { name: 'Job summary' });
   expect(within(summary).getByText('Synthetic Brand Manager')).toBeVisible();
   expect(within(summary).getByText('25M–30M VND/month')).toBeVisible();
   expect(within(summary).getByText('At least 3 year(s)')).toBeVisible();
   expect(screen.getByLabelText('Source JD text (read-only)')).not.toBeVisible();
 
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Continue to Review & Save' }),
-  );
+  fireEvent.click(screen.getByRole('button', { name: 'Continue without AI' }));
   // Review opens read-only: formatted content, no visible inputs, shown once.
   for (const name of [
     'Main details',

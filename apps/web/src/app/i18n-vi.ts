@@ -1,6 +1,72 @@
 // Vietnamese for feature-screen text, keyed by the English source text (see tr()).
 // An empty value drops an English-only fragment such as a plural suffix.
 export const VI_TEXT: Record<string, string> = {
+  'The content changed. Fill in with AI again, or check the details yourself before saving.':
+    'Nội dung đã thay đổi. Hãy điền lại bằng AI, hoặc tự kiểm tra thông tin trước khi lưu.',
+  'Add a job posting, check the details, then save.':
+    'Thêm tin tuyển dụng, kiểm tra thông tin rồi lưu.',
+  Document: 'Tài liệu',
+  'Add content': 'Nhập nội dung',
+  'Back to Add content': 'Quay lại Nhập nội dung',
+  'Get content': 'Lấy nội dung',
+  'Getting content…': 'Đang lấy nội dung…',
+  'Job posting content': 'Nội dung tuyển dụng',
+  'Get it from a job website': 'Lấy từ trang tuyển dụng',
+  'Paste the whole job post: job title, company, responsibilities, requirements, benefits and how to apply.':
+    'Dán toàn bộ tin tuyển dụng: chức danh, công ty, mô tả công việc, yêu cầu, quyền lợi và cách ứng tuyển.',
+  'Copy it from the job website and paste it here.':
+    'Sao chép từ trang tuyển dụng rồi dán vào đây.',
+  '{count} / {max} characters': '{count} / {max} ký tự',
+  'Drop the file to upload it.': 'Thả tệp vào đây để tải lên.',
+  'Supported formats: PDF, DOCX': 'Định dạng hỗ trợ: PDF, DOCX',
+  'Up to 5 MB and 20 pages': 'Tối đa 5 MB và 20 trang',
+  'Scanned documents and images cannot be read; paste the text instead.':
+    'Không đọc được tài liệu scan hoặc hình ảnh; hãy dán nội dung thay thế.',
+  'Could not fill in the details with AI right now. Try again, or continue without AI and fill them in yourself.':
+    'Hiện chưa thể điền thông tin bằng AI. Hãy thử lại, hoặc tiếp tục không dùng AI và tự điền thông tin.',
+  'Could not save the job right now. Your details are kept; try again in a moment.':
+    'Hiện chưa thể lưu việc làm. Thông tin của bạn vẫn được giữ; hãy thử lại sau ít phút.',
+  'Paste link': 'Dán đường dẫn',
+  'ITviec, TopCV or VietnamWorks': 'ITviec, TopCV hoặc VietnamWorks',
+  'Paste content': 'Dán nội dung',
+  'Copy the job post text': 'Sao chép nội dung tin tuyển dụng',
+  'Upload document': 'Tải tài liệu',
+  'PDF or DOCX file': 'Tệp PDF hoặc DOCX',
+  'How to add the job': 'Cách thêm việc làm',
+  'Add the job posting': 'Thêm tin tuyển dụng',
+  'Choose one way to add the job description.':
+    'Chọn một cách để thêm mô tả công việc.',
+  'Job posting link': 'Đường dẫn tin tuyển dụng',
+  'Enter a full link starting with https://, or leave it blank.':
+    'Nhập link đầy đủ bắt đầu bằng https://, hoặc để trống.',
+  'Job post content': 'Nội dung tin tuyển dụng',
+  'Copy the whole job post from the website and paste it here. Up to 12,000 characters.':
+    'Sao chép toàn bộ tin tuyển dụng trên trang web rồi dán vào đây. Tối đa 12.000 ký tự.',
+  'Drag a file here, or choose one from your device.':
+    'Kéo tệp vào đây, hoặc chọn tệp từ thiết bị của bạn.',
+  'Choose another file': 'Chọn tệp khác',
+  'Choose file': 'Chọn tệp',
+  'PDF or DOCX, up to 5 MB and 20 pages. Scanned images cannot be read; paste the text instead.':
+    'PDF hoặc DOCX, tối đa 5 MB và 20 trang. Không đọc được ảnh scan; hãy dán nội dung thay thế.',
+  'Reading document…': 'Đang đọc tài liệu…',
+  'Fill in the job details': 'Điền thông tin việc làm',
+  'AI reads the job description and fills in the title, company, requirements and more. You check everything before saving.':
+    'AI đọc mô tả công việc và điền chức danh, công ty, yêu cầu và các thông tin khác. Bạn kiểm tra lại tất cả trước khi lưu.',
+  'Filling in…': 'Đang điền…',
+  'Fill in with AI': 'Điền bằng AI',
+  'Continue without AI': 'Tiếp tục không dùng AI',
+  'Reading the job description… This can take up to 90 seconds.':
+    'Đang đọc mô tả công việc… Có thể mất đến 90 giây.',
+  'Add the job description above first.':
+    'Hãy thêm mô tả công việc ở trên trước.',
+  '{v0}Job loaded from {platform}. Next, fill in the details with AI below.':
+    '{v0}Đã lấy tin từ {platform}. Tiếp theo, hãy điền thông tin bằng AI ở bên dưới.',
+  'Use a PDF or DOCX file up to 5 MB, or paste the text instead.':
+    'Hãy dùng tệp PDF hoặc DOCX tối đa 5 MB, hoặc dán nội dung thay thế.',
+  'Detected from the link: {platform}. Change it if you found the job elsewhere.':
+    'Nhận diện từ link: {platform}. Hãy đổi nếu bạn thấy việc làm ở nơi khác.',
+  'Check the details below and fix anything that is wrong. Only the job title is required.':
+    'Kiểm tra thông tin bên dưới và sửa nếu chưa đúng. Chỉ bắt buộc chức danh.',
   'Step {n}': 'Bước {n}',
   'Find the account': 'Tìm email',
   'Check the account': 'Kiểm tra tài khoản',
@@ -1072,7 +1138,7 @@ export const VI_TEXT: Record<string, string> = {
     'Hiện chưa có nhận xét. Văn bản của bạn được giữ — hãy thử lại.',
   'Feedback on your transcript': 'Nhận xét về bản ghi lời nói',
   'Fetch from URL': 'Tải từ URL',
-  'Fetch JD': 'Tải JD',
+  'Fetch JD': 'Lấy JD',
   'Other methods': 'Cách khác',
   "Can't fetch the page? Use the page-import bookmark":
     'Không tải được trang? Dùng bookmark nhập trang',
@@ -1110,7 +1176,7 @@ export const VI_TEXT: Record<string, string> = {
   '{platform} link import is turned off on this server. Use the page-import bookmark or paste the JD.':
     'Nhập bằng link {platform} đang tắt trên máy chủ này. Hãy dùng bookmark nhập trang hoặc dán JD.',
   'Fetched listings': 'Tin đã tải',
-  'Fetching JD…': 'Đang tải JD…',
+  'Fetching JD…': 'Đang lấy JD…',
   'Fewer questions than usual ({length}). The job description may not have enough detail for more.':
     'Ít câu hỏi hơn bình thường ({length}). Mô tả công việc có thể không đủ chi tiết để tạo thêm.',
   'Files parse locally and extraction uses the configured AI provider; inputs and results stay in memory until cleared or you leave this page. API readiness does not guarantee AI service availability or extraction quality. Quote ambiguity, negation, uncertainty, source-instruction contamination and sensitivity to evidence annotations remain known limitations.':

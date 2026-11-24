@@ -135,7 +135,7 @@ function mount(path = '/jobs/new') {
     </ThemeProvider>,
   );
   if (path === '/jobs/new')
-    fireEvent.click(screen.getByRole('button', { name: /Paste JD/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Paste content/ }));
   return { ...mounted, router };
 }
 function mockApi() {
@@ -178,36 +178,40 @@ const tab = (name: string) =>
 test('creation is import then review; extraction advances, back preserves edits, saves SAVED without tracker', async () => {
   const fetch = mockApi();
   mount();
-  expect(screen.getByLabelText('Recruitment post')).toBeVisible();
-  expect(screen.getByRole('button', { name: 'Extract with AI' })).toHaveClass(
-    'MuiButton-outlined',
-  );
+  expect(screen.getByLabelText('Job posting content')).toBeVisible();
+  // Fill in with AI is the primary action; it waits for JD content.
   expect(
-    screen.getByRole('button', { name: 'Continue to Review & Save' }),
-  ).toHaveClass('MuiButton-contained');
+    screen.getByRole('button', { name: 'Fill in with AI' }),
+  ).toBeDisabled();
+  expect(
+    screen.getByRole('button', { name: 'Continue without AI' }),
+  ).toHaveClass('MuiButton-text');
   expect(
     screen.queryByRole('button', { name: 'Confirm and save job' }),
   ).not.toBeInTheDocument();
   expect(screen.getByLabelText('Application status')).not.toBeVisible();
-  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+  fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: 'Synthetic post' },
   });
-  fireEvent.click(screen.getByRole('button', { name: 'Extract with AI' }));
+  // With content, Fill in with AI is the one primary action.
+  expect(screen.getByRole('button', { name: 'Fill in with AI' })).toHaveClass(
+    'MuiButton-contained',
+  );
+  expect(
+    screen.getByRole('button', { name: 'Continue without AI' }),
+  ).toHaveClass('MuiButton-text');
+  fireEvent.click(screen.getByRole('button', { name: 'Fill in with AI' }));
   expect(
     await screen.findByRole('button', { name: 'Confirm and save job' }),
   ).toBeVisible();
   fireEvent.change(screen.getByLabelText(/Job title/), {
     target: { value: 'Reviewed engineer' },
   });
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Back to Import sources' }),
-  );
-  expect(screen.getByLabelText('Recruitment post')).toHaveValue(
+  fireEvent.click(screen.getByRole('button', { name: 'Back to Add content' }));
+  expect(screen.getByLabelText('Job posting content')).toHaveValue(
     'Synthetic post',
   );
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Continue to Review & Save' }),
-  );
+  fireEvent.click(screen.getByRole('button', { name: 'Continue without AI' }));
   expect(screen.getByLabelText(/Job title/)).toHaveValue('Reviewed engineer');
   fireEvent.click(screen.getByRole('button', { name: 'Confirm and save job' }));
   expect(await screen.findByRole('tab', { name: 'Overview' })).toBeVisible();
@@ -309,8 +313,8 @@ test('manual creation validates title and keeps fields after save failure', asyn
   const fetch = mockApi();
   mount();
   expect(
-    screen.getByRole('button', { name: 'Continue to Review & Save' }),
-  ).toHaveClass('MuiButton-contained');
+    screen.getByRole('button', { name: 'Continue without AI' }),
+  ).toHaveClass('MuiButton-text');
   const back = screen.getByRole('link', { name: 'Back to Jobs' });
   expect(back).toHaveClass('MuiButton-outlined');
   expect(back.querySelector('.MuiButton-startIcon svg')).toHaveAttribute(
@@ -318,12 +322,10 @@ test('manual creation validates title and keeps fields after save failure', asyn
     'true',
   );
   // Continue requires JD content (PR87); mount() already opened Paste JD.
-  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+  fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: 'Synthetic JD' },
   });
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Continue to Review & Save' }),
-  );
+  fireEvent.click(screen.getByRole('button', { name: 'Continue without AI' }));
   expect(fetch.mock.calls.some(([url]) => url.endsWith('/extract'))).toBe(
     false,
   );
@@ -343,7 +345,7 @@ test('manual creation validates title and keeps fields after save failure', asyn
 test('unsaved link navigation, browser back, and refresh are guarded; stay retains edits', async () => {
   mockApi();
   const { router } = mount();
-  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+  fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: 'Unsaved source' },
   });
   const indicator = screen
@@ -372,7 +374,7 @@ test('unsaved link navigation, browser back, and refresh are guarded; stay retai
   await waitFor(() =>
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
   );
-  expect(screen.getByLabelText('Recruitment post')).toHaveValue(
+  expect(screen.getByLabelText('Job posting content')).toHaveValue(
     'Unsaved source',
   );
   void router.navigate(-1);
@@ -412,10 +414,10 @@ test('review keeps genuine conflicts blocking until explicitly resolved', async 
       })),
     }),
   );
-  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+  fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: 'Synthetic source' },
   });
-  fireEvent.click(screen.getByRole('button', { name: 'Extract with AI' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Fill in with AI' }));
   const save = await screen.findByRole('button', {
     name: 'Confirm and save job',
   });
@@ -435,23 +437,19 @@ test('synthetic document stays attached across steps and reaches extraction unch
   const document = new File(['synthetic fixture'], 'synthetic.docx', {
     type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   });
-  fireEvent.click(screen.getByRole('button', { name: /Upload JD/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Upload document/ }));
   fireEvent.change(screen.getByLabelText('Upload JD document (PDF or DOCX)'), {
     target: { files: [document] },
   });
   await waitFor(() =>
     expect(
-      screen.getByRole('button', { name: 'Extract with AI' }),
+      screen.getByRole('button', { name: 'Fill in with AI' }),
     ).toBeEnabled(),
   );
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Continue to Review & Save' }),
-  );
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Back to Import sources' }),
-  );
+  fireEvent.click(screen.getByRole('button', { name: 'Continue without AI' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Back to Add content' }));
   expect(screen.getByText('synthetic.docx')).toBeVisible();
-  fireEvent.click(screen.getByRole('button', { name: 'Extract with AI' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Fill in with AI' }));
   await screen.findByRole('button', { name: 'Confirm and save job' });
   const call = fetch.mock.calls.find(([url]) => url.endsWith('/extract'))!;
   const uploaded = (call[1]!.body as FormData).get('document') as File;
@@ -485,10 +483,10 @@ test('review actions occupy a separate row below the language fields', async () 
       })),
     }),
   );
-  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+  fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: 'Synthetic source' },
   });
-  fireEvent.click(screen.getByRole('button', { name: 'Extract with AI' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Fill in with AI' }));
   const save = await screen.findByRole('button', {
     name: 'Confirm and save job',
   });
@@ -502,7 +500,7 @@ test('review actions occupy a separate row below the language fields', async () 
   );
   expect(screen.getByLabelText('Required language requirements')).toBeVisible();
   expect(
-    screen.getByRole('button', { name: 'Back to Import sources' }),
+    screen.getByRole('button', { name: 'Back to Add content' }),
   ).toBeVisible();
 });
 
@@ -534,33 +532,29 @@ test('missing work-mode evidence clears obsolete automatic values but preserves 
       })),
     });
   fetch.mockResolvedValueOnce(extraction('Remote'));
-  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+  fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: 'Fully remote position' },
   });
-  fireEvent.click(screen.getByRole('button', { name: 'Extract with AI' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Fill in with AI' }));
   await screen.findByRole('button', { name: 'Confirm and save job' });
   expect(screen.getByLabelText('Work mode')).toHaveValue('Remote');
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Back to Import sources' }),
-  );
-  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+  fireEvent.click(screen.getByRole('button', { name: 'Back to Add content' }));
+  fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: 'Remote attestation and desktop agent work' },
   });
   fetch.mockResolvedValueOnce(extraction(''));
-  fireEvent.click(screen.getByRole('button', { name: 'Extract with AI' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Fill in with AI' }));
   await screen.findByRole('button', { name: 'Confirm and save job' });
   expect(screen.getByLabelText('Work mode')).toHaveValue('');
   fireEvent.change(screen.getByLabelText('Work mode'), {
     target: { value: 'Hybrid (manually reviewed)' },
   });
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Back to Import sources' }),
-  );
-  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+  fireEvent.click(screen.getByRole('button', { name: 'Back to Add content' }));
+  fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: 'Remote device management' },
   });
   fetch.mockResolvedValueOnce(extraction(''));
-  fireEvent.click(screen.getByRole('button', { name: 'Extract with AI' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Fill in with AI' }));
   await screen.findByRole('button', { name: 'Confirm and save job' });
   expect(screen.getByLabelText('Work mode')).toHaveValue(
     'Hybrid (manually reviewed)',

@@ -251,7 +251,7 @@ test('received page populates existing review without inference/save and preserv
     expect(screen.getByLabelText('Company')).toHaveValue('Synthetic Employer'),
   );
   await userEvent.click(
-    screen.getByRole('button', { name: 'Continue to Review & Save' }),
+    screen.getByRole('button', { name: 'Continue without AI' }),
   );
   fireEvent.click(screen.getByRole('button', { name: 'Edit Main details' }));
   expect(screen.getByLabelText('Company')).toBeVisible();
@@ -261,9 +261,9 @@ test('received page populates existing review without inference/save and preserv
   expect(screen.getByLabelText('Original link')).toHaveValue(sourceUrl);
   expect(fetch).toHaveBeenCalledTimes(1);
   expect(fetch.mock.calls[0]![0]).toBe('/api/v1/opportunities/import-page');
-  if (screen.queryByRole('button', { name: 'Continue to Review & Save' }))
+  if (screen.queryByRole('button', { name: 'Continue without AI' }))
     await userEvent.click(
-      screen.getByRole('button', { name: 'Continue to Review & Save' }),
+      screen.getByRole('button', { name: 'Continue without AI' }),
     );
   await userEvent.click(
     screen.getByRole('button', { name: 'Confirm and save job' }),
@@ -347,7 +347,7 @@ test.each([false, true])(
     receive(payload);
     await screen.findByDisplayValue(imported.title);
     await userEvent.click(
-      screen.getByRole('button', { name: 'Extract with AI' }),
+      screen.getByRole('button', { name: 'Fill in with AI' }),
     );
     await screen.findByDisplayValue('Java');
     expect(screen.getByLabelText('Experience')).toHaveValue(
@@ -360,9 +360,9 @@ test.each([false, true])(
       manual ? 'My preferred skills' : values.preferredSkills,
     );
     expect(screen.queryByText('Conflicting evidence')).not.toBeInTheDocument();
-    if (screen.queryByRole('button', { name: 'Continue to Review & Save' }))
+    if (screen.queryByRole('button', { name: 'Continue without AI' }))
       await userEvent.click(
-        screen.getByRole('button', { name: 'Continue to Review & Save' }),
+        screen.getByRole('button', { name: 'Continue without AI' }),
       );
     await userEvent.click(
       screen.getByRole('button', { name: 'Confirm and save job' }),

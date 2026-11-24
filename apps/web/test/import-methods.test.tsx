@@ -16,10 +16,7 @@ import * as bridge from '../src/features/inbox/topcv-bookmarklet';
 
 // The link card is always shown; returning to it closes the open alternative.
 function showLinkImport() {
-  const open = screen
-    .queryAllByRole('button', { pressed: true })
-    .find((button) => /^(Paste JD|Upload JD)/.test(button.textContent ?? ''));
-  if (open) fireEvent.click(open);
+  fireEvent.click(screen.getByRole('button', { name: /^Paste link/ }));
 }
 vi.mock('../src/features/inbox/CvMatchPanel', () => ({
   CvMatchPanel: () => <span>Synthetic match panel</span>,
@@ -105,49 +102,57 @@ test('alternative method cards are keyboard buttons with selected states and no 
   render(<Harness />);
   const buttons = screen.getAllByRole('button');
   expect(buttons.map((button) => button.textContent)).toEqual([
-    'Paste JDRecruiter post or text',
-    'Upload JDPDF · DOCX',
+    'Paste linkGet it from a job website',
+    'Paste contentCopy the job post text',
+    'Upload documentPDF or DOCX file',
   ]);
-  // Link import is the default, so no alternative starts selected.
-  for (const button of buttons)
-    expect(button).toHaveAttribute('aria-pressed', 'false');
+  // Three equal methods; link import is selected by default.
+  expect(buttons.map((b) => b.getAttribute('aria-pressed'))).toEqual([
+    'true',
+    'false',
+    'false',
+  ]);
   const user = userEvent.setup();
   await user.tab();
-  await user.keyboard('{Enter}');
-  expect(buttons[0]).toHaveAttribute('aria-pressed', 'true');
   await user.tab();
-  await user.keyboard(' ');
+  await user.keyboard('{Enter}');
   expect(buttons[1]).toHaveAttribute('aria-pressed', 'true');
   expect(buttons[0]).toHaveAttribute('aria-pressed', 'false');
+  await user.tab();
+  await user.keyboard(' ');
+  expect(buttons[2]).toHaveAttribute('aria-pressed', 'true');
+  expect(buttons[1]).toHaveAttribute('aria-pressed', 'false');
   expect(screen.queryByRole('radio')).not.toBeInTheDocument();
   expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
 });
 
-test('one contextual panel retains text but clears the document when leaving Upload JD without fetching on selection', async () => {
+test('one contextual panel retains text and the document across method switches without fetching on selection', async () => {
   const fetch = api();
   mount();
-  expect(screen.getByRole('heading', { name: 'Paste job URL' })).toBeVisible();
-  const linkCard = screen.getByRole('region', { name: 'Paste job URL' });
   expect(
-    within(linkCard).getByLabelText('Original Job URL (optional)'),
+    screen.getByRole('heading', { name: 'Add the job posting' }),
   ).toBeVisible();
+  const linkCard = screen.getByRole('region', { name: 'Import method input' });
+  expect(within(linkCard).getByLabelText('Job posting link')).toBeVisible();
   expect(
-    within(linkCard).getByRole('button', { name: 'Fetch JD' }),
+    within(linkCard).getByRole('button', { name: 'Get content' }),
   ).toBeInTheDocument();
-  expect(screen.queryByLabelText('Recruitment post')).not.toBeInTheDocument();
-  fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
+  expect(
+    screen.queryByLabelText('Job posting content'),
+  ).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Job posting link'), {
     target: { value: sourceUrl },
   });
-  select('Paste JD');
-  // The recommended link card stays above the alternatives.
-  expect(screen.getByLabelText('Original Job URL (optional)')).toBeVisible();
+  select('Paste content');
+  // Only the selected method's input is shown; the link stays in the form.
+  expect(screen.queryByLabelText('Job posting link')).not.toBeInTheDocument();
   expect(
     screen.getByRole('region', { name: 'Import method input' }),
-  ).toContainElement(screen.getByLabelText('Recruitment post'));
-  fireEvent.change(screen.getByLabelText('Recruitment post'), {
+  ).toContainElement(screen.getByLabelText('Job posting content'));
+  fireEvent.change(screen.getByLabelText('Job posting content'), {
     target: { value: 'Preserved recruiter post' },
   });
-  select('Upload JD');
+  select('Upload document');
   const document = new File(['Synthetic DOCX fixture'], 'synthetic.docx', {
     type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   });
@@ -156,61 +161,54 @@ test('one contextual panel retains text but clears the document when leaving Upl
   });
   await waitFor(() =>
     expect(
-      screen.getByRole('button', { name: 'Extract with AI' }),
+      screen.getByRole('button', { name: 'Fill in with AI' }),
     ).toBeEnabled(),
   );
   showLinkImport();
-  expect(screen.getByLabelText('Original Job URL (optional)')).toHaveValue(
-    sourceUrl,
-  );
-  select('Paste JD');
-  expect(screen.getByLabelText('Recruitment post')).toHaveValue(
+  expect(screen.getByLabelText('Job posting link')).toHaveValue(sourceUrl);
+  select('Paste content');
+  expect(screen.getByLabelText('Job posting content')).toHaveValue(
     'Preserved recruiter post',
   );
-  select('Upload JD');
-  expect(screen.queryByText('synthetic.docx')).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Extract with AI' })).toBeEnabled();
+  select('Upload document');
+  // The document is kept while away from Upload and counts again here.
+  expect(screen.getByText('synthetic.docx')).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Fill in with AI' })).toBeEnabled();
   expect(fetch).toHaveBeenCalledTimes(1);
   expect(fetch.mock.calls[0]![0]).toBe('/api/v1/opportunities/parse-document');
-  fireEvent.click(screen.getByRole('button', { name: 'Extract with AI' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Fill in with AI' }));
   await screen.findByRole('button', { name: 'Confirm and save job' });
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Back to Import sources' }),
-  );
-  select('Paste JD');
-  select('Upload JD');
-  expect(screen.queryByText('synthetic.docx')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Back to Add content' }));
+  select('Paste content');
+  select('Upload document');
+  expect(screen.getByText('synthetic.docx')).toBeVisible();
   expect(
-    screen.queryByLabelText('Source JD text (read-only)'),
-  ).not.toBeInTheDocument();
+    screen.getByLabelText('Source JD text (read-only)'),
+  ).toBeInTheDocument();
 });
 
 test('ITviec fetch loads once without AI, extraction remains explicit, and manual review edits survive', async () => {
   const fetch = api();
   mount();
-  fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
+  fireEvent.change(screen.getByLabelText('Job posting link'), {
     target: { value: sourceUrl },
   });
-  fireEvent.click(screen.getByRole('button', { name: 'Fetch JD' }));
-  expect(await screen.findByText(/JD loaded from ITviec/)).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Get content' }));
+  expect(await screen.findByText(/loaded from ITviec/)).toBeVisible();
   expect(fetch).toHaveBeenCalledTimes(1);
-  select('Paste JD');
-  expect(screen.getByLabelText('Recruitment post')).toHaveValue(
+  select('Paste content');
+  expect(screen.getByLabelText('Job posting content')).toHaveValue(
     preview.sourceText,
   );
   showLinkImport();
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Continue to Review & Save' }),
-  );
+  fireEvent.click(screen.getByRole('button', { name: 'Continue without AI' }));
   fireEvent.change(screen.getByLabelText(/Job title/), {
     target: { value: 'My reviewed title' },
   });
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Back to Import sources' }),
-  );
-  select('Paste JD');
+  fireEvent.click(screen.getByRole('button', { name: 'Back to Add content' }));
+  select('Paste content');
   showLinkImport();
-  fireEvent.click(screen.getByRole('button', { name: 'Extract with AI' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Fill in with AI' }));
   await screen.findByRole('button', { name: 'Confirm and save job' });
   expect(screen.getByLabelText(/Job title/)).toHaveValue('My reviewed title');
   expect(
@@ -244,13 +242,13 @@ test('validated bookmark transfer selects Bookmarklet and keeps the original URL
   expect(await screen.findByText(/JD loaded from TopCV/)).toBeVisible();
   // The bookmark result lands in the recommended link card's summary.
   expect(screen.getByRole('region', { name: 'Job summary' })).toBeVisible();
-  expect(screen.getByRole('button', { name: 'Extract with AI' })).toBeEnabled();
-  select('Paste JD');
-  expect(screen.getByLabelText('Recruitment post')).toHaveValue(
+  expect(screen.getByRole('button', { name: 'Fill in with AI' })).toBeEnabled();
+  select('Paste content');
+  expect(screen.getByLabelText('Job posting content')).toHaveValue(
     preview.sourceText,
   );
   showLinkImport();
-  expect(screen.getByLabelText('Original Job URL (optional)')).toHaveValue(
+  expect(screen.getByLabelText('Job posting link')).toHaveValue(
     payload.sourceUrl,
   );
   expect(fetch).toHaveBeenCalledTimes(1);
