@@ -12,8 +12,11 @@ export function JobActionLayout({
   scrollable = active,
   scrollKey,
   feedbackKey,
+  sticky = false,
 }: {
   active: boolean;
+  /** Keep the actions pinned to the bottom of the viewport while the page scrolls. */
+  sticky?: boolean;
   scrollable?: boolean;
   scrollKey?: string;
   feedbackKey?: string;
@@ -71,6 +74,8 @@ export function JobActionLayout({
                 pt: 1.5,
                 pb: 'max(12px, env(safe-area-inset-bottom, 0px))',
                 minWidth: 0,
+                // Sticky stays in flow, so it never covers the last content.
+                ...(sticky && { position: 'sticky', bottom: 0, zIndex: 2 }),
               }
             : undefined
         }

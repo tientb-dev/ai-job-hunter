@@ -54,7 +54,7 @@ test('Fill in with AI sends one request even when clicked repeatedly, then opens
   expect(screen.getByLabelText(/Job title/)).toHaveValue('Synthetic engineer');
 });
 
-test('extraction request failure stays on Import sources with the error next to the action', async () => {
+test('extraction request failure stays on Import sources with the error above the actions', async () => {
   vi.stubGlobal(
     'fetch',
     vi.fn(async () =>
@@ -67,12 +67,7 @@ test('extraction request failure stays on Import sources with the error next to 
     target: { value: 'Synthetic post' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Fill in with AI' }));
-  const section = screen.getByRole('region', {
-    name: 'Fill in the job details',
-  });
-  expect(
-    await within(section).findByText(/Extraction unavailable/),
-  ).toBeVisible();
+  expect(await screen.findByText(/Extraction unavailable/)).toBeVisible();
   expect(screen.getAllByText(/Extraction unavailable/)).toHaveLength(1);
   expect(screen.getByLabelText('Job posting content')).toHaveValue(
     'Synthetic post',
@@ -178,4 +173,20 @@ test('dropping a file on the drop zone parses it like the file picker', async ()
     await screen.findByText('synthetic.pdf', { selector: 'p' }),
   ).toBeVisible();
   expect(fetch.mock.calls[0]![0]).toBe('/api/v1/opportunities/parse-document');
+});
+
+test('Step 1 actions stay in the sticky row of the fill-in card for every import method', () => {
+  vi.stubGlobal('fetch', vi.fn());
+  mount();
+  for (const method of [/^Paste link/, /^Paste content/, /^Upload document/]) {
+    fireEvent.click(card(method));
+    const bar = screen.getByRole('group', { name: 'Fill in the job details' });
+    expect(bar).toHaveStyle({ position: 'sticky' });
+    expect(
+      within(bar).getByRole('button', { name: 'Fill in with AI' }),
+    ).toBeDisabled();
+    expect(
+      within(bar).getByRole('button', { name: 'Continue without AI' }),
+    ).toBeDisabled();
+  }
 });

@@ -38,7 +38,9 @@ test('ITviec preview shows full actual extraction source before AI, survives swi
   vi.stubGlobal('fetch', fetch);
   mount();
   // No preview until there is source text.
-  expect(screen.queryByText('Preview source JD')).not.toBeInTheDocument();
+  expect(
+    screen.queryByText('View job posting content'),
+  ).not.toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('Job posting link'), {
     target: { value: preview.originalLink },
   });
@@ -48,12 +50,14 @@ test('ITviec preview shows full actual extraction source before AI, survives swi
   expect(text).toHaveAttribute('readonly');
   // Collapsed by default behind the job summary; one click shows it.
   expect(text).not.toBeVisible();
-  fireEvent.click(screen.getByRole('button', { name: /Preview source JD/ }));
+  fireEvent.click(
+    screen.getByRole('button', { name: /View job posting content/ }),
+  );
   await waitFor(() => expect(text).toBeVisible());
   expect(text).not.toHaveValue(preview.description);
   select('Paste content');
   expect(
-    screen.queryByRole('button', { name: /Preview source JD/ }),
+    screen.queryByRole('button', { name: /View job posting content/ }),
   ).not.toBeInTheDocument();
   // Paste is an independent draft; the fetched source is never copied or merged.
   expect(screen.getByLabelText('Job posting content')).toHaveValue('');
@@ -88,7 +92,9 @@ test('bookmarklet preview uses transferred source text with its known platform a
   expect(
     await screen.findByLabelText('Source JD text (read-only)'),
   ).toHaveValue(raw);
-  fireEvent.click(screen.getByRole('button', { name: /Preview source JD/ }));
+  fireEvent.click(
+    screen.getByRole('button', { name: /View job posting content/ }),
+  );
   await waitFor(() =>
     expect(
       screen.getByText(/VietnamWorks · Original source text/),
@@ -166,9 +172,13 @@ test('preview starts collapsed, opens on demand, stays put on new text and opens
   );
   const text = () => screen.getByLabelText('Source JD text (read-only)');
   expect(text()).not.toBeVisible();
-  fireEvent.click(screen.getByRole('button', { name: /Preview source JD/ }));
+  fireEvent.click(
+    screen.getByRole('button', { name: /View job posting content/ }),
+  );
   await waitFor(() => expect(text()).toBeVisible());
-  fireEvent.click(screen.getByRole('button', { name: /Preview source JD/ }));
+  fireEvent.click(
+    screen.getByRole('button', { name: /View job posting content/ }),
+  );
   await waitFor(() => expect(text()).not.toBeVisible());
   rerender(
     <SourceJdPreview text={`${raw}\nNew section`} source="Synthetic source" />,

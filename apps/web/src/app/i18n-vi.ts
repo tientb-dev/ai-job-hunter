@@ -1,6 +1,9 @@
 // Vietnamese for feature-screen text, keyed by the English source text (see tr()).
 // An empty value drops an English-only fragment such as a plural suffix.
 export const VI_TEXT: Record<string, string> = {
+  'Fill in the job details': 'Điền thông tin việc làm',
+  'AI fills in the job title, company, candidate requirements and other details. You can also continue without AI and fill in anything missing yourself.':
+    'AI sẽ tự động điền chức danh, công ty, yêu cầu ứng viên và các thông tin khác. Bạn cũng có thể tiếp tục không dùng AI và tự điền thông tin còn thiếu.',
   'Paste the copied job posting here...':
     'Dán nội dung tuyển dụng đã sao chép vào đây...',
   'What should you copy?': 'Nên sao chép những nội dung nào?',
@@ -65,9 +68,6 @@ export const VI_TEXT: Record<string, string> = {
   'PDF or DOCX, up to 5 MB and 20 pages. Scanned images cannot be read; paste the text instead.':
     'PDF hoặc DOCX, tối đa 5 MB và 20 trang. Không đọc được ảnh scan; hãy dán nội dung thay thế.',
   'Reading document…': 'Đang đọc tài liệu…',
-  'Fill in the job details': 'Điền thông tin việc làm',
-  'AI reads the job description and fills in the title, company, requirements and more. You check everything before saving.':
-    'AI đọc mô tả công việc và điền chức danh, công ty, yêu cầu và các thông tin khác. Bạn kiểm tra lại tất cả trước khi lưu.',
   'Filling in…': 'Đang điền…',
   'Fill in with AI': 'Điền bằng AI',
   'Continue without AI': 'Tiếp tục không dùng AI',
@@ -75,8 +75,8 @@ export const VI_TEXT: Record<string, string> = {
     'Đang đọc mô tả công việc… Có thể mất đến 90 giây.',
   'Add the job description above first.':
     'Hãy thêm mô tả công việc ở trên trước.',
-  '{v0}Job loaded from {platform}. Next, fill in the details with AI below.':
-    '{v0}Đã lấy tin từ {platform}. Tiếp theo, hãy điền thông tin bằng AI ở bên dưới.',
+  '{v0}Job loaded from {platform}. Fill in the details with AI, or continue without AI and check them yourself.':
+    '{v0}Đã lấy tin từ {platform}. Hãy điền thông tin bằng AI, hoặc tiếp tục không dùng AI và tự kiểm tra.',
   'Use a PDF or DOCX file up to 5 MB, or paste the text instead.':
     'Hãy dùng tệp PDF hoặc DOCX tối đa 5 MB, hoặc dán nội dung thay thế.',
   'Detected from the link: {platform}. Change it if you found the job elsewhere.':
@@ -1416,7 +1416,6 @@ export const VI_TEXT: Record<string, string> = {
   'Live fetch': 'Tải trực tiếp',
   'Load earlier review': 'Tải bản rà soát trước',
   'Load saved drafts': 'Tải các bản nháp đã lưu',
-  Loaded: 'Đã tải',
   'Loaded {length} saved draft{v1}. Open a draft below.':
     'Đã tải {length} bản nháp đã lưu. Mở một bản nháp bên dưới.',
   'Loading candidate…': 'Đang tải ứng viên…',
@@ -1754,7 +1753,7 @@ export const VI_TEXT: Record<string, string> = {
   'Preserved as a qualification, separately from core skills.':
     'Được giữ như một bằng cấp, tách khỏi kỹ năng chính.',
   'Preview error': 'Lỗi xem trước',
-  'Preview source JD': 'Xem trước JD nguồn',
+  'View job posting content': 'Xem nội dung tuyển dụng',
   'Previous question set · {v0}': 'Bộ câu hỏi trước · {v0}',
   'Previous question sets (': 'Các bộ câu hỏi trước (',
   'Previous successful result shown while reanalysis is running.':

@@ -738,7 +738,7 @@ export function JobEditor() {
       setForm(next);
       setUrlNotice(
         tr(
-          '{v0}Job loaded from {platform}. Next, fill in the details with AI below.',
+          '{v0}Job loaded from {platform}. Fill in the details with AI, or continue without AI and check them yourself.',
           {
             v0: result.expired ? tr('This listing is expired. ') : '',
             platform: result.platform,
@@ -1272,6 +1272,18 @@ export function JobEditor() {
     setStep(1);
   };
   const linkPanel = importMethod === 'url' || importMethod === 'bookmarklet';
+  const fillIntro = (
+    <Box sx={{ minWidth: 0 }}>
+      <Typography id="job-fill-title" variant="h6" component="h2">
+        {tr('Fill in the job details')}
+      </Typography>
+      <Typography variant="body2" color="text.secondary">
+        {tr(
+          'AI fills in the job title, company, candidate requirements and other details. You can also continue without AI and fill in anything missing yourself.',
+        )}
+      </Typography>
+    </Box>
+  );
   const importSources = (
     <Box hidden={!id && step !== 0}>
       <Stack spacing={3}>
@@ -1741,48 +1753,50 @@ export function JobEditor() {
             </Box>
           </Stack>
         </Paper>
+        {!id && error && step === 0 && (
+          <Alert severity="error">
+            {error}{' '}
+            {tr('Your inputs are retained; you can edit fields manually.')}
+          </Alert>
+        )}
+        {!id && notice && <Alert severity="info">{notice}</Alert>}
         {!id && (
+          // Top of the card; its action row below is a separate sticky child of
+          // this stack so it stays reachable while the source content scrolls.
           <Paper
             variant="outlined"
             component="section"
             aria-labelledby="job-fill-title"
-            sx={{ p: { xs: 2, sm: 3 } }}
+            sx={{
+              p: { xs: 2, sm: 3 },
+              pb: { xs: 2, sm: 2 },
+              borderBottom: 0,
+              borderBottomLeftRadius: 0,
+              borderBottomRightRadius: 0,
+            }}
           >
-            <Stack spacing={1.5}>
-              <Box>
-                <Typography id="job-fill-title" variant="h6" component="h2">
-                  {tr('Fill in the job details')}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {tr(
-                    'AI reads the job description and fills in the title, company, requirements and more. You check everything before saving.',
-                  )}
-                </Typography>
-              </Box>
-              <Stack
-                direction={{ xs: 'column', sm: 'row' }}
-                spacing={1}
-                sx={{ alignItems: { xs: 'stretch', sm: 'center' } }}
-              >
-                <Button
-                  startIcon={<AutoAwesomeIcon />}
-                  type="button"
-                  variant="contained"
-                  disabled={disabled || !hasSource}
-                  onClick={() => void extract()}
-                >
-                  {extracting ? tr('Filling in…') : tr('Fill in with AI')}
-                </Button>
-                <Button
-                  endIcon={<ArrowForwardIcon />}
-                  type="button"
-                  variant="text"
-                  disabled={disabled || !hasSource}
-                  onClick={continueWithoutAi}
-                >
-                  {tr('Continue without AI')}
-                </Button>
-              </Stack>
+            {fillIntro}
+          </Paper>
+        )}
+        {!id && (
+          <Paper
+            variant="outlined"
+            role="group"
+            aria-labelledby="job-fill-title"
+            sx={{
+              position: 'sticky',
+              bottom: 0,
+              zIndex: 2,
+              // Joins the card above (Stack spacing would split it).
+              mt: '0 !important',
+              px: { xs: 2, sm: 3 },
+              pt: 2,
+              pb: 'max(16px, env(safe-area-inset-bottom, 0px))',
+              borderTopLeftRadius: 0,
+              borderTopRightRadius: 0,
+            }}
+          >
+            <Stack spacing={1}>
               {extracting && (
                 <>
                   <LinearProgress aria-hidden="true" />
@@ -1793,20 +1807,49 @@ export function JobEditor() {
                   </Typography>
                 </>
               )}
-              {!hasSource && (
-                <Typography variant="body2" color="text.secondary">
-                  {tr('Add the job description above first.')}
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={1}
+                useFlexGap
+                sx={{ alignItems: { xs: 'stretch', sm: 'center' } }}
+              >
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  // Empty on desktop it still pushes the buttons right; hidden on mobile.
+                  sx={{
+                    flex: 1,
+                    minWidth: 0,
+                    display: { xs: hasSource ? 'none' : 'block', sm: 'block' },
+                  }}
+                >
+                  {!hasSource && tr('Add the job description above first.')}
                 </Typography>
-              )}
-              {error && step === 0 && (
-                <Alert severity="error">
-                  {error}{' '}
-                  {tr(
-                    'Your inputs are retained; you can edit fields manually.',
-                  )}
-                </Alert>
-              )}
-              {notice && <Alert severity="info">{notice}</Alert>}
+                <Stack
+                  direction={{ xs: 'column-reverse', sm: 'row' }}
+                  spacing={1}
+                  sx={{ alignItems: { xs: 'stretch', sm: 'center' } }}
+                >
+                  <Button
+                    endIcon={<ArrowForwardIcon />}
+                    type="button"
+                    variant="outlined"
+                    disabled={disabled || !hasSource}
+                    onClick={continueWithoutAi}
+                  >
+                    {tr('Continue without AI')}
+                  </Button>
+                  <Button
+                    startIcon={<AutoAwesomeIcon />}
+                    type="button"
+                    variant="contained"
+                    disabled={disabled || !hasSource}
+                    onClick={() => void extract()}
+                  >
+                    {extracting ? tr('Filling in…') : tr('Fill in with AI')}
+                  </Button>
+                </Stack>
+              </Stack>
             </Stack>
           </Paper>
         )}
@@ -1898,6 +1941,7 @@ export function JobEditor() {
         scrollKey={id ? view : String(step)}
         feedbackKey={error}
         active={!id && step === 1}
+        sticky={!id}
         actions={!id ? saveActions : null}
       >
         <Stack spacing={id ? 1.5 : 3} sx={{ minWidth: 0 }}>
