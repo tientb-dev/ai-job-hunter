@@ -146,6 +146,14 @@ test('Add Job warns before review, stays editable and preserves save-time 409 pr
   await screen.findByText(/This job URL is already saved/);
   expect(screen.getByLabelText(/Job title/)).toHaveValue('Manual draft title');
   expect(screen.getByLabelText('Original link')).toHaveValue(url);
-  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
-  expect(fetch.mock.calls[1]![1]!.method).toBe('POST');
+  // Re-attaching the link may re-run the debounced advisory lookup; only one save is sent.
+  const saves = () =>
+    fetch.mock.calls.filter(([, init]) => init?.method === 'POST');
+  await waitFor(() => expect(saves()).toHaveLength(1));
+  expect(
+    fetch.mock.calls.every(
+      ([path, init]) =>
+        init?.method === 'POST' || String(path).includes('/duplicate-url?'),
+    ),
+  ).toBe(true);
 });
