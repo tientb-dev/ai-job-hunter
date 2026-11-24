@@ -180,8 +180,10 @@ const htmlResponse = (body: string, status = 200) =>
   new Response(body, { status, headers: { 'Content-Type': 'text/html' } });
 test.each([
   '<html><head><title>Just a moment...</title></head><body></body></html>',
-  '<html><script src="/cdn-cgi/challenge-platform/h/b/orchestrate/jsch/v1"></script></html>',
-  '<html><script>window._cf_chl_opt={cType:"managed"}</script></html>',
+  // Managed challenge: the orchestrate script comes with its _cf_chl_opt config.
+  '<html><script>window._cf_chl_opt={cType:"managed"}</script><script src="/cdn-cgi/challenge-platform/h/b/orchestrate/chl_page/v1"></script></html>',
+  '<html><head><title>Attention Required! | Cloudflare</title></head></html>',
+  '<html><body><div id="cf-browser-verification"></div></body></html>',
 ])('HTTP 200 bot challenge page is reported as blocked: %#', async (page) => {
   const error = await previewJobUrl(url, transport(htmlResponse(page))).catch(
     (e: unknown) => e,
@@ -267,4 +269,14 @@ test('failures log platform, code and upstream status only', async () => {
   } finally {
     warn.mockRestore();
   }
+});
+
+test('a valid job page with Cloudflare background JSD script is imported, not blocked', async () => {
+  // Synthetic copy of the script Cloudflare injects into normal ITviec pages.
+  const jsd = `<script>(function(){var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=0000000000000000',a=document.createElement('script');a.src=u;document.head.appendChild(a);})();</script>`;
+  const page = html().replace('</html>', `${jsd}</html>`);
+  expect(page).toContain('/cdn-cgi/challenge-platform/');
+  const preview = await previewJobUrl(url, transport(htmlResponse(page)));
+  expect(preview.title).toBe(job.title);
+  expect(preview.sourceText).toContain('Build Java');
 });
