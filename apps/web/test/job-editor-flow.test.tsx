@@ -185,7 +185,7 @@ test('creation is import then review; extraction advances, back preserves edits,
   ).toBeDisabled();
   expect(
     screen.getByRole('button', { name: 'Continue without AI' }),
-  ).toHaveClass('MuiButton-text');
+  ).toHaveClass('MuiButton-outlined');
   expect(
     screen.queryByRole('button', { name: 'Confirm and save job' }),
   ).not.toBeInTheDocument();
@@ -199,7 +199,7 @@ test('creation is import then review; extraction advances, back preserves edits,
   );
   expect(
     screen.getByRole('button', { name: 'Continue without AI' }),
-  ).toHaveClass('MuiButton-text');
+  ).toHaveClass('MuiButton-outlined');
   fireEvent.click(screen.getByRole('button', { name: 'Fill in with AI' }));
   expect(
     await screen.findByRole('button', { name: 'Confirm and save job' }),
@@ -314,7 +314,7 @@ test('manual creation validates title and keeps fields after save failure', asyn
   mount();
   expect(
     screen.getByRole('button', { name: 'Continue without AI' }),
-  ).toHaveClass('MuiButton-text');
+  ).toHaveClass('MuiButton-outlined');
   const back = screen.getByRole('link', { name: 'Back to Jobs' });
   expect(back).toHaveClass('MuiButton-outlined');
   expect(back.querySelector('.MuiButton-startIcon svg')).toHaveAttribute(

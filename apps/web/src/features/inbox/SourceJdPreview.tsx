@@ -47,19 +47,20 @@ export function SourceJdPreview({
           spacing={1}
           sx={{ alignItems: 'center', flexWrap: 'wrap' }}
         >
-          <Typography>{tr('Preview source JD')}</Typography>
-          <Chip
-            size="small"
-            label={
-              loading
-                ? tr('Reading source…')
-                : error
-                  ? tr('Preview error')
-                  : text
-                    ? tr('Loaded')
+          <Typography>{tr('View job posting content')}</Typography>
+          {/* A loaded source needs no badge; only unusual states are labelled. */}
+          {(loading || error || !text) && (
+            <Chip
+              size="small"
+              label={
+                loading
+                  ? tr('Reading source…')
+                  : error
+                    ? tr('Preview error')
                     : tr('Empty')
-            }
-          />
+              }
+            />
+          )}
         </Stack>
       </AccordionSummary>
       <AccordionDetails>
