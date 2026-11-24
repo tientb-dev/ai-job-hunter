@@ -62,14 +62,14 @@ test('salary and experience are formatted for display in both languages', () => 
   expect(displaySalary('Thỏa thuận')).toBe('Thỏa thuận');
 });
 
-test('URL is the recommended method and lists the sources the server enables', async () => {
+test('URL is the primary method (no badge) and lists the sources the server enables', async () => {
   vi.mocked(loadLinkSources).mockResolvedValueOnce(['ITviec', 'TopCV']);
   vi.stubGlobal('fetch', vi.fn());
   mount();
   // One prominent link card holds the input and the primary Fetch JD action,
   // above "Other methods"; the bookmark is a collapsed fallback, not a card.
   const card = screen.getByRole('region', { name: 'Paste job URL' });
-  expect(within(card).getByText('Recommended')).toBeVisible();
+  expect(within(card).queryByText('Recommended')).toBeNull();
   expect(
     await within(card).findByText('Supported: ITviec · TopCV'),
   ).toBeVisible();

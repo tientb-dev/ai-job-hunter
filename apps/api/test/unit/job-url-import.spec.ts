@@ -1,4 +1,6 @@
 import { expect, jest, test } from '@jest/globals';
+import { Logger } from '@nestjs/common';
+import { UrlImportError } from '../../src/opportunities/job-url-errors.js';
 import {
   JobUrlImportService,
   parseJobPosting,
@@ -172,4 +174,97 @@ test('bounds stalled body reads and cancels the fixture stream', async () => {
     'timed out',
   );
   expect(cancel).toHaveBeenCalled();
+});
+
+const htmlResponse = (body: string, status = 200) =>
+  new Response(body, { status, headers: { 'Content-Type': 'text/html' } });
+test.each([
+  '<html><head><title>Just a moment...</title></head><body></body></html>',
+  '<html><script src="/cdn-cgi/challenge-platform/h/b/orchestrate/jsch/v1"></script></html>',
+  '<html><script>window._cf_chl_opt={cType:"managed"}</script></html>',
+])('HTTP 200 bot challenge page is reported as blocked: %#', async (page) => {
+  const error = await previewJobUrl(url, transport(htmlResponse(page))).catch(
+    (e: unknown) => e,
+  );
+  expect((error as UrlImportError).errorCode).toBe('URL_IMPORT_BLOCKED');
+  expect((error as UrlImportError).upstreamStatus).toBe(200);
+});
+test('a JD that mentions captcha, Cloudflare or bot checks is not a challenge', async () => {
+  const preview = await previewJobUrl(
+    url,
+    transport(
+      htmlResponse(
+        html({
+          ...job,
+          description:
+            '<p>Build CAPTCHA and bot-detection services behind Cloudflare. Just a moment of your time: attention required to detail.</p>',
+        }),
+      ),
+    ),
+  );
+  expect(preview.description).toContain('CAPTCHA');
+});
+test.each([
+  [403, 'URL_IMPORT_BLOCKED'],
+  [500, 'URL_IMPORT_UNAVAILABLE'],
+])(
+  'non-OK %s from a fixture transport has a stable code',
+  async (status, code) => {
+    const error = await previewJobUrl(
+      url,
+      transport(htmlResponse('x', status)),
+    ).catch((e: unknown) => e);
+    expect((error as UrlImportError).errorCode).toBe(code);
+  },
+);
+test('pages without one JobPosting report URL_IMPORT_NO_CONTENT', async () => {
+  const error = await previewJobUrl(
+    url,
+    transport(htmlResponse('<html><p>No structured data</p></html>')),
+  ).catch((e: unknown) => e);
+  expect((error as UrlImportError).errorCode).toBe('URL_IMPORT_NO_CONTENT');
+});
+test('ITviec tracking parameters are removed and functional parameters kept', () => {
+  expect(
+    validateJobUrl(
+      `${url}?utm_source=google&gclid=abc&lab_feature=preview&fbclid=x&UTM_Medium=cpc`,
+    ).url,
+  ).toBe(`${url}?lab_feature=preview`);
+  expect(validateJobUrl(`${url}?utm_source=google`).url).toBe(url);
+  expect(validateJobUrl(`${url}?click_source=x`).url).toBe(
+    `${url}?click_source=x`,
+  );
+  const topcv = 'https://www.topcv.vn/viec-lam/synthetic/1.html?utm_source=x';
+  expect(validateJobUrl(topcv).url).toBe(topcv);
+});
+test('cleaned ITviec URL is fetched and kept as the original link', async () => {
+  const source = transport(htmlResponse(html()));
+  const preview = await previewJobUrl(`${url}?gclid=abc`, source);
+  expect(source.get.mock.calls[0]![0]).toBe(url);
+  expect(preview.originalLink).toBe(url);
+});
+test('failures log platform, code and upstream status only', async () => {
+  const warn = jest.spyOn(Logger, 'warn').mockImplementation(() => undefined);
+  try {
+    const service = new JobUrlImportService(
+      transport(htmlResponse('blocked', 403)),
+    );
+    await expect(
+      service.preview(`${url}?utm_source=secret-campaign`),
+    ).rejects.toMatchObject({ errorCode: 'URL_IMPORT_BLOCKED' });
+    expect(warn).toHaveBeenCalledWith(
+      {
+        event: 'JOB_URL_FETCH_FAILED',
+        platform: 'ITviec',
+        errorCode: 'URL_IMPORT_BLOCKED',
+        upstreamStatus: 403,
+      },
+      'JobUrlImportService',
+    );
+    expect(JSON.stringify(warn.mock.calls)).not.toMatch(
+      /secret|it-jobs|blocked"/u,
+    );
+  } finally {
+    warn.mockRestore();
+  }
 });

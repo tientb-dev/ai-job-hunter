@@ -34,6 +34,7 @@ import {
   applyUrlJobPreview,
   canFetchJobUrl,
   urlImportError,
+  urlFetchFailure,
   urlImportHelp,
   type UrlJobPreview,
 } from './job-url-import';
@@ -77,6 +78,7 @@ import {
   importFields,
   importUpload,
   jobUrlInfo,
+  OpportunityRequestError,
   opportunityRequest,
   sources,
   statuses,
@@ -310,6 +312,7 @@ export function JobEditor() {
   const [sourceErrors, setSourceErrors] = useState<
     Partial<Record<ImportMethod, string>>
   >({});
+  const [urlRetry, setUrlRetry] = useState(false);
   const parseRequest = useRef<AbortController | null>(null);
   const parseGeneration = useRef(0);
   useEffect(
@@ -605,9 +608,20 @@ export function JobEditor() {
       );
     } catch (error) {
       if (generation !== sourceGeneration.current) return;
-      const text = urlImportError(message(error));
-      setError(text);
-      setSourceErrors((errors) => ({ ...errors, url: text }));
+      const platform = jobUrlInfo(requestedUrl).platform ?? tr('the job site');
+      // One inline error in the preview; local apply errors are already localised.
+      const failure =
+        error instanceof OpportunityRequestError
+          ? urlFetchFailure(
+              error.errorCode ??
+                (error.status >= 500 ? 'URL_IMPORT_UNREACHABLE' : undefined),
+              platform,
+            )
+          : error instanceof TypeError
+            ? urlFetchFailure('URL_IMPORT_UNREACHABLE', platform)
+            : { text: message(error), retry: false };
+      setUrlRetry(failure.retry);
+      setSourceErrors((errors) => ({ ...errors, url: failure.text }));
     } finally {
       if (generation === sourceGeneration.current) {
         urlFetchRunning.current = false;
@@ -1047,7 +1061,7 @@ export function JobEditor() {
   const importSources = (
     <Box hidden={!id && step !== 0}>
       <Stack spacing={3}>
-        {/* Recommended path: one prominent card with the link input and its action. */}
+        {/* Primary path: one prominent card with the link input and its action. */}
         <Paper
           variant="outlined"
           component="section"
@@ -1068,12 +1082,6 @@ export function JobEditor() {
                 <Typography id="url-import-title" variant="h6" component="h2">
                   {tr('Paste job URL')}
                 </Typography>
-                <Chip
-                  size="small"
-                  color="primary"
-                  variant="outlined"
-                  label={tr('Recommended')}
-                />
               </Stack>
               <Typography variant="body2" color="text.secondary">
                 {tr('Supported: {sources}', {
@@ -1160,6 +1168,41 @@ export function JobEditor() {
                           'Loading this source failed. See the request error above, or use Paste JD.',
                         )
                       : sourceErrors[importMethod]
+                  }
+                  errorActions={
+                    importMethod === 'url' &&
+                    sourceErrors.url && (
+                      <>
+                        {/* Only validated HTTPS job URLs on supported sites. */}
+                        {canFetchJobUrl(form.originalLink) && (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            href={form.originalLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {tr('Open job posting')}
+                          </Button>
+                        )}
+                        <Button
+                          size="small"
+                          variant="contained"
+                          onClick={() => switchMethod('paste')}
+                        >
+                          {tr('Paste JD')}
+                        </Button>
+                        {urlRetry && (
+                          <Button
+                            size="small"
+                            disabled={disabled}
+                            onClick={() => void fetchFromUrl()}
+                          >
+                            {tr('Try again')}
+                          </Button>
+                        )}
+                      </>
+                    )
                   }
                 />
               </>

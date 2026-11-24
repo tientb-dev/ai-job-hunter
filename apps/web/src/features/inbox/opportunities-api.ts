@@ -171,6 +171,16 @@ export const emptyOpportunity = (): OpportunityInput => ({
   followUpDate: null,
   followUpStatus: 'PENDING',
 });
+/** Carries the server's stable `errorCode` when the response has one. */
+export class OpportunityRequestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly errorCode?: string,
+  ) {
+    super(message);
+  }
+}
 export async function opportunityRequest<T>(
   path = '',
   init?: RequestInit,
@@ -188,15 +198,20 @@ export async function opportunityRequest<T>(
     let message = tr(
       'Could not save or load opportunities. Check the local API and retry.',
     );
+    let errorCode: string | undefined;
     if (response.status < 500) {
       try {
-        const body = (await response.json()) as { message?: unknown };
+        const body = (await response.json()) as {
+          message?: unknown;
+          errorCode?: unknown;
+        };
         if (typeof body.message === 'string') message = body.message;
+        if (typeof body.errorCode === 'string') errorCode = body.errorCode;
       } catch {
         /* Use the safe fallback. */
       }
     }
-    throw new Error(message);
+    throw new OpportunityRequestError(message, response.status, errorCode);
   }
   // Nest sends an empty 200 body when a handler returns null (e.g. no saved CV).
   const text = await response.text();

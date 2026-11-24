@@ -1,7 +1,8 @@
 import { expect, test, vi } from 'vitest';
-import { act, fireEvent, render, screen, waitFor } from './render';
+import { act, fireEvent, render, screen, waitFor, within } from './render';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { setLocale } from '../src/app/i18n';
 import { JobEditor } from '../src/features/inbox/JobEditor';
 import {
   emptyOpportunity,
@@ -215,12 +216,27 @@ test('busy fetch prevents overlap and blocked response preserves manual inputs',
   expect(fetch).toHaveBeenCalledTimes(1);
   release(
     Response.json(
-      { message: 'Job page access was blocked. Paste the JD instead.' },
+      {
+        errorCode: 'URL_IMPORT_BLOCKED',
+        message: 'The job site blocked automated access.',
+      },
       { status: 400 },
     ),
   );
-  expect(await screen.findByText(/Job page access was blocked/)).toBeVisible();
-  fireEvent.click(screen.getByRole('button', { name: /Paste JD/ }));
+  const alert = (
+    await screen.findByText(/Could not load the job posting from ITviec/)
+  ).closest('[role="alert"]') as HTMLElement;
+  expect(alert).toBeVisible();
+  expect(screen.queryByText(/blocked automated access/)).toBeNull();
+  // Blocks are not retried: only open-source and paste actions are offered.
+  expect(within(alert).queryByRole('button', { name: 'Try again' })).toBeNull();
+  expect(
+    within(alert).getByRole('link', { name: 'Open job posting' }),
+  ).toHaveAttribute('href', 'https://itviec.com/it-jobs/synthetic');
+  fireEvent.click(within(alert).getByRole('button', { name: 'Paste JD' }));
+  expect(screen.getByLabelText('Original Job URL (optional)')).toHaveValue(
+    'https://itviec.com/it-jobs/synthetic',
+  );
   expect(screen.getByLabelText('Recruitment post')).toHaveValue(
     'Original post',
   );
@@ -462,6 +478,7 @@ test('a source turned off on the server shows localised bookmark/paste guidance 
     vi.fn(async () =>
       Response.json(
         {
+          errorCode: 'URL_IMPORT_SOURCE_OFF',
           message:
             'TopCV link import is turned off on this server. Use the page-import bookmark or paste the JD.',
         },
@@ -545,4 +562,71 @@ test('Continue to Review stays disabled without JD content, even with a URL', ()
   });
   expect(next()).toBeEnabled();
   expect(screen.queryByText(/Add the JD first/)).not.toBeInTheDocument();
+});
+
+const failFetch = (body: Record<string, string>, status = 400) =>
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => Response.json(body, { status })),
+  );
+test('blocked fetch shows one localised inline error in Vietnamese', async () => {
+  setLocale('vi-VN');
+  failFetch({ errorCode: 'URL_IMPORT_BLOCKED', message: 'raw english' });
+  render(
+    <MemoryRouter>
+      <JobEditor />
+    </MemoryRouter>,
+  );
+  const link = 'https://www.topcv.vn/viec-lam/synthetic-brand-manager/1.html';
+  fireEvent.change(screen.getByLabelText('URL việc làm gốc (tùy chọn)'), {
+    target: { value: link },
+  });
+  await userEvent.click(screen.getByRole('button', { name: 'Tải JD' }));
+  const text =
+    'Không thể tự động tải nội dung tuyển dụng từ TopCV. Bạn vẫn có thể sao chép và dán nội dung để tiếp tục.';
+  expect(await screen.findAllByText(new RegExp(text))).toHaveLength(1);
+  expect(screen.queryByText(/raw english/)).toBeNull();
+  expect(
+    screen.getByRole('link', { name: 'Mở tin tuyển dụng' }),
+  ).toHaveAttribute('href', link);
+  expect(screen.queryByText('Đề xuất')).toBeNull();
+  // Editing the URL to anything unsupported removes the external link.
+  for (const unsafe of [
+    'javascript:alert(1)',
+    'http://www.topcv.vn/viec-lam/x/1.html',
+    'https://evil.example/viec-lam/x/1.html',
+    'https://user:pw@www.topcv.vn/viec-lam/x/1.html',
+  ]) {
+    fireEvent.change(screen.getByLabelText('URL việc làm gốc (tùy chọn)'), {
+      target: { value: unsafe },
+    });
+    expect(
+      screen.queryByRole('link', { name: 'Mở tin tuyển dụng' }),
+    ).toBeNull();
+  }
+});
+test.each([
+  ['URL_IMPORT_TIMEOUT', true],
+  ['URL_IMPORT_UNAVAILABLE', true],
+  ['URL_IMPORT_NOT_FOUND', false],
+  ['URL_IMPORT_SOMETHING_NEW', false],
+])('%s offers manual retry: %s', async (errorCode, retry) => {
+  failFetch({ errorCode, message: 'raw english' });
+  render(
+    <MemoryRouter>
+      <JobEditor />
+    </MemoryRouter>,
+  );
+  fireEvent.change(screen.getByLabelText('Original Job URL (optional)'), {
+    target: { value: 'https://itviec.com/it-jobs/synthetic' },
+  });
+  await userEvent.click(screen.getByRole('button', { name: 'Fetch JD' }));
+  await screen.findByRole('link', { name: 'Open job posting' });
+  expect(screen.queryByText(/raw english/)).toBeNull();
+  const again = screen.queryByRole('button', { name: 'Try again' });
+  expect(Boolean(again)).toBe(retry);
+  if (again) {
+    await userEvent.click(again);
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+  }
 });

@@ -1618,6 +1618,22 @@ export const VI_TEXT: Record<string, string> = {
   'Partly answers the question': 'Trả lời một phần câu hỏi',
   'Past interviews': 'Các buổi phỏng vấn trước',
   'Paste JD': 'Dán JD',
+  'Open job posting': 'Mở tin tuyển dụng',
+  'Could not load the job posting from {platform} automatically. You can still copy and paste its content to continue.':
+    'Không thể tự động tải nội dung tuyển dụng từ {platform}. Bạn vẫn có thể sao chép và dán nội dung để tiếp tục.',
+  'This job posting is no longer available on {platform}. Paste the JD if you have it.':
+    'Tin tuyển dụng này không còn trên {platform}. Hãy dán JD nếu bạn vẫn có nội dung.',
+  '{platform} took too long to respond. Try again or paste the JD.':
+    '{platform} phản hồi quá lâu. Hãy thử lại hoặc dán JD.',
+  '{platform} is temporarily unavailable. Try again later or paste the JD.':
+    '{platform} tạm thời không phản hồi. Hãy thử lại sau hoặc dán JD.',
+  'Another job link is still loading. Wait a moment, then try again.':
+    'Một liên kết khác đang được tải. Hãy đợi giây lát rồi thử lại.',
+  'This link is not a supported single job posting. Check the link or paste the JD.':
+    'Liên kết này không phải tin tuyển dụng được hỗ trợ. Hãy kiểm tra liên kết hoặc dán JD.',
+  'Could not read the job content from {platform}. You can copy and paste the JD to continue.':
+    'Không đọc được nội dung tuyển dụng từ {platform}. Bạn có thể sao chép và dán JD để tiếp tục.',
+  'the job site': 'trang tuyển dụng',
   'Paste the entire post, including contact details and links. Up to 12,000 characters. The original text is preserved when saved.':
     'Dán toàn bộ bài đăng, kể cả thông tin liên hệ và liên kết. Tối đa 12.000 ký tự. Văn bản gốc được giữ khi lưu.',
   'Paste the original JD. Whitespace is preserved; some characters count as two UTF-16 units.':
